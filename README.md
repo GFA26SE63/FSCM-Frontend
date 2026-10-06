@@ -62,9 +62,10 @@ The Vite development server normally starts at `http://localhost:5173`, which is
 ```text
 src/
 |-- config/          Runtime environment mapping
-|-- features/        Feature modules (currently a template boundary)
+|-- features/        Role-specific feature modules
 |-- lib/rbac/        Reserved client-side authorization conventions
 |-- services/api/    Shared API client
+|-- shared/          Cross-role UI, business components, types, and utilities
 |-- App.tsx          Current application entry screen
 `-- main.tsx         React bootstrap
 ```
