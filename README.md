@@ -1,73 +1,72 @@
-# React + TypeScript + Vite
+# FSCM Web Portal
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React and TypeScript client for the FSCM management portal. The planned portal serves Administrator, Operator, Warehouse Keeper, and Sales Manager workflows such as approvals, batch inventory, FEFO allocation review, picking oversight, retailer management, promotions, complaints, KPI reporting, and configuration.
 
-Currently, two official plugins are available:
+## Current status
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The project is an application skeleton. It currently renders the Vite starter screen and includes the shared environment and HTTP client setup; the planned portal workflows have not yet been implemented here.
 
-## React Compiler
+Use the repository architecture guidance before building features:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- [Architecture assessment](../.docs/architecture/repository-skeleton.md) for boundaries and conventions
 
-## Expanding the ESLint configuration
+## Stack
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- React 19 and TypeScript
+- Vite 8
+- React Router
+- Axios, Apollo Client, and TanStack Query for API integration
+- Zustand for client state
+- Recharts for dashboards
+- Tailwind CSS and Lucide icons
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Packages being present does not mean their related business integrations are complete.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Configuration
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Copy the committed environment template:
+
+```powershell
+Copy-Item .env.example .env
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Supported variables:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `VITE_API_BASE_URL` | `https://localhost:7027` | REST/API base URL |
+| `VITE_GRAPHQL_ENDPOINT` | `<API base URL>/graphql` | GraphQL endpoint |
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+`.env` is ignored by Git. Do not place production secrets in Vite variables because values bundled into a browser application are public.
+
+## Development
+
+```powershell
+npm ci
+npm run dev
 ```
+
+The Vite development server normally starts at `http://localhost:5173`, which is included in the backend example CORS configuration.
+
+## Scripts
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Vite development server with hot reload |
+| `npm run lint` | Run ESLint across the project |
+| `npm run build` | Type-check and create a production bundle in `dist/` |
+| `npm run preview` | Serve the production bundle locally |
+
+## Source layout
+
+```text
+src/
+|-- config/          Runtime environment mapping
+|-- features/        Feature modules (currently a template boundary)
+|-- lib/rbac/        Reserved client-side authorization conventions
+|-- services/api/    Shared API client
+|-- App.tsx          Current application entry screen
+`-- main.tsx         React bootstrap
+```
+
+Client-side route or component guards improve the user experience but never replace authorization checks in the backend.
