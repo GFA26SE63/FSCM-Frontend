@@ -1,5 +1,7 @@
 # FSCM Web Portal
 
+[![Frontend CI](https://github.com/GFA26SE63/FSCM-Frontend/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/GFA26SE63/FSCM-Frontend/actions/workflows/frontend-ci.yml)
+
 React and TypeScript client for the FSCM management portal. The planned portal serves Administrator, Operator, Warehouse Keeper, and Sales Manager workflows such as approvals, batch inventory, FEFO allocation review, picking oversight, retailer management, promotions, complaints, KPI reporting, and configuration.
 
 ## Current status
