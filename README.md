@@ -8,9 +8,12 @@ The portal is implemented as an interactive, responsive React feature slice back
 
 The current forms and state transitions are UI/domain simulations. Authentication, API persistence, real-time inventory locks, exports, evidence storage, and authoritative authorization remain integration work.
 
-Use the repository architecture guidance before building features:
+Cross-system architecture documentation is stored beside the local repositories under `FSCM/.docs` and `FSCM/diagram`.
 
-- [Architecture assessment](../.docs/architecture/repository-skeleton.md) for boundaries and conventions
+## Related repositories
+
+- [FSCM Backend](https://github.com/GFA26SE63/FSCM-Backend)
+- [FSCM Mobile](https://github.com/GFA26SE63/FSCM-Mobile)
 
 ## Stack
 
@@ -76,3 +79,7 @@ src/
 ```
 
 Client-side route or component guards improve the user experience but never replace authorization checks in the backend.
+
+## Continuous integration
+
+GitHub Actions installs locked dependencies, runs ESLint, and creates a production build for pushes and pull requests targeting `main` or `develop`. A separate workflow mirrors every GitHub branch to the `FSCM-Frontend` Azure Repo.
