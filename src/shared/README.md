@@ -3,7 +3,7 @@
 This directory is the home for React and TypeScript code reused by multiple FSCM roles or capabilities.
 
 - `ui/` contains design-system primitives with no business knowledge.
-- `components/` contains reusable business components such as order summaries, status badges, filters, tables, evidence viewers, and metric cards.
+- `components/` contains reusable business components such as page headers, filters, responsive data tables, detail grids, timelines, and metric cards.
 - `domain/` contains cross-role types and schemas for products, retailers, batches, orders, promotions, complaints, and notifications.
 - `lib/` contains framework-independent formatting, validation, and utility code.
 

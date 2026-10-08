@@ -4,7 +4,9 @@ React and TypeScript client for the FSCM management portal. The planned portal s
 
 ## Current status
 
-The project is an application skeleton. It currently renders the Vite starter screen and includes the shared environment and HTTP client setup; the planned portal workflows have not yet been implemented here.
+The portal is implemented as an interactive, responsive React feature slice backed by in-memory demonstration data. It includes role-aware navigation for Administrator, Operator, Warehouse Keeper, and Sales Manager; operational dashboards; reusable searchable data tables and detail dialogs; order approval, rejection, cancellation, promotion recalculation, FEFO allocation explanation, and generated picking visibility; plus views for debt, receipts, transfers, batches, near-expiry discounts, disposal, promotions, retailers, loyalty, Sales organization, product catalogs, warehouses, users, KPI, complaints, and system configuration.
+
+The current forms and state transitions are UI/domain simulations. Authentication, API persistence, real-time inventory locks, exports, evidence storage, and authoritative authorization remain integration work.
 
 Use the repository architecture guidance before building features:
 
@@ -62,11 +64,14 @@ The Vite development server normally starts at `http://localhost:5173`, which is
 ```text
 src/
 |-- config/          Runtime environment mapping
-|-- features/        Role-specific feature modules
+|-- features/portal/ Role-aware portal screens, state, navigation, and demo data
 |-- lib/rbac/        Reserved client-side authorization conventions
 |-- services/api/    Shared API client
-|-- shared/          Cross-role UI, business components, types, and utilities
-|-- App.tsx          Current application entry screen
+|-- shared/ui/       Reusable design-system primitives
+|-- shared/components/ Reusable tables, filters, metrics, details, and timelines
+|-- shared/domain/   Cross-feature TypeScript business contracts
+|-- shared/lib/      Formatting and presentation utilities
+|-- App.tsx          Portal application entry screen
 `-- main.tsx         React bootstrap
 ```
 
