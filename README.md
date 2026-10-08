@@ -84,4 +84,4 @@ Client-side route or component guards improve the user experience but never repl
 
 ## Continuous integration
 
-GitHub Actions installs locked dependencies, runs ESLint, and creates a production build for pushes and pull requests targeting `main` or `develop`. A separate workflow mirrors every GitHub branch to the `FSCM-Frontend` Azure Repo.
+GitHub Actions installs locked dependencies, runs ESLint, and creates a production build for pushes and pull requests on every branch. A separate workflow mirrors every GitHub branch to the `FSCM-Frontend` Azure Repo.
