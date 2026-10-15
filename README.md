@@ -13,7 +13,7 @@ npm run build               # tsc -b && vite build → dist/ (deploy Vercel)
 
 Đăng nhập mock: chọn vai trò, email demo (vd. `khoa.pm@fscm.local` – Admin), mật khẩu bất kỳ ≥ 6 ký tự. Sidebar có ô "Xem với vai trò (demo)" để đổi vai trò nhanh.
 
-Nối backend thật: `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=http://localhost:5080`, điền các biến `VITE_ENTRA_*`, cài `@azure/msal-browser` và lấy token theo hướng dẫn trong `src/shared/auth/entraConfig.ts`.
+Nối backend thật: `VITE_USE_MOCK=false`, cấu hình `VITE_API_BASE_URL`, `VITE_ENTRA_*` và `VITE_GOOGLE_CLIENT_ID`; backend cần đổi ID token tại `POST /api/v1/auth/external-login` thành JWT FSCM.
 
 ## Cấu trúc (feature-based)
 

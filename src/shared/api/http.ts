@@ -6,8 +6,9 @@ import { toApiError } from './errors';
 /**
  * The single axios instance. Every feature api.ts goes through it:
  *  - baseURL = VITE_API_BASE_URL + /api/v1
- *  - Authorization: Bearer <Entra access token>
+ *  - Authorization: Bearer <FSCM JWT>
  *  - errors are mapped from ProblemDetails to ApiError
+ * Provider ID tokens are exchanged during sign-in and are never attached to business API requests.
  * In mock mode (VITE_USE_MOCK=true) main.tsx installs the in-browser adapter from ./mock before rendering.
  */
 export const http = axios.create({
