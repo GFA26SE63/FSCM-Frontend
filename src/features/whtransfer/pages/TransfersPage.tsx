@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/shared/router/compat';
 import { Button, Card, DataTable, PageHeader, SimpleTable, StatusChip, type Column } from '@/shared/ui';
 import { formatCases, formatDate, statusLabel } from '@/shared/lib';
 import { useReceiveTransfer, useReplenishmentSuggestions, useTransfers } from '../hooks';

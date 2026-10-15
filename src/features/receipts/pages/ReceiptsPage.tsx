@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/shared/router/compat';
 import { Button, DataTable, PageHeader, StatusChip, type Column } from '@/shared/ui';
 import { formatCases, formatDateTime } from '@/shared/lib';
 import { useReceipts } from '../hooks';

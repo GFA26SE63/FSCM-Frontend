@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from '@/shared/router/compat';
 import { Callout, Card, Fields, PageHeader, QueryState, SimpleTable, StatusChip } from '@/shared/ui';
 import { formatDate, formatMoney, formatNumber } from '@/shared/lib';
 import { useProduct } from '../hooks';

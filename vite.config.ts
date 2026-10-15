@@ -6,10 +6,5 @@ export default defineConfig({
   plugins: [react()],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   server: { port: 5173 },
-  preview: { port: 4173 },
-  build: {
-    rollupOptions: {
-      output: { manualChunks: { react: ['react', 'react-dom', 'react-router-dom'], query: ['@tanstack/react-query', 'axios'], chart: ['chart.js', 'react-chartjs-2'] } }
-    }
-  }
+  preview: { port: 4173 }
 });

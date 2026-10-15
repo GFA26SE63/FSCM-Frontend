@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router-dom';
+import { useLocation } from '@/shared/router/compat';
 import { NotificationBell } from '@/features/notifications';
 import { APP_ROUTES } from '../routes';
 

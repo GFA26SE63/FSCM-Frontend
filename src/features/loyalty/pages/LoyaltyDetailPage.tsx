@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams } from '@/shared/router/compat';
 import { Card, Chip, Fields, PageHeader, QueryState, SimpleTable, StatusChip } from '@/shared/ui';
 import { formatDate, formatNumber } from '@/shared/lib';
 import { useRetailerLoyalty } from '../hooks';

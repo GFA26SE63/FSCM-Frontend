@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from '@/shared/router/compat';
 import { Button, Callout, Card, Chip, Fields, PageHeader, QueryState, SimpleTable, StatusChip } from '@/shared/ui';
 import { formatCases, formatDate, formatDateTime, formatKm, formatMoney, formatScore, paymentLabel } from '@/shared/lib';
 import { env } from '@/shared/lib';

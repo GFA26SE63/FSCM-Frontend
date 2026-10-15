@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from '@/shared/router/compat';
 import { Button, Callout, Card, Fields, Input, PageHeader, QueryState, SimpleTable, StatusChip, Tabs } from '@/shared/ui';
 import { formatDate, formatMoney, formatNumber } from '@/shared/lib';
 import { useRegistration, useRetailer, useRetailerLoyalty, useRetailerMlor, useRetailerReceivables, useSaveMlor } from '../hooks';

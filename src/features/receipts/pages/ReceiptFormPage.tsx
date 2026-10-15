@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/shared/router/compat';
 import { Button, Callout, Card, FormField, Input, PageHeader, Select } from '@/shared/ui';
 import { IdFormat } from '@/shared/lib';
 import { useCreateReceipt, useReceiptLookups } from '../hooks';

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { DEMO_ACCOUNTS, PORTAL_ROLES, roleLabel, type PortalRole } from '@/shared/auth/roles';
 import { env } from '@/shared/lib/env';

@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams } from '@/shared/router/compat';
 import { Callout, Card, Fields, PageHeader, QueryState, StatusChip } from '@/shared/ui';
 import { formatDateTime, formatNumber } from '@/shared/lib';
 import { useRedemption } from '../hooks';

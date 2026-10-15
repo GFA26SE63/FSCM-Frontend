@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Switch } from '@/shared/router/compat';
 import { RequireAuth, RequireRole } from '@/shared/auth/guards';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { AppLayout } from './layout/AppLayout';
@@ -21,31 +21,33 @@ function Home() {
 /** Route table: /login + the authenticated shell; every screen is wrapped in a role guard (SPEC §10). */
 export function AppRouter() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route
-        element={
-          <RequireAuth>
-            <AppLayout />
-          </RequireAuth>
-        }
-      >
-        <Route index element={<Home />} />
-        {APP_ROUTES.map((r) => {
-          const guard = (El: React.ComponentType) => (
-            <RequireRole roles={r.roles}>
-              <Suspense fallback={<Loading />}>
-                <El />
-              </Suspense>
-            </RequireRole>
-          );
-          return [
-            <Route key={r.key} path={r.key} element={guard(r.list)} />,
-            ...(r.sub ?? []).map((s) => <Route key={`${r.key}/${s.path}`} path={`${r.key}/${s.path}`} element={guard(s.element)} />),
-          ];
-        })}
-        <Route path="*" element={<NotFoundPage />} />
+    <Switch>
+      <Route path="/login" exact><LoginPage /></Route>
+      <Route path="/">
+        <RequireAuth>
+          <AppLayout>
+            <Switch>
+              <Route path="/" exact><Home /></Route>
+              {APP_ROUTES.flatMap((r) => {
+                const guard = (El: React.ComponentType) => (
+                  <RequireRole roles={r.roles}>
+                    <Suspense fallback={<Loading />}>
+                      <El />
+                    </Suspense>
+                  </RequireRole>
+                );
+                return [
+                  ...(r.sub ?? []).map((s) => (
+                    <Route key={`${r.key}/${s.path}`} path={`/${r.key}/${s.path}`} exact>{guard(s.element)}</Route>
+                  )),
+                  <Route key={r.key} path={`/${r.key}`} exact>{guard(r.list)}</Route>,
+                ];
+              })}
+              <Route><NotFoundPage /></Route>
+            </Switch>
+          </AppLayout>
+        </RequireAuth>
       </Route>
-    </Routes>
+    </Switch>
   );
 }

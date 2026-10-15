@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from '@/shared/router/compat';
 import { EmptyState } from '@/shared/ui';
 
 export function NotFoundPage() {

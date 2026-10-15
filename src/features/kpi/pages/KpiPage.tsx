@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/shared/router/compat';
 import { Button, Card, DataTable, PageHeader, SimpleTable, Stat, StatusChip, Tabs, type Column } from '@/shared/ui';
 import { formatMoney, formatNumber, statusLabel } from '@/shared/lib';
 import { useKpiSales, useProductRanking } from '../hooks';

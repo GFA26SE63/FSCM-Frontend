@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from '@/shared/router/compat';
 import { Button, Callout, Card, Fields, PageHeader, QueryState, StatusChip } from '@/shared/ui';
 import { formatDateTime } from '@/shared/lib';
 import { useComplaint } from '../hooks';

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation } from '@/shared/router/compat';
 import { useAuth } from './AuthContext';
 import type { PortalRole } from './roles';
 import { EmptyState } from '../ui/EmptyState';

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/shared/router/compat';
 import { Button, Callout, Card, Checkbox, FormField, Input, PageHeader, Select } from '@/shared/ui';
 import { addDays, toIsoDate } from '@/shared/lib';
 import { useCreatePromo, usePromoLookups } from '../hooks';

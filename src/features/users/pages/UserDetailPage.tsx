@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams } from '@/shared/router/compat';
 import { Button, Card, Fields, PageHeader, QueryState, StatusChip } from '@/shared/ui';
 import { formatDateTime } from '@/shared/lib';
 import { roleLabel } from '@/shared/auth/roles';

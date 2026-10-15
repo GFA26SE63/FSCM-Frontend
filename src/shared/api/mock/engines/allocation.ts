@@ -105,7 +105,7 @@ export function traceAllocation(input: AllocationInput): TraceResult {
 
     // B4 – greedy: take the best, recompute f_Q for the rest, ties by batch code
     let left = l.qty;
-    let pool = [...el];
+    const pool = [...el];
     let turn = 0;
     const b4: TraceLine['b4'] = [];
     const allocations: TraceLine['allocations'] = [];
@@ -125,7 +125,6 @@ export function traceAllocation(input: AllocationInput): TraceResult {
       allocations.push({ warehouseCode: c.b.warehouseCode, warehouseName: c.whName, sku: l.sku, batchCode: c.b.code, expiry: c.b.expiry, km: c.km, eta: c.eta, remainingDays: c.remain, qty: take, score: round3(c.S) });
     }
     pool.forEach((c) => b4.push({ turn: null, warehouseName: c.whName, batchCode: c.b.code, available: c.avail, need: 0, fQ: null, score: null, take: 0, left: 0 }));
-    pool = [];
     return { sku: l.sku, productName: p?.name ?? l.sku, qty: l.qty, shelfLifeDays: sl, m, mlorDays: need, b1, b2a, b2d, b3, b4, enough: left <= 0, allocated: l.qty - left, short: left, allocations };
   });
   return { ok: lines.every((x) => x.enough), lines };

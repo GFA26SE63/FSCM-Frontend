@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { PORTAL_ROLES, roleLabel, type PortalRole } from '@/shared/auth/roles';
 import { env } from '@/shared/lib/env';

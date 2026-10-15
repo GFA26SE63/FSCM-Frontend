@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/shared/router/compat';
 import { Button, Card, PageHeader, QueryState, SimpleTable, Stat, StatusChip } from '@/shared/ui';
 import { formatMoney, formatNumber } from '@/shared/lib';
 import { useDashboard } from '../hooks';

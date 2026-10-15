@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/shared/router/compat';
 import { Button, DataTable, PageHeader, StatusChip, type Column } from '@/shared/ui';
 import { formatDateTime, statusLabels } from '@/shared/lib';
 import { roleLabel } from '@/shared/auth/roles';

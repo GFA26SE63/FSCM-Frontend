@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/shared/router/compat';
 import { Button, Callout, Card, Checkbox, FormField, PageHeader, QueryState, Select, SimpleTable } from '@/shared/ui';
 import { formatCases, formatDate, formatMoney } from '@/shared/lib';
 import { useCreateDisposal, useDisposalCandidates } from '../hooks';

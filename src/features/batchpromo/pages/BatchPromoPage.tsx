@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/shared/router/compat';
 import { Button, Card, DataTable, PageHeader, SimpleTable, StatusChip, Tabs, type Column } from '@/shared/ui';
 import { formatDate, formatPercent, statusLabels } from '@/shared/lib';
 import { useBatchDiscounts, useDiscountSuggestions, useStopBatchDiscount } from '../hooks';

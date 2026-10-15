@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/shared/router/compat';
 import { Button, Card, DataTable, Fields, FormDialog, PageHeader, StatusChip, type Column } from '@/shared/ui';
 import { formatDate, formatMoney, formatNumber } from '@/shared/lib';
 import { useBalances, useProgram, useUpdateProgram } from '../hooks';

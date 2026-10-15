@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/shared/router/compat';
 import { Button, DataTable, PageHeader, Tabs, type Column } from '@/shared/ui';
 import { useAreas, useGroups } from '../hooks';
 import { AreaDialog, GroupDialog, TransferStaffDialog } from '../components/RegionDialogs';

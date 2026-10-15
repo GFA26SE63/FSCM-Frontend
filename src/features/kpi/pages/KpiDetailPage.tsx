@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams } from '@/shared/router/compat';
 import { Card, Fields, PageHeader, StatusChip } from '@/shared/ui';
 import { formatMoney } from '@/shared/lib';
 import { useKpiSales } from '../hooks';
