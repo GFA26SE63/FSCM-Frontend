@@ -1,14 +1,16 @@
-import { get, put } from '@/shared/api/http';
-import type { ConfigDraft, SystemSettings, TransitBand, TransitTable } from './types';
+import { get, post, put } from '@/shared/api/http';
+import type { ConfigDraft, PublishTransitTablePayload, SystemSettings, TransitTable } from './types';
 
 export const configApi = {
   settings: () => get<SystemSettings>('/settings'),
-  transit: () => get<TransitTable>('/transit-table'),
   saveSettings: (s: SystemSettings) => put<SystemSettings>('/settings', s),
-  saveTransit: (bands: TransitBand[]) => put<TransitTable>('/transit-table', { bands }),
-  /** One "Lưu cấu hình" click saves both resources (settings first, then the shared transit table). */
-  save: async (d: ConfigDraft) => {
-    await configApi.saveSettings(d.settings);
-    await configApi.saveTransit(d.bands);
-  },
+  save: async (d: ConfigDraft) => { await configApi.saveSettings(d.settings); },
+};
+
+export const transitApi = {
+  current: () => get<TransitTable>('/transit-tables/current'),
+  /** The backend returns a plain array here, not a paged envelope, so this is get not getAll. */
+  history: () => get<TransitTable[]>('/transit-tables/history'),
+  /** Publishing closes the current version and opens the next one; it never edits in place. */
+  publish: (payload: PublishTransitTablePayload) => post<TransitTable>('/transit-tables', payload),
 };

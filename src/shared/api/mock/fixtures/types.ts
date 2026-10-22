@@ -83,6 +83,28 @@ export interface DbKpiRow { name: string; group: string; before: number; after: 
 export interface DbNotification { id: string; title: string; body: string; createdAt: Iso; read: boolean; link: string | null }
 
 export interface TransitBand { fromKm: number; toKm: number; days: number; cost: number; scope: 'RetailerAndWarehouse' | 'WarehouseOnly' }
+
+/** Shared transit table version (F54). Distances in metres, durations in minutes, as the backend stores them. */
+export interface DbTransitTable {
+  id: string;
+  version: number;
+  maxServingDistanceMeters: number;
+  effectiveFrom: Iso;
+  effectiveTo: Iso | null;
+  isActive: boolean;
+  note: string | null;
+  createdByUserId: string;
+  createdAt: Iso;
+  updatedAt: Iso;
+  bands: {
+    id: string;
+    minDistanceMeters: number;
+    maxDistanceMeters: number;
+    handlingMinutes: number;
+    transitMinutes: number;
+    estimatedCostAmount: number;
+  }[];
+}
 export interface DbSettings {
   allocation: { wE: number; wD: number; wQ: number };
   dmaxRetailerKm: number; dmaxWarehouseKm: number;
@@ -98,7 +120,7 @@ export interface Db {
   retailerDist: Record<string, Record<string, number>>; whPairs: [string, string, number][];
   batches: DbBatch[]; receipts: DbReceipt[]; disposals: DbDisposal[]; transfers: DbTransfer[];
   velocity: Record<string, Record<string, [number, number, string][]>>;
-  vehicles: DbVehicle[]; drivers: DbDriver[]; transit: { validFrom: Iso; bands: TransitBand[] }; settings: DbSettings;
+  vehicles: DbVehicle[]; drivers: DbDriver[]; transit: { validFrom: Iso; bands: TransitBand[] }; transitTables: DbTransitTable[]; settings: DbSettings;
   orders: DbOrder[]; pickStatus: Record<string, 'NotPicked' | 'Picking' | 'Shipped'>;
   promotions: DbPromotion[]; batchDiscounts: DbBatchDiscount[];
   loyaltyProgram: DbLoyaltyProgram; loyalty: DbLoyaltyAccount[]; gifts: DbGift[]; redemptions: DbRedemption[];

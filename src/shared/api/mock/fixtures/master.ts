@@ -1,6 +1,6 @@
 import type { Db } from './types';
 
-type Master = Pick<Db, 'categories' | 'products' | 'warehouses' | 'areas' | 'groups' | 'salesStaff' | 'retailers' | 'registrations' | 'retailerMlor' | 'retailerDist' | 'whPairs' | 'velocity' | 'vehicles' | 'drivers' | 'transit' | 'settings' | 'users'>;
+type Master = Pick<Db, 'categories' | 'products' | 'warehouses' | 'areas' | 'groups' | 'salesStaff' | 'retailers' | 'registrations' | 'retailerMlor' | 'retailerDist' | 'whPairs' | 'velocity' | 'vehicles' | 'drivers' | 'transit' | 'transitTables' | 'settings' | 'users'>;
 
 const P = (sku: string, name: string, cat: string, pack: string, price: number, cost: number, sl: number, near: number, mlor: number) => ({
   sku, name, categoryCode: cat, packSpec: pack, basePrice: price, unitCost: cost, shelfLifeDays: sl, nearExpiryDays: near, defaultMlor: mlor,
@@ -106,6 +106,18 @@ export function masterData(): Master {
         { fromKm: 20, toKm: 40, days: 3, cost: 800000, scope: 'WarehouseOnly' },
       ],
     },
+    transitTables: [
+      {
+        id: 'tt-1', version: 1, maxServingDistanceMeters: 20000,
+        effectiveFrom: '2026-09-01', effectiveTo: null, isActive: true,
+        note: 'Bảng vận chuyển dùng chung ban đầu',
+        createdByUserId: 'mock-admin', createdAt: '2026-09-01', updatedAt: '2026-09-01',
+        bands: [
+          { id: 'tt-1-b0', minDistanceMeters: 0, maxDistanceMeters: 10000, handlingMinutes: 60, transitMinutes: 1440, estimatedCostAmount: 300000 },
+          { id: 'tt-1-b1', minDistanceMeters: 10000, maxDistanceMeters: 20000, handlingMinutes: 60, transitMinutes: 2880, estimatedCostAmount: 500000 },
+        ],
+      },
+    ],
     settings: {
       allocation: { wE: 0.5, wD: 0.3, wQ: 0.2 },
       dmaxRetailerKm: 20,
