@@ -16,6 +16,18 @@ export interface OrderSummary {
   termDays: number | null;
 }
 
+/**
+ * The MLOR the order froze, and where it came from. An Operator deciding whether to let an order
+ * into the run needs both: a retailer rule for this SKU, a rule for its category and the product
+ * default are different answers to "why that threshold", and only the first is the retailer's own.
+ */
+export interface OrderLineMlor {
+  sourceScope: 'RetailerProduct' | 'RetailerCategory' | 'ProductDefault';
+  minimumLifeRatio: number;
+  minimumLifeHours: number | null;
+  resolvedAt: string;
+}
+
 export interface OrderLine {
   no: number;
   sku: string;
@@ -26,6 +38,9 @@ export interface OrderLine {
   promotionPct: number;
   discount: number;
   lineTotal: number;
+  mlor: OrderLineMlor;
+  /** True until the 12:00 run picks batches; the figure above is indicative, not what is charged. */
+  finalPricePendingAllocation: boolean;
 }
 export interface OrderPromotion { no: number; code: string; name: string; detail: string; amount: number }
 

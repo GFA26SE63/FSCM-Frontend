@@ -83,6 +83,29 @@ mọi tầng có thể dùng shared/ui, shared/lib và shared/auth khi phù hợ
 
 Feature ↔ menu: dashboard · orders (chi tiết + **Giải thích phân bổ B1–B4** + chi phí giao ước tính) · debts (công nợ một phần, thu một lần) · picking · receipts · whtransfer · **rotation (Luân chuyển cận hạn: đề xuất, bảng điểm từng kho ứng viên, duyệt / sửa SL / bỏ qua)** · **fleet (Xe & người giao)** · batches · batchpromo · disposal · promos · retailers · loyalty · gifts · redeem · regions · categories · products (nháp / publish / inactive / clone) · warehouses · users (không tạo Admin) · kpi · complaints · config (trọng số phân bổ, trọng số luân chuyển, Dmax, **bảng vận chuyển dùng chung**, tỷ lệ điểm).
 
+## Contract FE ↔ BE: chỗ đã khớp và chỗ chưa
+
+Portal được dựng như prototype trên mock trước khi backend có; hai bên thiết kế độc lập. Đối chiếu
+toàn bộ lời gọi trong `features/*/api.ts` với bảng route backend (23/10/2026): **70/128 lời gọi
+chưa có route khớp**. Phần lớn là tính năng S2/S3 backend chưa làm, nhưng một phần là **lệch thiết
+kế** và sẽ gãy ngay khi tắt mock:
+
+| Portal gọi | Backend thực có |
+|---|---|
+| `GET /batches`, `/batches/{code}` | `GET /inventory`, `/inventory/batches/{batchId}` |
+| `POST /products/{sku}/clone` | *(không có)* — gần nhất là `/products/{id}/replacement` |
+| `GET /areas`, `/sales-staff` | `/regions`, `/sales-groups`, `/territory-assignments/sales` |
+| `GET /retailer-registrations` + approve/reject | `POST /retailers/{id}/submit-review`, `/review` |
+| `GET /retailers/{code}/mlor` | `GET /retailers/{id}/mlor-resolution` |
+| `PUT /retailers/{code}` | `PUT /retailers/{id}/declaration` |
+
+**Khóa định danh là lệch hệ thống nhất:** Portal địa chỉ hoá bằng mã nghiệp vụ (`DH-001024`,
+`SKU001`), backend bằng GUID. Mỗi màn nối API thật đều phải thêm `id` vào DTO và đổi route param —
+`orders` và `promos` đã làm, phần còn lại thì chưa.
+
+Khi sửa một feature cho khớp backend, **sửa cả mock theo shape thật** rồi mới đóng việc; mock trả
+shape cũ thì `tsc` vẫn xanh mà màn hình gãy lúc chạy.
+
 ## Lưu ý khi nối API thật
 
 Kiểu dữ liệu trong `features/*/types.ts` đang khớp với mock handler. Khi backend chạy, sinh type từ Swagger (`npx openapi-typescript http://localhost:5080/swagger/v1/swagger.json -o src/shared/api/schema.d.ts`) rồi đối chiếu từng feature; chỗ nào lệch thì sửa một phía cho thống nhất (ưu tiên giữ tên trường của backend).

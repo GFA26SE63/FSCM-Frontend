@@ -1,13 +1,13 @@
 import { db } from '../fixtures';
 import type { DbRegistration, DbRetailer } from '../fixtures/types';
 import { MockRouter, businessRule, notFound, paginate, validation } from '../router';
-import { areaName, nextSeq, product, requireRole } from './common';
+import { areaName, mockGuid, nextSeq, product, requireRole } from './common';
 import { mlorOf } from './orderView';
 import { stamp } from '../engines/clock';
 
 const potential = (fc: number, cap: number): 'A' | 'B' | 'C' => (fc >= 60_000_000 || cap >= 120 ? 'A' : fc >= 30_000_000 || cap >= 60 ? 'B' : 'C');
 
-const retailerDto = (r: DbRetailer) => ({ ...r, areaName: areaName(r.areaCode) });
+const retailerDto = (r: DbRetailer) => ({ id: mockGuid(r.code), ...r, areaName: areaName(r.areaCode) });
 const regDto = (x: DbRegistration) => ({ ...x, areaName: areaName(x.areaCode), potentialClass: potential(x.forecastRevenue, x.monthlyCapacity) });
 const find = (code: string) => db.retailers.find((r) => r.code === code) ?? (() => { throw notFound(`Retailer ${code}`); })();
 const findReg = (code: string) => db.registrations.find((r) => r.code === code) ?? (() => { throw notFound(`Khai báo ${code}`); })();

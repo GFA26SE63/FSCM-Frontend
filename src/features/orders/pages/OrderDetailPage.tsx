@@ -1,12 +1,19 @@
 import { useState } from 'react';
 import { useParams } from '@/shared/router/compat';
 import { Button, Callout, Card, Chip, Fields, PageHeader, QueryState, SimpleTable, StatusChip } from '@/shared/ui';
-import { formatCases, formatDate, formatDateTime, formatKm, formatMoney, formatScore, paymentLabel } from '@/shared/lib';
+import { formatCases, formatDate, formatDateTime, formatHours, formatKm, formatMoney, formatPercent, formatScore, paymentLabel } from '@/shared/lib';
 import { env } from '@/shared/lib';
 import { useConfirmReceipt, useOrder } from '../hooks';
 import { AllocationTraceDialog } from '../components/AllocationTraceDialog';
 import { OrderActions } from '../components/OrderActions';
-import type { OrderDetail } from '../types';
+import type { OrderDetail, OrderLineMlor } from '../types';
+
+/** Where the threshold came from. Only the first is a rule the retailer has for this SKU. */
+const MLOR_SOURCES: Record<OrderLineMlor['sourceScope'], string> = {
+  RetailerProduct: 'riêng SKU của retailer',
+  RetailerCategory: 'theo nhóm hàng',
+  ProductDefault: 'mặc định sản phẩm',
+};
 
 const allocationChip: Record<OrderDetail['allocationState'], string> = {
   Held: 'Đang tạm giữ', Reserved: 'Đã giữ (Reserved)', Dispatched: 'Đã xuất kho', Released: 'Đã trả hàng', Failed: 'Không đủ hàng',
@@ -71,7 +78,27 @@ function OrderBody({ o }: { o: OrderDetail }) {
                   { header: 'Đơn giá', align: 'right', cell: (l) => formatMoney(l.unitPrice) },
                   { header: 'SL (thùng)', align: 'right', cell: (l) => l.qty },
                   { header: 'Khuyến mãi', cell: (l) => (l.promotionCode ? <Chip tone="ok">{l.promotionCode} · {l.promotionPct}%</Chip> : '—') },
-                  { header: 'Thành tiền', align: 'right', cell: (l) => formatMoney(l.lineTotal) },
+                  {
+                    header: 'MLOR · nguồn',
+                    cell: (l) => (
+                      <span>
+                        {formatPercent(l.mlor.minimumLifeRatio * 100, 1)}
+                        {l.mlor.minimumLifeHours != null && <> · ≥ {formatHours(l.mlor.minimumLifeHours)}</>}
+                        <br />
+                        <span className="muted small">{MLOR_SOURCES[l.mlor.sourceScope]}</span>
+                      </span>
+                    ),
+                  },
+                  {
+                    header: 'Thành tiền',
+                    align: 'right',
+                    cell: (l) => (
+                      <span>
+                        {formatMoney(l.lineTotal)}
+                        {l.finalPricePendingAllocation && <><br /><span className="muted small">dự kiến</span></>}
+                      </span>
+                    ),
+                  },
                 ]}
               />
             </Card>

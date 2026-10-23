@@ -39,7 +39,7 @@ export function registerOrdering(r: MockRouter) {
         const o: DbOrder & { clientRequestId?: string } = {
           code, retailerCode: i.retailerCode, lines: i.lines, status: 'Pending', createdAt: i.createdAt ?? stamp(), salesName: i.salesName ?? 'Nguyễn Văn An', channel: 'Offline', syncedAt: stamp(), syncMode: 'Tự động',
           promoChanged: false, localDiscount: 0, paymentMethod: i.paymentMethod ?? 'COD', prepaidChannel: null, termDays: null, paidNote: 'Chưa thanh toán', reason: '', reviewer: '',
-          promoIds: db.promotions.filter((p) => p.status === 'Running').map((p) => p.code), heldBefore: {}, delivery: null, credit: null, archived: false, timeline: [], clientRequestId: i.clientRequestId,
+          promoIds: db.promotions.filter((p) => p.active).map((p) => p.code), heldBefore: {}, delivery: null, credit: null, archived: false, timeline: [], clientRequestId: i.clientRequestId,
         };
         db.orders.unshift(o);
         if (!traceOf(o).ok) { o.status = 'Rejected'; o.reason = 'Không đủ hàng khả dụng hợp lệ.'; push(o, 'Hệ thống tự động từ chối – không đủ hàng'); }

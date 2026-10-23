@@ -61,10 +61,17 @@ export interface DbOrder {
   delivery: DbDelivery | null; credit: DbCredit | null; archived: boolean; timeline: { at: Iso; label: string }[];
 }
 
+/**
+ * One promotion = one minimum quantity and one percentage, applied to the SKUs or categories it
+ * names. This mirrors the server: there is no per-SKU percentage inside one programme, and the
+ * minimum is checked per order line, not against an order-wide total.
+ */
 export interface DbPromotion {
-  code: string; name: string; type: 'PerSku' | 'Group'; validFrom: Iso; validTo: Iso; retailerCodes: string[] | null;
-  status: 'Running' | 'Paused' | 'Ended';
-  rules: { sku: string; minQty: number; discountPct: number }[]; groupSkus: string[]; groupMinQty: number; groupDiscountPct: number;
+  code: string; name: string; validFrom: Iso; validTo: Iso;
+  retailerCodes: string[] | null;
+  active: boolean;
+  minQty: number; discountPct: number;
+  skus: string[]; categoryCodes: string[];
 }
 export interface DbBatchDiscount { code: string; batchCode: string; discountPct: number; validFrom: Iso; validTo: Iso; createdBy: string; status: 'Active' | 'Ended' }
 
