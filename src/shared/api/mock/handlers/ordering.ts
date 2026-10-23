@@ -2,7 +2,7 @@ import { db } from '../fixtures';
 import type { DbOrder } from '../fixtures/types';
 import { MockRouter, businessRule, conflict, notFound, paginate, validation } from '../router';
 import { actor, actorLabel, nextSeq, order, orderById, requireRole, retailer } from './common';
-import { allocationTraceOf, orderDetail, orderSummary, pickingLists, pricingOf, traceOf } from './orderView';
+import { allocationRunOf, allocationTraceOf, decidePlanVersion, findRunOfVersion, planVersionsOf, orderDetail, orderSummary, pickingLists, pricingOf, traceOf } from './orderView';
 import { MOCK_TODAY, stamp } from '../engines/clock';
 import { addDays } from '../../../lib/dates';
 
@@ -49,6 +49,29 @@ export function registerOrdering(r: MockRouter) {
     };
   });
   r.get('/orders/:code', ({ params }) => orderDetail(order(params.code)));
+
+  r.get('/allocation-runs/by-date/:date', ({ params }) => allocationRunOf(params.date).run);
+  r.get('/allocation-runs/:runId/plan-versions', ({ params }) => planVersionsOf(params.runId));
+
+  r.post('/allocation-runs/plan-versions/:versionId/approve', (req) => {
+    requireRole(req, ['Admin']);
+    const current = planVersionsOf(findRunOfVersion(req.params.versionId))[0];
+    if (!current) throw notFound(`Phương án ${req.params.versionId}`);
+    if (current.status !== 'AwaitingApproval') throw conflict(`Phương án đang ${current.status}, không duyệt được.`);
+    decidePlanVersion(current.id, 'Approved', null, stamp());
+    return planVersionsOf(findRunOfVersion(req.params.versionId))[0];
+  });
+
+  r.post('/allocation-runs/plan-versions/:versionId/request-recalculation', (req) => {
+    requireRole(req, ['Admin']);
+    const reason = String((req.body as { reason?: string })?.reason ?? '').trim();
+    if (!reason) throw validation({ reason: ['Phải ghi lý do yêu cầu tính lại.'] });
+    const current = planVersionsOf(findRunOfVersion(req.params.versionId))[0];
+    if (!current) throw notFound(`Phương án ${req.params.versionId}`);
+    if (current.status !== 'AwaitingApproval') throw conflict(`Phương án đang ${current.status}, không yêu cầu tính lại được.`);
+    decidePlanVersion(current.id, 'RecalculationRequested', reason, stamp());
+    return planVersionsOf(findRunOfVersion(req.params.versionId))[0];
+  });
 
   r.get('/allocation-runs/orders/:id/trace', ({ params }) => allocationTraceOf(orderById(params.id)));
 
