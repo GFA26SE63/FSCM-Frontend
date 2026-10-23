@@ -29,6 +29,23 @@ một số endpoint vào "chưa có" trong khi backend đã có dưới tên kh�
 | Cổng API | `.env` → `VITE_API_BASE_URL=http://localhost:5080` | **5246** (theo `launchSettings.json`) |
 | Môi trường khi chạy API | chạy kèm `--no-launch-profile` → `Hosting environment: Production` → không nạp `appsettings.Development.json` → không có connection string → **mọi request 500** | chạy `--launch-profile http` (profile này set `ASPNETCORE_ENVIRONMENT=Development`) |
 
+### 0b. Tắt mock là không đăng nhập được
+
+Với `VITE_USE_MOCK=false`, màn login **chỉ còn SSO Microsoft / Google**. Entra chưa cấu hình nên
+không bấm được, và không có đường nhập email + mật khẩu — **trong khi backend có sẵn
+`POST /auth/login`** nhận email + mật khẩu và trả JWT (đã thử, `200`).
+
+Hệ quả: hiện **không ai trong nhóm kiểm được Portal với API thật qua giao diện**. Cách duy nhất là
+lấy token bằng `curl` rồi nhét vào `sessionStorage['fscm.portal.token']`.
+
+Cần một trong hai: thêm form email/mật khẩu vào màn login khi chạy dev, hoặc cấu hình Entra.
+
+### 0c. `/notifications` hỏng trên **mọi** màn
+
+Thanh menu gọi `GET /notifications` và `GET /notifications/badges` ở **mọi trang**, cả hai đều `404`.
+Đây không phải lỗi của một màn mà là hai request lỗi trên từng lần tải trang, nên khi dò lỗi màn khác
+sẽ thấy nhiễu. Xếp ở nhóm C (backend chưa có) nhưng nên xử lý sớm hơn vì phạm vi ảnh hưởng.
+
 ---
 
 ## 1. Nhóm A — route đã có, chỉ sai kiểu khóa (23 lời gọi)
