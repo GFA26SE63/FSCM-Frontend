@@ -85,23 +85,38 @@ Feature ↔ menu: dashboard · orders (chi tiết + **Giải thích phân bổ B
 
 ## Contract FE ↔ BE: chỗ đã khớp và chỗ chưa
 
-Portal được dựng như prototype trên mock trước khi backend có; hai bên thiết kế độc lập. Đối chiếu
-toàn bộ lời gọi trong `features/*/api.ts` với bảng route backend (23/10/2026): **70/128 lời gọi
-chưa có route khớp**. Phần lớn là tính năng S2/S3 backend chưa làm, nhưng một phần là **lệch thiết
-kế** và sẽ gãy ngay khi tắt mock:
+Portal được dựng như prototype trên mock trước khi backend có; hai bên thiết kế độc lập. Đo bằng
+cách bật API thật (Azure dev DB) rồi gọi **đúng đường dẫn và đúng loại giá trị** Portal gửi, không
+đăng nhập — `401` nghĩa là route khớp, `404` nghĩa là không (23/10/2026):
+
+| Kết quả | Số lời gọi |
+| --- | --- |
+| `401` — route khớp | 37 |
+| `404` — không khớp | **89** |
+| `405` — đúng đường, sai method | 2 |
+| **Tổng** | **128** |
+
+89 chỗ `404` chia làm ba nhóm, và chúng cần ba cách xử lý khác hẳn nhau:
+
+**A. Route có sẵn, chỉ sai kiểu khóa — 23 chỗ.** Portal gửi mã nghiệp vụ (`DH-001024`, `SKU001`),
+route backend ràng buộc `{id:guid}` nên không khớp. Gặp ở `orders` (7), `products` (4),
+`categories`, `warehouses`, `users`, `sales-groups`, `retailers`, `goods-receipts`, `promotions`.
+Sửa được cơ học: thêm `id` vào DTO, đổi route param, sửa mock theo. `orders` và `promos` đã làm.
+
+**B. Cùng nhóm tài nguyên nhưng khác tên — 6 chỗ.** Phải thống nhất tên với backend:
 
 | Portal gọi | Backend thực có |
-|---|---|
-| `GET /batches`, `/batches/{code}` | `GET /inventory`, `/inventory/batches/{batchId}` |
+| --- | --- |
 | `POST /products/{sku}/clone` | *(không có)* — gần nhất là `/products/{id}/replacement` |
-| `GET /areas`, `/sales-staff` | `/regions`, `/sales-groups`, `/territory-assignments/sales` |
-| `GET /retailer-registrations` + approve/reject | `POST /retailers/{id}/submit-review`, `/review` |
+| `POST /promotions/{code}/pause` | `POST /promotions/{id}/deactivate` |
 | `GET /retailers/{code}/mlor` | `GET /retailers/{id}/mlor-resolution` |
-| `PUT /retailers/{code}` | `PUT /retailers/{id}/declaration` |
+| `POST /picking-lists/{code}/scan`, `/ship` | luồng soạn hàng theo đợt, không theo mã phiếu |
+| `POST /batch-discounts/{code}/stop` | `POST /promotions/{id}/deactivate` |
 
-**Khóa định danh là lệch hệ thống nhất:** Portal địa chỉ hoá bằng mã nghiệp vụ (`DH-001024`,
-`SKU001`), backend bằng GUID. Mỗi màn nối API thật đều phải thêm `id` vào DTO và đổi route param —
-`orders` và `promos` đã làm, phần còn lại thì chưa.
+**C. Backend chưa có tính năng — 60 chỗ.** `dashboard`, `notifications`, `complaints`, `disposal`,
+`gifts`, `redeem`, `loyalty`, `rotation`, `whtransfer`, `kpi`, `fleet`, `/settings`, `/areas`,
+`/sales-staff`, `/retailer-registrations`. Phần lớn là S2/S3 chưa làm — **không phải lỗi**, nhưng
+cũng có nghĩa là các màn đó mới chỉ chạy được trên mock.
 
 Khi sửa một feature cho khớp backend, **sửa cả mock theo shape thật** rồi mới đóng việc; mock trả
 shape cũ thì `tsc` vẫn xanh mà màn hình gãy lúc chạy.
