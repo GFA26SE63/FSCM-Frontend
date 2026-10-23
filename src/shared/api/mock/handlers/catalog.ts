@@ -36,7 +36,8 @@ function readProduct(body: Record<string, unknown>) {
 }
 
 export function registerCatalog(r: MockRouter) {
-  r.get('/categories', ({ query }) => paginate(db.categories.map(categoryDto), query, (c) => `${c.code} ${c.name} ${c.description}`));
+  // Plain array on the real API too; /products stays paged.
+  r.get('/categories', () => db.categories.map(categoryDto));
   r.get('/categories/:code', ({ params }) => {
     const c = db.categories.find((x) => x.code === params.code) ?? (() => { throw notFound(`Danh mục ${params.code}`); })();
     return { ...categoryDto(c), products: db.products.filter((p) => p.categoryCode === c.code).map(productSummary) };

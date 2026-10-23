@@ -35,7 +35,8 @@ const discountDto = (d: DbBatchDiscount) => {
 };
 
 export function registerPricing(r: MockRouter) {
-  r.get('/promotions', ({ query }) => paginate(db.promotions.map(promoDto), query, (p) => `${p.code} ${p.name}`));
+  // The real API returns a plain array here, not a paged envelope.
+  r.get('/promotions', () => db.promotions.map(promoDto));
   r.get('/promotions/:id', ({ params }) => promoDto(findPromo(params.id)));
   r.post('/promotions', ({ body }) => {
     const errors: Record<string, string[]> = {};

@@ -118,6 +118,17 @@ Sửa được cơ học: thêm `id` vào DTO, đổi route param, sửa mock th
 `/sales-staff`, `/retailer-registrations`. Phần lớn là S2/S3 chưa làm — **không phải lỗi**, nhưng
 cũng có nghĩa là các màn đó mới chỉ chạy được trên mock.
 
+**Danh sách: mảng thuần hay `{ items }`?** Backend không nhất quán, nên mỗi lời gọi phải chọn đúng
+helper. Đo trên API đang chạy (23/10/2026):
+
+| Trả **mảng thuần** → dùng `get<T[]>` | Trả **`{ items }`** → dùng `getAll<T>` |
+| --- | --- |
+| `/promotions`, `/categories`, `/warehouses`, `/regions`, `/sales-groups`, `/inventory`, `/goods-receipts`, `/transit-tables/history` | `/products`, `/retailers`, `/users`, `/orders` |
+
+Dùng `getAll` cho một endpoint trả mảng thuần thì nó đọc `.items` của mảng, nhận `undefined`, và màn
+hình **rỗng không báo lỗi gì**. Đây là lỗi đã xảy ra hai lần (lịch sử bảng vận chuyển, rồi khuyến
+mãi), nên kiểm shape thật trước khi tin `tsc`.
+
 Khi sửa một feature cho khớp backend, **sửa cả mock theo shape thật** rồi mới đóng việc; mock trả
 shape cũ thì `tsc` vẫn xanh mà màn hình gãy lúc chạy.
 
