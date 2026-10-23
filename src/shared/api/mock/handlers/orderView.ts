@@ -100,7 +100,7 @@ export function orderDetail(o: DbOrder) {
       return {
         ...l,
         mlor: {
-          sourceScope: own != null ? 'RetailerProduct' : 'ProductDefault',
+          sourceScope: own != null ? 'Sku' : 'Default',
           minimumLifeRatio: ratio,
           minimumLifeHours: Math.round(ratio * product(l.sku).shelfLifeDays * 24),
           resolvedAt: o.createdAt,

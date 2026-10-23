@@ -22,7 +22,13 @@ export interface OrderSummary {
  * default are different answers to "why that threshold", and only the first is the retailer's own.
  */
 export interface OrderLineMlor {
-  sourceScope: 'RetailerProduct' | 'RetailerCategory' | 'ProductDefault';
+  /**
+   * The order side spells these `Sku` / `Category` / `Default` (SALES_ORDER_LINE.MlorSourceScope).
+   * The allocation run side spells the same three `RetailerProduct` / `RetailerCategory` /
+   * `ProductDefault`. Two vocabularies for one concept, so do not reuse either set on the other
+   * screen: the label simply comes out blank.
+   */
+  sourceScope: 'Sku' | 'Category' | 'Default';
   minimumLifeRatio: number;
   minimumLifeHours: number | null;
   resolvedAt: string;

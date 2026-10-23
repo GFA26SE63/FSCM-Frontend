@@ -10,9 +10,9 @@ import type { OrderDetail, OrderLineMlor } from '../types';
 
 /** Where the threshold came from. Only the first is a rule the retailer has for this SKU. */
 const MLOR_SOURCES: Record<OrderLineMlor['sourceScope'], string> = {
-  RetailerProduct: 'riêng SKU của retailer',
-  RetailerCategory: 'theo nhóm hàng',
-  ProductDefault: 'mặc định sản phẩm',
+  Sku: 'riêng SKU của retailer',
+  Category: 'theo nhóm hàng của retailer',
+  Default: 'mặc định sản phẩm',
 };
 
 const allocationChip: Record<OrderDetail['allocationState'], string> = {
@@ -85,7 +85,7 @@ function OrderBody({ o }: { o: OrderDetail }) {
                         {formatPercent(l.mlor.minimumLifeRatio * 100, 1)}
                         {l.mlor.minimumLifeHours != null && <> · ≥ {formatHours(l.mlor.minimumLifeHours)}</>}
                         <br />
-                        <span className="muted small">{MLOR_SOURCES[l.mlor.sourceScope]}</span>
+                        <span className="muted small">{MLOR_SOURCES[l.mlor.sourceScope] ?? l.mlor.sourceScope}</span>
                       </span>
                     ),
                   },
