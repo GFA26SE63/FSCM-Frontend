@@ -83,6 +83,14 @@ mọi tầng có thể dùng shared/ui, shared/lib và shared/auth khi phù hợ
 
 Feature ↔ menu: dashboard · orders (chi tiết + **Giải thích phân bổ B1–B4** + chi phí giao ước tính) · debts (công nợ một phần, thu một lần) · picking · receipts · whtransfer · **rotation (Luân chuyển cận hạn: đề xuất, bảng điểm từng kho ứng viên, duyệt / sửa SL / bỏ qua)** · **fleet (Xe & người giao)** · batches · batchpromo · disposal · promos · retailers · loyalty · gifts · redeem · regions · categories · products (nháp / publish / inactive / clone) · warehouses · users (không tạo Admin) · kpi · complaints · config (trọng số phân bổ, trọng số luân chuyển, Dmax, **bảng vận chuyển dùng chung**, tỷ lệ điểm).
 
+## Lệch contract Portal ↔ Backend
+
+Portal dựng trên mock trước khi backend có, nên hai bên đặt tên và chọn khóa độc lập. Đo ngày
+23/10/2026 bằng cách gọi API thật: **89/128 lời gọi trong `features/*/api.ts` trả `404`**.
+
+Danh sách đầy đủ từng chỗ, chia theo cách xử lý (sai kiểu khóa / khác tên / backend chưa có), cùng
+bẫy "mảng thuần vs `{ items }`": [docs/contract-gaps.md](docs/contract-gaps.md).
+
 ## Lưu ý khi nối API thật
 
 Kiểu dữ liệu trong `features/*/types.ts` đang khớp với mock handler. Khi backend chạy, sinh type từ Swagger (`npx openapi-typescript http://localhost:5080/swagger/v1/swagger.json -o src/shared/api/schema.d.ts`) rồi đối chiếu từng feature; chỗ nào lệch thì sửa một phía cho thống nhất (ưu tiên giữ tên trường của backend).
