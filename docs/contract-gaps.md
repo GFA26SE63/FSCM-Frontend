@@ -46,6 +46,60 @@ Thanh menu gọi `GET /notifications` và `GET /notifications/badges` ở **mọ
 Đây không phải lỗi của một màn mà là hai request lỗi trên từng lần tải trang, nên khi dò lỗi màn khác
 sẽ thấy nhiễu. Xếp ở nhóm C (backend chưa có) nhưng nên xử lý sớm hơn vì phạm vi ảnh hưởng.
 
+### 0d. DTO của đơn hàng khác hẳn nhau — việc lớn nhất của nhóm A
+
+Đo bằng cách gọi `GET /orders/{id}` thật rồi so với `OrderSummary` + `OrderDetail` trong
+`features/orders/types.ts`: **29 trường Portal đọc không hề tồn tại trong payload thật**, và payload
+thật có ~19 trường Portal không dùng. Lệch từ những cái cơ bản nhất:
+
+| Portal đọc | API thật trả |
+| --- | --- |
+| `code` | `orderCode` |
+| `total`, `finalPrice` | `finalAmount` |
+| `discount` | `discountAmount` |
+| `timeline` | `history` |
+| `rejectReason` | `rejectionReason` |
+| `promotions`, `allocations`, `pickingLists`, `delivery`, `receivable`, `loyalty`, `salesName`, `channel`, `syncedAt`, `termNdays`… | *(không có)* |
+
+Hệ quả cụ thể: màn chi tiết đơn **crash trắng trang** với API thật —
+`Cannot read properties of undefined (reading 'length')` tại `OrderDetailPage.tsx:107`
+(`o.promotions.length`).
+
+Nên **nhóm A không phải chỉ "đổi khoá"** cho phần `orders`. Thêm `id` vào DTO là chưa đủ; phải ánh xạ
+lại gần như toàn bộ `OrderSummary`/`OrderDetail` theo `OrderResult` của backend. Đây là phần việc nặng
+nhất trong toàn bộ tài liệu này.
+
+### 0e. Lỗi dữ liệu + lỗi code: `GET /orders` trả 500
+
+`GET /api/v1/orders` **trả 500 trên DB dev**, nên danh sách đơn không tải được gì cả.
+
+```
+System.InvalidOperationException: Sequence contains more than one matching element
+  at OrderStore.LoadAsync  (src/FSCM.Persistence/Orders/OrderStore.cs:295)
+```
+
+Dòng 298: `promotionSnapshots.SingleOrDefault(item => item.SalesOrderLineId == line.Id)`.
+
+Nguyên nhân: đơn **DH-001031** có **hai dòng `ORDER_PROMOTION` giống hệt nhau** cho cùng một dòng đơn
+và cùng một promotion (`SalesOrderLineId = 4cf6fe0b-0c18-4e76-85a0-2ac5e54656a5`, cùng `PromotionId`,
+cùng `AppliedAt`, cùng `DiscountAmount`) — bị chèn trùng.
+
+Và schema cho phép điều đó: `IX_ORDER_PROMOTION_SalesOrderLineId` là index **không unique**. Code giả
+định tối đa một bản ghi mỗi dòng, schema thì không bắt buộc.
+
+Cần cả hai: xoá dòng trùng trong DB, **và** thêm unique index trên `(SalesOrderLineId, PromotionId)`
+để nó không tái diễn. Một đơn hỏng đang làm sập cả endpoint danh sách, nên cân nhắc đọc bằng
+`FirstOrDefault` để một bản ghi lỗi chỉ ảnh hưởng đúng đơn đó.
+
+### 0f. Hai từ vựng cho cùng một khái niệm "nguồn MLOR"
+
+| Nơi | Giá trị |
+| --- | --- |
+| `SALES_ORDER_LINE.MlorSourceScope` (phía đơn) | `Sku` · `Category` · `Default` |
+| `MlorSources` (phía đợt phân bổ) | `RetailerProduct` · `RetailerCategory` · `ProductDefault` |
+
+Dùng nhầm bộ này cho màn kia thì nhãn ra **rỗng, không báo lỗi**. Đã dính một lần ở F36-FE.
+
 ---
 
 ## 1. Nhóm A — route đã có, chỉ sai kiểu khóa (23 lời gọi)
