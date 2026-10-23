@@ -1,5 +1,7 @@
 import { db } from '../fixtures';
-import type { DbDriver, DbVehicle } from '../fixtures/types';
+import type { DbDriver, DbTransitTable, DbVehicle } from '../fixtures/types';
+
+type MockTransitBand = DbTransitTable['bands'][number];
 import { MockRouter, notFound, paginate, validation } from '../router';
 import { warehouseName } from './common';
 import { quoteTransit } from '../engines/transit';
@@ -14,19 +16,66 @@ const findDriver = (code: string) => db.drivers.find((d) => d.code === code) ?? 
 const PLATE = /^\d{2}[A-Z]{1,2}-?\d{3}\.?\d{2}$/;
 const PHONE = /^0\d{9}$/;
 
+const currentTransitTable = () =>
+  db.transitTables.find((t) => t.isActive) ?? db.transitTables[db.transitTables.length - 1];
+
+/**
+ * The allocation, rotation and order-view engines still read the km/day band shape, so keep it in
+ * step with whichever table version is current.
+ */
+const syncLegacyBands = (table: DbTransitTable) => {
+  db.transit = {
+    validFrom: table.effectiveFrom.slice(0, 10),
+    bands: table.bands.map((b) => ({
+      fromKm: b.minDistanceMeters / 1000,
+      toKm: b.maxDistanceMeters / 1000,
+      days: Math.max(1, Math.ceil((b.handlingMinutes + b.transitMinutes) / 1440)),
+      cost: b.estimatedCostAmount,
+      scope: 'RetailerAndWarehouse' as const,
+    })),
+  };
+};
+
 export function registerLogistics(r: MockRouter) {
-  // ---- shared transit rule table (CR-02) ----
-  r.get('/transit-table', () => ({ validFrom: db.transit.validFrom, dmaxRetailerKm: db.settings.dmaxRetailerKm, dmaxWarehouseKm: db.settings.dmaxWarehouseKm, bands: db.transit.bands }));
-  r.put('/transit-table', ({ body }) => {
-    const bands = (body?.bands ?? []) as typeof db.transit.bands;
+  // ---- shared transit table (F54): versioned, one table for every warehouse ----
+  r.get('/transit-tables/current', () => currentTransitTable());
+  r.get('/transit-tables/history', () => db.transitTables.slice().sort((a, b) => b.version - a.version));
+  r.post('/transit-tables', ({ body }) => {
+    const bands = (body?.bands ?? []) as MockTransitBand[];
+    const serving = Number(body?.maxServingDistanceMeters);
+    const effectiveFrom = String(body?.effectiveFrom ?? '');
+    const current = currentTransitTable();
     const errors: Record<string, string[]> = {};
-    bands.forEach((b, i) => {
-      if (!(Number(b.days) > 0)) errors[`days${i}`] = ['Số ngày phải lớn hơn 0.'];
-      if (!(Number(b.cost) >= 0)) errors[`cost${i}`] = ['Chi phí không hợp lệ.'];
+    if (!(serving > 0)) errors['maxServingDistanceMeters'] = ['Bán kính phục vụ phải lớn hơn 0.'];
+    if (!effectiveFrom) errors['effectiveFrom'] = ['Thiếu ngày hiệu lực.'];
+    else if (effectiveFrom <= current.effectiveFrom) errors['effectiveFrom'] = ['Ngày hiệu lực phải sau phiên bản hiện tại.'];
+    if (bands.length === 0) errors['bands'] = ['Cần ít nhất một khoảng km.'];
+    const ordered = bands.slice().sort((a, b) => a.minDistanceMeters - b.minDistanceMeters);
+    ordered.forEach((b, i) => {
+      if (b.maxDistanceMeters <= b.minDistanceMeters) errors[`bands${i}`] = ['Km kết thúc phải lớn hơn km bắt đầu.'];
+      if (i === 0 && b.minDistanceMeters !== 0) errors['bands0'] = ['Khoảng đầu tiên phải bắt đầu từ 0.'];
+      if (i > 0 && b.minDistanceMeters !== ordered[i - 1].maxDistanceMeters) errors[`bands${i}`] = ['Các khoảng phải nối liền nhau, không hở và không chồng.'];
     });
     if (Object.keys(errors).length) throw validation(errors);
-    db.transit = { validFrom: MOCK_TODAY, bands: bands.map((b, i) => ({ ...db.transit.bands[i], days: Number(b.days), cost: Number(b.cost) })) };
-    return { validFrom: db.transit.validFrom, bands: db.transit.bands };
+
+    current.isActive = false;
+    current.effectiveTo = effectiveFrom;
+    const published = {
+      id: `tt-${db.transitTables.length + 1}`,
+      version: current.version + 1,
+      maxServingDistanceMeters: serving,
+      effectiveFrom,
+      effectiveTo: null as string | null,
+      isActive: true,
+      note: (body?.note as string | null) ?? null,
+      createdByUserId: 'mock-admin',
+      createdAt: MOCK_TODAY,
+      updatedAt: MOCK_TODAY,
+      bands: ordered.map((b, i) => ({ ...b, id: `tt-${db.transitTables.length + 1}-b${i}` })),
+    };
+    db.transitTables.push(published);
+    syncLegacyBands(published);
+    return published;
   });
   r.get('/transit/quote', ({ query }) => {
     const purpose = query.purpose === 'warehouse' ? 'warehouse' : 'retailer';
