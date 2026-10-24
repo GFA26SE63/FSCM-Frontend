@@ -210,3 +210,187 @@ export function allocationTraceOf(o: DbOrder) {
     }),
   };
 }
+
+/**
+ * Composes one 12:00 run for a business date out of the mock orders, so the approval screen has
+ * something to render. The real run snapshots a shared pool at the cutoff; this reuses each order's
+ * own trace, which is close enough to show the shape and never claims to be the engine.
+ */
+export function allocationRunOf(businessDate: string) {
+  const orders = db.orders
+    .filter((o) => !o.archived)
+    .slice()
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.code.localeCompare(b.code));
+
+  const runId = mockGuid(`run-${businessDate}`);
+  const lineId = (code: string, sku: string) => mockGuid(`${code}-${sku}-run`);
+
+  return {
+    run: {
+      id: runId,
+      runCode: `PB-${businessDate.replace(/-/g, '')}-01`,
+      businessDate,
+      cutoffAt: `${businessDate}T12:00:00+07:00`,
+      status: 'AwaitingApproval',
+      settings: {
+        shelfLifeWeight: db.settings.allocation.wE,
+        distanceWeight: db.settings.allocation.wD,
+        coverageWeight: db.settings.allocation.wQ,
+        maxServingDistanceMeters: db.settings.dmaxRetailerKm * 1000,
+      },
+      transitTableVersion: 1,
+      etaScheduleVersion: 1,
+      orderCount: orders.length,
+      failureReason: null,
+      startedAt: `${businessDate}T12:00:00+07:00`,
+      snapshotCompletedAt: `${businessDate}T12:00:05+07:00`,
+      completedAt: `${businessDate}T12:01:00+07:00`,
+      version: 1,
+      orders: orders.map((o, index) => {
+        const trace = traceOf(o);
+        return {
+          id: mockGuid(`${o.code}-run`),
+          salesOrderId: mockGuid(o.code),
+          orderCode: o.code,
+          retailerId: mockGuid(o.retailerCode),
+          acceptedAt: o.createdAt,
+          deliveryDeadline: null,
+          priorityRank: index + 1,
+          status: trace.ok ? 'Fulfilled' : 'Short',
+          shortageReason: trace.ok
+            ? null
+            : trace.lines
+                .map((l, i) => (l.enough ? null : `Dòng ${i + 1} (${l.sku}) thiếu ${l.short} trên ${l.qty}.`))
+                .filter(Boolean)[0] ?? null,
+          lines: trace.lines.map((l, i) => ({
+            id: lineId(o.code, l.sku),
+            salesOrderLineId: mockGuid(`${o.code}-${l.sku}`),
+            productId: mockGuid(l.sku),
+            sku: l.sku,
+            lineNumber: i + 1,
+            orderedQuantity: l.qty,
+            totalShelfLifeHours: l.shelfLifeDays * 24,
+            effectiveMlorRatio: l.m,
+            mlorSource: db.retailerMlor[o.retailerCode]?.[l.sku] != null ? 'RetailerProduct' : 'ProductDefault',
+            baseNetUnitPrice: product(l.sku).basePrice,
+            allocatedQuantity: l.allocated,
+          })),
+        };
+      }),
+    },
+    orders,
+    runId,
+    lineId,
+  };
+}
+
+/** The single proposal for that run: every chosen batch, and the price of each. */
+/**
+ * What an Admin has decided about a plan version in this browser session. The real server stores it;
+ * the mock keeps it in memory so approving once is visible until the page is reloaded.
+ */
+const planDecisions = new Map<string, { status: string; approvedAt: string | null; reason: string | null }>();
+
+export function decidePlanVersion(versionId: string, status: string, reason: string | null, now: string) {
+  planDecisions.set(versionId, { status, approvedAt: status === 'Approved' ? now : null, reason });
+}
+
+/**
+ * The run identifier is a hash of its business date, so it cannot be read backwards. The mock scans
+ * a bounded window of dates for the one that produces this id; the real server simply looks it up.
+ */
+function businessDateOfRun(runId: string): string | null {
+  const start = new Date(`${MOCK_TODAY}T00:00:00Z`).getTime();
+  for (let offset = -120; offset <= 120; offset++) {
+    const date = new Date(start + offset * 86_400_000).toISOString().slice(0, 10);
+    if (mockGuid(`run-${date}`) === runId) return date;
+  }
+  return null;
+}
+
+/** Plan version ids are hashed from the business date too, so the same bounded scan finds the run. */
+export function findRunOfVersion(versionId: string): string {
+  const start = new Date(`${MOCK_TODAY}T00:00:00Z`).getTime();
+  for (let offset = -120; offset <= 120; offset++) {
+    const date = new Date(start + offset * 86_400_000).toISOString().slice(0, 10);
+    if (mockGuid(`ver-${date}`) === versionId) return mockGuid(`run-${date}`);
+  }
+  return versionId;
+}
+
+export function planVersionsOf(runId: string) {
+  const businessDate = businessDateOfRun(runId);
+  if (businessDate == null) return [];
+  const { run, orders, lineId } = allocationRunOf(businessDate);
+  const tiers = [...db.settings.batchDiscountTiers].sort((a, b) => a.maxRemainingPct - b.maxRemainingPct);
+  const allocations: unknown[] = [];
+  const prices: unknown[] = [];
+  let total = 0;
+
+  orders.forEach((o) => {
+    const trace = traceOf(o);
+    if (!trace.ok) return;
+    trace.lines.forEach((l) => {
+      const base = product(l.sku).basePrice;
+      l.allocations.forEach((a, sequence) => {
+        const remainingPct = Math.max(0, Math.round((a.remainingDays / l.shelfLifeDays) * 10000) / 100);
+        const tier = tiers.find((t) => remainingPct < t.maxRemainingPct);
+        const perUnit = tier ? Math.round((base * tier.discountPct) / 100) : 0;
+        const finalUnit = base - perUnit;
+        allocations.push({
+          allocationRunLineId: lineId(o.code, l.sku),
+          batchId: mockGuid(a.batchCode),
+          batchCode: a.batchCode,
+          warehouseId: mockGuid(a.warehouseCode),
+          warehouseCode: a.warehouseCode,
+          quantity: a.qty,
+          sequence: sequence + 1,
+          estimatedArrivalAt: `${DISPATCH_DATE}T09:00:00+07:00`,
+          remainingShelfLifeHours: a.remainingDays * 24,
+          weightedScore: a.score ?? 0,
+        });
+        prices.push({
+          allocationRunLineId: lineId(o.code, l.sku),
+          batchId: mockGuid(a.batchCode),
+          warehouseId: mockGuid(a.warehouseCode),
+          quantity: a.qty,
+          baseNetUnitPrice: base,
+          remainingShelfLifePercent: remainingPct,
+          shelfLifeDiscountTierId: tier ? mockGuid(`tier-${tier.maxRemainingPct}`) : null,
+          discountType: tier ? 'Percent' : null,
+          discountValue: tier ? tier.discountPct : null,
+          shelfLifeDiscountPerUnit: perUnit,
+          finalNetUnitPrice: finalUnit,
+          amount: finalUnit * a.qty,
+          discountTableVersion: 1,
+          explanation: tier
+            ? `Còn ${remainingPct}% hạn dùng, rơi vào bậc dưới ${tier.maxRemainingPct}% → giảm ${tier.discountPct}%.`
+            : `Còn ${remainingPct}% hạn dùng, không khớp bậc nào.`,
+        });
+        total += finalUnit * a.qty;
+      });
+    });
+  });
+
+  const versionId = mockGuid(`ver-${businessDate}`);
+  const decision = planDecisions.get(versionId);
+  return [
+    {
+      id: versionId,
+      allocationRunId: runId,
+      runCode: run.runCode,
+      versionNumber: 1,
+      status: decision?.status ?? 'AwaitingApproval',
+      pricedAt: `${businessDate}T12:00:30+07:00`,
+      fulfilledOrderCount: run.orders.filter((o) => o.status === 'Fulfilled').length,
+      shortOrderCount: run.orders.filter((o) => o.status === 'Short').length,
+      totalFinalAmount: total,
+      approvedByUserId: decision?.approvedAt ? mockGuid('admin') : null,
+      approvedAt: decision?.approvedAt ?? null,
+      recalculationReason: decision?.reason ?? null,
+      version: decision ? 1 : 0,
+      prices,
+      allocations,
+    },
+  ];
+}

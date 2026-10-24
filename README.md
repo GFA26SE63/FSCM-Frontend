@@ -81,7 +81,7 @@ mọi tầng có thể dùng shared/ui, shared/lib và shared/auth khi phù hợ
 5. Nếu mock mode cần hỗ trợ, thêm handler vào module phù hợp và fixture tối thiểu; contract mock phải giống backend.
 6. Chạy `npm run lint` và `npm run build` trước khi bàn giao.
 
-Feature ↔ menu: dashboard · orders (chi tiết + **Giải thích phân bổ B1–B4** đọc từ trace thật của đợt + chi phí giao ước tính) · debts (công nợ một phần, thu một lần) · picking · receipts · whtransfer · **rotation (Luân chuyển cận hạn: đề xuất, bảng điểm từng kho ứng viên, duyệt / sửa SL / bỏ qua)** · **fleet (Xe & người giao)** · batches · batchpromo · disposal · promos · retailers · loyalty · gifts · redeem · regions · categories · products (nháp / publish / inactive / clone) · warehouses · users (không tạo Admin) · kpi · complaints · config (trọng số phân bổ, trọng số luân chuyển, Dmax, **bảng vận chuyển dùng chung**, tỷ lệ điểm).
+Feature ↔ menu: dashboard · orders (chi tiết + **Giải thích phân bổ B1–B4** đọc từ trace thật của đợt + chi phí giao ước tính) · **allocation (Duyệt phương án đợt: tổng đơn đủ/thiếu, mở từng SKU/batch, duyệt hoặc yêu cầu tính lại)** · debts (công nợ một phần, thu một lần) · picking · receipts · whtransfer · **rotation (Luân chuyển cận hạn: đề xuất, bảng điểm từng kho ứng viên, duyệt / sửa SL / bỏ qua)** · **fleet (Xe & người giao)** · batches · batchpromo · disposal · promos · retailers · loyalty · gifts · redeem · regions · categories · products (nháp / publish / inactive / clone) · warehouses · users (không tạo Admin) · kpi · complaints · config (trọng số phân bổ, trọng số luân chuyển, Dmax, **bảng vận chuyển dùng chung**, tỷ lệ điểm).
 
 ## Giải thích phân bổ (orders)
 
@@ -110,6 +110,27 @@ trong `orderView.ts`: chỉ giữ xếp hạng đầy đủ của lượt đầu
 
 Endpoint phía đợt (trace, giá) key theo **định danh** chứ không theo mã đơn, nên `OrderDetail` có
 trường `id`; mock sinh id ổn định từ mã đơn bằng `mockGuid`.
+
+## Duyệt phương án đợt (allocation)
+
+Màn Admin duyệt một **phiên bản phương án** của đợt 12:00. Vài điều dễ làm sai khi sửa màn này:
+
+- **Duyệt là duyệt cả phân bổ và giá**, cùng một phiên bản. Không có sửa batch từng dòng: duyệt một
+  hỗn hợp tự chọn sẽ tạo ra phương án mà engine chưa từng chấm điểm và không ai tái lập được. Phương
+  án chưa đúng thì **yêu cầu tính lại kèm lý do** — bản mới thay thế bản cũ, không sửa đè lên.
+- **Không có tự duyệt.** Quá hạn nhắc vẫn chỉ là đề xuất, và **chưa giữ hàng** cho tới khi có người
+  quyết định. Đừng thêm bất kỳ hành vi tự động nào vào màn này.
+- **Hạn còn lúc nhận phải đứng cạnh ngưỡng MLOR.** Cặp số đó mới là lý do một batch hợp lệ; thiếu
+  một trong hai thì con số còn lại vô nghĩa.
+- `allocations` và `prices` của một phiên bản **key giống nhau** (dòng đợt + batch). Ghép theo cặp
+  đó, đừng ghép theo thứ tự mảng.
+- Đơn thiếu hàng được **ghi là thiếu**; lượng tạm của cả đơn trả về quỹ chung cho các đơn phía sau.
+  Đợt không tự từ chối đơn.
+
+Mock dựng đợt từ chính các đơn mẫu và trace của chúng, nên hình dạng dữ liệu đúng nhưng **không phải
+engine thật**: nó không rút từ một quỹ chung. Quyết định duyệt / yêu cầu tính lại giữ trong bộ nhớ
+phiên trình duyệt, mất khi reload. Định danh đợt và phiên bản là hash của ngày nghiệp vụ, nên mock
+dò ngược bằng cách quét một khoảng ngày có giới hạn; server thật thì tra thẳng.
 
 ## Lưu ý khi nối API thật
 
