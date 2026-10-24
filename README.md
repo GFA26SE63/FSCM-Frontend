@@ -81,7 +81,111 @@ mọi tầng có thể dùng shared/ui, shared/lib và shared/auth khi phù hợ
 5. Nếu mock mode cần hỗ trợ, thêm handler vào module phù hợp và fixture tối thiểu; contract mock phải giống backend.
 6. Chạy `npm run lint` và `npm run build` trước khi bàn giao.
 
-Feature ↔ menu: dashboard · orders (chi tiết + **Giải thích phân bổ B1–B4** + chi phí giao ước tính) · debts (công nợ một phần, thu một lần) · picking · receipts · whtransfer · **rotation (Luân chuyển cận hạn: đề xuất, bảng điểm từng kho ứng viên, duyệt / sửa SL / bỏ qua)** · **fleet (Xe & người giao)** · batches · batchpromo · disposal · promos · retailers · loyalty · gifts · redeem · regions · categories · products (nháp / publish / inactive / clone) · warehouses · users (không tạo Admin) · kpi · complaints · config (trọng số phân bổ, trọng số luân chuyển, Dmax, **bảng vận chuyển dùng chung**, tỷ lệ điểm).
+Feature ↔ menu: dashboard · orders (chi tiết + **Giải thích phân bổ B1–B4** + chi phí giao ước tính) · debts (công nợ một phần, thu một lần) · picking · receipts · whtransfer · **rotation (Luân chuyển cận hạn: đề xuất, bảng điểm từng kho ứng viên, duyệt / sửa SL / bỏ qua)** · **fleet (Xe & người giao)** · batches · batchpromo · disposal · promos · retailers · loyalty · gifts · redeem · regions · categories · products (nháp / publish / inactive / clone) · warehouses · users (không tạo Admin) · kpi · complaints · config (**lịch ngày chạy đợt: giờ chốt + mốc nhắc**, trọng số phân bổ, trọng số luân chuyển, Dmax, **bảng vận chuyển dùng chung**, tỷ lệ điểm).
+
+## Lịch ngày chạy đợt (config)
+
+Mục "Lịch ngày chạy đợt" sửa **một document duy nhất** (`eta.schedule`), vì các mốc chỉ có nghĩa khi
+đặt cạnh nhau. Đó cũng là lịch mà đợt phân bổ chạy theo và ETA báo cho khách tính từ — đừng tách ra
+thành cấu hình riêng cho portal, vì hai lịch chính là cách hai giờ chốt sinh ra lúc đầu.
+
+- **Khuyến nghị gửi đơn là khuyến nghị**, không phải cổng chặn. Đơn nhận sau mốc đó mà trước giờ
+  chốt vẫn vào đợt. UI phải hiện rõ điều này, đừng gọi nó là "hạn".
+- **Mốc nhắc phải nằm trước thứ nó nhắc**: hai mốc trước giờ chốt phải trước giờ chốt; nhắc duyệt
+  phương án phải nằm **giữa** giờ chốt và hạn duyệt.
+- **Quá hạn duyệt hệ thống không tự duyệt.** Câu này nằm ngay trong mục cấu hình, nơi người sửa giờ
+  đang đứng — đừng rút gọn nó đi.
+- Validate ở client **lặp lại đúng** luật của server. Mốc nhắc sai thứ tự không phải lỗi nhẹ hơn chỉ
+  vì được gõ trong portal.
+
+Server trả mốc đã **quy ra thời điểm thật** cho một ngày nghiệp vụ; portal không tự suy giờ Việt Nam
+từ chuỗi `"12:00"`.
+Feature ↔ menu: dashboard · orders (chi tiết + **Giải thích phân bổ B1–B4** đọc từ trace thật của đợt + chi phí giao ước tính) · debts (công nợ một phần, thu một lần) · picking · receipts · whtransfer · **rotation (Luân chuyển cận hạn: đề xuất, bảng điểm từng kho ứng viên, duyệt / sửa SL / bỏ qua)** · **fleet (Xe & người giao)** · batches · batchpromo · disposal · promos · retailers · loyalty · gifts · redeem · regions · categories · products (nháp / publish / inactive / clone) · warehouses · users (không tạo Admin) · kpi · complaints · config (trọng số phân bổ, trọng số luân chuyển, Dmax, **bảng vận chuyển dùng chung**, tỷ lệ điểm).
+
+## Giải thích phân bổ (orders)
+
+Cửa sổ "Giải thích phân bổ" đọc trace mà đợt 12:00 ghi lại, qua
+`GET /allocation-runs/orders/{salesOrderId}/trace`. Vài điều dễ làm sai khi sửa màn này:
+
+- **Hạn dùng tính bằng giờ, không phải ngày.** Đợt so sánh bằng giờ là có chủ đích: tới sáng hôm
+  sau khác tới chiều hôm đó. `formatHours` hiện số ngày bên cạnh cho dễ đọc, nhưng số gốc là giờ.
+- **Batch bị loại phải ở lại trên màn hình**, kèm lý do. "Vì sao không phải batch kia" mới là câu
+  cửa sổ này sinh ra để trả lời; chỉ hiện batch được chọn là bỏ mất công dụng của nó.
+- **Mọi xếp hạng của mọi lượt**, không chỉ batch thắng. Một điểm số chẳng nói gì nếu không có các
+  điểm nó đã thắng, và `f_Q` được tính lại mỗi lượt nên cùng một batch ra điểm khác giữa hai lượt.
+- **Không hiện giá ở đây.** Đợt chọn batch trước rồi mới định giá, nên giảm giá cận hạn không tham
+  gia chấm điểm. Giá đọc từ bản lưu riêng (`.../price`); trộn hai thứ sẽ gợi ý sai rằng giảm giá
+  giúp batch được chọn.
+- **Trạng thái phiên bản phương án phải hiện.** Phương án chờ duyệt là đề xuất, chưa giữ hàng. Người
+  dùng không phân biệt được hai thứ này sẽ hứa hàng chưa thật sự được giữ.
+- **`Released` khác `Short`.** Dòng `Released` đã rút được hàng rồi mất vì một dòng *khác* của cùng
+  đơn thiếu — đơn là đủ-hoặc-không-gì nên lượng tạm của cả đơn được trả về quỹ chung. Nó không phải
+  dòng bị thiếu.
+- Đơn không đủ hàng được **ghi là thiếu**; đợt không tự từ chối đơn, không tự hạ MLOR, không nới bán
+  kính, và không lấy batch của đơn trước để nhường đơn sau.
+
+Mock map engine theo-ngày sẵn có sang shape thật. Hai chỗ mock không làm được, đã ghi chú tại chỗ
+trong `orderView.ts`: chỉ giữ xếp hạng đầy đủ của lượt đầu, và không có dữ liệu `Released`.
+
+Endpoint phía đợt (trace, giá) key theo **định danh** chứ không theo mã đơn, nên `OrderDetail` có
+trường `id`; mock sinh id ổn định từ mã đơn bằng `mockGuid`.
+
+## Contract FE ↔ BE: chỗ đã khớp và chỗ chưa
+
+Portal được dựng như prototype trên mock trước khi backend có; hai bên thiết kế độc lập. Đo bằng
+cách bật API thật (Azure dev DB) rồi gọi **đúng đường dẫn và đúng loại giá trị** Portal gửi, không
+đăng nhập — `401` nghĩa là route khớp, `404` nghĩa là không (23/10/2026):
+
+| Kết quả | Số lời gọi |
+| --- | --- |
+| `401` — route khớp | 37 |
+| `404` — không khớp | **89** |
+| `405` — đúng đường, sai method | 2 |
+| **Tổng** | **128** |
+
+89 chỗ `404` chia làm ba nhóm, và chúng cần ba cách xử lý khác hẳn nhau:
+
+**A. Route có sẵn, chỉ sai kiểu khóa — 23 chỗ.** Portal gửi mã nghiệp vụ (`DH-001024`, `SKU001`),
+route backend ràng buộc `{id:guid}` nên không khớp. Gặp ở `orders` (7), `products` (4),
+`categories`, `warehouses`, `users`, `sales-groups`, `retailers`, `goods-receipts`, `promotions`.
+Sửa được cơ học: thêm `id` vào DTO, đổi route param, sửa mock theo. `orders` và `promos` đã làm.
+
+**B. Cùng nhóm tài nguyên nhưng khác tên — 6 chỗ.** Phải thống nhất tên với backend:
+
+| Portal gọi | Backend thực có |
+| --- | --- |
+| `POST /products/{sku}/clone` | *(không có)* — gần nhất là `/products/{id}/replacement` |
+| `POST /promotions/{code}/pause` | `POST /promotions/{id}/deactivate` |
+| `GET /retailers/{code}/mlor` | `GET /retailers/{id}/mlor-resolution` |
+| `POST /picking-lists/{code}/scan`, `/ship` | luồng soạn hàng theo đợt, không theo mã phiếu |
+| `POST /batch-discounts/{code}/stop` | `POST /promotions/{id}/deactivate` |
+
+**C. Backend chưa có tính năng — 60 chỗ.** `dashboard`, `notifications`, `complaints`, `disposal`,
+`gifts`, `redeem`, `loyalty`, `rotation`, `whtransfer`, `kpi`, `fleet`, `/settings`, `/areas`,
+`/sales-staff`, `/retailer-registrations`. Phần lớn là S2/S3 chưa làm — **không phải lỗi**, nhưng
+cũng có nghĩa là các màn đó mới chỉ chạy được trên mock.
+
+**Danh sách: mảng thuần hay `{ items }`?** Backend không nhất quán, nên mỗi lời gọi phải chọn đúng
+helper. Đo trên API đang chạy (23/10/2026):
+
+| Trả **mảng thuần** → dùng `get<T[]>` | Trả **`{ items }`** → dùng `getAll<T>` |
+| --- | --- |
+| `/promotions`, `/categories`, `/warehouses`, `/regions`, `/sales-groups`, `/inventory`, `/goods-receipts`, `/transit-tables/history` | `/products`, `/retailers`, `/users`, `/orders` |
+
+Dùng `getAll` cho một endpoint trả mảng thuần thì nó đọc `.items` của mảng, nhận `undefined`, và màn
+hình **rỗng không báo lỗi gì**. Đây là lỗi đã xảy ra hai lần (lịch sử bảng vận chuyển, rồi khuyến
+mãi), nên kiểm shape thật trước khi tin `tsc`.
+
+Khi sửa một feature cho khớp backend, **sửa cả mock theo shape thật** rồi mới đóng việc; mock trả
+shape cũ thì `tsc` vẫn xanh mà màn hình gãy lúc chạy.
+
+## Lệch contract Portal ↔ Backend
+
+Portal dựng trên mock trước khi backend có, nên hai bên đặt tên và chọn khóa độc lập. Đo ngày
+23/10/2026 bằng cách gọi API thật: **89/128 lời gọi trong `features/*/api.ts` trả `404`**.
+
+Danh sách đầy đủ từng chỗ, chia theo cách xử lý (sai kiểu khóa / khác tên / backend chưa có), cùng
+bẫy "mảng thuần vs `{ items }`": [docs/contract-gaps.md](docs/contract-gaps.md).
 
 ## Lưu ý khi nối API thật
 

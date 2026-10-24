@@ -1,7 +1,8 @@
 import { useNavigate } from '@/shared/router/compat';
 import { Button, DataTable, PageHeader, StatusChip, type Column } from '@/shared/ui';
-import { formatDate, statusLabels } from '@/shared/lib';
+import { formatDate, formatPercent, statusLabels } from '@/shared/lib';
 import { useActivatePromo, usePausePromo, usePromos } from '../hooks';
+import { promoStatus } from '../status';
 import type { PromoSummary } from '../types';
 
 export function PromosPage() {
@@ -10,37 +11,38 @@ export function PromosPage() {
   const pause = usePausePromo();
   const activate = useActivatePromo();
   const columns: Column<PromoSummary>[] = [
-    { key: 'code', header: 'Mã', width: '90px', render: (p) => <span className="bold">{p.code}</span> },
+    { key: 'code', header: 'Mã', width: '110px', render: (p) => <span className="bold">{p.code}</span> },
     { key: 'name', header: 'Tên chương trình' },
-    { key: 'type', header: 'Loại', width: '150px', text: (p) => (p.type === 'PerSku' ? 'Theo từng SKU' : 'Nhóm sản phẩm') },
-    { key: 'period', header: 'Hiệu lực', width: '170px', text: (p) => `${formatDate(p.validFrom)} – ${formatDate(p.validTo)}` },
-    { key: 'sku', header: 'Số SKU', width: '80px', align: 'right', text: (p) => p.skuCount },
-    { key: 'cust', header: 'Khách hàng', width: '120px', text: (p) => (p.customerCount == null ? 'Tất cả' : `${p.customerCount} retailer`) },
-    { key: 'status', header: 'Trạng thái', width: '125px', render: (p) => <StatusChip domain="promotion" value={p.status} /> },
+    { key: 'min', header: 'Mua tối thiểu', width: '130px', align: 'right', text: (p) => `${p.minimumQuantity} thùng` },
+    { key: 'pct', header: '% giảm', width: '90px', align: 'right', text: (p) => formatPercent(p.discountPercent, 1) },
+    { key: 'period', header: 'Hiệu lực', width: '180px', text: (p) => `${formatDate(p.startAt)} – ${formatDate(p.endAt)}` },
+    { key: 'status', header: 'Trạng thái', width: '125px', render: (p) => <StatusChip domain="promotion" value={promoStatus(p)} /> },
   ];
   return (
     <>
-      <PageHeader title="Khuyến mãi" subtitle="Mỗi dòng hàng được áp dụng một khuyến mãi tốt nhất; không cộng dồn." />
+      <PageHeader
+        title="Khuyến mãi"
+        subtitle="Mỗi chương trình là một mức giảm cho một lượng mua tối thiểu. Một dòng hàng chỉ nhận một khuyến mãi tốt nhất, không cộng dồn — muốn nhiều mức thì tạo nhiều chương trình."
+      />
       <DataTable
         title="Chương trình khuyến mãi"
         rows={query.data}
         loading={query.isLoading}
         error={query.error}
-        rowKey={(p) => p.code}
+        rowKey={(p) => p.id}
         columns={columns}
         searchPlaceholder="Mã, tên chương trình…"
         filters={[
-          { label: 'Trạng thái', options: Object.values(statusLabels.promotion), value: (p) => statusLabels.promotion[p.status] },
-          { label: 'Loại', options: ['Theo từng SKU', 'Nhóm sản phẩm'], value: (p) => (p.type === 'PerSku' ? 'Theo từng SKU' : 'Nhóm sản phẩm') },
+          { label: 'Trạng thái', options: Object.values(statusLabels.promotion), value: (p) => statusLabels.promotion[promoStatus(p)] },
         ]}
         actions={<Button variant="primary" onClick={() => navigate('/promos/new')}>+ Tạo khuyến mãi</Button>}
-        onRowClick={(p) => navigate(`/promos/${p.code}`)}
+        onRowClick={(p) => navigate(`/promos/${p.id}`)}
         rowActionsWidth="190px"
         rowActions={(p) => (
           <>
-            <Button size="sm" onClick={() => navigate(`/promos/${p.code}`)}>Xem</Button>
-            {p.status === 'Running' && <Button size="sm" variant="danger" onClick={() => pause.mutate(p.code)}>Tạm dừng</Button>}
-            {p.status === 'Paused' && <Button size="sm" variant="primary" onClick={() => activate.mutate(p.code)}>Kích hoạt</Button>}
+            <Button size="sm" onClick={() => navigate(`/promos/${p.id}`)}>Xem</Button>
+            {promoStatus(p) === 'Running' && <Button size="sm" variant="danger" onClick={() => pause.mutate(p.id)}>Tạm dừng</Button>}
+            {promoStatus(p) === 'Paused' && <Button size="sm" variant="primary" onClick={() => activate.mutate(p.id)}>Kích hoạt</Button>}
           </>
         )}
       />

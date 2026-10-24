@@ -69,7 +69,7 @@ export const APP_ROUTES: AppRoute[] = [
   },
   {
     key: 'promos', label: 'Khuyến mãi', roles: [A], list: page(promos, 'PromosPage'),
-    sub: [{ path: 'new', element: page(promos, 'PromoFormPage') }, { path: ':code', element: page(promos, 'PromoDetailPage') }],
+    sub: [{ path: 'new', element: page(promos, 'PromoFormPage') }, { path: ':id', element: page(promos, 'PromoDetailPage') }],
   },
   { key: 'retailers', label: 'Retailer', roles: [A, OP], badge: 'retailers', list: page(retailers, 'RetailersPage'), sub: [{ path: ':code', element: page(retailers, 'RetailerDetailPage') }] },
   { key: 'loyalty', label: 'Loyalty – điểm', roles: [A], list: page(loyalty, 'LoyaltyPage'), sub: [{ path: ':code', element: page(loyalty, 'LoyaltyDetailPage') }] },

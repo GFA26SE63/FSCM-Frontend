@@ -17,3 +17,16 @@ export const formatKm = (km: number | null | undefined): string => (km == null ?
 export const formatCases = (n: number | null | undefined): string => (n == null ? '—' : formatNumber(n) + ' thùng');
 
 export const formatPercent = (n: number, digits = 0): string => n.toLocaleString('vi-VN', { maximumFractionDigits: digits }) + '%';
+
+/**
+ * Hours, with the equivalent in days beside them once there are enough to be hard to read.
+ * Shelf life and MLOR are compared in hours, never whole days: arriving next morning differs from
+ * arriving that evening, and rounding to days would hide it.
+ * The allocation run compares shelf life in hours, never whole days: a run that arrives the next
+ * morning differs from one arriving that evening, and rounding to days would hide it.
+ */
+export const formatHours = (h: number | null | undefined): string => {
+  if (h == null) return '—';
+  const hours = formatNumber(h, 1) + ' giờ';
+  return Math.abs(h) < 48 ? hours : `${hours} (~${formatNumber(h / 24, 1)} ngày)`;
+};

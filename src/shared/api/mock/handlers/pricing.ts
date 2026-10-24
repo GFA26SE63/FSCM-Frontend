@@ -1,31 +1,31 @@
 import { db } from '../fixtures';
 import type { DbBatchDiscount, DbPromotion } from '../fixtures/types';
 import { MockRouter, conflict, notFound, paginate, validation } from '../router';
-import { actor, nextSeq, product, requireRole, retailer } from './common';
+import { actor, mockGuid, nextSeq, product, requireRole } from './common';
 import { batchDto } from './inventory';
-import { pricingOf } from './orderView';
 import { priceLines } from '../engines/pricing';
 import { MOCK_TODAY, yymmdd } from '../engines/clock';
 
-const findPromo = (code: string) => db.promotions.find((p) => p.code === code) ?? (() => { throw notFound(`Chương trình ${code}`); })();
-const promoSummary = (p: DbPromotion) => ({
-  code: p.code, name: p.name, type: p.type, validFrom: p.validFrom, validTo: p.validTo, status: p.status,
-  customerCount: p.retailerCodes ? p.retailerCodes.length : null, skuCount: p.type === 'PerSku' ? p.rules.length : p.groupSkus.length,
+const findPromo = (id: string) =>
+  db.promotions.find((p) => mockGuid(p.code) === id) ?? (() => { throw notFound(`Chương trình ${id}`); })();
+
+/** Mirrors PromotionResult: identifiers, one minimum and one percentage, plus what it applies to. */
+const promoDto = (p: DbPromotion) => ({
+  id: mockGuid(p.code),
+  code: p.code,
+  name: p.name,
+  promotionType: 'Campaign',
+  minimumQuantity: p.minQty,
+  discountPercent: p.discountPct,
+  startAt: p.validFrom,
+  endAt: p.validTo,
+  isActive: p.active,
+  productIds: p.skus.map((sku) => mockGuid(sku)),
+  categoryIds: p.categoryCodes.map((code) => mockGuid(code)),
+  retailerIds: (p.retailerCodes ?? []).map((code) => mockGuid(code)),
+  createdAt: p.validFrom,
+  updatedAt: p.validFrom,
 });
-function promoDetail(p: DbPromotion) {
-  const applied = db.orders
-    .filter((o) => o.status !== 'Rejected')
-    .flatMap((o) => {
-      const a = pricingOf(o).promotions.find((x) => x.code === p.code);
-      return a ? [{ orderCode: o.code, retailerName: retailer(o.retailerCode).name, salesName: o.salesName, createdAt: o.createdAt, detail: a.detail, amount: a.amount }] : [];
-    });
-  return {
-    ...promoSummary(p), rules: p.rules.map((r) => ({ ...r, productName: product(r.sku).name })),
-    group: p.type === 'Group' ? { skus: p.groupSkus, minQty: p.groupMinQty, discountPct: p.groupDiscountPct } : null,
-    retailers: p.retailerCodes ? p.retailerCodes.map((c) => ({ code: c, name: retailer(c).name })) : null,
-    appliedOrders: applied, totalDiscount: applied.reduce((a, x) => a + x.amount, 0),
-  };
-}
 
 const tierFor = (pct: number) => [...db.settings.batchDiscountTiers].sort((a, b) => a.maxRemainingPct - b.maxRemainingPct).find((t) => pct <= t.maxRemainingPct)?.discountPct ?? 0;
 const discountDto = (d: DbBatchDiscount) => {
@@ -35,32 +35,54 @@ const discountDto = (d: DbBatchDiscount) => {
 };
 
 export function registerPricing(r: MockRouter) {
-  r.get('/promotions', ({ query }) => paginate(db.promotions.map(promoSummary), query, (p) => `${p.code} ${p.name}`));
-  r.get('/promotions/:code', ({ params }) => promoDetail(findPromo(params.code)));
+  // The real API returns a plain array here, not a paged envelope.
+  r.get('/promotions', () => db.promotions.map(promoDto));
+  r.get('/promotions/:id', ({ params }) => promoDto(findPromo(params.id)));
   r.post('/promotions', ({ body }) => {
     const errors: Record<string, string[]> = {};
     const name = String(body?.name ?? '').trim();
+    const minQty = Number(body?.minimumQuantity);
+    const pct = Number(body?.discountPercent);
+    const skus = ((body?.productIds ?? []) as string[]);
+    const cats = ((body?.categoryIds ?? []) as string[]);
     if (!name) errors.name = ['Bắt buộc nhập.'];
-    if (!body?.validFrom) errors.validFrom = ['Bắt buộc nhập.'];
-    if (!body?.validTo) errors.validTo = ['Bắt buộc nhập.'];
-    if (body?.validFrom && body?.validTo && body.validTo < body.validFrom) errors.validTo = ['Ngày kết thúc phải sau ngày bắt đầu.'];
-    const type = body?.type === 'Group' ? 'Group' : 'PerSku';
-    const rules = ((body?.rules ?? []) as { sku: string; minQty: number; discountPct: number }[]).map((x) => ({ sku: x.sku, minQty: Number(x.minQty), discountPct: Number(x.discountPct) }));
-    if (type === 'PerSku' && (!rules.length || rules.some((x) => !(x.minQty > 0) || !(x.discountPct > 0))) ) errors.rules = ['Mỗi dòng cần số lượng tối thiểu và % giảm.'];
-    if (type === 'Group' && (!(body?.groupSkus ?? []).length || !(Number(body?.groupMinQty) > 0) || !(Number(body?.groupDiscountPct) > 0))) errors.groupSkus = ['Chọn sản phẩm, số lượng tối thiểu và % giảm chung.'];
+    if (!body?.startAt) errors.startAt = ['Bắt buộc nhập.'];
+    if (!body?.endAt) errors.endAt = ['Bắt buộc nhập.'];
+    if (body?.startAt && body?.endAt && body.endAt < body.startAt) errors.endAt = ['Ngày kết thúc phải sau ngày bắt đầu.'];
+    if (!(minQty > 0)) errors.minimumQuantity = ['Phải lớn hơn 0.'];
+    if (!(pct > 0 && pct < 100)) errors.discountPercent = ['% giảm phải trong khoảng (0, 100).'];
+    // A promotion naming nothing would apply to nothing, so it is refused rather than stored.
+    if (skus.length === 0 && cats.length === 0) errors.productIds = ['Chọn ít nhất một SKU hoặc một nhóm hàng.'];
     if (Object.keys(errors).length) throw validation(errors);
-    const code = nextSeq(db.promotions.map((p) => p.code), 'KM-', 3);
+
+    const code = nextSeq(db.promotions.map((x) => x.code), 'KM-', 3);
     const p: DbPromotion = {
-      code, name, type, validFrom: body.validFrom, validTo: body.validTo, retailerCodes: (body.retailerCodes ?? []).length ? body.retailerCodes : null, status: 'Running',
-      rules: type === 'PerSku' ? rules : [], groupSkus: type === 'Group' ? body.groupSkus : [], groupMinQty: type === 'Group' ? Number(body.groupMinQty) : 0, groupDiscountPct: type === 'Group' ? Number(body.groupDiscountPct) : 0,
+      code,
+      name,
+      validFrom: body.startAt,
+      validTo: body.endAt,
+      retailerCodes: ((body?.retailerIds ?? []) as string[]).length
+        ? db.retailers.filter((r) => (body.retailerIds as string[]).includes(mockGuid(r.code))).map((r) => r.code)
+        : null,
+      active: true,
+      minQty,
+      discountPct: pct,
+      skus: db.products.filter((x) => skus.includes(mockGuid(x.sku))).map((x) => x.sku),
+      categoryCodes: db.categories.filter((c) => cats.includes(mockGuid(c.code))).map((c) => c.code),
     };
     db.promotions.push(p);
-    return promoDetail(p);
+    return promoDto(p);
   });
-  r.post('/promotions/:code/pause', (req) => { requireRole(req, ['Admin']); const p = findPromo(req.params.code); p.status = 'Paused'; return promoDetail(p); });
-  r.post('/promotions/:code/activate', (req) => { requireRole(req, ['Admin']); const p = findPromo(req.params.code); if (p.status === 'Ended') throw conflict('Chương trình đã hết hiệu lực.'); p.status = 'Running'; return promoDetail(p); });
+  r.post('/promotions/:id/deactivate', (req) => { requireRole(req, ['Admin']); const p = findPromo(req.params.id); p.active = false; return promoDto(p); });
+  r.post('/promotions/:id/activate', (req) => {
+    requireRole(req, ['Admin']);
+    const p = findPromo(req.params.id);
+    if (new Date(p.validTo).getTime() < Date.now()) throw conflict('Chương trình đã hết hiệu lực.');
+    p.active = true;
+    return promoDto(p);
+  });
 
-  r.post('/pricing/quote', ({ body }) => priceLines(body?.lines ?? [], String(body?.retailerCode ?? ''), db.promotions.filter((p) => p.status === 'Running'), db.products));
+  r.post('/pricing/quote', ({ body }) => priceLines(body?.lines ?? [], String(body?.retailerCode ?? ''), db.promotions.filter((p) => p.active), db.products));
 
   // ---- batch discounts (KMB) by % shelf life remaining ----
   r.get('/batch-discounts/suggestions', ({ query }) =>

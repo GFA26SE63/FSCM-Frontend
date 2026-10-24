@@ -46,3 +46,42 @@ export interface PublishTransitTablePayload {
 }
 
 export interface ConfigDraft { settings: SystemSettings }
+
+/** One point in the run day, already resolved to an instant for a business date by the server. */
+export interface ScheduleMilestone {
+  key:
+    | 'sales_submission_advice'
+    | 'order_review_reminder'
+    | 'allocation_run'
+    | 'plan_approval_reminder'
+    | 'plan_approval_deadline';
+  label: string;
+  /** "HH:mm:ss" in the published time zone. */
+  localTime: string;
+  at: string;
+  /** Advice, not a gate: an order accepted after it and before the cutoff is still in the run. */
+  isAdvisory: boolean;
+}
+
+export interface RunSchedule {
+  businessDate: string;
+  timeZone: string;
+  scheduleVersion: number;
+  milestones: ScheduleMilestone[];
+  preparationMinutes: number;
+  bufferMinutes: number;
+  dispatchSlotsLocalTime: string[];
+}
+
+/** The stored document. Written whole, because the times only make sense against each other. */
+export interface RunSchedulePayload {
+  timeZone: string;
+  salesSubmissionAdviceLocalTime: string;
+  orderReviewReminderLocalTime: string;
+  allocationRunLocalTime: string;
+  planApprovalReminderLocalTime: string;
+  planApprovalDeadlineLocalTime: string;
+  preparationMinutes: number;
+  bufferMinutes: number;
+  dispatchSlotsLocalTime: string[];
+}
