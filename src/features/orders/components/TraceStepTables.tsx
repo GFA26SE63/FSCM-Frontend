@@ -1,109 +1,156 @@
-import { Chip, SimpleTable, StepSection } from '@/shared/ui';
-import { formatCases, formatDate, formatDayMonth, formatKm, formatScore } from '@/shared/lib';
-import type { TraceLine } from '../types';
+import { Chip, SimpleTable, StepSection, type Tone } from '@/shared/ui';
+import { formatCases, formatHours, formatKm, formatNumber, formatPercent, formatScore } from '@/shared/lib';
+import { formatInstantDateTime } from '@/shared/lib/dates';
+import type { TraceCandidate, TraceLineDetail, TraceStage } from '../types';
 
-const result = (kept: boolean, text: string) => <Chip tone={kept ? 'success' : 'danger'}>{text}</Chip>;
+/** Why a batch was ruled out, in the words an Operator would use. */
+const REASONS: Record<TraceCandidate['reason'], string> = {
+  Eligible: 'Giữ',
+  NoRemainingQuantity: 'Loại: quỹ chung đã hết',
+  RouteUnavailable: 'Loại: không có tuyến tới retailer',
+  OutsideServiceRadius: 'Loại: ngoài bán kính phục vụ',
+  ArrivesAfterDeadline: 'Loại: tới sau hạn nhận',
+  BelowMlor: 'Loại: không đạt MLOR lúc nhận',
+};
 
-/** B1–B4 tables of one order line (prototype "Giải thích phân bổ"). */
-export function TraceStepTables({ line, dmax, weights }: { line: TraceLine; dmax: number; weights: { wE: number; wD: number; wQ: number } }) {
-  const whCount = new Set(line.allocations.map((a) => a.warehouseCode)).size;
+const MLOR_SOURCES: Record<TraceLineDetail['mlorSource'], string> = {
+  RetailerProduct: 'MLOR riêng của retailer cho SKU này',
+  RetailerCategory: 'MLOR của retailer theo nhóm hàng',
+  ProductDefault: 'MLOR mặc định của sản phẩm',
+};
+
+const OUTCOMES: Record<TraceLineDetail['outcome'], { tone: Tone; label: string }> = {
+  Allocated: { tone: 'success', label: 'Đã cấp đủ' },
+  Short: { tone: 'danger', label: 'Thiếu hàng' },
+  Released: { tone: 'warn', label: 'Đã trả về quỹ chung' },
+};
+
+const verdict = (c: TraceCandidate) => <Chip tone={c.passed ? 'success' : 'danger'}>{REASONS[c.reason]}</Chip>;
+
+const atStage = (line: TraceLineDetail, stage: TraceStage) => line.candidates.filter((c) => c.stage === stage);
+
+/**
+ * One order line's working, stage by stage, as the run recorded it.
+ *
+ * Batches that were ruled out stay on screen, and every ranking of every greedy turn is shown, not
+ * only the winners: "vì sao không phải batch kia" is what the window exists to answer, and a score
+ * says nothing without the scores it beat.
+ *
+ * Nothing here is a price. Batches are settled first and priced after, so the near-expiry reduction
+ * a batch later received is read from the price detail (F98), never from this table.
+ */
+export function TraceStepTables({ line }: { line: TraceLineDetail }) {
+  const outcome = OUTCOMES[line.outcome];
+  const turns = [...new Set(line.scores.map((s) => s.iteration))];
   return (
     <>
-      <div className="card" style={{ padding: '12px 16px', display: 'flex', gap: 32, flexWrap: 'wrap', fontSize: 13.5 }}>
-        <span>SKU: <strong>{line.sku} · {line.productName}</strong></span>
-        <span>Số lượng đặt: <strong>{line.qty} thùng</strong></span>
-        <span>Tổng hạn dùng SL: <strong>{line.shelfLifeDays} ngày</strong></span>
-        <span>MLOR retailer–SKU: <strong>m = {line.m}</strong> → cần còn ≥ <strong>{line.mlorDays} ngày</strong> tại ETA</span>
+      <div className="card" style={{ padding: '12px 16px', display: 'flex', gap: 28, flexWrap: 'wrap', fontSize: 13.5 }}>
+        <span>SKU: <strong>{line.sku}</strong></span>
+        <span>Đặt: <strong>{formatCases(line.orderedQuantity)}</strong></span>
+        <span>Tổng hạn dùng: <strong>{formatHours(line.totalShelfLifeHours)}</strong></span>
+        <span>
+          MLOR <strong>{formatPercent(line.effectiveMlorRatio * 100, 1)}</strong> → cần còn ≥{' '}
+          <strong>{formatHours(line.requiredShelfLifeHours)}</strong> lúc nhận
+        </span>
+        <span>Nguồn MLOR: <strong>{MLOR_SOURCES[line.mlorSource]}</strong></span>
+        <Chip tone={outcome.tone}>{outcome.label}</Chip>
       </div>
 
-      <StepSection num="B1" title="Lấy batch ứng viên trên toàn mạng lưới kho" hint="Đúng SKU · chưa hết hạn · khả dụng > 0 (đã trừ hàng giữ cho đơn khác)">
+      <StepSection
+        num="B1"
+        title="Batch ứng viên trong quỹ chung của đợt"
+        hint="Đúng SKU · còn lượng trong quỹ chung sau khi các đơn ưu tiên cao hơn đã rút"
+      >
         <SimpleTable
           columns={[
-            { header: 'Kho', cell: (r) => r.warehouseName },
+            { header: 'Kho', cell: (r) => r.warehouseCode },
             { header: 'Batch', cell: (r) => r.batchCode },
-            { header: 'HSD', cell: (r) => formatDate(r.expiry) },
-            { header: 'Khả dụng', cell: (r) => `${formatCases(r.available)}${r.heldBefore ? ` (đã trừ ${r.heldBefore} giữ cho đơn tới trước)` : ''}` },
-            { header: 'Kết quả', cell: (r) => result(r.kept, r.reason) },
+            { header: 'Kết quả', cell: (r) => verdict(r) },
           ]}
-          rows={line.b1}
+          rows={atStage(line, 'Pool')}
+          empty="Không có batch nào của SKU này trong quỹ chung."
         />
       </StepSection>
 
-      <StepSection num="B2a" title="Lọc phạm vi phục vụ (Dijkstra trên đồ thị đường bộ)" hint={`Khoảng cách phục vụ tối đa ${dmax} km`}>
+      <StepSection num="B2" title="Lọc tuyến và bán kính phục vụ" hint={`Bán kính tối đa ${formatKm(line.weights.maximumDistanceMeters / 1000)}`}>
         <SimpleTable
           columns={[
-            { header: 'Kho', cell: (r) => r.warehouseName },
+            { header: 'Kho', cell: (r) => r.warehouseCode },
             { header: 'Batch', cell: (r) => r.batchCode },
-            { header: 'Khoảng cách đường bộ', cell: (r) => formatKm(r.km) },
-            { header: 'Kết quả', cell: (r) => result(r.kept, r.reason) },
+            { header: 'Kết quả', cell: (r) => verdict(r) },
           ]}
-          rows={line.b2a}
+          rows={atStage(line, 'Distance')}
           empty="Không còn batch sau B1."
-        />
-      </StepSection>
-
-      <StepSection num="B2b–d" title="Tính ETA và kiểm tra MLOR tại thời điểm nhận" hint="ETA = ngày xuất dự kiến + transit (bảng vận chuyển dùng chung) · giữ khi EXP − ETA ≥ m × SL">
-        <SimpleTable
-          columns={[
-            { header: 'Kho', cell: (r) => r.warehouseName },
-            { header: 'Batch', cell: (r) => r.batchCode },
-            { header: 'Transit', cell: (r) => `${r.transitDays} ngày` },
-            { header: 'ETA', cell: (r) => formatDayMonth(r.eta) },
-            { header: 'HSD', cell: (r) => formatDayMonth(r.expiry) },
-            { header: 'Còn lại tại ETA', cell: (r) => `${r.remainingDays} ngày` },
-            { header: 'Ngưỡng MLOR', cell: () => `≥ ${line.mlorDays} ngày` },
-            { header: 'Kết quả', cell: (r) => result(r.kept, r.reason), width: '170px' },
-          ]}
-          rows={line.b2d}
-          empty="Không còn batch sau B2a."
         />
       </StepSection>
 
       <StepSection
         num="B3"
-        title="Chấm điểm batch hợp lệ (trọng số)"
-        hint={`S = wE·f_E + wD·f_D + wQ·f_Q · wE ${weights.wE} · wD ${weights.wD} · wQ ${weights.wQ} (Admin cấu hình)`}
-        note="f_E = 1 − (L − MLOR) / (SL − MLOR): còn lại L càng sát MLOR càng ưu tiên xuất trước (FEFO) · f_D = 1 − d / Dmax · f_Q = min(khả dụng, cần) / cần: một batch gánh được nhiều hơn thì ít phải tách kho. Ràng buộc ở B1–B2 vẫn là bộ lọc cứng."
+        title="Kiểm hạn nhận và MLOR tại thời điểm nhận"
+        hint="Giữ khi tới trước hạn nhận và EXP − ETA ≥ MLOR × tổng hạn dùng, đo bằng giờ"
       >
         <SimpleTable
           columns={[
-            { header: 'Hạng', cell: (r) => <strong>#{r.rank}</strong>, width: '70px' },
-            { header: 'Kho', cell: (r) => r.warehouseName },
+            { header: 'Kho', cell: (r) => r.warehouseCode },
             { header: 'Batch', cell: (r) => r.batchCode },
-            { header: 'L tại ETA', cell: (r) => `${r.remainingDays} ngày` },
-            { header: 'f_E', cell: (r) => formatScore(r.fE) },
-            { header: 'f_D', cell: (r) => formatScore(r.fD) },
-            { header: 'f_Q (cần đủ)', cell: (r) => formatScore(r.fQ) },
-            { header: 'Điểm S', cell: (r) => <strong className="text-primary">{formatScore(r.score)}</strong> },
+            { header: 'Dự kiến nhận', cell: (r) => (r.estimatedArrivalAt ? formatInstantDateTime(r.estimatedArrivalAt) : '—') },
+            { header: 'Còn lại lúc nhận', cell: (r) => formatHours(r.remainingShelfLifeHours) },
+            { header: 'Ngưỡng MLOR', cell: (r) => `≥ ${formatHours(r.requiredShelfLifeHours)}` },
+            { header: 'Kết quả', cell: (r) => verdict(r), width: '220px' },
           ]}
-          rows={line.b3}
-          empty="Không còn batch hợp lệ."
+          rows={atStage(line, 'Delivery')}
+          empty="Không còn batch sau B2."
         />
       </StepSection>
 
-      <StepSection num="B4" title="Cấp phát greedy theo điểm (tính lại f_Q theo phần còn thiếu ở mỗi lượt)">
-        <SimpleTable
-          columns={[
-            { header: 'Lượt', cell: (r) => (r.turn ? `#${r.turn}` : '—'), width: '60px' },
-            { header: 'Kho', cell: (r) => r.warehouseName },
-            { header: 'Batch', cell: (r) => r.batchCode },
-            { header: 'Khả dụng', cell: (r) => formatCases(r.available) },
-            { header: 'Còn cần', cell: (r) => (r.turn ? formatCases(r.need) : '0') },
-            { header: 'f_Q lượt', cell: (r) => formatScore(r.fQ) },
-            { header: 'S lượt', cell: (r) => formatScore(r.score) },
-            { header: 'Lấy', cell: (r) => <strong>{r.turn ? formatCases(r.take) : 'Không cần'}</strong> },
-            { header: 'Còn thiếu', cell: (r) => (r.turn ? formatCases(r.left) : '0') },
-          ]}
-          rows={line.b4}
-          empty="Không có lượt cấp phát."
-        />
+      <StepSection
+        num="B4"
+        title="Chấm điểm và cấp phát theo lượt"
+        hint={`S = ${line.weights.shelfLife}·f_E + ${line.weights.distance}·f_D + ${line.weights.coverage}·f_Q (Admin cấu hình, đợt này đã đóng băng)`}
+        note="f_E = 1 − (còn lại − MLOR) / (tổng hạn − MLOR): càng sát MLOR càng ưu tiên xuất trước (FEFO) · f_D = 1 − khoảng cách / bán kính tối đa · f_Q = min(khả dụng, còn cần) / còn cần, tính lại mỗi lượt vì phần còn thiếu co lại. Giảm giá cận hạn không tham gia chấm điểm."
+      >
+        {turns.length === 0 ? (
+          <SimpleTable columns={[{ header: '', cell: () => null }]} rows={[]} empty="Không có batch nào hợp lệ để chấm điểm." />
+        ) : (
+          turns.map((turn) => (
+            <div key={turn} style={{ marginBottom: 10 }}>
+              <div style={{ padding: '6px 14px', fontSize: 13, fontWeight: 600 }}>
+                Lượt #{turn} · còn cần{' '}
+                {formatCases(line.scores.find((s) => s.iteration === turn)?.remainingDemand)}
+              </div>
+              <SimpleTable
+                columns={[
+                  { header: 'Hạng', cell: (r) => <strong>#{r.rank}</strong>, width: '70px' },
+                  { header: 'Kho', cell: (r) => r.warehouseCode },
+                  { header: 'Batch', cell: (r) => r.batchCode },
+                  { header: 'f_E', cell: (r) => formatScore(r.shelfLifeScore) },
+                  { header: 'f_D', cell: (r) => formatScore(r.distanceScore) },
+                  { header: 'f_Q', cell: (r) => formatScore(r.coverageScore) },
+                  { header: 'Điểm S', cell: (r) => <strong className="text-primary">{formatScore(r.weightedScore)}</strong> },
+                  {
+                    header: 'Lấy',
+                    cell: (r) => (r.selected ? <strong>{formatCases(r.selectedQuantity)}</strong> : '—'),
+                  },
+                ]}
+                rows={line.scores.filter((s) => s.iteration === turn)}
+              />
+            </div>
+          ))
+        )}
       </StepSection>
 
       <StepSection num="KL" title="Kết luận cho SKU này">
-        <div className={`callout ${line.enough ? 'callout-ok' : 'callout-danger'}`} style={{ margin: '12px 14px' }}>
-          {line.enough
-            ? `Đủ ${line.qty} thùng từ ${line.allocations.length} batch tại ${whCount} kho. Tất cả batch được chọn đều đạt MLOR tại ETA; hàng được tạm giữ theo kho – batch – số lượng.`
-            : `Chỉ cấp được ${line.allocated}/${line.qty} thùng (thiếu ${line.short}). Theo quy tắc không giao một phần, cả đơn bị từ chối và không tạm giữ hàng.`}
+        <div
+          className={`callout ${line.outcome === 'Allocated' ? 'callout-ok' : line.outcome === 'Short' ? 'callout-danger' : 'callout-warn'}`}
+          style={{ margin: '12px 14px' }}
+        >
+          {line.outcome === 'Allocated' &&
+            `Cấp đủ ${formatCases(line.drawnQuantity)} từ ${line.scores.filter((s) => s.selected).length} batch. Mọi batch được chọn đều đạt MLOR lúc nhận. Hàng chỉ được giữ thật sau khi Admin duyệt phương án.`}
+          {line.outcome === 'Short' &&
+            `Chỉ cấp được ${formatNumber(line.drawnQuantity)}/${formatNumber(line.orderedQuantity)} thùng (thiếu ${formatNumber(line.shortageQuantity)}). Theo quy tắc không giao một phần, cả đơn được ghi là thiếu hàng — hệ thống không tự từ chối đơn và không tự hạ MLOR.`}
+          {line.outcome === 'Released' &&
+            `Dòng này đã rút được ${formatCases(line.drawnQuantity)}, nhưng một dòng khác của cùng đơn thiếu hàng. Vì đơn là đủ-hoặc-không-gì, toàn bộ lượng tạm của đơn được trả về quỹ chung cho các đơn phía sau. Đây không phải dòng bị thiếu.`}
+          {line.note && <div style={{ marginTop: 6, opacity: 0.85 }}>{line.note}</div>}
         </div>
       </StepSection>
     </>

@@ -1,28 +1,28 @@
 import { useEffect, useState } from 'react';
 import { Button, Callout, Card, FormField, Input, PageHeader, QueryState } from '@/shared/ui';
 import { WeightsEditor } from '../components/WeightsEditor';
-import { TransitTableEditor, type BandDraft } from '../components/TransitTableEditor';
-import { useSaveConfig, useSettings, useTransitTable } from '../hooks';
-import type { SystemSettings, TransitTable } from '../types';
+import { TransitTableSection } from '../components/TransitTableSection';
+import { RunScheduleSection } from '../components/RunScheduleSection';
+import { useRunSchedule, useSaveConfig, useSettings, useTransitTable } from '../hooks';
+import type { RunSchedule, SystemSettings, TransitTable } from '../types';
 
 type W = { wE: string; wD: string; wQ: string };
 interface Draft {
   alloc: W; rot: W; dRetailer: string; dWh: string; velocityDays: string; minQty: string; roundTo: string; minRegional: string; loyalty: string;
-  tiers: { maxRemainingPct: string; discountPct: string }[]; bands: BandDraft[];
+  tiers: { maxRemainingPct: string; discountPct: string }[];
 }
 const w = (x: { wE: number; wD: number; wQ: number }): W => ({ wE: String(x.wE), wD: String(x.wD), wQ: String(x.wQ) });
-const toDraft = (s: SystemSettings, t: TransitTable): Draft => ({
+const toDraft = (s: SystemSettings): Draft => ({
   alloc: w(s.allocation), rot: w(s.rotation), dRetailer: String(s.dmaxRetailerKm), dWh: String(s.dmaxWarehouseKm), velocityDays: String(s.rotation.velocityDays),
   minQty: String(s.rotation.minQty), roundTo: String(s.rotation.roundTo), minRegional: String(s.minRegionalStock), loyalty: String(s.loyaltyPointRateVnd),
   tiers: s.batchDiscountTiers.map((x) => ({ maxRemainingPct: String(x.maxRemainingPct), discountPct: String(x.discountPct) })),
-  bands: t.bands.map((b) => ({ days: String(b.days), cost: String(b.cost) })),
 });
 const sum = (x: W) => Number(x.wE) + Number(x.wD) + Number(x.wQ);
 
-function ConfigForm({ settings, transit }: { settings: SystemSettings; transit: TransitTable }) {
-  const [d, setD] = useState<Draft>(() => toDraft(settings, transit));
+function ConfigForm({ settings, transit, schedule }: { settings: SystemSettings; transit: TransitTable; schedule: RunSchedule }) {
+  const [d, setD] = useState<Draft>(() => toDraft(settings));
   const save = useSaveConfig();
-  useEffect(() => setD(toDraft(settings, transit)), [settings, transit]);
+  useEffect(() => setD(toDraft(settings)), [settings]);
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((s) => ({ ...s, [k]: v }));
   const num = (v: string) => v.trim() !== '' && !Number.isNaN(Number(v));
 
@@ -32,7 +32,6 @@ function ConfigForm({ settings, transit }: { settings: SystemSettings; transit: 
   if (!num(d.dRetailer) || !num(d.dWh)) errors.push('Dmax phải là số.');
   else if (Number(d.dRetailer) > Number(d.dWh)) errors.push('Dmax_retailer không được lớn hơn Dmax_kho.');
   if (![d.velocityDays, d.minQty, d.roundTo, d.minRegional, d.loyalty].every(num)) errors.push('Các tham số luân chuyển / loyalty phải là số.');
-  if (d.bands.some((b) => !(Number(b.days) > 0) || !(Number(b.cost) >= 0))) errors.push('Bảng vận chuyển: số ngày > 0 và chi phí ≥ 0.');
 
   const submit = () =>
     save.mutate({
@@ -43,13 +42,16 @@ function ConfigForm({ settings, transit }: { settings: SystemSettings; transit: 
         minRegionalStock: Number(d.minRegional), loyaltyPointRateVnd: Number(d.loyalty),
         batchDiscountTiers: d.tiers.map((t) => ({ maxRemainingPct: Number(t.maxRemainingPct), discountPct: Number(t.discountPct) })),
       },
-      bands: transit.bands.map((b, i) => ({ ...b, days: Number(d.bands[i].days), cost: Number(d.bands[i].cost) })),
     });
 
   return (
     <>
       <PageHeader title="Cấu hình hệ thống" subtitle="Trọng số phân bổ / luân chuyển, phạm vi phục vụ, bảng vận chuyển dùng chung và quy đổi điểm loyalty." actions={<Button variant="primary" disabled={errors.length > 0} loading={save.isPending} onClick={submit}>Lưu cấu hình</Button>} />
       {errors.length > 0 && <Callout tone="danger">{errors.map((e) => <div key={e}>{e}</div>)}</Callout>}
+
+      <Card title="Lịch ngày chạy đợt: giờ chốt và các mốc nhắc duyệt">
+        <RunScheduleSection current={schedule} />
+      </Card>
 
       <Card title="Trọng số phân bổ đơn hàng (B3): điểm = wE·fE + wD·fD + wQ·fQ">
         <WeightsEditor value={d.alloc} onChange={(v) => set('alloc', v)} />
@@ -74,8 +76,8 @@ function ConfigForm({ settings, transit }: { settings: SystemSettings; transit: 
         </div>
       </Card>
 
-      <Card title="Bảng vận chuyển dùng chung (km → ngày, chi phí)">
-        <TransitTableEditor bands={transit.bands} draft={d.bands} validFrom={transit.validFrom} onChange={(b) => set('bands', b)} />
+      <Card title="Bảng vận chuyển dùng chung (khoảng km → thời gian, chi phí)">
+        <TransitTableSection current={transit} />
       </Card>
 
       <Card title="Bậc giảm giá theo HSD còn lại">
@@ -101,9 +103,18 @@ function ConfigForm({ settings, transit }: { settings: SystemSettings; transit: 
 export function ConfigPage() {
   const settings = useSettings();
   const transit = useTransitTable();
+  const schedule = useRunSchedule();
   return (
     <QueryState query={settings}>
-      {(s) => <QueryState query={transit}>{(t) => <ConfigForm settings={s} transit={t} />}</QueryState>}
+      {(s) => (
+        <QueryState query={transit}>
+          {(t) => (
+            <QueryState query={schedule}>
+              {(sch) => <ConfigForm settings={s} transit={t} schedule={sch} />}
+            </QueryState>
+          )}
+        </QueryState>
+      )}
     </QueryState>
   );
 }

@@ -1,10 +1,12 @@
 import { db } from '../fixtures';
 import type { DbCategory, DbProduct } from '../fixtures/types';
 import { MockRouter, conflict, notFound, paginate, validation } from '../router';
-import { warehouseName } from './common';
+import { mockGuid, warehouseName } from './common';
 
 const catName = (code: string) => db.categories.find((c) => c.code === code)?.name ?? code;
 const productSummary = (p: DbProduct) => ({
+  // The server addresses products by identifier; the code stays for people to read.
+  id: mockGuid(p.sku),
   sku: p.sku, name: p.name, categoryCode: p.categoryCode, categoryName: catName(p.categoryCode), packSpec: p.packSpec, basePrice: p.basePrice,
   shelfLifeDays: p.shelfLifeDays, nearExpiryDays: p.nearExpiryDays, defaultMlor: p.defaultMlor, status: p.status,
 });
@@ -12,7 +14,7 @@ const productDetail = (p: DbProduct) => ({
   ...productSummary(p), unitCost: p.unitCost, replaceOf: p.replaceOf, replacedBy: p.replacedBy,
   batches: db.batches.filter((b) => b.sku === p.sku && !b.disposed).map((b) => ({ warehouseCode: b.warehouseCode, warehouseName: warehouseName(b.warehouseCode), batchCode: b.code, expiry: b.expiry, available: b.available })),
 });
-const categoryDto = (c: DbCategory) => ({ ...c, productCount: db.products.filter((p) => p.categoryCode === c.code).length });
+const categoryDto = (c: DbCategory) => ({ id: mockGuid(c.code), ...c, productCount: db.products.filter((p) => p.categoryCode === c.code).length });
 const find = (sku: string) => db.products.find((p) => p.sku === sku) ?? (() => { throw notFound(`Sản phẩm ${sku}`); })();
 const nextSku = () => 'SKU' + String(Math.max(...db.products.map((p) => Number(p.sku.slice(3)))) + 1).padStart(3, '0');
 
@@ -34,7 +36,8 @@ function readProduct(body: Record<string, unknown>) {
 }
 
 export function registerCatalog(r: MockRouter) {
-  r.get('/categories', ({ query }) => paginate(db.categories.map(categoryDto), query, (c) => `${c.code} ${c.name} ${c.description}`));
+  // Plain array on the real API too; /products stays paged.
+  r.get('/categories', () => db.categories.map(categoryDto));
   r.get('/categories/:code', ({ params }) => {
     const c = db.categories.find((x) => x.code === params.code) ?? (() => { throw notFound(`Danh mục ${params.code}`); })();
     return { ...categoryDto(c), products: db.products.filter((p) => p.categoryCode === c.code).map(productSummary) };

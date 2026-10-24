@@ -6,7 +6,9 @@ export const env = {
   entra: {
     tenantId: import.meta.env.VITE_ENTRA_TENANT_ID ?? '',
     clientId: import.meta.env.VITE_ENTRA_CLIENT_ID ?? '',
-    apiScope: import.meta.env.VITE_ENTRA_API_SCOPE ?? 'api://fscm-api/access_as_user',
     redirectUri: import.meta.env.VITE_ENTRA_REDIRECT_URI ?? `${window.location.origin}/login`,
+  },
+  google: {
+    clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '',
   },
 } as const;

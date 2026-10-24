@@ -38,6 +38,9 @@
 .role-card { border: 1px solid var(--c-border); background: #fff; border-radius: var(--radius-sm); padding: 10px 12px; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
 .role-card.active { border-color: var(--c-primary); background: var(--c-primary-soft); }
 .role-card:hover { border-color: var(--c-primary); }
+.oauth-divider { display: flex; align-items: center; gap: 12px; color: var(--c-muted); font-size: 12px; }
+.oauth-divider::before, .oauth-divider::after { content: ''; flex: 1; height: 1px; background: var(--c-border); }
+.google-signin { min-height: 44px; display: flex; justify-content: center; }
 
 /* shared patterns used by feature pages */
 .link-btn { background: none; border: none; padding: 0; color: var(--c-primary); font-weight: 600; cursor: pointer; font-size: inherit; text-align: left; }
