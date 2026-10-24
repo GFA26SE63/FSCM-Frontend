@@ -1,8 +1,8 @@
 import { db } from '../fixtures';
 import type { DbOrder } from '../fixtures/types';
 import { MockRouter, businessRule, conflict, notFound, paginate, validation } from '../router';
-import { actor, actorLabel, nextSeq, order, requireRole, retailer } from './common';
-import { orderDetail, orderSummary, pickingLists, pricingOf, traceOf } from './orderView';
+import { actor, actorLabel, nextSeq, order, orderById, requireRole, retailer } from './common';
+import { allocationTraceOf, orderDetail, orderSummary, pickingLists, pricingOf, traceOf } from './orderView';
 import { MOCK_TODAY, stamp } from '../engines/clock';
 import { addDays } from '../../../lib/dates';
 
@@ -50,18 +50,7 @@ export function registerOrdering(r: MockRouter) {
   });
   r.get('/orders/:code', ({ params }) => orderDetail(order(params.code)));
 
-  r.get('/orders/:code/allocation-trace', ({ params }) => {
-    const o = order(params.code);
-    const trace = traceOf(o);
-    const s = db.settings;
-    const dispatched = ['Shipped', 'Delivering', 'Delivered', 'Completed'].includes(o.status);
-    return {
-      orderCode: o.code, retailerCode: o.retailerCode, retailerName: retailer(o.retailerCode).name,
-      basis: `Tính trên tồn khả dụng tại thời điểm xử lý đơn (${o.channel === 'Offline' && o.syncedAt ? 'lúc đồng bộ ' + o.syncedAt.replace('T', ' ') : o.createdAt.replace('T', ' ')})`,
-      dispatchDate: '2026-09-28', dmaxRetailerKm: s.dmaxRetailerKm, weights: s.allocation, ok: trace.ok, dispatched,
-      lines: trace.lines, estimatedDeliveryCost: trace.ok ? orderDetail(o).estimatedDeliveryCost : null,
-    };
-  });
+  r.get('/allocation-runs/orders/:id/trace', ({ params }) => allocationTraceOf(orderById(params.id)));
 
   r.post('/orders/:code/approve', (req) => {
     requireRole(req, ['Admin', 'Operator']);

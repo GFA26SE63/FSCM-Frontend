@@ -11,7 +11,7 @@ export const orderKeys = {
 
 export const useOrders = () => useQuery({ queryKey: orderKeys.list, queryFn: orderApi.list });
 export const useOrder = (code: string) => useQuery({ queryKey: orderKeys.detail(code), queryFn: () => orderApi.get(code) });
-export const useAllocationTrace = (code: string, enabled: boolean) => useQuery({ queryKey: orderKeys.trace(code), queryFn: () => orderApi.trace(code), enabled });
+export const useAllocationTrace = (orderId: string, enabled: boolean) => useQuery({ queryKey: orderKeys.trace(orderId), queryFn: () => orderApi.trace(orderId), enabled: enabled && !!orderId });
 export const useDispatchOptions = (enabled: boolean) => ({
   vehicles: useQuery({ queryKey: ['dispatch', 'vehicles'], queryFn: orderApi.vehicles, enabled }),
   drivers: useQuery({ queryKey: ['dispatch', 'drivers'], queryFn: orderApi.drivers, enabled }),

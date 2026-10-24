@@ -44,6 +44,8 @@ export const nextSeq = (codes: string[], prefix: string, width: number) => {
 /**
  * A stable fake GUID for a business code, so mock responses can be keyed the way the real API is:
  * the server addresses promotions, products and retailers by identifier, not by code.
+ * A stable fake GUID for a business code, so mock responses can be keyed the way the real API is
+ * (run-side endpoints take identifiers, not codes). Deterministic, so a reload keeps the same id.
  */
 export const mockGuid = (seed: string): string => {
   let h = 0x811c9dc5;
@@ -56,3 +58,6 @@ export const mockGuid = (seed: string): string => {
   const g = hex.join('');
   return `${g.slice(0, 8)}-${g.slice(8, 12)}-${g.slice(12, 16)}-${g.slice(16, 20)}-${g.slice(20, 32)}`;
 };
+
+export const orderById = (id: string): DbOrder =>
+  db.orders.find((o) => mockGuid(o.code) === id) ?? notFoundThrow(`Đơn ${id}`);

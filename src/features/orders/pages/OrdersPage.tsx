@@ -29,7 +29,7 @@ export function OrdersPage() {
     <OrderActions>
       {({ buttons, dialogs }) => (
         <>
-          <PageHeader title="Đơn hàng" subtitle="Duyệt đơn, xem kết quả phân bổ B1–B4, cập nhật giao hàng. Đơn hết hàng bị hệ thống tự từ chối." />
+          <PageHeader title="Đơn hàng" subtitle="Duyệt đơn, xem giải thích phân bổ B1–B4, cập nhật giao hàng. Đơn không đủ hàng được ghi là thiếu, đợt không tự từ chối đơn." />
           <DataTable
             title="Danh sách đơn hàng"
             rows={rows}
