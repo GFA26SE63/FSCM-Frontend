@@ -40,3 +40,22 @@ export const nextSeq = (codes: string[], prefix: string, width: number) => {
   const max = codes.filter((c) => c.startsWith(prefix)).reduce((m, c) => Math.max(m, Number(c.slice(prefix.length)) || 0), 0);
   return prefix + String(max + 1).padStart(width, '0');
 };
+
+/**
+ * A stable fake GUID for a business code, so mock responses can be keyed the way the real API is
+ * (run-side endpoints take identifiers, not codes). Deterministic, so a reload keeps the same id.
+ */
+export const mockGuid = (seed: string): string => {
+  let h = 0x811c9dc5;
+  const hex: string[] = [];
+  for (let i = 0; i < 32; i++) {
+    h ^= seed.charCodeAt(i % seed.length) + i * 31;
+    h = Math.imul(h, 0x01000193) >>> 0;
+    hex.push(((h >>> (i % 4) * 4) & 0xf).toString(16));
+  }
+  const g = hex.join('');
+  return `${g.slice(0, 8)}-${g.slice(8, 12)}-${g.slice(12, 16)}-${g.slice(16, 20)}-${g.slice(20, 32)}`;
+};
+
+export const orderById = (id: string): DbOrder =>
+  db.orders.find((o) => mockGuid(o.code) === id) ?? notFoundThrow(`Đơn ${id}`);

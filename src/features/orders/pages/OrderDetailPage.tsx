@@ -140,7 +140,7 @@ function OrderBody({ o }: { o: OrderDetail }) {
           </Card>
 
           {dialogs}
-          <AllocationTraceDialog code={o.code} open={trace} onClose={() => setTrace(false)} />
+          <AllocationTraceDialog orderId={o.id} code={o.code} open={trace} onClose={() => setTrace(false)} />
         </>
       )}
     </OrderActions>
