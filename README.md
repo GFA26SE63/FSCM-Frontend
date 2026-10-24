@@ -81,7 +81,35 @@ mọi tầng có thể dùng shared/ui, shared/lib và shared/auth khi phù hợ
 5. Nếu mock mode cần hỗ trợ, thêm handler vào module phù hợp và fixture tối thiểu; contract mock phải giống backend.
 6. Chạy `npm run lint` và `npm run build` trước khi bàn giao.
 
-Feature ↔ menu: dashboard · orders (chi tiết + **Giải thích phân bổ B1–B4** + chi phí giao ước tính) · debts (công nợ một phần, thu một lần) · picking · receipts · whtransfer · **rotation (Luân chuyển cận hạn: đề xuất, bảng điểm từng kho ứng viên, duyệt / sửa SL / bỏ qua)** · **fleet (Xe & người giao)** · batches · batchpromo · disposal · promos · retailers · loyalty · gifts · redeem · regions · categories · products (nháp / publish / inactive / clone) · warehouses · users (không tạo Admin) · kpi · complaints · config (trọng số phân bổ, trọng số luân chuyển, Dmax, **bảng vận chuyển dùng chung**, tỷ lệ điểm).
+Feature ↔ menu: dashboard · orders (chi tiết + **Giải thích phân bổ B1–B4** đọc từ trace thật của đợt + chi phí giao ước tính) · debts (công nợ một phần, thu một lần) · picking · receipts · whtransfer · **rotation (Luân chuyển cận hạn: đề xuất, bảng điểm từng kho ứng viên, duyệt / sửa SL / bỏ qua)** · **fleet (Xe & người giao)** · batches · batchpromo · disposal · promos · retailers · loyalty · gifts · redeem · regions · categories · products (nháp / publish / inactive / clone) · warehouses · users (không tạo Admin) · kpi · complaints · config (trọng số phân bổ, trọng số luân chuyển, Dmax, **bảng vận chuyển dùng chung**, tỷ lệ điểm).
+
+## Giải thích phân bổ (orders)
+
+Cửa sổ "Giải thích phân bổ" đọc trace mà đợt 12:00 ghi lại, qua
+`GET /allocation-runs/orders/{salesOrderId}/trace`. Vài điều dễ làm sai khi sửa màn này:
+
+- **Hạn dùng tính bằng giờ, không phải ngày.** Đợt so sánh bằng giờ là có chủ đích: tới sáng hôm
+  sau khác tới chiều hôm đó. `formatHours` hiện số ngày bên cạnh cho dễ đọc, nhưng số gốc là giờ.
+- **Batch bị loại phải ở lại trên màn hình**, kèm lý do. "Vì sao không phải batch kia" mới là câu
+  cửa sổ này sinh ra để trả lời; chỉ hiện batch được chọn là bỏ mất công dụng của nó.
+- **Mọi xếp hạng của mọi lượt**, không chỉ batch thắng. Một điểm số chẳng nói gì nếu không có các
+  điểm nó đã thắng, và `f_Q` được tính lại mỗi lượt nên cùng một batch ra điểm khác giữa hai lượt.
+- **Không hiện giá ở đây.** Đợt chọn batch trước rồi mới định giá, nên giảm giá cận hạn không tham
+  gia chấm điểm. Giá đọc từ bản lưu riêng (`.../price`); trộn hai thứ sẽ gợi ý sai rằng giảm giá
+  giúp batch được chọn.
+- **Trạng thái phiên bản phương án phải hiện.** Phương án chờ duyệt là đề xuất, chưa giữ hàng. Người
+  dùng không phân biệt được hai thứ này sẽ hứa hàng chưa thật sự được giữ.
+- **`Released` khác `Short`.** Dòng `Released` đã rút được hàng rồi mất vì một dòng *khác* của cùng
+  đơn thiếu — đơn là đủ-hoặc-không-gì nên lượng tạm của cả đơn được trả về quỹ chung. Nó không phải
+  dòng bị thiếu.
+- Đơn không đủ hàng được **ghi là thiếu**; đợt không tự từ chối đơn, không tự hạ MLOR, không nới bán
+  kính, và không lấy batch của đơn trước để nhường đơn sau.
+
+Mock map engine theo-ngày sẵn có sang shape thật. Hai chỗ mock không làm được, đã ghi chú tại chỗ
+trong `orderView.ts`: chỉ giữ xếp hạng đầy đủ của lượt đầu, và không có dữ liệu `Released`.
+
+Endpoint phía đợt (trace, giá) key theo **định danh** chứ không theo mã đơn, nên `OrderDetail` có
+trường `id`; mock sinh id ổn định từ mã đơn bằng `mockGuid`.
 
 ## Lưu ý khi nối API thật
 

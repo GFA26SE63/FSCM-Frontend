@@ -5,7 +5,7 @@ import { DISPATCH_DATE, MOCK_TODAY } from '../engines/clock';
 import { priceLines } from '../engines/pricing';
 import { traceAllocation, type TraceResult } from '../engines/allocation';
 import { quoteTransit } from '../engines/transit';
-import { product, retailer, warehouseName, areaName } from './common';
+import { mockGuid, product, retailer, warehouseName, areaName } from './common';
 
 export const mlorOf = (retailerCode: string, sku: string) => db.retailerMlor[retailerCode]?.[sku] ?? product(sku).defaultMlor;
 
@@ -88,6 +88,7 @@ export function orderDetail(o: DbOrder) {
   const group = db.groups.find((g) => g.members.includes(o.salesName));
   return {
     ...orderSummary(o),
+    id: mockGuid(o.code),
     retailerAddress: r.address, groupCode: group?.code ?? r.groupCode, areaName: areaName(r.areaCode),
     syncedAt: o.syncedAt, syncMode: o.syncMode, prepaidChannel: o.prepaidChannel, paymentStatus: o.paidNote,
     receivable: rec ? { status: rec.status, dueDate: rec.dueDate, outstanding: rec.outstanding, deliveredAt: rec.deliveredAt } : null,
@@ -99,5 +100,113 @@ export function orderDetail(o: DbOrder) {
     delivery: o.delivery, loyalty: { points, state: loyaltyState },
     pickingLists: pickingLists().filter((p) => p.orderCode === o.code).map((p) => ({ code: p.code, warehouseName: p.warehouseName })),
     timeline: o.timeline, totalQty: o.lines.reduce((a, l) => a + l.qty, 0),
+  };
+}
+
+const HOURS_PER_DAY = 24;
+const arrivalInstant = (isoDate: string) => `${isoDate}T09:00:00+07:00`;
+
+/**
+ * Maps this mock's day-based engine onto the real trace shape (hours, one row per filter stage,
+ * one row per ranked batch per greedy turn), so the portal renders what the server will send.
+ *
+ * Two honest gaps, because the mock engine does not record them: it keeps the full ranking only for
+ * the first turn, so later turns show their winner alone; and it has no notion of a line released
+ * because another line of the same order fell short, so no Released outcome appears here.
+ */
+export function allocationTraceOf(o: DbOrder) {
+  const trace = traceOf(o);
+  const approved = !['Pending', 'Rejected', 'Cancelled'].includes(o.status);
+  const weights = {
+    shelfLife: db.settings.allocation.wE,
+    distance: db.settings.allocation.wD,
+    coverage: db.settings.allocation.wQ,
+    maximumDistanceMeters: db.settings.dmaxRetailerKm * 1000,
+  };
+
+  return {
+    salesOrderId: mockGuid(o.code),
+    orderCode: o.code,
+    allocationRunId: mockGuid(`${o.code}-run`),
+    runCode: `PB-${DISPATCH_DATE.replace(/-/g, '')}-01`,
+    allocationPlanVersionId: mockGuid(`${o.code}-ver`),
+    planVersionNumber: 1,
+    planVersionStatus: approved ? 'Approved' : 'AwaitingApproval',
+    isApproved: approved,
+    lines: trace.lines.map((l, index) => {
+      const requiredHours = l.mlorDays * HOURS_PER_DAY;
+      const ident = (row: { warehouseName: string; batchCode: string }) => ({
+        batchId: mockGuid(row.batchCode),
+        batchCode: row.batchCode,
+        warehouseId: mockGuid(row.warehouseName),
+        warehouseCode: row.warehouseName,
+      });
+      const candidates = [
+        ...l.b1.map((row) => ({
+          ...ident(row),
+          stage: 'Pool' as const,
+          passed: row.kept,
+          reason: row.kept ? ('Eligible' as const) : ('NoRemainingQuantity' as const),
+          estimatedArrivalAt: null,
+          remainingShelfLifeHours: null,
+          requiredShelfLifeHours: null,
+        })),
+        ...l.b2a.map((row) => ({
+          ...ident(row),
+          stage: 'Distance' as const,
+          passed: row.kept,
+          reason: row.kept ? ('Eligible' as const) : ('OutsideServiceRadius' as const),
+          estimatedArrivalAt: null,
+          remainingShelfLifeHours: null,
+          requiredShelfLifeHours: null,
+        })),
+        ...l.b2d.map((row) => ({
+          ...ident(row),
+          stage: 'Delivery' as const,
+          passed: row.kept,
+          reason: row.kept ? ('Eligible' as const) : ('BelowMlor' as const),
+          estimatedArrivalAt: arrivalInstant(row.eta),
+          remainingShelfLifeHours: row.remainingDays * HOURS_PER_DAY,
+          requiredShelfLifeHours: requiredHours,
+        })),
+      ];
+
+      const turns = l.b4.filter((row) => row.turn != null);
+      const scores = turns.flatMap((turn) =>
+        (turn.turn === 1 ? l.b3 : l.b3.filter((row) => row.batchCode === turn.batchCode)).map((row, rank) => ({
+          ...ident(row),
+          iteration: turn.turn as number,
+          rank: turn.turn === 1 ? row.rank : rank + 1,
+          remainingDemand: turn.need,
+          shelfLifeScore: row.fE,
+          distanceScore: row.fD,
+          coverageScore: row.fQ,
+          weightedScore: row.score,
+          selected: row.batchCode === turn.batchCode,
+          selectedQuantity: row.batchCode === turn.batchCode ? turn.take : 0,
+        })),
+      );
+
+      return {
+        salesOrderLineId: mockGuid(`${o.code}-${l.sku}`),
+        allocationRunLineId: mockGuid(`${o.code}-${l.sku}-run`),
+        sku: l.sku,
+        lineNumber: index + 1,
+        outcome: l.enough ? ('Allocated' as const) : ('Short' as const),
+        orderedQuantity: l.qty,
+        drawnQuantity: l.allocated,
+        shortageQuantity: l.short,
+        mlorSource: db.retailerMlor[o.retailerCode]?.[l.sku] != null
+          ? ('RetailerProduct' as const)
+          : ('ProductDefault' as const),
+        effectiveMlorRatio: l.m,
+        totalShelfLifeHours: l.shelfLifeDays * HOURS_PER_DAY,
+        requiredShelfLifeHours: requiredHours,
+        weights,
+        note: l.enough ? null : `Dòng ${index + 1} (${l.sku}) thiếu ${l.short} trên ${l.qty}.`,
+        candidates,
+        scores,
+      };
+    }),
   };
 }
