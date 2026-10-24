@@ -130,6 +130,55 @@ trong `orderView.ts`: chỉ giữ xếp hạng đầy đủ của lượt đầu
 Endpoint phía đợt (trace, giá) key theo **định danh** chứ không theo mã đơn, nên `OrderDetail` có
 trường `id`; mock sinh id ổn định từ mã đơn bằng `mockGuid`.
 
+## Contract FE ↔ BE: chỗ đã khớp và chỗ chưa
+
+Portal được dựng như prototype trên mock trước khi backend có; hai bên thiết kế độc lập. Đo bằng
+cách bật API thật (Azure dev DB) rồi gọi **đúng đường dẫn và đúng loại giá trị** Portal gửi, không
+đăng nhập — `401` nghĩa là route khớp, `404` nghĩa là không (23/10/2026):
+
+| Kết quả | Số lời gọi |
+| --- | --- |
+| `401` — route khớp | 37 |
+| `404` — không khớp | **89** |
+| `405` — đúng đường, sai method | 2 |
+| **Tổng** | **128** |
+
+89 chỗ `404` chia làm ba nhóm, và chúng cần ba cách xử lý khác hẳn nhau:
+
+**A. Route có sẵn, chỉ sai kiểu khóa — 23 chỗ.** Portal gửi mã nghiệp vụ (`DH-001024`, `SKU001`),
+route backend ràng buộc `{id:guid}` nên không khớp. Gặp ở `orders` (7), `products` (4),
+`categories`, `warehouses`, `users`, `sales-groups`, `retailers`, `goods-receipts`, `promotions`.
+Sửa được cơ học: thêm `id` vào DTO, đổi route param, sửa mock theo. `orders` và `promos` đã làm.
+
+**B. Cùng nhóm tài nguyên nhưng khác tên — 6 chỗ.** Phải thống nhất tên với backend:
+
+| Portal gọi | Backend thực có |
+| --- | --- |
+| `POST /products/{sku}/clone` | *(không có)* — gần nhất là `/products/{id}/replacement` |
+| `POST /promotions/{code}/pause` | `POST /promotions/{id}/deactivate` |
+| `GET /retailers/{code}/mlor` | `GET /retailers/{id}/mlor-resolution` |
+| `POST /picking-lists/{code}/scan`, `/ship` | luồng soạn hàng theo đợt, không theo mã phiếu |
+| `POST /batch-discounts/{code}/stop` | `POST /promotions/{id}/deactivate` |
+
+**C. Backend chưa có tính năng — 60 chỗ.** `dashboard`, `notifications`, `complaints`, `disposal`,
+`gifts`, `redeem`, `loyalty`, `rotation`, `whtransfer`, `kpi`, `fleet`, `/settings`, `/areas`,
+`/sales-staff`, `/retailer-registrations`. Phần lớn là S2/S3 chưa làm — **không phải lỗi**, nhưng
+cũng có nghĩa là các màn đó mới chỉ chạy được trên mock.
+
+**Danh sách: mảng thuần hay `{ items }`?** Backend không nhất quán, nên mỗi lời gọi phải chọn đúng
+helper. Đo trên API đang chạy (23/10/2026):
+
+| Trả **mảng thuần** → dùng `get<T[]>` | Trả **`{ items }`** → dùng `getAll<T>` |
+| --- | --- |
+| `/promotions`, `/categories`, `/warehouses`, `/regions`, `/sales-groups`, `/inventory`, `/goods-receipts`, `/transit-tables/history` | `/products`, `/retailers`, `/users`, `/orders` |
+
+Dùng `getAll` cho một endpoint trả mảng thuần thì nó đọc `.items` của mảng, nhận `undefined`, và màn
+hình **rỗng không báo lỗi gì**. Đây là lỗi đã xảy ra hai lần (lịch sử bảng vận chuyển, rồi khuyến
+mãi), nên kiểm shape thật trước khi tin `tsc`.
+
+Khi sửa một feature cho khớp backend, **sửa cả mock theo shape thật** rồi mới đóng việc; mock trả
+shape cũ thì `tsc` vẫn xanh mà màn hình gãy lúc chạy.
+
 ## Lưu ý khi nối API thật
 
 Kiểu dữ liệu trong `features/*/types.ts` đang khớp với mock handler. Khi backend chạy, sinh type từ Swagger (`npx openapi-typescript http://localhost:5080/swagger/v1/swagger.json -o src/shared/api/schema.d.ts`) rồi đối chiếu từng feature; chỗ nào lệch thì sửa một phía cho thống nhất (ưu tiên giữ tên trường của backend).

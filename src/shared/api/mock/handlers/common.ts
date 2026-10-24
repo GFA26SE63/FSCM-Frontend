@@ -42,6 +42,8 @@ export const nextSeq = (codes: string[], prefix: string, width: number) => {
 };
 
 /**
+ * A stable fake GUID for a business code, so mock responses can be keyed the way the real API is:
+ * the server addresses promotions, products and retailers by identifier, not by code.
  * A stable fake GUID for a business code, so mock responses can be keyed the way the real API is
  * (run-side endpoints take identifiers, not codes). Deterministic, so a reload keeps the same id.
  */

@@ -94,7 +94,22 @@ export function orderDetail(o: DbOrder) {
     receivable: rec ? { status: rec.status, dueDate: rec.dueDate, outstanding: rec.outstanding, deliveredAt: rec.deliveredAt } : null,
     reviewer: o.reviewer, rejectReason: o.status === 'Rejected' ? o.reason : null, cancelReason: o.status === 'Cancelled' ? o.reason : null,
     promoChange: o.promoChanged ? { localDiscount: o.localDiscount, officialDiscount: price.discount, reason: 'KM-003 đã bị Admin tạm dừng lúc 09:30, sau lần app tải dữ liệu gần nhất.' } : null,
-    lines: price.lines, promotions: price.promotions, totalBeforePromo: price.total, discount: price.discount, finalPrice: price.final,
+    lines: price.lines.map((l) => {
+      // The order froze its MLOR when it was accepted; the run copies it rather than re-resolving.
+      const own = db.retailerMlor[o.retailerCode]?.[l.sku];
+      const ratio = own ?? product(l.sku).defaultMlor;
+      return {
+        ...l,
+        mlor: {
+          sourceScope: own != null ? 'Sku' : 'Default',
+          minimumLifeRatio: ratio,
+          minimumLifeHours: Math.round(ratio * product(l.sku).shelfLifeDays * 24),
+          resolvedAt: o.createdAt,
+        },
+        finalPricePendingAllocation: ['Pending', 'Approved'].includes(o.status),
+      };
+    }),
+    promotions: price.promotions, totalBeforePromo: price.total, discount: price.discount, finalPrice: price.final,
     allocationState, allocations: trace.ok ? trace.lines.flatMap((l) => l.allocations) : [],
     estimatedDeliveryCost: trace.ok ? deliveryCostOf(o, trace) : null,
     delivery: o.delivery, loyalty: { points, state: loyaltyState },

@@ -63,7 +63,13 @@ export function masterData(): Master {
       { code: 'KB-0012', name: 'Tạp hóa Hải Yến', address: '31 Trường Chinh, P. Tân Thới Nhất, Q.12', phone: '0903 456 789', contact: 'Chị Hải Yến', areaCode: 'Q12', kind: 'Tạp hóa', size: 'M',
         forecastRevenue: 45000000, monthlyCapacity: 90, salesName: 'Nguyễn Văn An', createdAt: '2026-09-26T16:20', status: 'Pending', retailerCode: null, rejectReason: null },
     ],
-    retailerMlor: {},
+    // Two retailers insist on fresher stock for specific SKUs than the product default, so the
+    // order screen can show a retailer rule and a product default side by side. Category-level
+    // MLOR (F22) is not modelled here; the server resolves that level.
+    retailerMlor: {
+      '10004127': { SKU001: 0.5 },
+      '10004135': { SKU003: 0.4 },
+    },
     retailerDist: {
       '10004127': { 'WH-TA': 3.2, 'WH-TCH': 6.5, 'WH-GV': 9.8, 'WH-TD': 17.4, 'WH-CC': 28.6, 'WH-CG': 44.0 },
       '10004135': { 'WH-TA': 5.1, 'WH-TCH': 1.8, 'WH-GV': 8.7, 'WH-TD': 14.2, 'WH-CC': 24.9, 'WH-CG': 41.5 },
