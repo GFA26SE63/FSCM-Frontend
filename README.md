@@ -81,6 +81,25 @@ mọi tầng có thể dùng shared/ui, shared/lib và shared/auth khi phù hợ
 5. Nếu mock mode cần hỗ trợ, thêm handler vào module phù hợp và fixture tối thiểu; contract mock phải giống backend.
 6. Chạy `npm run lint` và `npm run build` trước khi bàn giao.
 
+Feature ↔ menu: dashboard · orders (chi tiết + **Giải thích phân bổ B1–B4** + chi phí giao ước tính) · debts (công nợ một phần, thu một lần) · picking · receipts · whtransfer · **rotation (Luân chuyển cận hạn: đề xuất, bảng điểm từng kho ứng viên, duyệt / sửa SL / bỏ qua)** · **fleet (Xe & người giao)** · batches · batchpromo · disposal · promos · retailers · loyalty · gifts · redeem · regions · categories · products (nháp / publish / inactive / clone) · warehouses · users (không tạo Admin) · kpi · complaints · config (**lịch ngày chạy đợt: giờ chốt + mốc nhắc**, trọng số phân bổ, trọng số luân chuyển, Dmax, **bảng vận chuyển dùng chung**, tỷ lệ điểm).
+
+## Lịch ngày chạy đợt (config)
+
+Mục "Lịch ngày chạy đợt" sửa **một document duy nhất** (`eta.schedule`), vì các mốc chỉ có nghĩa khi
+đặt cạnh nhau. Đó cũng là lịch mà đợt phân bổ chạy theo và ETA báo cho khách tính từ — đừng tách ra
+thành cấu hình riêng cho portal, vì hai lịch chính là cách hai giờ chốt sinh ra lúc đầu.
+
+- **Khuyến nghị gửi đơn là khuyến nghị**, không phải cổng chặn. Đơn nhận sau mốc đó mà trước giờ
+  chốt vẫn vào đợt. UI phải hiện rõ điều này, đừng gọi nó là "hạn".
+- **Mốc nhắc phải nằm trước thứ nó nhắc**: hai mốc trước giờ chốt phải trước giờ chốt; nhắc duyệt
+  phương án phải nằm **giữa** giờ chốt và hạn duyệt.
+- **Quá hạn duyệt hệ thống không tự duyệt.** Câu này nằm ngay trong mục cấu hình, nơi người sửa giờ
+  đang đứng — đừng rút gọn nó đi.
+- Validate ở client **lặp lại đúng** luật của server. Mốc nhắc sai thứ tự không phải lỗi nhẹ hơn chỉ
+  vì được gõ trong portal.
+
+Server trả mốc đã **quy ra thời điểm thật** cho một ngày nghiệp vụ; portal không tự suy giờ Việt Nam
+từ chuỗi `"12:00"`.
 Feature ↔ menu: dashboard · orders (chi tiết + **Giải thích phân bổ B1–B4** đọc từ trace thật của đợt + chi phí giao ước tính) · debts (công nợ một phần, thu một lần) · picking · receipts · whtransfer · **rotation (Luân chuyển cận hạn: đề xuất, bảng điểm từng kho ứng viên, duyệt / sửa SL / bỏ qua)** · **fleet (Xe & người giao)** · batches · batchpromo · disposal · promos · retailers · loyalty · gifts · redeem · regions · categories · products (nháp / publish / inactive / clone) · warehouses · users (không tạo Admin) · kpi · complaints · config (trọng số phân bổ, trọng số luân chuyển, Dmax, **bảng vận chuyển dùng chung**, tỷ lệ điểm).
 
 ## Giải thích phân bổ (orders)
