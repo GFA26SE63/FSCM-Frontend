@@ -10,14 +10,19 @@ const X = (date: string, description: string, points: number): DbLedgerEntry => 
 export function commercialData(): Commercial {
   return {
     promotions: [
-      { code: 'KM-001', name: 'Ưu đãi sữa chua tháng 9', type: 'PerSku', validFrom: D('01/09'), validTo: D('30/09'), retailerCodes: null, status: 'Running',
-        rules: [{ sku: 'SKU001', minQty: 50, discountPct: 5 }, { sku: 'SKU002', minQty: 30, discountPct: 4 }], groupSkus: [], groupMinQty: 0, groupDiscountPct: 0 },
-      { code: 'KM-002', name: 'Combo sữa tươi', type: 'Group', validFrom: D('15/09'), validTo: D('15/10'), retailerCodes: ['10004127', '10004135', '10004182'], status: 'Running',
-        rules: [], groupSkus: ['SKU003', 'SKU004'], groupMinQty: 40, groupDiscountPct: 3 },
-      { code: 'KM-003', name: 'Xả hàng bánh tươi', type: 'PerSku', validFrom: D('20/09'), validTo: D('05/10'), retailerCodes: null, status: 'Paused',
-        rules: [{ sku: 'SKU005', minQty: 20, discountPct: 8 }, { sku: 'SKU006', minQty: 20, discountPct: 8 }], groupSkus: [], groupMinQty: 0, groupDiscountPct: 0 },
-      { code: 'KM-004', name: 'Khách hàng thân thiết', type: 'PerSku', validFrom: D('01/09'), validTo: D('31/12'), retailerCodes: ['10004135'], status: 'Running',
-        rules: [{ sku: 'SKU003', minQty: 30, discountPct: 5 }], groupSkus: [], groupMinQty: 0, groupDiscountPct: 0 },
+      // KM-001 used to carry 5% for SKU001 and 4% for SKU002 in one programme. The server has one
+      // percentage per promotion, so that is two programmes.
+      { code: 'KM-001', name: 'Ưu đãi sữa chua tháng 9', validFrom: D('01/09'), validTo: D('31/12'), retailerCodes: null, active: true,
+        minQty: 50, discountPct: 5, skus: ['SKU001'], categoryCodes: [] },
+      { code: 'KM-005', name: 'Ưu đãi sữa chua uống tháng 9', validFrom: D('01/09'), validTo: D('30/09'), retailerCodes: null, active: true,
+        minQty: 30, discountPct: 4, skus: ['SKU002'], categoryCodes: [] },
+      // Was a group promotion on the combined quantity; the server checks each line on its own.
+      { code: 'KM-002', name: 'Combo sữa tươi', validFrom: D('15/09'), validTo: D('31/12'), retailerCodes: ['10004127', '10004135', '10004182'], active: true,
+        minQty: 20, discountPct: 3, skus: ['SKU003', 'SKU004'], categoryCodes: [] },
+      { code: 'KM-003', name: 'Xả hàng bánh tươi', validFrom: D('20/09'), validTo: D('31/12'), retailerCodes: null, active: false,
+        minQty: 20, discountPct: 8, skus: ['SKU005', 'SKU006'], categoryCodes: [] },
+      { code: 'KM-004', name: 'Khách hàng thân thiết', validFrom: D('01/09'), validTo: D('31/12'), retailerCodes: ['10004135'], active: true,
+        minQty: 30, discountPct: 5, skus: ['SKU003'], categoryCodes: [] },
     ],
     loyaltyProgram: { code: 'LP-001', name: 'Tích điểm đổi quà 2026', scope: 'Tất cả retailer đang hoạt động', validFrom: D('01/09'), validTo: D('31/12'), pointsExpireOn: D('31/03/2027'), status: 'Running' },
     loyalty: [

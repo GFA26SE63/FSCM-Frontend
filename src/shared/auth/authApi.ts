@@ -15,6 +15,10 @@ export interface CurrentUser {
   areaCodes?: string[];
 }
 
+export type ExternalIdentityProvider =
+  | 'microsoft'
+  | 'google';
+
 interface BackendCurrentUser {
   id: string;
   email: string;
@@ -45,6 +49,18 @@ export const authApi = {
       role: user.role,
     };
   },
+
+  externalLogin: (
+    provider: ExternalIdentityProvider,
+    idToken: string,
+  ) =>
+    post<{
+      accessToken: string;
+      refreshToken?: string;
+    }>('/auth/external-login', {
+      provider,
+      idToken,
+    }),
 
   mockToken: (body: {
     email: string;

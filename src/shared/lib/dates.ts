@@ -14,6 +14,18 @@ export const parseIso = (iso: string): Date => {
 export const toIsoDate = (d: Date): string => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 export const toIsoDateTime = (d: Date): string => `${toIsoDate(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
+const VN_ZONE = 'Asia/Ho_Chi_Minh';
+const vnDate = new Intl.DateTimeFormat('vi-VN', { timeZone: VN_ZONE, day: '2-digit', month: '2-digit', year: 'numeric' });
+const vnDateTime = new Intl.DateTimeFormat('vi-VN', { timeZone: VN_ZONE, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+
+/**
+ * Formats a real instant (ISO carrying Z or an offset, as DateTimeOffset fields from the backend do)
+ * in Vietnam time. parseIso deliberately drops the offset, so it would read 2026-10-24T17:00:00Z as
+ * 24/10 rather than 25/10 and show the wrong effective date.
+ */
+export const formatInstantDate = (iso?: string | null): string => (iso ? vnDate.format(new Date(iso)) : '—');
+export const formatInstantDateTime = (iso?: string | null): string => (iso ? vnDateTime.format(new Date(iso)) : '—');
+
 export const formatDate = (iso?: string | null): string => {
   if (!iso) return '—';
   const d = parseIso(iso);

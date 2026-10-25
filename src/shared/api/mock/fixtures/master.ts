@@ -1,6 +1,6 @@
 import type { Db } from './types';
 
-type Master = Pick<Db, 'categories' | 'products' | 'warehouses' | 'areas' | 'groups' | 'salesStaff' | 'retailers' | 'registrations' | 'retailerMlor' | 'retailerDist' | 'whPairs' | 'velocity' | 'vehicles' | 'drivers' | 'transit' | 'settings' | 'users'>;
+type Master = Pick<Db, 'categories' | 'products' | 'warehouses' | 'areas' | 'groups' | 'salesStaff' | 'retailers' | 'registrations' | 'retailerMlor' | 'retailerDist' | 'whPairs' | 'velocity' | 'vehicles' | 'drivers' | 'transit' | 'transitTables' | 'settings' | 'users'>;
 
 const P = (sku: string, name: string, cat: string, pack: string, price: number, cost: number, sl: number, near: number, mlor: number) => ({
   sku, name, categoryCode: cat, packSpec: pack, basePrice: price, unitCost: cost, shelfLifeDays: sl, nearExpiryDays: near, defaultMlor: mlor,
@@ -63,7 +63,13 @@ export function masterData(): Master {
       { code: 'KB-0012', name: 'Tạp hóa Hải Yến', address: '31 Trường Chinh, P. Tân Thới Nhất, Q.12', phone: '0903 456 789', contact: 'Chị Hải Yến', areaCode: 'Q12', kind: 'Tạp hóa', size: 'M',
         forecastRevenue: 45000000, monthlyCapacity: 90, salesName: 'Nguyễn Văn An', createdAt: '2026-09-26T16:20', status: 'Pending', retailerCode: null, rejectReason: null },
     ],
-    retailerMlor: {},
+    // Two retailers insist on fresher stock for specific SKUs than the product default, so the
+    // order screen can show a retailer rule and a product default side by side. Category-level
+    // MLOR (F22) is not modelled here; the server resolves that level.
+    retailerMlor: {
+      '10004127': { SKU001: 0.5 },
+      '10004135': { SKU003: 0.4 },
+    },
     retailerDist: {
       '10004127': { 'WH-TA': 3.2, 'WH-TCH': 6.5, 'WH-GV': 9.8, 'WH-TD': 17.4, 'WH-CC': 28.6, 'WH-CG': 44.0 },
       '10004135': { 'WH-TA': 5.1, 'WH-TCH': 1.8, 'WH-GV': 8.7, 'WH-TD': 14.2, 'WH-CC': 24.9, 'WH-CG': 41.5 },
@@ -106,6 +112,18 @@ export function masterData(): Master {
         { fromKm: 20, toKm: 40, days: 3, cost: 800000, scope: 'WarehouseOnly' },
       ],
     },
+    transitTables: [
+      {
+        id: 'tt-1', version: 1, maxServingDistanceMeters: 20000,
+        effectiveFrom: '2026-09-01', effectiveTo: null, isActive: true,
+        note: 'Bảng vận chuyển dùng chung ban đầu',
+        createdByUserId: 'mock-admin', createdAt: '2026-09-01', updatedAt: '2026-09-01',
+        bands: [
+          { id: 'tt-1-b0', minDistanceMeters: 0, maxDistanceMeters: 10000, handlingMinutes: 60, transitMinutes: 1440, estimatedCostAmount: 300000 },
+          { id: 'tt-1-b1', minDistanceMeters: 10000, maxDistanceMeters: 20000, handlingMinutes: 60, transitMinutes: 2880, estimatedCostAmount: 500000 },
+        ],
+      },
+    ],
     settings: {
       allocation: { wE: 0.5, wD: 0.3, wQ: 0.2 },
       dmaxRetailerKm: 20,
