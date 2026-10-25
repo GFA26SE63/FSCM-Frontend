@@ -56,6 +56,7 @@ export interface DeliverySnapshot {
 }
 
 export interface OrderDetail extends OrderSummary {
+  id?: string;
   retailerAddress: string;
   groupCode: string;
   areaName: string;
@@ -81,6 +82,11 @@ export interface OrderDetail extends OrderSummary {
   loyalty: { points: number; state: 'None' | 'AwaitingScan' | 'AwaitingPayment' | 'Earned' };
   pickingLists: { code: string; warehouseName: string }[];
   timeline: { at: string; label: string }[];
+}
+
+export interface OrderPrice {
+  orderCode: string; isApproved: boolean; pricedAt: string; baseAmount: number; shelfLifeDiscountAmount: number; finalAmount: number;
+  lines: { sku: string; orderedQuantity: number; baseAmount: number; shelfLifeDiscountAmount: number; finalAmount: number; parts: { batchCode: string; warehouseId: string; quantity: number; listUnitPrice: number; baseNetUnitPrice: number; batchExpiresAt: string; remainingShelfLifePercent: number; discountType?: string | null; discountValue?: number | null; shelfLifeDiscountPerUnit: number; finalNetUnitPrice: number; amount: number; explanation: string }[] }[];
 }
 
 /** Allocation trace B1–B4 per order line (SPEC §5) – GET /orders/{code}/allocation-trace. */
