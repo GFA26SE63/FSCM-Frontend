@@ -8,13 +8,12 @@ export interface PricedPromotion { no: number; code: string; name: string; detai
 export interface PricedOrder { lines: PricedLine[]; promotions: PricedPromotion[]; total: number; discount: number; final: number }
 
 /**
- * Promotion calculation (Pricing module, prototype `calc`): every line receives at most ONE promotion – the best percentage.
- *  - PerSku: qty of that SKU >= minQty
- *  - Group : sum of qty over the group SKUs >= groupMinQty
+ * Promotion calculation, mirroring the server: a line takes at most ONE promotion - the best
+ * percentage among those whose SKU (or category) matches, whose retailer scope allows it, and whose
+ * minimum quantity this line reaches on its own. Percentages never add up.
  */
 export function priceLines(raw: { sku: string; qty: number }[], retailerCode: string, activePromotions: DbPromotion[], products: DbProduct[]): PricedOrder {
   const promos = activePromotions.filter((p) => !p.retailerCodes || p.retailerCodes.includes(retailerCode));
-  const qtyOf = (sku: string) => raw.filter((l) => l.sku === sku).reduce((s, l) => s + l.qty, 0);
   const applied = new Map<string, PricedPromotion & { parts: string[] }>();
   let total = 0;
   let discount = 0;
@@ -24,12 +23,9 @@ export function priceLines(raw: { sku: string; qty: number }[], retailerCode: st
     const base = unit * l.qty;
     let best: { code: string; name: string; pct: number } | null = null;
     for (const pr of promos) {
-      let pct = 0;
-      if (pr.type === 'PerSku') {
-        const rule = pr.rules.find((r) => r.sku === l.sku);
-        if (rule && l.qty >= rule.minQty) pct = rule.discountPct;
-      } else if (pr.groupSkus.includes(l.sku) && pr.groupSkus.reduce((s, k) => s + qtyOf(k), 0) >= pr.groupMinQty) pct = pr.groupDiscountPct;
-      if (pct > 0 && (!best || pct > best.pct)) best = { code: pr.code, name: pr.name, pct };
+      const covers = pr.skus.includes(l.sku) || (p != null && pr.categoryCodes.includes(p.categoryCode));
+      if (!covers || l.qty < pr.minQty) continue;
+      if (!best || pr.discountPct > best.pct) best = { code: pr.code, name: pr.name, pct: pr.discountPct };
     }
     const disc = best ? Math.round((base * best.pct) / 100) : 0;
     total += base;

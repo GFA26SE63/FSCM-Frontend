@@ -1,12 +1,19 @@
 import { useState } from 'react';
 import { useParams } from '@/shared/router/compat';
 import { Button, Callout, Card, Chip, Fields, PageHeader, QueryState, SimpleTable, StatusChip } from '@/shared/ui';
-import { formatCases, formatDate, formatDateTime, formatKm, formatMoney, formatScore, paymentLabel } from '@/shared/lib';
+import { formatCases, formatDate, formatDateTime, formatHours, formatKm, formatMoney, formatPercent, formatScore, paymentLabel } from '@/shared/lib';
 import { env } from '@/shared/lib';
 import { useConfirmReceipt, useOrder, useOrderPrice } from '../hooks';
 import { AllocationTraceDialog } from '../components/AllocationTraceDialog';
 import { OrderActions } from '../components/OrderActions';
-import type { OrderDetail } from '../types';
+import type { OrderDetail, OrderLineMlor } from '../types';
+
+/** Where the threshold came from. Only the first is a rule the retailer has for this SKU. */
+const MLOR_SOURCES: Record<OrderLineMlor['sourceScope'], string> = {
+  Sku: 'riêng SKU của retailer',
+  Category: 'theo nhóm hàng của retailer',
+  Default: 'mặc định sản phẩm',
+};
 
 const allocationChip: Record<OrderDetail['allocationState'], string> = {
   Held: 'Đang tạm giữ', Reserved: 'Đã giữ (Reserved)', Dispatched: 'Đã xuất kho', Released: 'Đã trả hàng', Failed: 'Không đủ hàng',
@@ -72,7 +79,27 @@ function OrderBody({ o }: { o: OrderDetail }) {
                   { header: 'Đơn giá', align: 'right', cell: (l) => formatMoney(l.unitPrice) },
                   { header: 'SL (thùng)', align: 'right', cell: (l) => l.qty },
                   { header: 'Khuyến mãi', cell: (l) => (l.promotionCode ? <Chip tone="ok">{l.promotionCode} · {l.promotionPct}%</Chip> : '—') },
-                  { header: 'Thành tiền', align: 'right', cell: (l) => formatMoney(l.lineTotal) },
+                  {
+                    header: 'MLOR · nguồn',
+                    cell: (l) => (
+                      <span>
+                        {formatPercent(l.mlor.minimumLifeRatio * 100, 1)}
+                        {l.mlor.minimumLifeHours != null && <> · ≥ {formatHours(l.mlor.minimumLifeHours)}</>}
+                        <br />
+                        <span className="muted small">{MLOR_SOURCES[l.mlor.sourceScope] ?? l.mlor.sourceScope}</span>
+                      </span>
+                    ),
+                  },
+                  {
+                    header: 'Thành tiền',
+                    align: 'right',
+                    cell: (l) => (
+                      <span>
+                        {formatMoney(l.lineTotal)}
+                        {l.finalPricePendingAllocation && <><br /><span className="muted small">dự kiến</span></>}
+                      </span>
+                    ),
+                  },
                 ]}
               />
             </Card>
@@ -115,18 +142,36 @@ function OrderBody({ o }: { o: OrderDetail }) {
           </Card>
 
           <Card title="Chi tiết giá theo batch" flush>
-            {!price.data ? <span className="muted">Chưa có bản giá phân bổ hoặc đang tải.</span> : <>
-              <div className="kv" style={{ padding: '12px 16px' }}><span>{price.data.isApproved ? 'Giá đã chốt' : 'Phương án giá chờ duyệt'} · {formatDateTime(price.data.pricedAt)}</span><b>{formatMoney(price.data.finalAmount)}</b></div>
-              <SimpleTable rows={price.data.lines.flatMap((line) => line.parts.map((part) => ({ ...part, sku: line.sku })))} columns={[
-                { header: 'SKU', cell: (x) => x.sku },
-                { header: 'Kho / batch', cell: (x) => `${x.warehouseId} · ${x.batchCode}` },
-                { header: 'Lượng', align: 'right', cell: (x) => formatCases(x.quantity) },
-                { header: 'Giá cơ sở', align: 'right', cell: (x) => formatMoney(x.baseNetUnitPrice) },
-                { header: '% HSD', align: 'right', cell: (x) => `${x.remainingShelfLifePercent}%` },
-                { header: 'Giảm HSD', align: 'right', cell: (x) => formatMoney(x.shelfLifeDiscountPerUnit) },
-                { header: 'Giá cuối', align: 'right', cell: (x) => formatMoney(x.finalNetUnitPrice) },
-              ]} />
-            </>}
+            {!price.data ? (
+              <span className="muted" style={{ padding: '12px 16px', display: 'block' }}>
+                Đơn này chưa có bản giá phân bổ.
+              </span>
+            ) : (
+              <>
+                <div className="kv" style={{ padding: '12px 16px' }}>
+                  <span>
+                    {/* Một phương án chờ duyệt là báo giá, chưa phải giá để thu tiền. */}
+                    {price.data.isApproved ? 'Giá đã chốt' : 'Phương án giá chờ duyệt'} · đợt {price.data.runCode} ·
+                    bản {price.data.planVersionNumber} · định giá {formatDateTime(price.data.pricedAt)}
+                  </span>
+                  <b>{formatMoney(price.data.finalAmount)}</b>
+                </div>
+                <SimpleTable
+                  rows={price.data.lines.flatMap((line) => line.parts.map((part) => ({ ...part, sku: line.sku })))}
+                  columns={[
+                    { header: 'SKU', cell: (x) => x.sku },
+                    { header: 'Batch', cell: (x) => x.batchCode },
+                    { header: 'Lượng', align: 'right', cell: (x) => formatCases(x.quantity) },
+                    { header: 'Giá niêm yết', align: 'right', cell: (x) => formatMoney(x.listUnitPrice) },
+                    { header: 'Giá cơ sở', align: 'right', cell: (x) => formatMoney(x.baseNetUnitPrice) },
+                    { header: '% HSD tính giá', align: 'right', cell: (x) => `${x.remainingShelfLifePercent}%` },
+                    { header: 'Giảm HSD', align: 'right', cell: (x) => formatMoney(x.shelfLifeDiscountPerUnit) },
+                    { header: 'Giá cuối', align: 'right', cell: (x) => <strong>{formatMoney(x.finalNetUnitPrice)}</strong> },
+                    { header: 'Thành tiền', align: 'right', cell: (x) => formatMoney(x.amount) },
+                  ]}
+                />
+              </>
+            )}
           </Card>
 
           {o.delivery && (
@@ -156,7 +201,7 @@ function OrderBody({ o }: { o: OrderDetail }) {
           </Card>
 
           {dialogs}
-          <AllocationTraceDialog code={o.code} open={trace} onClose={() => setTrace(false)} />
+          <AllocationTraceDialog orderId={o.id} code={o.code} open={trace} onClose={() => setTrace(false)} />
         </>
       )}
     </OrderActions>

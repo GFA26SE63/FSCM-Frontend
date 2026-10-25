@@ -84,6 +84,77 @@ export function registerLogistics(r: MockRouter) {
     return { from: query.from, to: query.to, purpose, km, served: !!q, days: q?.days ?? null, cost: q?.cost ?? null };
   });
 
+  // ---- run-day schedule (cutoff + reminder milestones) ----
+  const schedule = {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    salesSubmissionAdviceLocalTime: '11:00',
+    orderReviewReminderLocalTime: '11:30',
+    allocationRunLocalTime: '12:00',
+    planApprovalReminderLocalTime: '13:30',
+    planApprovalDeadlineLocalTime: '14:00',
+    preparationMinutes: 240,
+    bufferMinutes: 60,
+    dispatchSlotsLocalTime: ['06:00', '14:00'],
+    version: 1,
+  };
+
+  const MILESTONES = [
+    ['sales_submission_advice', 'Khuyến nghị Sales gửi đơn trước', 'salesSubmissionAdviceLocalTime', true],
+    ['order_review_reminder', 'Nhắc duyệt đơn còn chờ', 'orderReviewReminderLocalTime', false],
+    ['allocation_run', 'Giờ chốt đợt', 'allocationRunLocalTime', false],
+    ['plan_approval_reminder', 'Nhắc duyệt phương án', 'planApprovalReminderLocalTime', false],
+    ['plan_approval_deadline', 'Hạn duyệt phương án', 'planApprovalDeadlineLocalTime', false],
+  ] as const;
+
+  r.get('/eta/schedule', ({ query }) => {
+    const businessDate = (query?.businessDate as string) ?? MOCK_TODAY;
+    return {
+      businessDate,
+      timeZone: schedule.timeZone,
+      scheduleVersion: schedule.version,
+      milestones: MILESTONES.map(([key, label, field, isAdvisory]) => ({
+        key,
+        label,
+        localTime: `${schedule[field]}:00`,
+        at: `${businessDate}T${schedule[field]}:00+07:00`,
+        isAdvisory,
+      })),
+      preparationMinutes: schedule.preparationMinutes,
+      bufferMinutes: schedule.bufferMinutes,
+      dispatchSlotsLocalTime: schedule.dispatchSlotsLocalTime,
+    };
+  });
+
+  r.put('/business-configurations/eta.schedule', ({ body }) => {
+    const value = (body as { value: Record<string, string> }).value;
+    const at = (field: string) => {
+      const [h, m] = String(value[field] ?? '').split(':').map(Number);
+      return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : NaN;
+    };
+    const run = at('allocationRunLocalTime');
+    const deadline = at('planApprovalDeadlineLocalTime');
+    const errors: Record<string, string[]> = {};
+    if (!(deadline > run)) errors['planApprovalDeadlineLocalTime'] = ['Hạn duyệt phải sau giờ chốt.'];
+    // A reminder is only useful before the thing it reminds about.
+    if (!(at('salesSubmissionAdviceLocalTime') < run)) {
+      errors['salesSubmissionAdviceLocalTime'] = ['Khuyến nghị gửi đơn phải trước giờ chốt.'];
+    }
+    if (!(at('orderReviewReminderLocalTime') < run)) {
+      errors['orderReviewReminderLocalTime'] = ['Nhắc duyệt đơn phải trước giờ chốt.'];
+    }
+    const planReminder = at('planApprovalReminderLocalTime');
+    if (!(planReminder > run && planReminder < deadline)) {
+      errors['planApprovalReminderLocalTime'] = ['Nhắc duyệt phương án phải nằm giữa giờ chốt và hạn duyệt.'];
+    }
+    if (Object.keys(errors).length > 0) throw validation(errors);
+
+    MILESTONES.forEach(([, , field]) => {
+      schedule[field] = value[field];
+    });
+    schedule.version += 1;
+    return { key: 'eta.schedule', value, version: schedule.version };
+  });
+
   // ---- system settings (allocation / rotation weights, Dmax, loyalty rate …) ----
   r.get('/settings', () => db.settings);
   r.put('/settings', ({ body }) => {
