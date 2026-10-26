@@ -1,19 +1,39 @@
-export type OrderStatus = 'Pending' | 'Approved' | 'Picking' | 'Shipped' | 'Delivering' | 'Delivered' | 'Completed' | 'Rejected' | 'Cancelled';
+export type OrderStatus =
+  | 'PendingApproval'
+  | 'PendingAllocation'
+  | 'Approved'
+  | 'Picking'
+  | 'Rejected'
+  | 'Cancelled'
+  | 'Issued'
+  | 'Delivering'
+  | 'Delivered';
 export type PaymentMethod = 'COD' | 'Prepaid' | 'Credit';
 
 export interface OrderSummary {
-  code: string;
+  id: string;
+  orderCode: string;
+  retailerId: string;
   retailerCode: string;
   retailerName: string;
-  itemsSummary: string;
-  salesName: string;
-  createdAt: string;
-  channel: 'Online' | 'Offline';
-  /** Final price after promotion. */
-  total: number;
+  salesGroupId: string;
+  createdByUserId: string;
   status: OrderStatus;
   paymentMethod: PaymentMethod;
-  termDays: number | null;
+  finalAmount: number;
+  indicativeAmount: number;
+  officialAmount: number | null;
+  finalPricePendingAllocation: boolean;
+  allocationState: string;
+  allocationRunId: string | null;
+  allocationProposalStatus: string | null;
+  allocationResult: string | null;
+  shipmentCount: number;
+  totalCartons: number;
+  lineCount: number;
+  source: 'Assisted' | 'Offline';
+  version: number;
+  createdAt: string;
 }
 
 /**
@@ -29,38 +49,80 @@ export interface OrderLineMlor {
    * screen: the label simply comes out blank.
    */
   sourceScope: 'Sku' | 'Category' | 'Default';
+  sourceRuleId: string | null;
+  sourceVersion: number;
+  productCategoryId: string | null;
   minimumLifeRatio: number;
   minimumLifeHours: number | null;
   resolvedAt: string;
 }
 
 export interface OrderLine {
-  no: number;
+  id: string;
+  lineNumber: number;
+  productId: string;
   sku: string;
-  name: string;
+  productName: string;
+  quantity: number;
   unitPrice: number;
-  qty: number;
-  promotionCode: string | null;
-  promotionPct: number;
-  discount: number;
-  lineTotal: number;
+  grossAmount: number;
+  discountPercent: number;
+  discountAmount: number;
+  netAmount: number;
+  discountSourceType: string | null;
+  discountSourceCode: string | null;
+  productPriceId: string;
+  productPriceEffectiveFrom: string;
+  productPriceEffectiveTo: string | null;
+  pricedAt: string;
   mlor: OrderLineMlor;
+  ordinaryPromotion: {
+    promotionId: string;
+    code: string;
+    name: string;
+    type: string;
+    minimumQuantity: number;
+    discountPercent: number;
+    discountAmount: number;
+    effectiveFrom: string;
+    effectiveTo: string;
+    appliedAt: string;
+  } | null;
+  estimatedArrivalAt: string | null;
   /** True until the 12:00 run picks batches; the figure above is indicative, not what is charged. */
   finalPricePendingAllocation: boolean;
+  baseUnitPrice: number;
+  ordinaryPromotionDiscountAmount: number;
+  indicativeNetAmount: number;
+  officialNetAmount: number | null;
+  allocationFragments: OrderAllocationFragment[];
 }
-export interface OrderPromotion { no: number; code: string; name: string; detail: string; amount: number }
-
-export interface AllocationRow {
-  warehouseCode: string;
-  warehouseName: string;
-  sku: string;
+export interface OrderAllocationFragment {
+  allocationId: string;
+  planPriceId: string;
+  batchId: string;
   batchCode: string;
-  expiry: string;
-  km: number;
-  eta: string;
-  remainingDays: number;
-  qty: number;
-  score: number;
+  batchExpirationDate: string;
+  warehouseId: string;
+  warehouseCode: string;
+  quantity: number;
+  sequence: number;
+  estimatedArrivalAt: string;
+  remainingLifeHoursAtArrival: number;
+  listUnitPrice: number;
+  ordinaryPromotionDiscountPerUnit: number;
+  baseUnitPrice: number;
+  remainingShelfLifePercent: number;
+  discountRuleId: string | null;
+  discountRuleScope: string | null;
+  discountRuleCode: string | null;
+  discountRuleVersion: number;
+  discountType: string | null;
+  discountValue: number | null;
+  shelfLifeDiscountPerUnit: number;
+  finalUnitPrice: number;
+  netAmount: number;
+  discountReason: string;
 }
 
 export interface DeliveryCost {
@@ -77,33 +139,37 @@ export interface DeliverySnapshot {
 }
 
 export interface OrderDetail extends OrderSummary {
-  /** The server identifier. Run-side endpoints (trace, price) are keyed by it, not by the code. */
-  id: string;
-  retailerAddress: string;
-  groupCode: string;
-  areaName: string;
-  syncedAt: string | null;
-  syncMode: string | null;
-  prepaidChannel: 'QR' | 'Cash' | null;
-  paymentStatus: string;
-  receivable: { status: 'Unpaid' | 'Paid' | 'Overdue'; dueDate: string | null; outstanding: number; deliveredAt: string | null } | null;
-  reviewer: string;
-  rejectReason: string | null;
-  cancelReason: string | null;
-  promoChange: { localDiscount: number; officialDiscount: number; reason: string } | null;
+  reviewedByUserId: string | null;
+  creditTermDays: number;
+  deliveryAddress: string;
+  requestedDeliveryDate: string | null;
+  note: string | null;
+  subtotalAmount: number;
+  discountAmount: number;
+  rejectionReason: string | null;
+  offlineEstimatedAmount: number | null;
+  hasOfflineDifference: boolean;
+  serverReceivedAt: string;
+  updatedAt: string;
   lines: OrderLine[];
-  promotions: OrderPromotion[];
-  totalBeforePromo: number;
-  discount: number;
-  finalPrice: number;
-  totalQty: number;
-  allocationState: 'Held' | 'Reserved' | 'Dispatched' | 'Released' | 'Failed';
-  allocations: AllocationRow[];
-  estimatedDeliveryCost: DeliveryCost | null;
-  delivery: DeliverySnapshot | null;
-  loyalty: { points: number; state: 'None' | 'AwaitingScan' | 'AwaitingPayment' | 'Earned' };
-  pickingLists: { code: string; warehouseName: string }[];
-  timeline: { at: string; label: string }[];
+  history: { fromStatus: string | null; toStatus: string; reason: string | null; changedByUserId: string; changedAt: string }[];
+  shipments: { id: string; status: string; dispatchedAt: string | null; deliveredAt: string | null }[];
+  allocationRunCode: string | null;
+  allocationPlanVersion: number | null;
+  officialPricedAt: string | null;
+  warehouseProgress: {
+    warehouseId: string;
+    warehouseCode: string;
+    pickingListId: string | null;
+    pickingCode: string | null;
+    pickingStatus: string | null;
+    shipmentId: string | null;
+    shipmentCode: string | null;
+    shipmentStatus: string | null;
+    plannedQuantity: number;
+    pickedQuantity: number;
+    receivedQuantity: number;
+  }[];
 }
 
 /** Allocation trace B1–B4 per order line (SPEC §5) – GET /orders/{code}/allocation-trace. */

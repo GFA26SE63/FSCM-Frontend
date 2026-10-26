@@ -1,6 +1,6 @@
 /** SPEC §9 – status codes (API, English) ↔ UI labels (Vietnamese, as in the prototype). */
 export const statusLabels = {
-  order: { Pending: 'Chờ duyệt', Approved: 'Đã duyệt', Picking: 'Đang soạn hàng', Shipped: 'Đã xuất kho', Delivering: 'Đang giao', Delivered: 'Đã giao', Completed: 'Hoàn tất', Rejected: 'Bị từ chối', Cancelled: 'Đã hủy' },
+  order: { PendingApproval: 'Chờ duyệt đơn', PendingAllocation: 'Chờ đợt phân bổ', Approved: 'Đã duyệt phương án', Picking: 'Đang soạn hàng', Issued: 'Đã xuất kho', Delivering: 'Đang giao', Delivered: 'Đã giao', Rejected: 'Bị từ chối', Cancelled: 'Đã hủy' },
   receivable: { AwaitingDelivery: 'Chờ giao', Unpaid: 'Chưa thu', Paid: 'Đã thu đủ', Overdue: 'Quá hạn' },
   product: { Draft: 'Nháp', Published: 'Đã publish', Inactive: 'Inactive' },
   transfer: { Suggested: 'Gợi ý', InTransit: 'Đang vận chuyển', Received: 'Đã nhận', Cancelled: 'Đã hủy' },

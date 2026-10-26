@@ -1,5 +1,4 @@
-import { get, post } from '../api/http';
-import { env } from '../lib/env';
+import { get, http, post } from '../api/http';
 import type { PortalRole } from './roles';
 
 export interface CurrentUser {
@@ -11,8 +10,6 @@ export interface CurrentUser {
   warehouseCode?: string | null;
   areaCodes?: string[];
 }
-
-export type ExternalIdentityProvider = 'microsoft' | 'google';
 
 interface BackendCurrentUser {
   id: string;
@@ -29,13 +26,12 @@ const mapBackendUser = (user: BackendCurrentUser): CurrentUser => ({
 });
 
 export const authApi = {
-  me: async () => {
-    if (env.useMock) return get<CurrentUser>('/me');
-    return mapBackendUser(await get<BackendCurrentUser>('/auth/me'));
-  },
-  /** Exchanges a short-lived provider ID token for the JWT issued by FSCM. */
-  externalLogin: (provider: ExternalIdentityProvider, idToken: string) =>
-    post<{ accessToken: string; refreshToken?: string }>('/auth/external-login', { provider, idToken }),
-  /** Mock-only endpoint that stands in for the Entra token flow (see mock/handlers/identity.ts). */
-  mockToken: (body: { email: string; password: string; role?: PortalRole }) => post<{ accessToken: string }>('/auth/mock-token', body),
+  me: async () => mapBackendUser(await get<BackendCurrentUser>('/auth/me')),
+  login: (email: string, password: string) =>
+    post<{ accessToken: string; refreshToken: string }>('/auth/login', { email, password }),
+  /** Entra bearer token is validated by the backend exchange policy; business APIs only receive the FSCM JWT. */
+  exchangeEntra: (idToken: string) =>
+    http.post<{ accessToken: string; refreshToken: string }>('/auth/entra/exchange', undefined, {
+      headers: { Authorization: `Bearer ${idToken}` },
+    }).then((response) => response.data),
 };

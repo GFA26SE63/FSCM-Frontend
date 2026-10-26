@@ -1,17 +1,13 @@
-import { NavLink, useNavigate } from '@/shared/router/compat';
+import { NavLink } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
-import { PORTAL_ROLES, roleLabel, type PortalRole } from '@/shared/auth/roles';
-import { env } from '@/shared/lib/env';
-import { useToast } from '@/shared/ui';
+import { roleLabel } from '@/shared/auth/roles';
 import { useMenuBadges } from '@/features/notifications';
-import { APP_ROUTES, HOME_BY_ROLE } from '../routes';
+import { APP_ROUTES } from '../routes';
 
 const initials = (name: string) => name.split(' ').slice(-2).map((s) => s[0]).join('');
 
 export function Sidebar() {
-  const { user, logout, switchRole } = useAuth();
-  const navigate = useNavigate();
-  const toast = useToast();
+  const { user, logout } = useAuth();
   const { data: badges } = useMenuBadges();
   if (!user) return null;
   const items = APP_ROUTES.filter((r) => r.roles.includes(user.role));
@@ -31,31 +27,6 @@ export function Sidebar() {
           <div className="brand-sub">Short shelf-life FMCG</div>
         </div>
       </div>
-
-      {env.useMock && (
-        <label className="lbl role-switch">
-          Xem với vai trò (demo)
-          <select
-            className="inp"
-            value={user.role}
-            onChange={async (e) => {
-              try {
-                const role = e.target.value as PortalRole;
-                await switchRole(role);
-                navigate(HOME_BY_ROLE[role]);
-              } catch (err) {
-                toast.error(err);
-              }
-            }}
-          >
-            {PORTAL_ROLES.map((r) => (
-              <option key={r} value={r}>
-                {roleLabel[r]}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
 
       <nav className="menu-list" aria-label="Menu">
         {items.map((r) => {

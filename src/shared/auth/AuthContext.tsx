@@ -1,22 +1,17 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { env } from '../lib/env';
 import { tokenStore } from './tokenStore';
-import { authApi, type CurrentUser, type ExternalIdentityProvider } from './authApi';
+import { authApi, type CurrentUser } from './authApi';
 import { acquireMicrosoftIdToken } from './externalAuth';
-import { DEMO_ACCOUNTS, type PortalRole } from './roles';
+import type { PortalRole } from './roles';
 
 type Status = 'loading' | 'anonymous' | 'authenticated';
 
 interface AuthState {
   status: Status;
   user: CurrentUser | null;
-  /** Mock mode: email + password (any password ≥ 6 chars). */
-  login: (email: string, password: string, role?: PortalRole) => Promise<CurrentUser>;
+  login: (email: string, password: string) => Promise<CurrentUser>;
   loginWithMicrosoft: () => Promise<CurrentUser>;
-  loginWithGoogle: (idToken: string) => Promise<CurrentUser>;
-  /** Demo role switcher in the sidebar – signs in as the demo account of that role. */
-  switchRole: (role: PortalRole) => Promise<CurrentUser>;
   logout: () => void;
 }
 
@@ -48,23 +43,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => tokenStore.setUnauthorizedHandler(null);
   }, [logout]);
 
-  const signIn = useCallback(
-    async (email: string, password: string, role?: PortalRole) => {
-      const { accessToken } = await authApi.mockToken({ email, password, role });
-      tokenStore.set(accessToken);
-      qc.clear();
-      const u = await authApi.me();
-      setUser(u);
-      setStatus('authenticated');
-      return u;
-    },
-    [qc],
-  );
-
-  const exchangeExternalIdentity = useCallback(
-    async (provider: ExternalIdentityProvider, idToken: string) => {
-      if (env.useMock) return signIn(DEMO_ACCOUNTS.Admin.email, `${provider}-sso`);
-      const { accessToken } = await authApi.externalLogin(provider, idToken);
+  const acceptToken = useCallback(
+    async (request: Promise<{ accessToken: string }>) => {
+      const { accessToken } = await request;
       tokenStore.set(accessToken);
       qc.clear();
       try {
@@ -77,24 +58,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
-    [qc, signIn],
+    [qc],
+  );
+
+  const login = useCallback(
+    (email: string, password: string) => acceptToken(authApi.login(email, password)),
+    [acceptToken],
   );
 
   const loginWithMicrosoft = useCallback(async () => {
-    if (env.useMock) return signIn(DEMO_ACCOUNTS.Admin.email, 'microsoft-sso');
-    return exchangeExternalIdentity('microsoft', await acquireMicrosoftIdToken());
-  }, [exchangeExternalIdentity, signIn]);
-
-  const loginWithGoogle = useCallback(
-    (idToken: string) => exchangeExternalIdentity('google', idToken),
-    [exchangeExternalIdentity],
-  );
-
-  const switchRole = useCallback((role: PortalRole) => signIn(DEMO_ACCOUNTS[role].email, 'demo-switch', role), [signIn]);
+    return acceptToken(authApi.exchangeEntra(await acquireMicrosoftIdToken()));
+  }, [acceptToken]);
 
   const value = useMemo<AuthState>(
-    () => ({ status, user, login: signIn, loginWithMicrosoft, loginWithGoogle, switchRole, logout }),
-    [status, user, signIn, loginWithMicrosoft, loginWithGoogle, switchRole, logout],
+    () => ({ status, user, login, loginWithMicrosoft, logout }),
+    [status, user, login, loginWithMicrosoft, logout],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
