@@ -1,69 +1,62 @@
 import { useState } from 'react';
-import { useNavigate } from '@/shared/router/compat';
-import { Button, Card, DataTable, PageHeader, SimpleTable, StatusChip, Tabs, type Column } from '@/shared/ui';
-import { formatDate, formatPercent, statusLabels } from '@/shared/lib';
-import { useBatchDiscounts, useDiscountSuggestions, useStopBatchDiscount } from '../hooks';
-import { DiscountDialog } from '../components/DiscountDialog';
-import type { BatchDiscount, DiscountSuggestion } from '../types';
+import { Button, Card, FormDialog, PageHeader, SimpleTable, Tabs } from '@/shared/ui';
+import { formatDate, formatNumber } from '@/shared/lib';
+import { usePublishShelfLife, useShelfLifeCurrent, useShelfLifeHistory } from '../hooks';
+import type { ShelfLifeTable, ShelfLifeTier } from '../types';
 
-/** "Giảm giá theo HSD" – active discounts + suggestions by % shelf-life remaining (tiers from system settings). */
+const defaultTiers = JSON.stringify([
+  { scope: 'Category', productCategoryId: '', minRemainingPercent: 0, maxRemainingPercent: 20, discountType: 'Percent', discountValue: 20 },
+  { scope: 'Category', productCategoryId: '', minRemainingPercent: 20, maxRemainingPercent: 40, discountType: 'Percent', discountValue: 10 },
+], null, 2);
+
 export function BatchPromoPage() {
-  const navigate = useNavigate();
-  const [tab, setTab] = useState<'list' | 'suggest'>('list');
-  const discounts = useBatchDiscounts();
-  const suggestions = useDiscountSuggestions();
-  const stop = useStopBatchDiscount();
-  const [target, setTarget] = useState<DiscountSuggestion[] | null>(null);
-
-  const columns: Column<BatchDiscount>[] = [
-    { key: 'code', header: 'Mã', width: '120px', render: (d) => <span className="bold">{d.code}</span> },
-    { key: 'batch', header: 'Batch', text: (d) => d.batchCode },
-    { key: 'product', header: 'Sản phẩm', text: (d) => d.productName },
-    { key: 'wh', header: 'Kho', width: '130px', text: (d) => d.warehouseName },
-    { key: 'pct', header: '% giảm', width: '80px', align: 'right', text: (d) => formatPercent(d.discountPct) },
-    { key: 'period', header: 'Hiệu lực', width: '170px', text: (d) => `${formatDate(d.validFrom)} – ${formatDate(d.validTo)}` },
-    { key: 'remain', header: 'HSD còn lại', width: '110px', align: 'right', text: (d) => `${d.remainingDays} ngày` },
-    { key: 'status', header: 'Trạng thái', width: '120px', render: (d) => <StatusChip domain="batchDiscount" value={d.status} /> },
-  ];
+  const current = useShelfLifeCurrent();
+  const history = useShelfLifeHistory();
+  const publish = usePublishShelfLife();
+  const [tab, setTab] = useState<'current' | 'history'>('current');
+  const [edit, setEdit] = useState(false);
+  const table = current.data;
   return (
     <>
-      <PageHeader
-        title="Giảm giá theo HSD"
-        subtitle="Giảm giá cho batch còn ít hạn sử dụng; bậc % theo HSD còn lại cấu hình ở Cấu hình hệ thống."
-        actions={<Button variant="primary" onClick={() => navigate('/batchpromo/scan')}>Quét tem batch</Button>}
-      />
-      <Tabs value={tab} onChange={setTab} items={[{ key: 'list', label: 'Đang áp dụng / lịch sử', count: discounts.data?.length }, { key: 'suggest', label: 'Gợi ý theo HSD', count: suggestions.data?.length }]} />
-      {tab === 'list' ? (
-        <DataTable
-          title="Giảm giá theo HSD"
-          rows={discounts.data}
-          loading={discounts.isLoading}
-          error={discounts.error}
-          rowKey={(d) => d.code}
-          columns={columns}
-          searchPlaceholder="Mã, batch, sản phẩm…"
-          filters={[{ label: 'Trạng thái', options: Object.values(statusLabels.batchDiscount), value: (d) => statusLabels.batchDiscount[d.status] }]}
-          rowActionsWidth="110px"
-          rowActions={(d) => d.status === 'Active' && <Button size="sm" variant="danger" onClick={() => stop.mutate(d.code)}>Dừng</Button>}
-        />
-      ) : (
-        <Card flush>
-          <SimpleTable<DiscountSuggestion>
-            rows={suggestions.data ?? []}
-            columns={[
-              { header: 'Batch', cell: (s) => <b>{s.batchCode}</b> },
-              { header: 'Sản phẩm', cell: (s) => s.productName },
-              { header: 'Kho', cell: (s) => s.warehouseName },
-              { header: 'HSD', cell: (s) => formatDate(s.expiry) },
-              { header: 'Còn lại', align: 'right', cell: (s) => `${s.remainingPct}% (${s.remainingDays} ngày)` },
-              { header: 'Khả dụng', align: 'right', cell: (s) => s.available },
-              { header: 'Gợi ý', align: 'right', cell: (s) => (s.suggestedPct ? `${s.suggestedPct}%` : '—') },
-              { header: '', width: '120px', align: 'right', cell: (s) => (s.activeDiscountPct ? <StatusChip value="Đang áp dụng" /> : <Button size="sm" variant="primary" onClick={() => setTarget([s])}>Tạo giảm giá</Button>) },
-            ]}
-          />
-        </Card>
-      )}
-      <DiscountDialog items={target} onClose={() => setTarget(null)} />
+      <PageHeader title="Giảm giá theo HSD" subtitle="Bảng giảm theo khoảng % HSD còn lại, áp dụng theo SKU hoặc Category sau khi batch đã được chọn." actions={<Button variant="primary" onClick={() => setEdit(true)}>Publish phiên bản mới</Button>} />
+      <Tabs value={tab} onChange={setTab} items={[{ key: 'current', label: 'Đang áp dụng', count: table?.tiers.length }, { key: 'history', label: 'Lịch sử phiên bản', count: history.data?.length }]} />
+      {tab === 'current' ? <TableCard table={table} loading={current.isLoading} /> : <History tables={history.data ?? []} loading={history.isLoading} />}
+      {edit && <FormDialog
+        open width={760} title="Publish bảng giảm theo HSD" submitLabel="Publish"
+        initial={{ effectiveFrom: new Date().toISOString().slice(0, 10), note: '', tiersJson: defaultTiers }}
+        fields={[
+          { key: 'effectiveFrom', label: 'Hiệu lực từ', type: 'date', required: true },
+          { key: 'note', label: 'Ghi chú', type: 'textarea', span: 2 },
+          { key: 'tiersJson', label: 'Các bậc giảm (JSON)', type: 'textarea', required: true, span: 2, hint: 'Mỗi bậc gồm scope, productId hoặc productCategoryId, minRemainingPercent, maxRemainingPercent, discountType (Percent/FixedPerUnit), discountValue.' },
+        ]}
+        onClose={() => setEdit(false)}
+        onSubmit={async (v) => {
+          let tiers: ShelfLifeTier[];
+          try { tiers = JSON.parse(String(v.tiersJson)) as ShelfLifeTier[]; } catch { throw new Error('Các bậc giảm phải là JSON hợp lệ.'); }
+          if (!Array.isArray(tiers) || !tiers.length) throw new Error('Phải có ít nhất một bậc giảm.');
+          await publish.mutateAsync({ effectiveFrom: new Date(`${v.effectiveFrom}T00:00:00Z`).toISOString(), note: v.note || undefined, tiers });
+          setEdit(false);
+        }}
+      />}
     </>
   );
+}
+
+function TableCard({ table, loading }: { table?: ShelfLifeTable; loading: boolean }) {
+  return <Card title={table ? `Phiên bản ${table.version} · hiệu lực ${formatDate(table.effectiveFrom)}` : 'Bảng giảm hiện tại'}>
+    {loading ? 'Đang tải…' : !table ? 'Chưa có bảng giảm HSD.' : <TierTable tiers={table.tiers} />}
+  </Card>;
+}
+
+function History({ tables, loading }: { tables: ShelfLifeTable[]; loading: boolean }) {
+  return <Card title="Lịch sử bảng giảm" flush>{loading ? 'Đang tải…' : tables.map((table) => <Card key={table.id} title={`Phiên bản ${table.version} · ${formatDate(table.effectiveFrom)}`}><TierTable tiers={table.tiers} /></Card>)}</Card>;
+}
+
+function TierTable({ tiers }: { tiers: ShelfLifeTier[] }) {
+  return <SimpleTable rows={tiers} columns={[
+    { header: 'Phạm vi', cell: (x) => x.scope === 'Sku' ? `SKU ${x.productId ?? '—'}` : `Category ${x.productCategoryId ?? '—'}` },
+    { header: 'HSD còn lại', cell: (x) => `${x.minRemainingPercent}% – < ${x.maxRemainingPercent}%` },
+    { header: 'Kiểu giảm', cell: (x) => x.discountType === 'Percent' ? 'Phần trăm' : 'Tiền / đơn vị' },
+    { header: 'Mức giảm', align: 'right', cell: (x) => x.discountType === 'Percent' ? `${formatNumber(x.discountValue)}%` : formatNumber(x.discountValue) },
+  ]} />;
 }

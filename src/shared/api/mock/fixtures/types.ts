@@ -61,10 +61,17 @@ export interface DbOrder {
   delivery: DbDelivery | null; credit: DbCredit | null; archived: boolean; timeline: { at: Iso; label: string }[];
 }
 
+/**
+ * One promotion = one minimum quantity and one percentage, applied to the SKUs or categories it
+ * names. This mirrors the server: there is no per-SKU percentage inside one programme, and the
+ * minimum is checked per order line, not against an order-wide total.
+ */
 export interface DbPromotion {
-  code: string; name: string; type: 'PerSku' | 'Group'; validFrom: Iso; validTo: Iso; retailerCodes: string[] | null;
-  status: 'Running' | 'Paused' | 'Ended';
-  rules: { sku: string; minQty: number; discountPct: number }[]; groupSkus: string[]; groupMinQty: number; groupDiscountPct: number;
+  code: string; name: string; validFrom: Iso; validTo: Iso;
+  retailerCodes: string[] | null;
+  active: boolean;
+  minQty: number; discountPct: number;
+  skus: string[]; categoryCodes: string[];
 }
 export interface DbBatchDiscount { code: string; batchCode: string; discountPct: number; validFrom: Iso; validTo: Iso; createdBy: string; status: 'Active' | 'Ended' }
 
@@ -83,6 +90,28 @@ export interface DbKpiRow { name: string; group: string; before: number; after: 
 export interface DbNotification { id: string; title: string; body: string; createdAt: Iso; read: boolean; link: string | null }
 
 export interface TransitBand { fromKm: number; toKm: number; days: number; cost: number; scope: 'RetailerAndWarehouse' | 'WarehouseOnly' }
+
+/** Shared transit table version (F54). Distances in metres, durations in minutes, as the backend stores them. */
+export interface DbTransitTable {
+  id: string;
+  version: number;
+  maxServingDistanceMeters: number;
+  effectiveFrom: Iso;
+  effectiveTo: Iso | null;
+  isActive: boolean;
+  note: string | null;
+  createdByUserId: string;
+  createdAt: Iso;
+  updatedAt: Iso;
+  bands: {
+    id: string;
+    minDistanceMeters: number;
+    maxDistanceMeters: number;
+    handlingMinutes: number;
+    transitMinutes: number;
+    estimatedCostAmount: number;
+  }[];
+}
 export interface DbSettings {
   allocation: { wE: number; wD: number; wQ: number };
   dmaxRetailerKm: number; dmaxWarehouseKm: number;
@@ -98,7 +127,7 @@ export interface Db {
   retailerDist: Record<string, Record<string, number>>; whPairs: [string, string, number][];
   batches: DbBatch[]; receipts: DbReceipt[]; disposals: DbDisposal[]; transfers: DbTransfer[];
   velocity: Record<string, Record<string, [number, number, string][]>>;
-  vehicles: DbVehicle[]; drivers: DbDriver[]; transit: { validFrom: Iso; bands: TransitBand[] }; settings: DbSettings;
+  vehicles: DbVehicle[]; drivers: DbDriver[]; transit: { validFrom: Iso; bands: TransitBand[] }; transitTables: DbTransitTable[]; settings: DbSettings;
   orders: DbOrder[]; pickStatus: Record<string, 'NotPicked' | 'Picking' | 'Shipped'>;
   promotions: DbPromotion[]; batchDiscounts: DbBatchDiscount[];
   loyaltyProgram: DbLoyaltyProgram; loyalty: DbLoyaltyAccount[]; gifts: DbGift[]; redemptions: DbRedemption[];

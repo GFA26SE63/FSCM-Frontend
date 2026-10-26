@@ -1,28 +1,28 @@
 import { useEffect, useState } from 'react';
 import { Button, Callout, Card, FormField, Input, PageHeader, QueryState } from '@/shared/ui';
 import { WeightsEditor } from '../components/WeightsEditor';
-import { TransitTableEditor, type BandDraft } from '../components/TransitTableEditor';
-import { useSaveConfig, useSettings, useTransitTable } from '../hooks';
-import type { SystemSettings, TransitTable } from '../types';
+import { TransitTableSection } from '../components/TransitTableSection';
+import { RunScheduleSection } from '../components/RunScheduleSection';
+import { useRunSchedule, useSaveConfig, useSettings, useTransitTable } from '../hooks';
+import type { SystemSettings } from '../types';
 
 type W = { wE: string; wD: string; wQ: string };
 interface Draft {
   alloc: W; rot: W; dRetailer: string; dWh: string; velocityDays: string; minQty: string; roundTo: string; minRegional: string; loyalty: string;
-  tiers: { maxRemainingPct: string; discountPct: string }[]; bands: BandDraft[];
+  tiers: { maxRemainingPct: string; discountPct: string }[];
 }
 const w = (x: { wE: number; wD: number; wQ: number }): W => ({ wE: String(x.wE), wD: String(x.wD), wQ: String(x.wQ) });
-const toDraft = (s: SystemSettings, t: TransitTable): Draft => ({
+const toDraft = (s: SystemSettings): Draft => ({
   alloc: w(s.allocation), rot: w(s.rotation), dRetailer: String(s.dmaxRetailerKm), dWh: String(s.dmaxWarehouseKm), velocityDays: String(s.rotation.velocityDays),
   minQty: String(s.rotation.minQty), roundTo: String(s.rotation.roundTo), minRegional: String(s.minRegionalStock), loyalty: String(s.loyaltyPointRateVnd),
   tiers: s.batchDiscountTiers.map((x) => ({ maxRemainingPct: String(x.maxRemainingPct), discountPct: String(x.discountPct) })),
-  bands: t.bands.map((b) => ({ days: String(b.days), cost: String(b.cost) })),
 });
 const sum = (x: W) => Number(x.wE) + Number(x.wD) + Number(x.wQ);
 
-function ConfigForm({ settings, transit }: { settings: SystemSettings; transit: TransitTable }) {
-  const [d, setD] = useState<Draft>(() => toDraft(settings, transit));
+function SettingsForm({ settings }: { settings: SystemSettings }) {
+  const [d, setD] = useState<Draft>(() => toDraft(settings));
   const save = useSaveConfig();
-  useEffect(() => setD(toDraft(settings, transit)), [settings, transit]);
+  useEffect(() => setD(toDraft(settings)), [settings]);
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((s) => ({ ...s, [k]: v }));
   const num = (v: string) => v.trim() !== '' && !Number.isNaN(Number(v));
 
@@ -32,7 +32,6 @@ function ConfigForm({ settings, transit }: { settings: SystemSettings; transit: 
   if (!num(d.dRetailer) || !num(d.dWh)) errors.push('Dmax phải là số.');
   else if (Number(d.dRetailer) > Number(d.dWh)) errors.push('Dmax_retailer không được lớn hơn Dmax_kho.');
   if (![d.velocityDays, d.minQty, d.roundTo, d.minRegional, d.loyalty].every(num)) errors.push('Các tham số luân chuyển / loyalty phải là số.');
-  if (d.bands.some((b) => !(Number(b.days) > 0) || !(Number(b.cost) >= 0))) errors.push('Bảng vận chuyển: số ngày > 0 và chi phí ≥ 0.');
 
   const submit = () =>
     save.mutate({
@@ -43,12 +42,13 @@ function ConfigForm({ settings, transit }: { settings: SystemSettings; transit: 
         minRegionalStock: Number(d.minRegional), loyaltyPointRateVnd: Number(d.loyalty),
         batchDiscountTiers: d.tiers.map((t) => ({ maxRemainingPct: Number(t.maxRemainingPct), discountPct: Number(t.discountPct) })),
       },
-      bands: transit.bands.map((b, i) => ({ ...b, days: Number(d.bands[i].days), cost: Number(d.bands[i].cost) })),
     });
 
   return (
     <>
-      <PageHeader title="Cấu hình hệ thống" subtitle="Trọng số phân bổ / luân chuyển, phạm vi phục vụ, bảng vận chuyển dùng chung và quy đổi điểm loyalty." actions={<Button variant="primary" disabled={errors.length > 0} loading={save.isPending} onClick={submit}>Lưu cấu hình</Button>} />
+      <div className="row" style={{ justifyContent: 'flex-end' }}>
+        <Button variant="primary" disabled={errors.length > 0} loading={save.isPending} onClick={submit}>Lưu cấu hình</Button>
+      </div>
       {errors.length > 0 && <Callout tone="danger">{errors.map((e) => <div key={e}>{e}</div>)}</Callout>}
 
       <Card title="Trọng số phân bổ đơn hàng (B3): điểm = wE·fE + wD·fD + wQ·fQ">
@@ -74,10 +74,6 @@ function ConfigForm({ settings, transit }: { settings: SystemSettings; transit: 
         </div>
       </Card>
 
-      <Card title="Bảng vận chuyển dùng chung (km → ngày, chi phí)">
-        <TransitTableEditor bands={transit.bands} draft={d.bands} validFrom={transit.validFrom} onChange={(b) => set('bands', b)} />
-      </Card>
-
       <Card title="Bậc giảm giá theo HSD còn lại">
         <div className="stack-sm">
           {d.tiers.map((t, i) => (
@@ -98,12 +94,34 @@ function ConfigForm({ settings, transit }: { settings: SystemSettings; transit: 
   );
 }
 
+/**
+ * Each card loads its own data.
+ *
+ * The page used to wrap everything in one QueryState over `/settings`. The backend has no such
+ * endpoint - it stores these as versioned keys under `/business-configurations` - so against the
+ * real API that one failure blanked the whole page, taking the shared transit table (F54-FE) with
+ * it even though its own three endpoints work. One missing endpoint should cost one card.
+ */
 export function ConfigPage() {
   const settings = useSettings();
   const transit = useTransitTable();
+  const schedule = useRunSchedule();
   return (
-    <QueryState query={settings}>
-      {(s) => <QueryState query={transit}>{(t) => <ConfigForm settings={s} transit={t} />}</QueryState>}
-    </QueryState>
+    <>
+      <PageHeader
+        title="Cấu hình hệ thống"
+        subtitle="Bảng vận chuyển dùng chung, trọng số phân bổ / luân chuyển, phạm vi phục vụ và quy đổi điểm loyalty."
+      />
+
+      <Card title="Bảng vận chuyển dùng chung (khoảng km → thời gian, chi phí)">
+        <QueryState query={transit}>{(t) => <TransitTableSection current={t} />}</QueryState>
+      </Card>
+
+      <Card title="Lịch ngày chạy đợt: giờ chốt và các mốc nhắc duyệt">
+        <QueryState query={schedule}>{(s) => <RunScheduleSection current={s} />}</QueryState>
+      </Card>
+
+      <QueryState query={settings}>{(s) => <SettingsForm settings={s} />}</QueryState>
+    </>
   );
 }
