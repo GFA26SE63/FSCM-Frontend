@@ -201,5 +201,51 @@ export interface OrderTraceDetail {
   lines: TraceLineDetail[];
 }
 
+/** Bản giá bất biến của một đơn sau phân bổ (F98) — GET /allocation-runs/orders/{id}/price. */
+export interface OrderPricePart {
+  batchId: string;
+  batchCode: string;
+  warehouseId: string;
+  quantity: number;
+  listUnitPrice: number;
+  baseNetUnitPrice: number;
+  pricedAt: string;
+  batchExpiresAt: string;
+  totalShelfLifeHours: number;
+  remainingShelfLifePercent: number;
+  discountType: string | null;
+  discountValue: number | null;
+  shelfLifeDiscountPerUnit: number;
+  finalNetUnitPrice: number;
+  amount: number;
+  explanation: string;
+}
+
+export interface OrderPriceLine {
+  sku: string;
+  lineNumber: number;
+  orderedQuantity: number;
+  allocatedQuantity: number;
+  baseAmount: number;
+  shelfLifeDiscountAmount: number;
+  finalAmount: number;
+  parts: OrderPricePart[];
+}
+
+export interface OrderPrice {
+  salesOrderId: string;
+  orderCode: string;
+  runCode: string;
+  planVersionNumber: number;
+  planVersionStatus: string;
+  /** False khi phương án còn chờ duyệt: đây là báo giá, chưa phải giá đã chốt. */
+  isApproved: boolean;
+  pricedAt: string;
+  baseAmount: number;
+  shelfLifeDiscountAmount: number;
+  finalAmount: number;
+  lines: OrderPriceLine[];
+}
+
 export interface DispatchVehicle { plate: string; type: string; capacity: number; status: 'Active' | 'Maintenance' }
 export interface DispatchDriver { code: string; name: string; phone: string; status: 'Active' | 'OnLeave' }

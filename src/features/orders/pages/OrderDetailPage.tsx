@@ -3,7 +3,7 @@ import { useParams } from '@/shared/router/compat';
 import { Button, Callout, Card, Chip, Fields, PageHeader, QueryState, SimpleTable, StatusChip } from '@/shared/ui';
 import { formatCases, formatDate, formatDateTime, formatHours, formatKm, formatMoney, formatPercent, formatScore, paymentLabel } from '@/shared/lib';
 import { env } from '@/shared/lib';
-import { useConfirmReceipt, useOrder } from '../hooks';
+import { useConfirmReceipt, useOrder, useOrderPrice } from '../hooks';
 import { AllocationTraceDialog } from '../components/AllocationTraceDialog';
 import { OrderActions } from '../components/OrderActions';
 import type { OrderDetail, OrderLineMlor } from '../types';
@@ -22,6 +22,7 @@ const allocationChip: Record<OrderDetail['allocationState'], string> = {
 function OrderBody({ o }: { o: OrderDetail }) {
   const [trace, setTrace] = useState(false);
   const receipt = useConfirmReceipt();
+  const price = useOrderPrice(o.id);
   return (
     <OrderActions>
       {({ buttons, dialogs }) => (
@@ -137,6 +138,39 @@ function OrderBody({ o }: { o: OrderDetail }) {
                 <b>Chi phí giao ước tính: {formatMoney(o.estimatedDeliveryCost.total)}</b>
                 <span className="muted small"> — {o.estimatedDeliveryCost.parts.map((p) => `${p.warehouseName} ${formatKm(p.km)} ${formatMoney(p.cost)}`).join(' · ')}. Chỉ hiển thị, không là trọng số phân bổ.</span>
               </div>
+            )}
+          </Card>
+
+          <Card title="Chi tiết giá theo batch" flush>
+            {!price.data ? (
+              <span className="muted" style={{ padding: '12px 16px', display: 'block' }}>
+                Đơn này chưa có bản giá phân bổ.
+              </span>
+            ) : (
+              <>
+                <div className="kv" style={{ padding: '12px 16px' }}>
+                  <span>
+                    {/* Một phương án chờ duyệt là báo giá, chưa phải giá để thu tiền. */}
+                    {price.data.isApproved ? 'Giá đã chốt' : 'Phương án giá chờ duyệt'} · đợt {price.data.runCode} ·
+                    bản {price.data.planVersionNumber} · định giá {formatDateTime(price.data.pricedAt)}
+                  </span>
+                  <b>{formatMoney(price.data.finalAmount)}</b>
+                </div>
+                <SimpleTable
+                  rows={price.data.lines.flatMap((line) => line.parts.map((part) => ({ ...part, sku: line.sku })))}
+                  columns={[
+                    { header: 'SKU', cell: (x) => x.sku },
+                    { header: 'Batch', cell: (x) => x.batchCode },
+                    { header: 'Lượng', align: 'right', cell: (x) => formatCases(x.quantity) },
+                    { header: 'Giá niêm yết', align: 'right', cell: (x) => formatMoney(x.listUnitPrice) },
+                    { header: 'Giá cơ sở', align: 'right', cell: (x) => formatMoney(x.baseNetUnitPrice) },
+                    { header: '% HSD tính giá', align: 'right', cell: (x) => `${x.remainingShelfLifePercent}%` },
+                    { header: 'Giảm HSD', align: 'right', cell: (x) => formatMoney(x.shelfLifeDiscountPerUnit) },
+                    { header: 'Giá cuối', align: 'right', cell: (x) => <strong>{formatMoney(x.finalNetUnitPrice)}</strong> },
+                    { header: 'Thành tiền', align: 'right', cell: (x) => formatMoney(x.amount) },
+                  ]}
+                />
+              </>
             )}
           </Card>
 
