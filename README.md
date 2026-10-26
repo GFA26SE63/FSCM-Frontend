@@ -81,28 +81,24 @@ mọi tầng có thể dùng shared/ui, shared/lib và shared/auth khi phù hợ
 5. Nếu mock mode cần hỗ trợ, thêm handler vào module phù hợp và fixture tối thiểu; contract mock phải giống backend.
 6. Chạy `npm run lint` và `npm run build` trước khi bàn giao.
 
-Feature ↔ menu: dashboard · **allocation (Duyệt phương án đợt: tổng đơn đủ/thiếu, mở từng SKU/batch, duyệt hoặc yêu cầu tính lại)** · orders (chi tiết + **Giải thích phân bổ B1–B4** + chi phí giao ước tính) · debts (công nợ một phần, thu một lần) · picking · receipts · whtransfer · **rotation (Luân chuyển cận hạn: đề xuất, bảng điểm từng kho ứng viên, duyệt / sửa SL / bỏ qua)** · **fleet (Xe & người giao)** · batches · batchpromo · disposal · promos · retailers · loyalty · gifts · redeem · regions · categories · products (nháp / publish / inactive / clone) · warehouses · users (không tạo Admin) · kpi · complaints · config (**lịch ngày chạy đợt: giờ chốt + mốc nhắc**, trọng số phân bổ, trọng số luân chuyển, Dmax, **bảng vận chuyển dùng chung**, tỷ lệ điểm).
+Feature ↔ menu: dashboard · orders (chi tiết + **Giải thích phân bổ B1–B4** + chi phí giao ước tính) · debts (công nợ một phần, thu một lần) · **runpicking (Phiếu soạn theo đợt: lấy gom theo batch, chia về từng dòng đơn)** · picking · receipts · whtransfer · **rotation (Luân chuyển cận hạn: đề xuất, bảng điểm từng kho ứng viên, duyệt / sửa SL / bỏ qua)** · **fleet (Xe & người giao)** · batches · batchpromo · disposal · promos · retailers · loyalty · gifts · redeem · regions · categories · products (nháp / publish / inactive / clone) · warehouses · users (không tạo Admin) · kpi · complaints · config (**lịch ngày chạy đợt: giờ chốt + mốc nhắc**, trọng số phân bổ, trọng số luân chuyển, Dmax, **bảng vận chuyển dùng chung**, tỷ lệ điểm).
 
-## Duyệt phương án đợt (allocation)
+## Phiếu soạn theo đợt (runpicking)
 
-Màn Admin duyệt một **phiên bản phương án** của đợt 12:00. Vài điều dễ làm sai khi sửa màn này:
+Phiếu soạn phát hành sau khi phương án được duyệt **và** giữ tồn thành công. Màn này đọc
+`GET /allocation-runs/{runId}/picking-lists`. Hai điều **không được** làm khi sửa nó:
 
-- **Duyệt là duyệt cả phân bổ và giá**, cùng một phiên bản. Không có sửa batch từng dòng: duyệt một
-  hỗn hợp tự chọn sẽ tạo ra phương án mà engine chưa từng chấm điểm và không ai tái lập được. Phương
-  án chưa đúng thì **yêu cầu tính lại kèm lý do** — bản mới thay thế bản cũ, không sửa đè lên.
-- **Không có tự duyệt.** Quá hạn nhắc vẫn chỉ là đề xuất, và **chưa giữ hàng** cho tới khi có người
-  quyết định. Đừng thêm bất kỳ hành vi tự động nào vào màn này.
-- **Hạn còn lúc nhận phải đứng cạnh ngưỡng MLOR.** Cặp số đó mới là lý do một batch hợp lệ; thiếu
-  một trong hai thì con số còn lại vô nghĩa.
-- `allocations` và `prices` của một phiên bản **key giống nhau** (dòng đợt + batch). Ghép theo cặp
-  đó, đừng ghép theo thứ tự mảng.
-- Đơn thiếu hàng được **ghi là thiếu**; lượng tạm của cả đơn trả về quỹ chung cho các đơn phía sau.
-  Đợt không tự từ chối đơn.
+- **Không gộp batch.** Hai batch của cùng một SKU phải là **hai dòng lấy gom**. Batch là thứ mà
+  phân bổ và bản giá được quyết định trên đó; gộp đi là phiếu soạn không còn đối chiếu được.
+- **Không tính giá ở đây.** Mỗi dòng chia mang `allocationPlanPriceId` — **mã** bản giá đã duyệt.
+  Màn hình hiện mã đó, không nhân lại số tiền. Tính lại ở đây thì chỉ cần bảng giảm HSD đổi một lần
+  là số trên phiếu khác số trên hoá đơn, và không ai phát hiện tới lúc đối chiếu.
 
-Mock dựng đợt từ chính các đơn mẫu và trace của chúng, nên hình dạng dữ liệu đúng nhưng **không phải
-engine thật**: nó không rút từ một quỹ chung. Quyết định duyệt / yêu cầu tính lại giữ trong bộ nhớ
-phiên trình duyệt, mất khi reload. Định danh đợt và phiên bản là hash của ngày nghiệp vụ, nên mock
-dò ngược bằng cách quét một khoảng ngày có giới hạn; server thật thì tra thẳng.
+Tiền chỉ hiện với vai trò có quyền (Admin / Operator). Thủ kho lấy hàng trên kệ không cần giá, và
+phiếu soạn cũng không phải nơi quyết định giá.
+
+Trạng thái lượt lấy gom là **`Pending` / `Picked`** — khác hẳn bộ `NotPicked/Picking/Shipped` của
+màn `picking` cũ (theo từng đơn). Đừng dùng nhầm `StatusChip domain="picking"` ở đây.
 
 ## Lịch ngày chạy đợt (config)
 

@@ -27,6 +27,7 @@ const orders = () => import('@/features/orders');
 const allocation = () => import('@/features/allocation');
 const debts = () => import('@/features/debts');
 const picking = () => import('@/features/picking');
+const runpicking = () => import('@/features/runpicking');
 const receipts = () => import('@/features/receipts');
 const whtransfer = () => import('@/features/whtransfer');
 const rotation = () => import('@/features/rotation');
@@ -55,6 +56,7 @@ export const APP_ROUTES: AppRoute[] = [
   { key: 'orders', label: 'Đơn hàng', roles: [A, OP], badge: 'orders', list: page(orders, 'OrdersPage'), sub: [{ path: ':code', element: page(orders, 'OrderDetailPage') }] },
   { key: 'allocation', label: 'Duyệt phương án đợt', roles: [A], list: page(allocation, 'AllocationRunPage') },
   { key: 'debts', label: 'Công nợ', roles: [A, OP], badge: 'debts', list: page(debts, 'DebtsPage') },
+  { key: 'runpicking', label: 'Phiếu soạn theo đợt', roles: [A, OP, WK], list: page(runpicking, 'RunPickingPage') },
   { key: 'picking', label: 'Picking list', roles: [A, WK], list: page(picking, 'PickingListPage'), sub: [{ path: ':code', element: page(picking, 'PickingDetailPage') }] },
   {
     key: 'receipts', label: 'Nhập kho', roles: [A, WK], list: page(receipts, 'ReceiptsPage'),
