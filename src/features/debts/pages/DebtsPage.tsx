@@ -12,17 +12,17 @@ export function DebtsPage() {
   const collect = useCollectReceivable();
   const [target, setTarget] = useState<Receivable | null>(null);
   const rows = query.data ?? [];
-  const sum = (s: string) => rows.filter((r) => r.status === s).reduce((a, r) => a + r.outstanding, 0);
+  const sum = (s: string) => rows.filter((r) => r.status === s).reduce((a, r) => a + r.outstandingAmount, 0);
 
   const columns: Column<Receivable>[] = [
     { key: 'orderCode', header: 'Mã đơn', width: '104px', render: (r) => <span className="bold">{r.orderCode}</span> },
     { key: 'retailer', header: 'Retailer', text: (r) => `${r.retailerName} ${r.retailerCode}`, render: (r) => (<><div className="strong">{r.retailerName}</div><div className="muted small">{r.retailerCode}</div></>) },
-    { key: 'sales', header: 'Sales', width: '130px', text: (r) => r.salesName },
-    { key: 'term', header: 'Kỳ hạn', width: '80px', text: (r) => `${r.termDays} ngày` },
-    { key: 'delivered', header: 'Ngày giao', width: '100px', text: (r) => formatDate(r.deliveredAt) },
-    { key: 'due', header: 'Hạn thanh toán', width: '120px', text: (r) => formatDate(r.dueDate) },
-    { key: 'total', header: 'Giá trị', width: '120px', align: 'right', text: (r) => formatMoney(r.total) },
-    { key: 'out', header: 'Còn phải thu', width: '120px', align: 'right', text: (r) => formatMoney(r.outstanding) },
+    { key: 'sales', header: 'Sales ID', width: '130px', text: (r) => r.salesUserId },
+    { key: 'term', header: 'Kỳ hạn', width: '80px', text: (r) => `${r.creditTermDays} ngày` },
+    { key: 'delivered', header: 'Ngày giao', width: '100px', text: (r) => r.deliveredDate ? formatDate(r.deliveredDate) : '—' },
+    { key: 'due', header: 'Hạn thanh toán', width: '120px', text: (r) => r.dueDate ? formatDate(r.dueDate) : '—' },
+    { key: 'total', header: 'Giá trị điều chỉnh', width: '120px', align: 'right', text: (r) => formatMoney(r.adjustedAmount) },
+    { key: 'out', header: 'Còn phải thu', width: '120px', align: 'right', text: (r) => formatMoney(r.outstandingAmount) },
     { key: 'status', header: 'Trạng thái', width: '110px', render: (r) => <StatusChip domain="receivable" value={r.status} /> },
   ];
 
@@ -40,15 +40,15 @@ export function DebtsPage() {
         rows={rows}
         loading={query.isLoading}
         error={query.error}
-        rowKey={(r) => r.orderCode}
+        rowKey={(r) => r.orderId}
         columns={columns}
         searchPlaceholder="Mã đơn, retailer, Sales…"
         filters={[{ label: 'Trạng thái', options: ['Chưa thu', 'Đã thu đủ', 'Quá hạn'], value: (r) => statusLabel('receivable', r.status) }]}
-        onRowClick={(r) => navigate(`/orders/${r.orderCode}`)}
+        onRowClick={(r) => navigate(`/orders/${r.orderId}`)}
         rowActionsWidth="200px"
         rowActions={(r) => (
           <>
-            <Button size="sm" onClick={() => navigate(`/orders/${r.orderCode}`)}>Xem đơn</Button>
+            <Button size="sm" onClick={() => navigate(`/orders/${r.orderId}`)}>Xem đơn</Button>
             {r.status !== 'Paid' && <Button size="sm" variant="primary" onClick={() => setTarget(r)}>Ghi nhận đã thu</Button>}
           </>
         )}
@@ -59,15 +59,20 @@ export function DebtsPage() {
         columns={1}
         title={`Ghi nhận thu tiền · ${target?.orderCode ?? ''}`}
         submitLabel="Xác nhận đã thu đủ"
-        initial={{ method: 'Transfer' }}
+        initial={{ method: 'BankTransfer' }}
         fields={[
-          { key: 'info', type: 'info', label: 'Retailer / số tiền', info: () => `${target?.retailerName} · ${formatMoney(target?.outstanding)}` },
-          { key: 'method', type: 'select', required: true, label: 'Hình thức thu', options: [{ value: 'Transfer', label: 'Chuyển khoản' }, { value: 'Cash', label: 'Tiền mặt (Sales thu)' }] },
+          { key: 'info', type: 'info', label: 'Retailer / số tiền', info: () => `${target?.retailerName} · ${formatMoney(target?.outstandingAmount)}` },
+          { key: 'method', type: 'select', required: true, label: 'Hình thức thu', options: [{ value: 'BankTransfer', label: 'Chuyển khoản' }, { value: 'Cash', label: 'Tiền mặt (Sales thu)' }] },
         ]}
         note="Thu một lần đủ số tiền. Sau khi xác nhận, điểm loyalty của đơn được cộng cho retailer."
         onClose={() => setTarget(null)}
         onSubmit={async (v) => {
-          await collect.mutateAsync({ orderCode: target!.orderCode, method: v.method });
+          await collect.mutateAsync({
+            orderId: target!.orderId,
+            collectionMethod: v.method,
+            expectedVersion: target!.version,
+            operationKey: crypto.randomUUID(),
+          });
           setTarget(null);
         }}
       />

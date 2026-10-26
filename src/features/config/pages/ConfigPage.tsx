@@ -2,11 +2,9 @@ import { useEffect, useState } from 'react';
 import { Button, Callout, Card, FormField, Input, PageHeader, QueryState } from '@/shared/ui';
 import { WeightsEditor } from '../components/WeightsEditor';
 import { TransitTableSection } from '../components/TransitTableSection';
-import { useSaveConfig, useSettings, useTransitTable } from '../hooks';
-import type { SystemSettings } from '../types';
 import { RunScheduleSection } from '../components/RunScheduleSection';
 import { useRunSchedule, useSaveConfig, useSettings, useTransitTable } from '../hooks';
-import type { RunSchedule, SystemSettings, TransitTable } from '../types';
+import type { SystemSettings } from '../types';
 
 type W = { wE: string; wD: string; wQ: string };
 interface Draft {
@@ -22,7 +20,6 @@ const toDraft = (s: SystemSettings): Draft => ({
 const sum = (x: W) => Number(x.wE) + Number(x.wD) + Number(x.wQ);
 
 function SettingsForm({ settings }: { settings: SystemSettings }) {
-function ConfigForm({ settings, transit, schedule }: { settings: SystemSettings; transit: TransitTable; schedule: RunSchedule }) {
   const [d, setD] = useState<Draft>(() => toDraft(settings));
   const save = useSaveConfig();
   useEffect(() => setD(toDraft(settings)), [settings]);
@@ -53,10 +50,6 @@ function ConfigForm({ settings, transit, schedule }: { settings: SystemSettings;
         <Button variant="primary" disabled={errors.length > 0} loading={save.isPending} onClick={submit}>Lưu cấu hình</Button>
       </div>
       {errors.length > 0 && <Callout tone="danger">{errors.map((e) => <div key={e}>{e}</div>)}</Callout>}
-
-      <Card title="Lịch ngày chạy đợt: giờ chốt và các mốc nhắc duyệt">
-        <RunScheduleSection current={schedule} />
-      </Card>
 
       <Card title="Trọng số phân bổ đơn hàng (B3): điểm = wE·fE + wD·fD + wQ·fQ">
         <WeightsEditor value={d.alloc} onChange={(v) => set('alloc', v)} />
@@ -122,6 +115,10 @@ export function ConfigPage() {
 
       <Card title="Bảng vận chuyển dùng chung (khoảng km → thời gian, chi phí)">
         <QueryState query={transit}>{(t) => <TransitTableSection current={t} />}</QueryState>
+      </Card>
+
+      <Card title="Lịch ngày chạy đợt: giờ chốt và các mốc nhắc duyệt">
+        <QueryState query={schedule}>{(s) => <RunScheduleSection current={s} />}</QueryState>
       </Card>
 
       <QueryState query={settings}>{(s) => <SettingsForm settings={s} />}</QueryState>
