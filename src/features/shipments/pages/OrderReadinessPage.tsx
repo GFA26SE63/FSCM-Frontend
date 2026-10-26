@@ -83,8 +83,14 @@ function ReadinessBody({ runCode, lists }: { runCode: string; lists: RunPickingL
   const orders = useMemo(() => ordersOf(lists), [lists]);
   const readiness = useOrdersReadiness(orders.map((order) => order.salesOrderId));
 
+  // Three groups, not two. The server answers isReady for an order whose parts have all already
+  // left - nothing is holding it, because there is nothing left to hold - so counting those as
+  // "ready to issue" overstates the work waiting and makes the number disagree with the warehouse.
+  const hasLeft = (item: OrderShipmentReadiness) =>
+    item.parts.length > 0 && item.parts.every((part) => HAS_LEFT.includes(part.status));
   const blocked = readiness.data.filter((item) => !item.isReady);
-  const ready = readiness.data.filter((item) => item.isReady);
+  const gone = readiness.data.filter((item) => item.isReady && hasLeft(item));
+  const ready = readiness.data.filter((item) => item.isReady && !hasLeft(item));
 
   return (
     <>
@@ -93,6 +99,7 @@ function ReadinessBody({ runCode, lists }: { runCode: string; lists: RunPickingL
         <Stat label="Đơn trong đợt" value={formatNumber(orders.length)} />
         <Stat label="Cần xử lý" value={formatNumber(blocked.length)} />
         <Stat label="Sẵn sàng xuất" value={formatNumber(ready.length)} />
+        <Stat label="Đã rời kho" value={formatNumber(gone.length)} />
       </div>
 
       {readiness.loading && <Callout tone="info">Đang lấy trạng thái sẵn sàng của từng đơn…</Callout>}
@@ -116,6 +123,15 @@ function ReadinessBody({ runCode, lists }: { runCode: string; lists: RunPickingL
         <>
           <h3 style={{ margin: '18px 2px 8px', fontSize: 15 }}>Sẵn sàng xuất ({ready.length})</h3>
           {ready.map((item) => (
+            <OrderCard key={item.salesOrderId} readiness={item} />
+          ))}
+        </>
+      )}
+
+      {gone.length > 0 && (
+        <>
+          <h3 style={{ margin: '18px 2px 8px', fontSize: 15 }}>Đã rời kho ({gone.length})</h3>
+          {gone.map((item) => (
             <OrderCard key={item.salesOrderId} readiness={item} />
           ))}
         </>
@@ -161,7 +177,9 @@ function OrderCard({ readiness }: { readiness: OrderShipmentReadiness }) {
     <Card
       title={readiness.orderCode}
       actions={
-        readiness.isReady ? (
+        readiness.parts.length > 0 && readiness.parts.every((part) => HAS_LEFT.includes(part.status)) ? (
+          <Chip tone="deep">Đã rời kho</Chip>
+        ) : readiness.isReady ? (
           <Chip tone="success">Được xuất</Chip>
         ) : (
           <Chip tone={readiness.hasException ? 'danger' : 'warn'}>
