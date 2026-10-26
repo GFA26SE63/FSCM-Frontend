@@ -34,8 +34,15 @@ export function receivableOf(o: DbOrder) {
   const total = pricingOf(o).final;
   const status = c.paid ? 'Paid' : c.dueDate && daysBetween(MOCK_TODAY, c.dueDate) < 0 ? 'Overdue' : 'Unpaid';
   return {
-    orderCode: o.code, retailerCode: o.retailerCode, retailerName: retailer(o.retailerCode).name, salesName: o.salesName, termDays: c.termDays,
-    deliveredAt: c.deliveredAt, dueDate: c.dueDate, total, outstanding: c.paid ? 0 : total, status, paidAt: c.paidAt, collectedBy: c.collectedBy, method: c.method,
+    id: mockGuid(`${o.code}-payment`), orderId: mockGuid(o.code), orderCode: o.code,
+    retailerId: mockGuid(o.retailerCode), retailerCode: o.retailerCode,
+    retailerName: retailer(o.retailerCode).name, salesUserId: mockGuid(o.salesName),
+    creditTermDays: c.termDays, deliveredDate: c.deliveredAt, dueDate: c.dueDate,
+    amount: total, adjustedAmount: total, confirmedAmount: c.paid ? total : 0,
+    outstandingAmount: c.paid ? 0 : total, status, paidDate: c.paidAt,
+    confirmedByUserId: c.collectedBy ? mockGuid(c.collectedBy) : null,
+    collectionMethod: c.method === 'Transfer' ? 'BankTransfer' : c.method,
+    version: c.paid ? 1 : 0,
   };
 }
 
@@ -91,7 +98,7 @@ export function orderDetail(o: DbOrder) {
     id: mockGuid(o.code),
     retailerAddress: r.address, groupCode: group?.code ?? r.groupCode, areaName: areaName(r.areaCode),
     syncedAt: o.syncedAt, syncMode: o.syncMode, prepaidChannel: o.prepaidChannel, paymentStatus: o.paidNote,
-    receivable: rec ? { status: rec.status, dueDate: rec.dueDate, outstanding: rec.outstanding, deliveredAt: rec.deliveredAt } : null,
+    receivable: rec ? { status: rec.status, dueDate: rec.dueDate, outstanding: rec.outstandingAmount, deliveredAt: rec.deliveredDate } : null,
     reviewer: o.reviewer, rejectReason: o.status === 'Rejected' ? o.reason : null, cancelReason: o.status === 'Cancelled' ? o.reason : null,
     promoChange: o.promoChanged ? { localDiscount: o.localDiscount, officialDiscount: price.discount, reason: 'KM-003 đã bị Admin tạm dừng lúc 09:30, sau lần app tải dữ liệu gần nhất.' } : null,
     lines: price.lines.map((l) => {
