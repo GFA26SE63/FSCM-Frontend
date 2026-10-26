@@ -1,17 +1,22 @@
 export type ReceivableStatus = 'Unpaid' | 'Paid' | 'Overdue';
 export interface Receivable {
+  id: string;
+  orderId: string;
   orderCode: string;
+  retailerId: string;
   retailerCode: string;
   retailerName: string;
-  salesName: string;
-  termDays: number;
-  deliveredAt: string;
-  dueDate: string;
-  total: number;
-  outstanding: number;
+  salesUserId: string;
+  creditTermDays: number;
+  deliveredDate: string | null;
+  dueDate: string | null;
+  amount: number;
+  adjustedAmount: number;
+  confirmedAmount: number;
+  outstandingAmount: number;
   status: ReceivableStatus;
-  paidAt: string | null;
-  collectedBy: string | null;
-  method: 'Cash' | 'Transfer' | null;
+  paidDate: string | null;
+  confirmedByUserId: string | null;
+  collectionMethod: 'Cash' | 'BankTransfer' | null;
+  version: number;
 }
-export interface CollectResult { receivable: Receivable; pointsEarned: number }

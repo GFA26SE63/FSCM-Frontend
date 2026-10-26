@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
+import { externalAuthConfig } from '@/shared/auth/externalAuth';
+import { GoogleSignInButton } from '@/shared/auth/GoogleSignInButton';
 import { DEMO_ACCOUNTS, PORTAL_ROLES, roleLabel, type PortalRole } from '@/shared/auth/roles';
 import { env } from '@/shared/lib/env';
 import { Button, FormField, Input, useToast } from '@/shared/ui';
@@ -14,7 +16,7 @@ const ROLE_HINT: Record<PortalRole, string> = {
 };
 
 export function LoginPage() {
-  const { status, user, login, loginWithEntra } = useAuth();
+  const { status, user, login, loginWithMicrosoft, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
   const [role, setRole] = useState<PortalRole>('Admin');
@@ -46,7 +48,7 @@ export function LoginPage() {
         className="card login-card"
         onSubmit={(e) => {
           e.preventDefault();
-          void submit(() => (env.useMock ? login(email, password, role) : loginWithEntra()));
+          void submit(() => (env.useMock ? login(email, password, role) : loginWithMicrosoft()));
         }}
       >
         <div className="row" style={{ gap: 12 }}>
@@ -86,10 +88,24 @@ export function LoginPage() {
           </>
         ) : (
           <>
-            <p className="note">Đăng nhập bằng tài khoản công ty qua Microsoft Entra ID.</p>
-            <Button variant="primary" type="submit" loading={busy} style={{ height: 42 }}>
+            <p className="note">Microsoft hoặc Google chỉ xác thực danh tính. Sau đăng nhập, hệ thống sử dụng JWT do FSCM phát hành cho toàn bộ API nghiệp vụ.</p>
+            <Button variant="primary" type="submit" loading={busy} style={{ height: 42 }} disabled={!externalAuthConfig.microsoftConfigured}>
               Đăng nhập bằng Microsoft
             </Button>
+            <div className="oauth-divider"><span>hoặc</span></div>
+            {externalAuthConfig.googleConfigured ? (
+              <GoogleSignInButton
+                clientId={env.google.clientId}
+                disabled={busy}
+                onCredential={(credential) => void submit(() => loginWithGoogle(credential))}
+                onError={toast.error}
+              />
+            ) : (
+              <Button type="button" disabled>Google chưa được cấu hình</Button>
+            )}
+            {(!externalAuthConfig.microsoftConfigured || !externalAuthConfig.googleConfigured) && (
+              <p className="note">Cấu hình client ID còn thiếu trong biến môi trường triển khai.</p>
+            )}
           </>
         )}
       </form>

@@ -24,8 +24,10 @@ const WK: PortalRole = 'WarehouseKeeper';
 const SM: PortalRole = 'SalesManager';
 
 const orders = () => import('@/features/orders');
+const allocation = () => import('@/features/allocation');
 const debts = () => import('@/features/debts');
 const picking = () => import('@/features/picking');
+const runpicking = () => import('@/features/runpicking');
 const receipts = () => import('@/features/receipts');
 const whtransfer = () => import('@/features/whtransfer');
 const rotation = () => import('@/features/rotation');
@@ -52,7 +54,9 @@ const dashboard = () => import('@/features/dashboard');
 export const APP_ROUTES: AppRoute[] = [
   { key: 'dashboard', label: 'Dashboard', roles: [A], list: page(dashboard, 'DashboardPage') },
   { key: 'orders', label: 'Đơn hàng', roles: [A, OP], badge: 'orders', list: page(orders, 'OrdersPage'), sub: [{ path: ':code', element: page(orders, 'OrderDetailPage') }] },
+  { key: 'allocation', label: 'Duyệt phương án đợt', roles: [A], list: page(allocation, 'AllocationRunPage') },
   { key: 'debts', label: 'Công nợ', roles: [A, OP], badge: 'debts', list: page(debts, 'DebtsPage') },
+  { key: 'runpicking', label: 'Phiếu soạn theo đợt', roles: [A, OP, WK], list: page(runpicking, 'RunPickingPage') },
   { key: 'picking', label: 'Picking list', roles: [A, WK], list: page(picking, 'PickingListPage'), sub: [{ path: ':code', element: page(picking, 'PickingDetailPage') }] },
   {
     key: 'receipts', label: 'Nhập kho', roles: [A, WK], list: page(receipts, 'ReceiptsPage'),
@@ -69,7 +73,7 @@ export const APP_ROUTES: AppRoute[] = [
   },
   {
     key: 'promos', label: 'Khuyến mãi', roles: [A], list: page(promos, 'PromosPage'),
-    sub: [{ path: 'new', element: page(promos, 'PromoFormPage') }, { path: ':code', element: page(promos, 'PromoDetailPage') }],
+    sub: [{ path: 'new', element: page(promos, 'PromoFormPage') }, { path: ':id', element: page(promos, 'PromoDetailPage') }],
   },
   { key: 'retailers', label: 'Retailer', roles: [A, OP], badge: 'retailers', list: page(retailers, 'RetailersPage'), sub: [{ path: ':code', element: page(retailers, 'RetailerDetailPage') }] },
   { key: 'loyalty', label: 'Loyalty – điểm', roles: [A], list: page(loyalty, 'LoyaltyPage'), sub: [{ path: ':code', element: page(loyalty, 'LoyaltyDetailPage') }] },

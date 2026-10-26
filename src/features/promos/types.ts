@@ -1,20 +1,47 @@
-export type PromoType = 'PerSku' | 'Group';
+/**
+ * Promotions as the server models them: one promotion carries one minimum quantity and one discount
+ * percentage, and names what it applies to.
+ *
+ * The portal used to offer a different percentage per SKU inside one programme. The server has no
+ * such shape, so that form could never have been saved. Several percentages now mean several
+ * promotions, which is also what the pricing rule assumes: a line takes the single best promotion,
+ * never a sum.
+ */
 export type PromoStatus = 'Running' | 'Paused' | 'Ended';
+
 export interface PromoSummary {
-  code: string; name: string; type: PromoType; validFrom: string; validTo: string; status: PromoStatus; customerCount: number | null; skuCount: number;
+  id: string;
+  code: string;
+  name: string;
+  promotionType: string;
+  minimumQuantity: number;
+  discountPercent: number;
+  startAt: string;
+  endAt: string;
+  isActive: boolean;
 }
-export interface PromoRule { sku: string; productName: string; minQty: number; discountPct: number }
-export interface PromoApplied { orderCode: string; retailerName: string; salesName: string; createdAt: string; detail: string; amount: number }
+
 export interface PromoDetail extends PromoSummary {
-  rules: PromoRule[];
-  group: { skus: string[]; minQty: number; discountPct: number } | null;
-  retailers: { code: string; name: string }[] | null;
-  appliedOrders: PromoApplied[];
-  totalDiscount: number;
+  /** Empty product and category lists mean the promotion names nothing and applies to nothing. */
+  productIds: string[];
+  categoryIds: string[];
+  /** Empty = every retailer. */
+  retailerIds: string[];
+  createdAt: string;
+  updatedAt: string;
 }
+
 export interface PromoInput {
-  name: string; type: PromoType; validFrom: string; validTo: string; retailerCodes: string[];
-  rules: { sku: string; minQty: number; discountPct: number }[]; groupSkus: string[]; groupMinQty: number; groupDiscountPct: number;
+  name: string;
+  minimumQuantity: number;
+  discountPercent: number;
+  startAt: string;
+  endAt: string;
+  productIds: string[];
+  categoryIds: string[];
+  retailerIds: string[];
 }
-export interface ProductOption { sku: string; name: string; status: string }
-export interface RetailerOption { code: string; name: string; status: string }
+
+export interface ProductOption { id: string; sku: string; name: string; status: string }
+export interface CategoryOption { id: string; code: string; name: string }
+export interface RetailerOption { id: string; code: string; name: string; status: string }
