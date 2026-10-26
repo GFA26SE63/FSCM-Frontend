@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Button, Callout, Card, FormField, Input, PageHeader, QueryState } from '@/shared/ui';
 import { WeightsEditor } from '../components/WeightsEditor';
 import { TransitTableSection } from '../components/TransitTableSection';
+import { useSaveConfig, useSettings, useTransitTable } from '../hooks';
+import type { SystemSettings } from '../types';
 import { RunScheduleSection } from '../components/RunScheduleSection';
 import { useRunSchedule, useSaveConfig, useSettings, useTransitTable } from '../hooks';
 import type { RunSchedule, SystemSettings, TransitTable } from '../types';
@@ -19,6 +21,7 @@ const toDraft = (s: SystemSettings): Draft => ({
 });
 const sum = (x: W) => Number(x.wE) + Number(x.wD) + Number(x.wQ);
 
+function SettingsForm({ settings }: { settings: SystemSettings }) {
 function ConfigForm({ settings, transit, schedule }: { settings: SystemSettings; transit: TransitTable; schedule: RunSchedule }) {
   const [d, setD] = useState<Draft>(() => toDraft(settings));
   const save = useSaveConfig();
@@ -46,7 +49,9 @@ function ConfigForm({ settings, transit, schedule }: { settings: SystemSettings;
 
   return (
     <>
-      <PageHeader title="Cấu hình hệ thống" subtitle="Trọng số phân bổ / luân chuyển, phạm vi phục vụ, bảng vận chuyển dùng chung và quy đổi điểm loyalty." actions={<Button variant="primary" disabled={errors.length > 0} loading={save.isPending} onClick={submit}>Lưu cấu hình</Button>} />
+      <div className="row" style={{ justifyContent: 'flex-end' }}>
+        <Button variant="primary" disabled={errors.length > 0} loading={save.isPending} onClick={submit}>Lưu cấu hình</Button>
+      </div>
       {errors.length > 0 && <Callout tone="danger">{errors.map((e) => <div key={e}>{e}</div>)}</Callout>}
 
       <Card title="Lịch ngày chạy đợt: giờ chốt và các mốc nhắc duyệt">
@@ -76,10 +81,6 @@ function ConfigForm({ settings, transit, schedule }: { settings: SystemSettings;
         </div>
       </Card>
 
-      <Card title="Bảng vận chuyển dùng chung (khoảng km → thời gian, chi phí)">
-        <TransitTableSection current={transit} />
-      </Card>
-
       <Card title="Bậc giảm giá theo HSD còn lại">
         <div className="stack-sm">
           {d.tiers.map((t, i) => (
@@ -100,21 +101,30 @@ function ConfigForm({ settings, transit, schedule }: { settings: SystemSettings;
   );
 }
 
+/**
+ * Each card loads its own data.
+ *
+ * The page used to wrap everything in one QueryState over `/settings`. The backend has no such
+ * endpoint - it stores these as versioned keys under `/business-configurations` - so against the
+ * real API that one failure blanked the whole page, taking the shared transit table (F54-FE) with
+ * it even though its own three endpoints work. One missing endpoint should cost one card.
+ */
 export function ConfigPage() {
   const settings = useSettings();
   const transit = useTransitTable();
   const schedule = useRunSchedule();
   return (
-    <QueryState query={settings}>
-      {(s) => (
-        <QueryState query={transit}>
-          {(t) => (
-            <QueryState query={schedule}>
-              {(sch) => <ConfigForm settings={s} transit={t} schedule={sch} />}
-            </QueryState>
-          )}
-        </QueryState>
-      )}
-    </QueryState>
+    <>
+      <PageHeader
+        title="Cấu hình hệ thống"
+        subtitle="Bảng vận chuyển dùng chung, trọng số phân bổ / luân chuyển, phạm vi phục vụ và quy đổi điểm loyalty."
+      />
+
+      <Card title="Bảng vận chuyển dùng chung (khoảng km → thời gian, chi phí)">
+        <QueryState query={transit}>{(t) => <TransitTableSection current={t} />}</QueryState>
+      </Card>
+
+      <QueryState query={settings}>{(s) => <SettingsForm settings={s} />}</QueryState>
+    </>
   );
 }
