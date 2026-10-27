@@ -1,7 +1,7 @@
 import { D, DT } from './dates';
 import type { Db, DbLedgerEntry } from './types';
 
-type Commercial = Pick<Db, 'promotions' | 'loyaltyProgram' | 'loyalty' | 'gifts' | 'redemptions' | 'complaints' | 'kpi' | 'topProducts' | 'notifications' | 'rotationStatus' | 'rotationQty'>;
+type Commercial = Pick<Db, 'promotions' | 'loyaltyProgram' | 'loyalty' | 'gifts' | 'redemptions' | 'complaints' | 'refunds' | 'kpi' | 'topProducts' | 'notifications' | 'rotationStatus' | 'rotationQty'>;
 
 const E = (date: string, description: string, points: number): DbLedgerEntry => ({ date: D(date), description, kind: 'Earned', points });
 const Pn = (date: string, description: string): DbLedgerEntry => ({ date: D(date), description, kind: 'Pending', points: null });
@@ -53,6 +53,9 @@ export function commercialData(): Commercial {
     complaints: [
       { code: 'KN-260924-01', orderCode: 'DH-001019', retailerCode: '10004135', content: 'Nhận 28/30 thùng SKU003 – thiếu 2 thùng so với phiếu xuất, gửi kèm 2 ảnh', createdAt: DT('24/09 16:45'), status: 'Open', result: '' },
       { code: 'KN-260915-01', orderCode: 'DH-000987', retailerCode: '10004219', content: 'Một thùng SKU002 móp hộp khi nhận', createdAt: DT('15/09 17:10'), status: 'Resolved', result: 'Operator ghi nhận, nhắc đơn vị giao hàng kiểm tra đóng gói' },
+    ],
+    refunds: [
+      { id: 'rf-001', orderCode: 'DH-001019', salesOrderId: 'DH-001019', amount: 286000, recipient: 'Siêu thị mini Hòa Bình', reason: 'Điều chỉnh phần hàng thiếu đã được duyệt', status: 'PendingRefund', transferredAt: null, transactionReference: null, evidenceReference: null, version: 1, createdAt: DT('25/09 09:20'), updatedAt: DT('25/09 09:20') },
     ],
     kpi: [
       { name: 'Trần Thị Bình', group: 'Q12-A', before: 272400000, after: 245700000, orders: 24, stores: 9, newStores: 1, target: 260000000 },

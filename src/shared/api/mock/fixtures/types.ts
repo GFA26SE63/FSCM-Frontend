@@ -85,6 +85,7 @@ export interface DbRedemption {
 export interface DbLoyaltyProgram { code: string; name: string; scope: string; validFrom: Iso; validTo: Iso; pointsExpireOn: Iso; status: 'Running' | 'Paused' }
 
 export interface DbComplaint { code: string; orderCode: string; retailerCode: string; content: string; createdAt: Iso; status: 'Open' | 'Resolved'; result: string }
+export interface DbRefund { id: string; orderCode: string; salesOrderId: string; amount: number; recipient: string; reason: string; status: 'PendingRefund' | 'AwaitingVerification' | 'Refunded'; transferredAt: Iso | null; transactionReference: string | null; evidenceReference: string | null; version: number; createdAt: Iso; updatedAt: Iso }
 export interface DbUser { id: string; name: string; loginName: string; role: string; scope: string; status: 'Active' | 'Locked'; lastLoginAt: Iso | null }
 export interface DbKpiRow { name: string; group: string; before: number; after: number; orders: number; stores: number; newStores: number; target: number }
 export interface DbNotification { id: string; title: string; body: string; createdAt: Iso; read: boolean; link: string | null }
@@ -132,5 +133,5 @@ export interface Db {
   promotions: DbPromotion[]; batchDiscounts: DbBatchDiscount[];
   loyaltyProgram: DbLoyaltyProgram; loyalty: DbLoyaltyAccount[]; gifts: DbGift[]; redemptions: DbRedemption[];
   rotationStatus: Record<string, { status: 'Approved' | 'Skipped'; transferCode: string | null }>; rotationQty: Record<string, number>;
-  complaints: DbComplaint[]; users: DbUser[]; kpi: DbKpiRow[]; topProducts: [string, number, number][]; notifications: DbNotification[];
+  complaints: DbComplaint[]; refunds: DbRefund[]; users: DbUser[]; kpi: DbKpiRow[]; topProducts: [string, number, number][]; notifications: DbNotification[];
 }

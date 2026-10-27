@@ -5,6 +5,39 @@ import { pricingOf, receivableOf } from './orderView';
 import { MOCK_TODAY, stamp } from '../engines/clock';
 
 export function registerFinance(r: MockRouter) {
+  const refundDto = (x: (typeof db.refunds)[number]) => ({
+    id: x.id, paymentId: `pay-${x.orderCode}`, salesOrderId: x.salesOrderId, orderCode: x.orderCode,
+    amount: x.amount, recipient: x.recipient, reason: x.reason, status: x.status,
+    transferredAt: x.transferredAt, transactionReference: x.transactionReference, evidenceReference: x.evidenceReference,
+    createdByUserId: 'mock-admin', submittedByUserId: null, submittedAt: null, verifiedByUserId: null, verifiedAt: null,
+    verificationNote: null, version: x.version, finalApprovedAmount: x.amount, adjustedAmount: x.amount,
+    confirmedAmount: x.amount, pendingRefundAmount: x.status === 'PendingRefund' ? x.amount : 0,
+    refundedAmount: x.status === 'Refunded' ? x.amount : 0, refundDueAmount: x.status === 'Refunded' ? 0 : x.amount,
+    createdAt: x.createdAt, updatedAt: x.updatedAt,
+  });
+
+  r.get('/refunds', () => db.refunds.map(refundDto));
+  r.post('/refunds', (req) => {
+    const body = req.body ?? {};
+    const row = { id: `rf-${String(db.refunds.length + 1).padStart(3, '0')}`, orderCode: String(body.salesOrderId), salesOrderId: String(body.salesOrderId), amount: Number(body.amount), recipient: String(body.recipient), reason: String(body.reason), status: 'PendingRefund' as const, transferredAt: null, transactionReference: null, evidenceReference: null, version: 1, createdAt: stamp(), updatedAt: stamp() };
+    db.refunds.unshift(row);
+    return refundDto(row);
+  });
+  r.post('/refunds/:id/evidence', (req) => {
+    const row = db.refunds.find((x) => x.id === req.params.id);
+    if (!row) throw notFound(`Nghĩa vụ hoàn ${req.params.id}`);
+    if (row.status !== 'PendingRefund') throw conflict('Nghĩa vụ không còn chờ bằng chứng.');
+    row.status = 'AwaitingVerification'; row.transferredAt = String(req.body?.transferredAt); row.transactionReference = String(req.body?.transactionReference); row.evidenceReference = String(req.body?.evidenceReference); row.version += 1; row.updatedAt = stamp();
+    return refundDto(row);
+  });
+  r.post('/refunds/:id/verify', (req) => {
+    const row = db.refunds.find((x) => x.id === req.params.id);
+    if (!row) throw notFound(`Nghĩa vụ hoàn ${req.params.id}`);
+    if (row.status !== 'AwaitingVerification') throw conflict('Nghĩa vụ chưa có bằng chứng để xác nhận.');
+    row.status = 'Refunded'; row.version += 1; row.updatedAt = stamp();
+    return refundDto(row);
+  });
+
   r.get('/receivables', ({ query }) => {
     let rows = db.orders.map(receivableOf).filter((x): x is NonNullable<typeof x> => !!x);
     if (query.status) rows = rows.filter((x) => x.status === query.status);
