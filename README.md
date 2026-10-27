@@ -196,6 +196,12 @@ mãi), nên kiểm shape thật trước khi tin `tsc`.
 Khi sửa một feature cho khớp backend, **sửa cả mock theo shape thật** rồi mới đóng việc; mock trả
 shape cũ thì `tsc` vẫn xanh mà màn hình gãy lúc chạy.
 
+## F95: đóng đợt phân bổ
+
+Màn `allocation` hiển thị nút `Đóng đợt` cho Admin khi run đã `Approved`. Nút gửi `expectedVersion`
+và ghi chú tùy chọn tới `POST /allocation-runs/{runId}/close`; sau khi thành công query được refresh
+để trạng thái `Closed` và báo cáo bất biến được hiển thị lại. Portal không cho đóng các run chưa duyệt.
+
 ## Lệch contract Portal ↔ Backend
 
 Portal dựng trên mock trước khi backend có, nên hai bên đặt tên và chọn khóa độc lập. Đo ngày

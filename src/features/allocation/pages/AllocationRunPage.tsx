@@ -14,7 +14,7 @@ import {
 } from '@/shared/ui';
 import { formatMoney, formatNumber } from '@/shared/lib';
 import { formatInstantDateTime } from '@/shared/lib/dates';
-import { useApprovePlan, useAllocationRun, usePlanVersions, useRequestRecalculation } from '../hooks';
+import { useApprovePlan, useAllocationRun, useCloseAllocationRun, usePlanVersions, useRequestRecalculation } from '../hooks';
 import { PlanOrderDetail } from '../components/PlanOrderDetail';
 import type { PlanVersion, RunOrder } from '../types';
 
@@ -49,8 +49,10 @@ export function AllocationRunPage() {
   const versionsQuery = usePlanVersions(runQuery.data?.id);
   const [openOrderId, setOpenOrderId] = useState<string | null>(null);
   const [recalcOpen, setRecalcOpen] = useState(false);
+  const [closeOpen, setCloseOpen] = useState(false);
   const approve = useApprovePlan();
   const recalculate = useRequestRecalculation();
+  const closeRun = useCloseAllocationRun();
 
   const versions = versionsQuery.data ?? [];
   // The live one: a superseded version stays readable, but only one is open for a decision.
@@ -112,6 +114,11 @@ export function AllocationRunPage() {
                             Duyệt phương án
                           </Button>
                         </>
+                      )}
+                      {run.status === 'Approved' && (
+                        <Button variant="primary" onClick={() => setCloseOpen(true)}>
+                          Đóng đợt
+                        </Button>
                       )}
                     </div>
 
@@ -186,6 +193,25 @@ export function AllocationRunPage() {
                         setRecalcOpen(false);
                       }}
                       note="Lý do được lưu cùng phiên bản, nên người duyệt sau đọc được vì sao bản trước bị trả lại."
+                    />
+                    <FormDialog
+                      open={closeOpen}
+                      title={`Đóng đợt ${run.runCode}`}
+                      subtitle="Đợt chỉ được đóng sau khi đã duyệt. Bản giá, giữ tồn và lịch sử phiếu soạn vẫn giữ nguyên để đối chiếu."
+                      fields={[{ key: 'reason', label: 'Ghi chú đóng đợt', type: 'textarea', required: false, span: 1 }]}
+                      initial={{ reason: '' }}
+                      submitLabel="Đóng đợt"
+                      columns={1}
+                      onClose={() => setCloseOpen(false)}
+                      onSubmit={async (values) => {
+                        await closeRun.mutateAsync({
+                          runId: run.id,
+                          expectedVersion: run.version,
+                          reason: String(values.reason ?? '').trim() || undefined,
+                        });
+                        setCloseOpen(false);
+                      }}
+                      note="Thao tác này ghi AuditLog và không tạo bản giá hay phân bổ mới."
                     />
                   </>
                 )

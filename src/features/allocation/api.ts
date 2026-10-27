@@ -13,4 +13,9 @@ export const allocationApi = {
       expectedVersion: v.expectedVersion,
       reason: v.reason,
     }),
+  close: (v: { runId: string; expectedVersion: number; reason?: string }) =>
+    post<AllocationRun>(`/allocation-runs/${v.runId}/close`, {
+      expectedVersion: v.expectedVersion,
+      reason: v.reason || null,
+    }),
 };

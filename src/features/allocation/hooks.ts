@@ -27,3 +27,8 @@ export const useRequestRecalculation = () =>
   useApiMutation(allocationApi.requestRecalculation, {
     success: (v) => `Đã yêu cầu tính lại đợt ${v.runCode}. Bản mới sẽ được trình duyệt lại, bản cũ giữ nguyên để đối chiếu.`,
   });
+
+export const useCloseAllocationRun = () =>
+  useApiMutation(allocationApi.close, {
+    success: (run) => `Đã đóng đợt ${run.runCode}. Báo cáo đợt đã được khóa để đối chiếu.`,
+  });
