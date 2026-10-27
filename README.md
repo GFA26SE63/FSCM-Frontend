@@ -206,6 +206,12 @@ Màn complaint hiển thị SKU, batch/tem, số lượng dự kiến–thực n
 từ `ReceiptDiscrepancyItem`; Portal không tự tính lại giá từ bảng khuyến mãi.
 Admin/Operator chọn rõ Duyệt hoặc Từ chối và ghi lý do; Portal không đánh dấu đã hoàn tiền, vì phần đó thuộc F101.
 
+## F101: vận hành hoàn tiền
+
+Portal có màn `refunds` cho Operator tạo nghĩa vụ và gửi bằng chứng chuyển khoản; Admin xác nhận cuối cùng.
+Màn dùng đúng vòng đời Backend `PendingRefund` → `AwaitingVerification` → `Refunded`, truyền
+`Idempotency-Key` cho cả ba thao tác và gửi `expectedVersion` để chống cập nhật cũ.
+
 ## Lệch contract Portal ↔ Backend
 
 Portal dựng trên mock trước khi backend có, nên hai bên đặt tên và chọn khóa độc lập. Đo ngày

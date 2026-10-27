@@ -47,6 +47,7 @@ const warehouses = () => import('@/features/warehouses');
 const users = () => import('@/features/users');
 const kpi = () => import('@/features/kpi');
 const complaints = () => import('@/features/complaints');
+const refunds = () => import('@/features/refunds');
 const config = () => import('@/features/config');
 const dashboard = () => import('@/features/dashboard');
 
@@ -86,6 +87,7 @@ export const APP_ROUTES: AppRoute[] = [
   { key: 'users', label: 'Người dùng', roles: [A], list: page(users, 'UsersPage'), sub: [{ path: ':id', element: page(users, 'UserDetailPage') }] },
   { key: 'kpi', label: 'KPI Sales', roles: [A, SM], list: page(kpi, 'KpiPage'), sub: [{ path: ':name', element: page(kpi, 'KpiDetailPage') }] },
   { key: 'complaints', label: 'Khiếu nại', roles: [A, OP], badge: 'complaints', list: page(complaints, 'ComplaintsPage'), sub: [{ path: ':code', element: page(complaints, 'ComplaintDetailPage') }] },
+  { key: 'refunds', label: 'Hoàn tiền', roles: [A, OP], list: page(refunds, 'RefundsPage') },
   { key: 'config', label: 'Cấu hình hệ thống', roles: [A], list: page(config, 'ConfigPage') },
 ];
 
