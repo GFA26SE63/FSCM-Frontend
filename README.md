@@ -212,6 +212,12 @@ Portal có màn `refunds` cho Operator tạo nghĩa vụ và gửi bằng chứn
 Màn dùng đúng vòng đời Backend `PendingRefund` → `AwaitingVerification` → `Refunded`, truyền
 `Idempotency-Key` cho cả ba thao tác và gửi `expectedVersion` để chống cập nhật cũ.
 
+## F100: khóa hàng không được xuất
+
+Portal có màn `inventory-locks` cho Admin/Operator/Thủ kho: xem lịch sử khóa, tạo khóa theo batch
+với lý do, lượng và ghi chú, đồng thời mở khóa khi còn `Active`. Màn hiển thị riêng trường hợp
+`RequiresResolution` để không nhầm hàng đã khóa với lượng khả dụng hoặc tự giảm `OnHand`.
+
 ## Lệch contract Portal ↔ Backend
 
 Portal dựng trên mock trước khi backend có, nên hai bên đặt tên và chọn khóa độc lập. Đo ngày

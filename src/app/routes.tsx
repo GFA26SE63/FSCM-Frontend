@@ -49,6 +49,7 @@ const kpi = () => import('@/features/kpi');
 const complaints = () => import('@/features/complaints');
 const refunds = () => import('@/features/refunds');
 const config = () => import('@/features/config');
+const inventorylocks = () => import('@/features/inventorylocks');
 const dashboard = () => import('@/features/dashboard');
 
 /** Single source for routing + sidebar menu (order = menu order, roles = who sees / may open it). */
@@ -67,6 +68,7 @@ export const APP_ROUTES: AppRoute[] = [
   { key: 'rotation', label: 'Luân chuyển cận hạn', roles: [A], list: page(rotation, 'RotationPage'), sub: [{ path: ':id', element: page(rotation, 'RotationDetailPage') }] },
   { key: 'fleet', label: 'Xe & người giao', roles: [A, OP], list: page(fleet, 'FleetPage'), sub: [{ path: ':id', element: page(fleet, 'FleetDetailPage') }] },
   { key: 'batches', label: 'Quản lý batch', roles: [A, WK, OP], list: page(batches, 'BatchesPage'), sub: [{ path: ':code', element: page(batches, 'BatchDetailPage') }] },
+  { key: 'inventory-locks', label: 'Khóa hàng', roles: [A, OP, WK], list: page(inventorylocks, 'InventoryLocksPage') },
   { key: 'batchpromo', label: 'Giảm giá theo HSD', roles: [A], list: page(batchpromo, 'BatchPromoPage'), sub: [{ path: 'scan', element: page(batchpromo, 'BatchPromoScanPage') }] },
   {
     key: 'disposal', label: 'Hủy hàng hết hạn', roles: [A, WK], badge: 'disposal', list: page(disposal, 'DisposalPage'),
