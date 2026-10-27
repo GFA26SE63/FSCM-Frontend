@@ -204,6 +204,7 @@ và ghi chú tùy chọn tới `POST /allocation-runs/{runId}/close`; sau khi th
 
 Màn complaint hiển thị SKU, batch/tem, số lượng dự kiến–thực nhận, giá cuối và khoản điều chỉnh đọc
 từ `ReceiptDiscrepancyItem`; Portal không tự tính lại giá từ bảng khuyến mãi.
+Admin/Operator chọn rõ Duyệt hoặc Từ chối và ghi lý do; Portal không đánh dấu đã hoàn tiền, vì phần đó thuộc F101.
 
 ## Lệch contract Portal ↔ Backend
 
