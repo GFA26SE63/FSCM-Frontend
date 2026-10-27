@@ -34,7 +34,7 @@ export function ComplaintDetailPage() {
             <p>{c.content ?? c.note ?? '—'}</p>
             {c.evidenceUrl && <a href={c.evidenceUrl} target="_blank" rel="noreferrer">Mở bằng chứng</a>}
           </Card>
-          {c.status === 'Resolved' && <Callout tone="ok"><b>Kết quả xử lý:</b> {c.result}</Callout>}
+          {c.status !== 'Open' && <Callout tone={c.status === 'Rejected' ? 'danger' : 'ok'}><b>{c.status === 'Rejected' ? 'Đã từ chối:' : 'Đã duyệt:'}</b> {c.result}</Callout>}
           <ResolveDialog code={resolving ? c.code : null} onClose={() => setResolving(false)} />
         </>
       )}

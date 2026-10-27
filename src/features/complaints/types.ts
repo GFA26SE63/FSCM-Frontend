@@ -6,5 +6,5 @@ export interface Complaint {
   shipmentId?: string | null; allocationPlanPriceId?: string | null;
   finalUnitPrice?: number; adjustmentAmount?: number;
   content?: string; note?: string | null; evidenceUrl?: string | null;
-  createdAt: string; status: 'Open' | 'Resolved'; result: string;
+  createdAt: string; status: 'Open' | 'Approved' | 'Rejected' | 'Resolved'; result: string;
 }
