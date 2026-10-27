@@ -22,7 +22,18 @@ export function ComplaintDetailPage() {
               { label: 'Thời gian gửi', value: formatDateTime(c.createdAt) },
             ]} />
           </Card>
-          <Card title="Nội dung khiếu nại">{c.content}</Card>
+          <Card title="Chi tiết khiếu nại">
+            <Fields cols={3} items={[
+              { label: 'SKU', value: c.sku ?? '—' },
+              { label: 'Batch / tem', value: c.labelCode ?? '—' },
+              { label: 'Loại lỗi', value: c.issueType ?? '—' },
+              { label: 'Dự kiến / thực nhận', value: c.expectedQuantity != null && c.actualQuantity != null ? `${c.expectedQuantity} / ${c.actualQuantity}` : '—' },
+              { label: 'Giá cuối / đơn vị', value: c.finalUnitPrice != null ? `${c.finalUnitPrice.toLocaleString('vi-VN')} đ` : '—' },
+              { label: 'Điều chỉnh tài chính', value: c.adjustmentAmount != null ? `${c.adjustmentAmount.toLocaleString('vi-VN')} đ` : '—' },
+            ]} />
+            <p>{c.content ?? c.note ?? '—'}</p>
+            {c.evidenceUrl && <a href={c.evidenceUrl} target="_blank" rel="noreferrer">Mở bằng chứng</a>}
+          </Card>
           {c.status === 'Resolved' && <Callout tone="ok"><b>Kết quả xử lý:</b> {c.result}</Callout>}
           <ResolveDialog code={resolving ? c.code : null} onClose={() => setResolving(false)} />
         </>

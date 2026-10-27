@@ -14,7 +14,7 @@ export function ComplaintsPage() {
     { key: 'code', header: 'Mã', width: '130px', render: (c) => <span className="bold">{c.code}</span> },
     { key: 'order', header: 'Đơn hàng', width: '110px', text: (c) => c.orderCode },
     { key: 'retailer', header: 'Retailer', width: '180px', text: (c) => c.retailerName },
-    { key: 'content', header: 'Nội dung', text: (c) => c.content },
+    { key: 'content', header: 'Nội dung', text: (c) => c.content ?? c.note ?? `${c.sku ?? ''} · ${c.issueType ?? ''}` },
     { key: 'at', header: 'Thời gian', width: '140px', text: (c) => formatDateTime(c.createdAt) },
     { key: 'status', header: 'Trạng thái', width: '110px', render: (c) => <StatusChip domain="complaint" value={c.status} /> },
   ];

@@ -202,6 +202,9 @@ Màn `allocation` hiển thị nút `Đóng đợt` cho Admin khi run đã `Appr
 và ghi chú tùy chọn tới `POST /allocation-runs/{runId}/close`; sau khi thành công query được refresh
 để trạng thái `Closed` và báo cáo bất biến được hiển thị lại. Portal không cho đóng các run chưa duyệt.
 
+Màn complaint hiển thị SKU, batch/tem, số lượng dự kiến–thực nhận, giá cuối và khoản điều chỉnh đọc
+từ `ReceiptDiscrepancyItem`; Portal không tự tính lại giá từ bảng khuyến mãi.
+
 ## Lệch contract Portal ↔ Backend
 
 Portal dựng trên mock trước khi backend có, nên hai bên đặt tên và chọn khóa độc lập. Đo ngày
