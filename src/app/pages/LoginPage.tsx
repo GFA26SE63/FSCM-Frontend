@@ -1,110 +1,288 @@
-import { useState } from 'react';
-import { Navigate, useNavigate } from '@/shared/router/compat';
+import { matchPath } from 'react-router-dom';
+import { useRef, useState } from 'react';
+import {
+  Navigate,
+  useLocation,
+} from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { externalAuthConfig } from '@/shared/auth/externalAuth';
-import { GoogleSignInButton } from '@/shared/auth/GoogleSignInButton';
-import { DEMO_ACCOUNTS, PORTAL_ROLES, roleLabel, type PortalRole } from '@/shared/auth/roles';
+import {
+  DEMO_ACCOUNTS,
+  PORTAL_ROLES,
+  roleLabel,
+  type PortalRole,
+} from '@/shared/auth/roles';
+import { errorMessage } from '@/shared/api/errors';
 import { env } from '@/shared/lib/env';
-import { Button, FormField, Input, useToast } from '@/shared/ui';
-import { HOME_BY_ROLE } from '../routes';
+import {
+  Button,
+  FormField,
+  Input,
+} from '@/shared/ui';
+import { APP_ROUTES, HOME_BY_ROLE } from '../routes';
 
-const ROLE_HINT: Record<PortalRole, string> = {
-  Admin: 'Toàn bộ menu',
-  Operator: 'Duyệt đơn, giao hàng, công nợ',
-  WarehouseKeeper: 'Picking, nhập kho, điều chuyển',
-  SalesManager: 'Khu vực, nhóm Sales, KPI',
-};
+type LoginMethod = 'password' | 'microsoft';
+
+function getReturnPath(
+  state: unknown,
+  role: PortalRole,
+): string | null {
+  if (
+    typeof state !== 'object' ||
+    state === null ||
+    !('from' in state) ||
+    typeof state.from !== 'string'
+  ) {
+    return null;
+  }
+
+  const path = state.from;
+
+  if (
+    !path.startsWith('/') ||
+    path.startsWith('//') ||
+    path.includes('\\') ||
+    /[?#]/.test(path)
+  ) {
+    return null;
+  }
+
+  // Hiện RequireAuth chỉ lưu pathname.
+  // Chỉ nhận URL khớp một route thật trong ứng dụng.
+  const route = APP_ROUTES.find((item) => {
+    const patterns = [
+      `/${item.key}`,
+      ...(item.sub ?? []).map(
+        (sub) => `/${item.key}/${sub.path}`,
+      ),
+    ];
+
+    return patterns.some(
+      (pattern) => matchPath(path, {
+        path: pattern,
+        exact: true,
+        strict: false,
+      }) !== null,
+    );
+  });
+
+  if (!route || !route.roles.includes(role)) {
+    return null;
+  }
+
+  return path;
+}
 
 export function LoginPage() {
-  const { status, user, login, loginWithMicrosoft, loginWithGoogle } = useAuth();
-  const navigate = useNavigate();
-  const toast = useToast();
+  const {
+    status,
+    user,
+    sessionMessage,
+    login,
+    loginWithPassword,
+    loginWithMicrosoft,
+  } = useAuth();
+
+  const location = useLocation();
+  const submitting = useRef(false);
+
   const [role, setRole] = useState<PortalRole>('Admin');
-  const [email, setEmail] = useState(DEMO_ACCOUNTS.Admin.email);
-  const [password, setPassword] = useState('12345678');
-  const [busy, setBusy] = useState(false);
 
-  if (status === 'authenticated' && user) return <Navigate to={HOME_BY_ROLE[user.role]} replace />;
+  const [email, setEmail] = useState(
+    env.useMock ? DEMO_ACCOUNTS.Admin.email : '',
+  );
 
-  const pick = (r: PortalRole) => {
-    setRole(r);
-    setEmail(DEMO_ACCOUNTS[r].email);
+  const [password, setPassword] = useState(
+    env.useMock ? '12345678' : '',
+  );
+
+  const [busy, setBusy] =
+    useState<LoginMethod | null>(null);
+
+  const [error, setError] = useState<string | null>(null);
+
+  if (status === 'loading') {
+    return (
+      <div className="boot">
+        Đang khôi phục phiên đăng nhập…
+      </div>
+    );
+  }
+
+  if (status === 'authenticated' && user) {
+    const destination =
+      getReturnPath(location.state, user.role) ??
+      HOME_BY_ROLE[user.role];
+
+    return <Navigate to={destination} replace />;
+  }
+
+  const pickRole = (nextRole: PortalRole) => {
+    setRole(nextRole);
+    setEmail(DEMO_ACCOUNTS[nextRole].email);
+    setError(null);
   };
-  const submit = async (fn: () => Promise<{ role: PortalRole }>) => {
-    setBusy(true);
+
+  const submit = async (method: LoginMethod) => {
+    if (submitting.current) return;
+
+    if (
+      method === 'password' &&
+      (!email.trim() || !password)
+    ) {
+      setError('Vui lòng nhập email và mật khẩu.');
+      return;
+    }
+
+    submitting.current = true;
+    setBusy(method);
+    setError(null);
+
     try {
-      const u = await fn();
-      navigate(HOME_BY_ROLE[u.role], { replace: true });
-    } catch (e) {
-      toast.error(e);
+      if (method === 'microsoft') {
+        await loginWithMicrosoft();
+      } else if (env.useMock) {
+        await login(email.trim(), password, role);
+      } else {
+        await loginWithPassword(email.trim(), password);
+      }
+    } catch (cause) {
+      setError(errorMessage(cause));
     } finally {
-      setBusy(false);
+      submitting.current = false;
+      setBusy(null);
     }
   };
+
+  const isBusy = busy !== null;
 
   return (
     <div className="login-wrap">
       <form
         className="card login-card"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void submit(() => (env.useMock ? login(email, password, role) : loginWithMicrosoft()));
+        aria-busy={isBusy}
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit('password');
         }}
       >
-        <div className="row" style={{ gap: 12 }}>
-          <div className="brand-logo" style={{ width: 40, height: 40, borderRadius: 10 }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M3 8l9-5 9 5v8l-9 5-9-5z" />
-              <path d="M3 8l9 5 9-5" />
-              <path d="M12 13v8" />
-            </svg>
+        <div>
+          <div
+            className="bold"
+            style={{ fontSize: 24 }}
+          >
+            FSCM Portal
           </div>
-          <div>
-            <div className="bold" style={{ fontSize: 20 }}>FSCM Portal</div>
-            <div className="muted small">Quản lý phân phối hàng hạn ngắn · FEFO</div>
-          </div>
+
+          <p className="muted">
+            Đăng nhập để tiếp tục.
+          </p>
         </div>
 
-        {env.useMock ? (
+        {sessionMessage && (
+          <div className="callout" role="status">
+            {sessionMessage}
+          </div>
+        )}
+
+        {error && (
+          <div className="callout" role="alert">
+            {error}
+          </div>
+        )}
+
+        {env.useMock && (
           <>
-            <div className="callout callout-info small">Chế độ mock (VITE_USE_MOCK=true): chọn vai trò để đăng nhập với dữ liệu mẫu của prototype.</div>
-            <div className="role-cards" role="radiogroup" aria-label="Vai trò demo">
-              {PORTAL_ROLES.map((r) => (
-                <button type="button" key={r} role="radio" aria-checked={r === role} className={`role-card${r === role ? ' active' : ''}`} onClick={() => pick(r)}>
-                  <span className="bold">{roleLabel[r]}</span>
-                  <span className="muted small">{ROLE_HINT[r]}</span>
+            <div className="callout callout-info">
+              Chế độ demo: chọn vai trò để kiểm thử.
+            </div>
+
+            <div
+              className="role-cards"
+              role="radiogroup"
+              aria-label="Vai trò demo"
+            >
+              {PORTAL_ROLES.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  role="radio"
+                  aria-checked={role === item}
+                  disabled={isBusy}
+                  className={
+                    `role-card${role === item ? ' active' : ''}`
+                  }
+                  onClick={() => pickRole(item)}
+                >
+                  {roleLabel[item]}
                 </button>
               ))}
             </div>
-            <FormField label="Email / Tên đăng nhập">
-              <Input value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" />
-            </FormField>
-            <FormField label="Mật khẩu" hint="Mock: nhập bất kỳ mật khẩu từ 6 ký tự.">
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
-            </FormField>
-            <Button variant="primary" type="submit" loading={busy} style={{ height: 42 }}>
-              Đăng nhập
-            </Button>
           </>
-        ) : (
+        )}
+
+        <FormField label="Email">
+          <Input
+            type="email"
+            name="email"
+            value={email}
+            required
+            disabled={isBusy}
+            autoComplete="username"
+            placeholder="Nhập email tài khoản FSCM"
+            onChange={(event) =>
+              setEmail(event.target.value)
+            }
+          />
+        </FormField>
+
+        <FormField label="Mật khẩu">
+          <Input
+            type="password"
+            name="password"
+            value={password}
+            required
+            disabled={isBusy}
+            autoComplete="current-password"
+            placeholder="Nhập mật khẩu"
+            onChange={(event) =>
+              setPassword(event.target.value)
+            }
+          />
+        </FormField>
+
+        <Button
+          type="submit"
+          variant="primary"
+          loading={busy === 'password'}
+          disabled={isBusy}
+        >
+          {env.useMock ? 'Đăng nhập demo' : 'Đăng nhập'}
+        </Button>
+
+        {!env.useMock && (
           <>
-            <p className="note">Microsoft hoặc Google chỉ xác thực danh tính. Sau đăng nhập, hệ thống sử dụng JWT do FSCM phát hành cho toàn bộ API nghiệp vụ.</p>
-            <Button variant="primary" type="submit" loading={busy} style={{ height: 42 }} disabled={!externalAuthConfig.microsoftConfigured}>
+            <div className="oauth-divider">
+              <span>hoặc</span>
+            </div>
+
+            <Button
+              type="button"
+              loading={busy === 'microsoft'}
+              disabled={
+                isBusy ||
+                !externalAuthConfig.microsoftConfigured
+              }
+              onClick={() => void submit('microsoft')}
+            >
               Đăng nhập bằng Microsoft
             </Button>
-            <div className="oauth-divider"><span>hoặc</span></div>
-            {externalAuthConfig.googleConfigured ? (
-              <GoogleSignInButton
-                clientId={env.google.clientId}
-                disabled={busy}
-                onCredential={(credential) => void submit(() => loginWithGoogle(credential))}
-                onError={toast.error}
-              />
-            ) : (
-              <Button type="button" disabled>Google chưa được cấu hình</Button>
-            )}
-            {(!externalAuthConfig.microsoftConfigured || !externalAuthConfig.googleConfigured) && (
-              <p className="note">Cấu hình client ID còn thiếu trong biến môi trường triển khai.</p>
+
+            {!externalAuthConfig.microsoftConfigured && (
+              <p className="muted small">
+                Đăng nhập Microsoft chưa sẵn sàng.
+                Bạn vẫn có thể dùng tài khoản FSCM.
+              </p>
             )}
           </>
         )}

@@ -321,7 +321,7 @@ export function decidePlanVersion(versionId: string, status: string, reason: str
  * The run identifier is a hash of its business date, so it cannot be read backwards. The mock scans
  * a bounded window of dates for the one that produces this id; the real server simply looks it up.
  */
-function businessDateOfRun(runId: string): string | null {
+export function businessDateOfRun(runId: string): string | null {
   const start = new Date(`${MOCK_TODAY}T00:00:00Z`).getTime();
   for (let offset = -120; offset <= 120; offset++) {
     const date = new Date(start + offset * 86_400_000).toISOString().slice(0, 10);
@@ -415,4 +415,153 @@ export function planVersionsOf(runId: string) {
       allocations,
     },
   ];
+}
+
+// ---------------------------------------------------------------------------- run picking (F43)
+
+const PICKED_FROM: string[] = ['Picking', 'Shipped', 'Delivering', 'Delivered', 'Completed'];
+const LEFT_FROM: string[] = ['Shipped', 'Delivering', 'Delivered', 'Completed'];
+const IN_RUN: string[] = ['Approved', ...PICKED_FROM];
+
+/** Orders a run issued picking sheets for, oldest first, as the run itself ranked them. */
+const runOrders = () =>
+  db.orders
+    .filter((o) => !o.archived && IN_RUN.includes(o.status))
+    .slice()
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.code.localeCompare(b.code));
+
+/**
+ * The picking sheets of one run: one per warehouse, not one per order.
+ *
+ * A run approves allocations across every order it filled, and the sheet is cut per warehouse:
+ * each gather is one trip to one batch, and that gather splits back to the orders the run gave it
+ * to. That is why an order cannot be read as ready from its own rows - its warehouse closes the
+ * sheet for every order on it at once.
+ */
+export function runPickingSheetsOf(businessDate: string) {
+  const runId = mockGuid(`run-${businessDate}`);
+  const planVersionId = mockGuid(`plan-${businessDate}-1`);
+
+  interface Row { sku: string; batchCode: string; orderCode: string; orderId: string; qty: number; picked: number }
+  const byWarehouse = new Map<string, Row[]>();
+
+  runOrders().forEach((o) => {
+    const picked = PICKED_FROM.includes(o.status);
+    traceOf(o).lines.forEach((l) =>
+      l.allocations.forEach((a) => {
+        const rows = byWarehouse.get(a.warehouseCode) ?? [];
+        rows.push({
+          sku: a.sku, batchCode: a.batchCode, orderCode: o.code, orderId: mockGuid(o.code),
+          qty: a.qty, picked: picked ? a.qty : 0,
+        });
+        byWarehouse.set(a.warehouseCode, rows);
+      }),
+    );
+  });
+
+  return [...byWarehouse.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([warehouseCode, rows], index) => {
+      const wh = db.warehouses.find((x) => x.code === warehouseCode)!;
+      const pickingCode = `PS-${businessDate.replace(/-/g, '')}-${warehouseCode}-01`;
+
+      const gatherKeys = [...new Set(rows.map((r) => `${r.sku}|${r.batchCode}`))].sort();
+      const gathers = gatherKeys.map((key) => {
+        const [sku, batchCode] = key.split('|');
+        const mine = rows.filter((r) => r.sku === sku && r.batchCode === batchCode);
+        const required = mine.reduce((a, r) => a + r.qty, 0);
+        const picked = mine.reduce((a, r) => a + r.picked, 0);
+        return {
+          id: mockGuid(`${pickingCode}-${key}`),
+          productId: mockGuid(sku),
+          sku,
+          // Never merged away: two batches of one SKU stay two gathers, because the batch is what
+          // the allocation and its approved price were decided on.
+          batchId: mockGuid(batchCode),
+          batchCode,
+          requiredQuantity: required,
+          pickedQuantity: picked,
+          status: picked >= required ? 'Picked' : 'Pending',
+          splits: mine.map((r) => ({
+            id: mockGuid(`${pickingCode}-${key}-${r.orderCode}`),
+            allocationRunAllocationId: mockGuid(`${r.orderCode}-${key}-alloc`),
+            allocationPlanPriceId: mockGuid(`${r.orderCode}-${key}-price`),
+            salesOrderId: r.orderId,
+            orderCode: r.orderCode,
+            quantity: r.qty,
+            pickedQuantity: r.picked,
+          })),
+        };
+      });
+
+      const total = gathers.reduce((a, g) => a + g.requiredQuantity, 0);
+      const done = gathers.reduce((a, g) => a + g.pickedQuantity, 0);
+      const status = done === 0 ? 'Issued' : done < total ? 'Picking' : 'Ready';
+
+      return {
+        id: mockGuid(pickingCode),
+        pickingCode,
+        allocationRunId: runId,
+        allocationPlanVersionId: planVersionId,
+        warehouseId: mockGuid(wh.code),
+        status,
+        version: index + 1,
+        issuedAt: `${businessDate}T12:05:00+07:00`,
+        startedAt: done > 0 ? `${businessDate}T13:00:00+07:00` : null,
+        completedAt: status === 'Ready' ? `${businessDate}T13:40:00+07:00` : null,
+        completedByUserId: null,
+        exceptionType: null,
+        exceptionNote: null,
+        gathers,
+      };
+    });
+}
+
+// ------------------------------------------------------------- readiness (F93) and parts (F92)
+
+/**
+ * Whether a whole order may leave, and what is holding it.
+ *
+ * A part exists only once its warehouse closes the sheet, so a warehouse still picking is reported
+ * with a null shipment id rather than left out - leaving it out is what once let a half-picked
+ * order read as ready, since nothing then looked unfinished.
+ */
+export function orderReadinessOf(o: DbOrder) {
+  const sheets = runPickingSheetsOf(MOCK_TODAY);
+  const codes = [...new Set(traceOf(o).lines.flatMap((l) => l.allocations.map((a) => a.warehouseCode)))].sort();
+  const hasLeft = LEFT_FROM.includes(o.status);
+
+  const parts = codes.map((warehouseCode) => {
+    const sheet = sheets.find((s) => s.warehouseId === mockGuid(warehouseCode));
+    const closed = sheet?.status === 'Ready';
+    const status = hasLeft ? 'Issued' : closed ? 'Ready' : 'WaitingToPick';
+    const exists = hasLeft || closed;
+    return {
+      shipmentId: exists ? mockGuid(`${o.code}-${warehouseCode}-shipment`) : null,
+      shipmentCode: exists ? `PG-${o.code.replace('DH-', '')}-${warehouseCode}` : null,
+      warehouseId: mockGuid(warehouseCode),
+      warehouseCode,
+      status,
+      exceptionReason: null as string | null,
+    };
+  });
+
+  const reasons: string[] = [];
+  parts
+    .filter((p) => p.status === 'WaitingToPick')
+    .forEach((p) => reasons.push(`Kho ${p.warehouseCode} chưa soạn xong phần hàng của đơn.`));
+
+  // Only a prepaid order is gated on payment: credit is settled on terms and COD on delivery.
+  const paymentSettled = o.paymentMethod !== 'Prepaid' || !!o.prepaidChannel;
+  if (!paymentSettled) reasons.push('Đơn trả trước chưa thanh toán đủ, chưa đủ điều kiện xuất kho.');
+
+  return {
+    salesOrderId: mockGuid(o.code),
+    orderCode: o.code,
+    isReady: reasons.length === 0,
+    paymentSettled,
+    hasException: parts.some((p) => p.status === 'Exception'),
+    blockingReasons: reasons,
+    parts,
+  };
 }
