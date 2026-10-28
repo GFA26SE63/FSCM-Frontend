@@ -1,3 +1,5 @@
+import { useAuth } from '@/shared/auth/AuthContext';
+import { can } from '@/shared/auth/permissions';
 import { useState } from 'react';
 import { useParams } from '@/shared/router/compat';
 import { Button, Callout, Card, Fields, Input, PageHeader, QueryState, SimpleTable, StatusChip, Tabs } from '@/shared/ui';
@@ -8,24 +10,138 @@ import { RetailerFormDialog } from '../components/RetailerFormDialog';
 import type { Retailer } from '../types';
 
 function MlorTab({ code }: { code: string }) {
-  const query = useRetailerMlor(code);
+  const { user } = useAuth();
+  const mayRead = can(user, 'mlor.read');
+  const mayManage = can(user, 'mlor.manage');
+
+  const query = useRetailerMlor(code, mayRead);
   const save = useSaveMlor();
-  const [edits, setEdits] = useState<Record<string, string>>({});
-  const bad = Object.values(edits).some((v) => !(Number(v) > 0 && Number(v) < 1));
+
+  const [edits, setEdits] =
+    useState<Record<string, string>>({});
+
+  const bad = Object.values(edits).some(
+    (value) =>
+      !(Number(value) > 0 && Number(value) < 1),
+  );
+
+  if (!mayRead) {
+    return (
+      <Callout tone="warn">
+        Bạn không có quyền xem cấu hình MLOR.
+      </Callout>
+    );
+  }
+
   return (
     <QueryState query={query}>
       {(rows) => (
-        <Card title="MLOR theo SKU" actions={<Button variant="primary" disabled={!Object.keys(edits).length || bad} loading={save.isPending} onClick={async () => { await save.mutateAsync({ code, items: Object.entries(edits).map(([sku, v]) => ({ sku, mlor: Number(v) })) }); setEdits({}); }}>Lưu MLOR</Button>} flush>
+        <Card
+          title="MLOR theo SKU"
+          flush
+          actions={
+            mayManage ? (
+              <Button
+                variant="primary"
+                disabled={
+                  !Object.keys(edits).length || bad
+                }
+                loading={save.isPending}
+                onClick={async () => {
+                  if (!mayManage || bad) return;
+
+                  await save.mutateAsync({
+                    code,
+                    items: Object.entries(edits).map(
+                      ([sku, value]) => ({
+                        sku,
+                        mlor: Number(value),
+                      }),
+                    ),
+                  });
+
+                  setEdits({});
+                }}
+              >
+                Lưu MLOR
+              </Button>
+            ) : undefined
+          }
+        >
           <SimpleTable
             rows={rows}
             columns={[
-              { header: 'SKU', width: '90px', cell: (r) => r.sku },
-              { header: 'Sản phẩm', cell: (r) => r.productName },
-              { header: 'Hạn dùng', align: 'right', cell: (r) => `${r.shelfLifeDays} ngày` },
-              { header: 'm mặc định', align: 'right', cell: (r) => formatNumber(r.defaultMlor, 2) },
-              { header: 'm của retailer (0–1)', width: '170px', align: 'right', cell: (r) => <Input className="inp-sm" inputMode="decimal" invalid={r.sku in edits && !(Number(edits[r.sku]) > 0 && Number(edits[r.sku]) < 1)} value={edits[r.sku] ?? String(r.mlor)} onChange={(e) => setEdits((s) => ({ ...s, [r.sku]: e.target.value.replace(',', '.') }))} /> },
-              { header: 'MLOR (ngày)', align: 'right', cell: (r) => formatNumber(r.shelfLifeDays * Number(edits[r.sku] ?? r.mlor), 1) },
-              { header: '', cell: (r) => (r.overridden ? <StatusChip value="Đã chỉnh" /> : null) },
+              {
+                header: 'SKU',
+                width: '90px',
+                cell: (row) => row.sku,
+              },
+              {
+                header: 'Sản phẩm',
+                cell: (row) => row.productName,
+              },
+              {
+                header: 'Hạn dùng',
+                align: 'right',
+                cell: (row) =>
+                  `${row.shelfLifeDays} ngày`,
+              },
+              {
+                header: 'm mặc định',
+                align: 'right',
+                cell: (row) =>
+                  formatNumber(row.defaultMlor, 2),
+              },
+              {
+                header: 'm của retailer (0–1)',
+                width: '170px',
+                align: 'right',
+                cell: (row) => (
+                  <Input
+                    className="inp-sm"
+                    inputMode="decimal"
+                    disabled={!mayManage || save.isPending}
+                    invalid={
+                      row.sku in edits &&
+                      !(
+                        Number(edits[row.sku]) > 0 &&
+                        Number(edits[row.sku]) < 1
+                      )
+                    }
+                    value={
+                      edits[row.sku] ?? String(row.mlor)
+                    }
+                    onChange={(event) => {
+                      if (!mayManage) return;
+
+                      const value =
+                        event.target.value.replace(',', '.');
+
+                      setEdits((current) => ({
+                        ...current,
+                        [row.sku]: value,
+                      }));
+                    }}
+                  />
+                ),
+              },
+              {
+                header: 'MLOR (ngày)',
+                align: 'right',
+                cell: (row) =>
+                  formatNumber(
+                    row.shelfLifeDays *
+                      Number(edits[row.sku] ?? row.mlor),
+                    1,
+                  ),
+              },
+              {
+                header: '',
+                cell: (row) =>
+                  row.overridden ? (
+                    <StatusChip value="Đã chỉnh" />
+                  ) : null,
+              },
             ]}
           />
         </Card>
@@ -64,10 +180,40 @@ function DebtTab({ code }: { code: string }) {
 function RetailerView({ r }: { r: Retailer }) {
   const [tab, setTab] = useState<'info' | 'mlor' | 'debt'>('info');
   const [edit, setEdit] = useState(false);
+  const { user } = useAuth();
+  const mayEdit = can(user, 'retailers.edit');
+  const mayReadMlor = can(user, 'mlor.read');
   return (
     <>
-      <PageHeader back="/retailers" title={`${r.code} · ${r.name}`} subtitle={r.address} chips={<StatusChip domain="active" value={r.status} />} actions={<Button onClick={() => setEdit(true)}>Sửa</Button>} />
-      <Tabs value={tab} onChange={setTab} items={[{ key: 'info', label: 'Thông tin' }, { key: 'mlor', label: 'MLOR' }, { key: 'debt', label: 'Công nợ & điểm' }]} />
+      <PageHeader 
+        back="/retailers" 
+        title={`${r.code} · ${r.name}`} 
+        subtitle={r.address} 
+        chips={<StatusChip domain="active" value={r.status} />} 
+        actions={
+          mayEdit ? (
+            <Button onClick={() => setEdit(true)}>
+              Sửa 
+            </Button>
+          ) : undefined
+        } />
+      <Tabs
+        value={tab}
+        onChange={setTab}
+        items={[
+          {
+            key: 'info',
+            label: 'Thông tin',
+          },
+          ...(mayReadMlor
+            ? [{ key: 'mlor' as const, label: 'MLOR' }]
+            : []),
+          {
+            key: 'debt',
+            label: 'Công nợ & điểm',
+          },
+        ]}
+      />
       {tab === 'info' && (
         <Card>
           <Fields cols={3} items={[
@@ -79,7 +225,9 @@ function RetailerView({ r }: { r: Retailer }) {
           ]} />
         </Card>
       )}
-      {tab === 'mlor' && <MlorTab code={r.code} />}
+      {tab === 'mlor' && mayReadMlor && (
+        <MlorTab code={r.code} />
+      )}
       {tab === 'debt' && <DebtTab code={r.code} />}
       <RetailerFormDialog open={edit} retailer={r} onClose={() => setEdit(false)} />
     </>

@@ -1,3 +1,5 @@
+import { useAuth } from '@/shared/auth/AuthContext';
+import { can } from '@/shared/auth/permissions';
 import { useState } from 'react';
 import { Button, ConfirmDialog, FormDialog } from '@/shared/ui';
 import { useApproveRegistration, useRejectRegistration } from '../hooks';
@@ -7,6 +9,12 @@ export function RegistrationActions({ code, size = 'sm', onDone }: { code: strin
   const approve = useApproveRegistration();
   const reject = useRejectRegistration();
   const [mode, setMode] = useState<'approve' | 'reject' | null>(null);
+  const { user } = useAuth();
+
+  if (!can(user, 'retailers.review')) {
+    return null;
+  }
+  
   return (
     <>
       <Button size={size} variant="primary" onClick={() => setMode('approve')}>Duyệt</Button>

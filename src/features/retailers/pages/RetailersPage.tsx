@@ -1,3 +1,4 @@
+import { can } from '@/shared/auth/permissions';
 import { useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
 import { Button, DataTable, PageHeader, StatusChip, type Column } from '@/shared/ui';
@@ -14,6 +15,7 @@ const statusText = (r: RetailerRow) => (r.statusDomain === 'active' ? statusLabe
 export function RetailersPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const mayCreate = can(user, 'retailers.create');
   const query = useRetailerRows();
   const [creating, setCreating] = useState(false);
   const columns: Column<RetailerRow>[] = [
@@ -42,7 +44,16 @@ export function RetailersPage() {
           { label: 'Khu vực', options: [...new Set((query.data ?? []).map((r) => r.areaName))], value: (r) => r.areaName },
           { label: 'Nhóm tiềm năng', options: ['A', 'B', 'C'], value: (r) => r.potentialClass },
         ]}
-        actions={user?.role === 'Admin' ? <Button variant="primary" onClick={() => setCreating(true)}>+ Tạo retailer</Button> : undefined}
+        actions={
+          mayCreate ? (
+            <Button
+              variant="primary"
+              onClick={() => setCreating(true)}
+            >
+              + Tạo retailer
+            </Button>
+          ) : undefined
+        }
         onRowClick={(r) => navigate(`/retailers/${r.code}`)}
         rowActionsWidth="230px"
         rowActions={(r) => (
@@ -52,7 +63,12 @@ export function RetailersPage() {
           </>
         )}
       />
-      <RetailerFormDialog open={creating} onClose={() => setCreating(false)} />
+      {mayCreate && creating && (
+        <RetailerFormDialog
+          open
+          onClose={() => setCreating(false)}
+        />
+      )}
     </>
   );
 }
