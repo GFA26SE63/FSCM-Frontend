@@ -14,6 +14,10 @@ interface BackendCategory {
   updatedAt?: string;
 }
 
+interface BackendCategoryDetail extends BackendCategory {
+  products?: BackendProduct[];
+}
+
 interface BackendProduct {
   id: string;
   productCategoryId?: string;
@@ -176,12 +180,12 @@ export const categoryApi = {
       }
     }
 
-    let rawDetail: any;
+    let rawDetail: BackendCategoryDetail;
     try {
-      rawDetail = await get<any>(`/categories/${categoryId}`);
+      rawDetail = await get<BackendCategoryDetail>(`/categories/${categoryId}`);
     } catch (e) {
       if (idOrCode !== categoryId) {
-        rawDetail = await get<any>(`/categories/${idOrCode}`);
+        rawDetail = await get<BackendCategoryDetail>(`/categories/${idOrCode}`);
       } else {
         throw e;
       }

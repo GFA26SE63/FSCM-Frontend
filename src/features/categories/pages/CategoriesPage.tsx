@@ -17,7 +17,7 @@ export function CategoriesPage() {
   const [searchTree, setSearchTree] = useState('');
   const [dlg, setDlg] = useState<{ category: Category | null } | null>(null);
 
-  const categories = query.data ?? [];
+  const categories = useMemo(() => query.data ?? [], [query.data]);
 
   // Default selection
   const activeCode = selectedCode || (categories[0]?.code ?? '');
