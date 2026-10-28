@@ -58,6 +58,7 @@ export class MockRouter {
   get = (p: string, h: MockHandler) => this.on('GET', p, h);
   post = (p: string, h: MockHandler) => this.on('POST', p, h);
   put = (p: string, h: MockHandler) => this.on('PUT', p, h);
+  patch = (p: string, h: MockHandler) => this.on('PATCH', p, h);
   delete = (p: string, h: MockHandler) => this.on('DELETE', p, h);
 
   match(method: string, path: string): { handler: MockHandler; params: Record<string, string> } | null {

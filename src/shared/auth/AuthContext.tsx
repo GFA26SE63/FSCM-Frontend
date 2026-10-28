@@ -90,7 +90,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [exchangeExternalIdentity],
   );
 
-  const switchRole = useCallback((role: PortalRole) => signIn(DEMO_ACCOUNTS[role].email, 'demo-switch', role), [signIn]);
+  const switchRole = useCallback(
+    async (role: PortalRole) => {
+      try {
+        if (env.useMock) {
+          return await signIn(DEMO_ACCOUNTS[role].email, 'demo-switch', role);
+        }
+      } catch {
+        // Fallback to local switch if API fails
+      }
+      const switched: CurrentUser = {
+        id: `usr-${role.toLowerCase()}`,
+        name: DEMO_ACCOUNTS[role].name,
+        email: DEMO_ACCOUNTS[role].email,
+        role,
+        warehouseCode: role === 'WarehouseKeeper' ? 'WH-TA' : null,
+        areaCodes: role === 'SalesManager' ? ['KV-Q12', 'KV-GV', 'KV-TD'] : [],
+      };
+      setUser(switched);
+      return switched;
+    },
+    [signIn],
+  );
 
   const value = useMemo<AuthState>(
     () => ({ status, user, login: signIn, loginWithMicrosoft, loginWithGoogle, switchRole, logout }),
