@@ -1,7 +1,7 @@
 import { db } from '../fixtures';
 import type { DbBatch, DbDisposal, DbReceipt, DbTransfer, DbWarehouse } from '../fixtures/types';
 import { MockRouter, businessRule, conflict, notFound, paginate, validation } from '../router';
-import { actor, nextSeq, product, requireRole, warehouse, warehouseName } from './common';
+import { actor, mockGuid, nextSeq, product, requireRole, warehouse, warehouseName } from './common';
 import { MOCK_TODAY, stamp, yymmdd } from '../engines/clock';
 import { planRotation, type RotationPlan } from '../engines/rotation';
 import { daysBetween } from '../../../lib/dates';
@@ -24,7 +24,9 @@ export function batchDto(b: DbBatch) {
 const findBatch = (code: string) => db.batches.find((b) => b.code === code) ?? (() => { throw notFound(`Batch ${code}`); })();
 
 // ---------- warehouses ----------
-const whDto = (w: DbWarehouse) => ({ ...w, batchCount: db.batches.filter((b) => b.warehouseCode === w.code).length });
+// The server identifies a warehouse by guid as well as by code, and screens that join on the id
+// (run picking sheets, shipment parts) find nothing without it.
+const whDto = (w: DbWarehouse) => ({ ...w, id: mockGuid(w.code), batchCount: db.batches.filter((b) => b.warehouseCode === w.code).length });
 const findWh = (code: string) => db.warehouses.find((w) => w.code === code) ?? (() => { throw notFound(`Kho ${code}`); })();
 
 // ---------- documents ----------
@@ -103,7 +105,9 @@ function rotationTrace(batchCode: string) {
 
 export function registerInventory(r: MockRouter) {
   // ---- warehouses ----
-  r.get('/warehouses', ({ query }) => paginate(db.warehouses.map(whDto), query, (w) => `${w.code} ${w.name} ${w.address} ${w.keeperName}`));
+  // The server answers this one with a bare array, so the mock does too: a mock that pages an
+  // endpoint the API does not page teaches every caller the wrong shape.
+  r.get('/warehouses', () => db.warehouses.map(whDto));
   r.get('/warehouses/:code', ({ params }) => {
     const w = findWh(params.code);
     const retailerDistances = db.retailers.map((x) => {

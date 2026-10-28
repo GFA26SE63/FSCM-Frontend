@@ -9,8 +9,9 @@ import type { RunPickingGather, RunPickingList, RunPickingSplit } from '../types
 const LIST_STATUS: Record<string, { tone: Tone; label: string }> = {
   Issued: { tone: 'info', label: 'Đã phát hành' },
   Picking: { tone: 'warn', label: 'Đang soạn' },
-  Completed: { tone: 'success', label: 'Soạn xong' },
-  Exception: { tone: 'danger', label: 'Ngoại lệ' },
+  // Soạn xong, chưa xuất: hàng còn trong kho và tồn chưa thay đổi.
+  Ready: { tone: 'success', label: 'Soạn xong' },
+  NeedsHandling: { tone: 'danger', label: 'Cần xử lý' },
 };
 
 /** The run sheet has its own two states; the old per-order picking vocabulary does not apply. */
