@@ -81,7 +81,24 @@ mọi tầng có thể dùng shared/ui, shared/lib và shared/auth khi phù hợ
 5. Nếu mock mode cần hỗ trợ, thêm handler vào module phù hợp và fixture tối thiểu; contract mock phải giống backend.
 6. Chạy `npm run lint` và `npm run build` trước khi bàn giao.
 
-Feature ↔ menu: dashboard · orders (chi tiết + **Giải thích phân bổ B1–B4** + chi phí giao ước tính) · debts (công nợ một phần, thu một lần) · picking · receipts · whtransfer · **rotation (Luân chuyển cận hạn: đề xuất, bảng điểm từng kho ứng viên, duyệt / sửa SL / bỏ qua)** · **fleet (Xe & người giao)** · batches · batchpromo · disposal · promos · retailers · loyalty · gifts · redeem · regions · categories · products (nháp / publish / inactive / clone) · warehouses · users (không tạo Admin) · kpi · complaints · config (**lịch ngày chạy đợt: giờ chốt + mốc nhắc**, trọng số phân bổ, trọng số luân chuyển, Dmax, **bảng vận chuyển dùng chung**, tỷ lệ điểm).
+Feature ↔ menu: dashboard · orders (chi tiết + **Giải thích phân bổ B1–B4** + chi phí giao ước tính) · debts (công nợ một phần, thu một lần) · **runpicking (Phiếu soạn theo đợt: lấy gom theo batch, chia về từng dòng đơn)** · picking · receipts · whtransfer · **rotation (Luân chuyển cận hạn: đề xuất, bảng điểm từng kho ứng viên, duyệt / sửa SL / bỏ qua)** · **fleet (Xe & người giao)** · batches · batchpromo · disposal · promos · retailers · loyalty · gifts · redeem · regions · categories · products (nháp / publish / inactive / clone) · warehouses · users (không tạo Admin) · kpi · complaints · config (**lịch ngày chạy đợt: giờ chốt + mốc nhắc**, trọng số phân bổ, trọng số luân chuyển, Dmax, **bảng vận chuyển dùng chung**, tỷ lệ điểm).
+
+## Phiếu soạn theo đợt (runpicking)
+
+Phiếu soạn phát hành sau khi phương án được duyệt **và** giữ tồn thành công. Màn này đọc
+`GET /allocation-runs/{runId}/picking-lists`. Hai điều **không được** làm khi sửa nó:
+
+- **Không gộp batch.** Hai batch của cùng một SKU phải là **hai dòng lấy gom**. Batch là thứ mà
+  phân bổ và bản giá được quyết định trên đó; gộp đi là phiếu soạn không còn đối chiếu được.
+- **Không tính giá ở đây.** Mỗi dòng chia mang `allocationPlanPriceId` — **mã** bản giá đã duyệt.
+  Màn hình hiện mã đó, không nhân lại số tiền. Tính lại ở đây thì chỉ cần bảng giảm HSD đổi một lần
+  là số trên phiếu khác số trên hoá đơn, và không ai phát hiện tới lúc đối chiếu.
+
+Tiền chỉ hiện với vai trò có quyền (Admin / Operator). Thủ kho lấy hàng trên kệ không cần giá, và
+phiếu soạn cũng không phải nơi quyết định giá.
+
+Trạng thái lượt lấy gom là **`Pending` / `Picked`** — khác hẳn bộ `NotPicked/Picking/Shipped` của
+màn `picking` cũ (theo từng đơn). Đừng dùng nhầm `StatusChip domain="picking"` ở đây.
 
 ## Lịch ngày chạy đợt (config)
 

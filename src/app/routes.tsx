@@ -26,8 +26,10 @@ const WK: PortalRole = 'WarehouseKeeper';
 const SM: PortalRole = 'SalesManager';
 
 const orders = () => import('@/features/orders');
+const allocation = () => import('@/features/allocation');
 const debts = () => import('@/features/debts');
-const picking = () => import('@/features/picking');
+const runpicking = () => import('@/features/runpicking');
+const shipments = () => import('@/features/shipments');
 const receipts = () => import('@/features/receipts');
 const whtransfer = () => import('@/features/whtransfer');
 const rotation = () => import('@/features/rotation');
@@ -54,8 +56,10 @@ const dashboard = () => import('@/features/dashboard');
 export const APP_ROUTES: AppRoute[] = [
   { key: 'dashboard', label: 'Dashboard', roles: [A], list: page(dashboard, 'DashboardPage') },
   { key: 'orders', label: 'Đơn hàng', roles: [A, OP], badge: 'orders', list: page(orders, 'OrdersPage'), sub: [{ path: ':code', element: page(orders, 'OrderDetailPage') }] },
+  { key: 'allocation', label: 'Duyệt phương án đợt', roles: [A], list: page(allocation, 'AllocationRunPage') },
   { key: 'debts', label: 'Công nợ', roles: [A, OP], badge: 'debts', list: page(debts, 'DebtsPage') },
-  { key: 'picking', label: 'Picking list', roles: [A, OP, WK], list: page(picking, 'PickingListPage'), sub: [{ path: ':code', element: page(picking, 'PickingDetailPage') }] },
+  { key: 'runpicking', label: 'Phiếu soạn theo đợt', roles: [A, OP, WK], list: page(runpicking, 'RunPickingPage') },
+  { key: 'readiness', label: 'Sẵn sàng xuất', roles: [A, OP, WK], list: page(shipments, 'OrderReadinessPage') },
   {
     key: 'receipts', label: 'Nhập kho', roles: [A, WK], list: page(receipts, 'ReceiptsPage'),
     sub: [{ path: 'new', element: page(receipts, 'ReceiptFormPage') }, { path: ':code', element: page(receipts, 'ReceiptDetailPage') }],
@@ -89,5 +93,5 @@ export const APP_ROUTES: AppRoute[] = [
   { key: 'fleet', label: 'Xe & người giao', roles: [A, OP], hidden: true, list: page(fleet, 'FleetPage'), sub: [{ path: ':id', element: page(fleet, 'FleetDetailPage') }] },
 ];
 
-/** First screen after login (matching prototype prod: Admin → dashboard, Operator → orders, Warehouse Keeper → picking, Sales Manager → regions). */
-export const HOME_BY_ROLE: Record<PortalRole, string> = { Admin: '/dashboard', Operator: '/orders', WarehouseKeeper: '/picking', SalesManager: '/regions' };
+/** First screen after login (Admin/Operator → orders, Warehouse Keeper → the run's picking sheets, Sales Manager → regions). */
+export const HOME_BY_ROLE: Record<PortalRole, string> = { Admin: '/orders', Operator: '/orders', WarehouseKeeper: '/runpicking', SalesManager: '/regions' };

@@ -12,6 +12,11 @@ export function LoyaltyPage() {
   const update = useUpdateProgram();
   const [edit, setEdit] = useState(false);
   const p = program.data;
+  const rate = p?.spendAmountPerPoint ?? p?.pointRateVnd ?? 0;
+  const startAt = p?.startAt ?? p?.validFrom ?? '';
+  const endAt = p?.endAt ?? p?.validTo ?? '';
+  const expiry = p?.pointsExpireAt ?? p?.pointsExpireOn ?? '';
+  const active = p?.isActive ?? p?.status === 'Running';
   const columns: Column<BalanceRow>[] = [
     { key: 'code', header: 'Mã', width: '110px', render: (r) => <span className="bold">{r.retailerCode}</span> },
     { key: 'name', header: 'Retailer', text: (r) => r.retailerName },
@@ -25,13 +30,13 @@ export function LoyaltyPage() {
     <>
       <PageHeader title="Loyalty – điểm" subtitle="Một chương trình điểm duy nhất, áp dụng cho mọi retailer. Điểm cộng sau khi đơn đã giao và đã thanh toán." />
       {p && (
-        <Card title={`${p.code} · ${p.name}`} actions={<><StatusChip domain="loyaltyProgram" value={p.status} /><Button size="sm" onClick={() => setEdit(true)}>Sửa</Button></>}>
+        <Card title={`${p.code} · ${p.name}`} actions={<><StatusChip domain="loyaltyProgram" value={active ? 'Running' : 'Paused'} /><Button size="sm" onClick={() => setEdit(true)}>Sửa</Button></>}>
           <Fields cols={3} items={[
-            { label: 'Phạm vi', value: p.scope },
-            { label: 'Hiệu lực', value: `${formatDate(p.validFrom)} – ${formatDate(p.validTo)}` },
-            { label: 'Điểm hết hạn', value: formatDate(p.pointsExpireOn) },
-            { label: 'Quy đổi', value: `${formatMoney(p.pointRateVnd)} = 1 điểm` },
-            { label: 'Quà đang áp dụng', value: `${p.gifts.length} quà` },
+            { label: 'Retailer áp dụng', value: p.retailerIds?.length ? `${p.retailerIds.length} retailer` : (p.scope ?? '—') },
+            { label: 'Hiệu lực', value: `${formatDate(startAt)} – ${formatDate(endAt)}` },
+            { label: 'Điểm hết hạn', value: expiry ? formatDate(expiry) : 'Không đặt' },
+            { label: 'Quy đổi', value: `${formatMoney(rate)} = 1 điểm` },
+            { label: 'Điểm tối thiểu đổi quà', value: formatNumber(p.minimumRedeemPoints ?? 0) },
           ]} />
         </Card>
       )}
@@ -53,19 +58,29 @@ export function LoyaltyPage() {
           width={680}
           title="Sửa chương trình loyalty"
           submitLabel="Lưu"
-          initial={{ ...p }}
+          initial={{
+            name: p.name, description: p.description ?? '', spendAmountPerPoint: rate,
+            minimumRedeemPoints: p.minimumRedeemPoints ?? 0, startAt: startAt.slice(0, 10),
+            endAt: endAt.slice(0, 10), pointsExpireAt: expiry ? expiry.slice(0, 10) : '',
+            retailerIdsText: (p.retailerIds ?? []).join(', '),
+          }}
           fields={[
             { key: 'name', label: 'Tên chương trình', required: true, span: 2 },
-            { key: 'status', label: 'Trạng thái', type: 'select', options: [{ value: 'Running', label: 'Đang chạy' }, { value: 'Paused', label: 'Tạm dừng' }] },
-            { key: 'scope', label: 'Phạm vi', span: 2 },
-            { key: 'pointRateVnd', label: 'Đồng / 1 điểm', type: 'number', required: true, validate: (v) => (Number(v) <= 0 ? 'Phải lớn hơn 0.' : undefined) },
-            { key: 'validFrom', label: 'Hiệu lực từ', type: 'date' },
-            { key: 'validTo', label: 'Hiệu lực đến', type: 'date' },
-            { key: 'pointsExpireOn', label: 'Điểm hết hạn ngày', type: 'date' },
+            { key: 'description', label: 'Mô tả', type: 'textarea', span: 2 },
+            { key: 'spendAmountPerPoint', label: 'Đồng / 1 điểm', type: 'number', required: true, validate: (v) => (Number(v) <= 0 ? 'Phải lớn hơn 0.' : undefined) },
+            { key: 'minimumRedeemPoints', label: 'Điểm tối thiểu đổi quà', type: 'number', required: true, validate: (v) => (Number(v) < 0 ? 'Không được âm.' : undefined) },
+            { key: 'startAt', label: 'Hiệu lực từ', type: 'date', required: true },
+            { key: 'endAt', label: 'Hiệu lực đến', type: 'date', required: true },
+            { key: 'pointsExpireAt', label: 'Điểm hết hạn ngày', type: 'date' },
+            { key: 'retailerIdsText', label: 'Retailer áp dụng (UUID, phân tách bằng dấu phẩy)', type: 'textarea', required: true, span: 2 },
           ]}
           onClose={() => setEdit(false)}
           onSubmit={async (v) => {
-            await update.mutateAsync({ code: p.code, name: v.name, scope: v.scope, validFrom: v.validFrom, validTo: v.validTo, pointsExpireOn: v.pointsExpireOn, status: v.status, pointRateVnd: Number(v.pointRateVnd) });
+            await update.mutateAsync({ id: p.id ?? p.code, name: v.name, description: v.description || null,
+              spendAmountPerPoint: Number(v.spendAmountPerPoint), minimumRedeemPoints: Number(v.minimumRedeemPoints),
+              startAt: new Date(`${v.startAt}T00:00:00Z`).toISOString(), endAt: new Date(`${v.endAt}T00:00:00Z`).toISOString(),
+              pointsExpireAt: v.pointsExpireAt ? new Date(`${v.pointsExpireAt}T00:00:00Z`).toISOString() : null,
+              retailerIds: String(v.retailerIdsText).split(',').map((x) => x.trim()).filter(Boolean) });
             setEdit(false);
           }}
         />
