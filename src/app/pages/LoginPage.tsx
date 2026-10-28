@@ -14,10 +14,22 @@ import {
 } from '@/shared/auth/roles';
 import { errorMessage } from '@/shared/api/errors';
 import { env } from '@/shared/lib/env';
-import { Button, useToast } from '@/shared/ui';
-import { HOME_BY_ROLE } from '../routes';
+import {
+  Button,
+  FormField,
+  Input,
+  useToast,
+} from '@/shared/ui';
+import { APP_ROUTES, HOME_BY_ROLE } from '../routes';
 
 type LoginMethod = 'password' | 'microsoft';
+
+const ROLE_HINT: Record<PortalRole, string> = {
+  Admin: 'Toàn bộ menu',
+  Operator: 'Duyệt đơn, giao hàng, công nợ',
+  WarehouseKeeper: 'Picking, nhập kho, điều chuyển',
+  SalesManager: 'Khu vực, nhóm Sales, KPI',
+};
 
 function getReturnPath(
   state: unknown,
@@ -80,27 +92,20 @@ export function LoginPage() {
   } = useAuth();
 
   const location = useLocation();
+  const toast = useToast();
   const submitting = useRef(false);
 
   const [role, setRole] = useState<PortalRole>('Admin');
-  const [email, setEmail] = useState(DEMO_ACCOUNTS.Admin.email);
-  const [password, setPassword] = useState('12345678');
-  const [busy, setBusy] = useState(false);
-  const [forgotStep, setForgotStep] = useState<'none' | 'form' | 'sent'>('none');
-  const [forgotEmail, setForgotEmail] = useState('');
-
   const [email, setEmail] = useState(
     env.useMock ? DEMO_ACCOUNTS.Admin.email : '',
   );
-
   const [password, setPassword] = useState(
     env.useMock ? '12345678' : '',
   );
-
-  const [busy, setBusy] =
-    useState<LoginMethod | null>(null);
-
+  const [busy, setBusy] = useState<LoginMethod | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [forgotStep, setForgotStep] = useState<'none' | 'form' | 'sent'>('none');
+  const [forgotEmail, setForgotEmail] = useState('');
 
   if (status === 'loading') {
     return (
@@ -159,131 +164,157 @@ export function LoginPage() {
 
   return (
     <div className="login-wrap">
-      <form
-        className="card login-card"
-        aria-busy={isBusy}
-        onSubmit={(event) => {
-          event.preventDefault();
-          void submit('password');
-        }}
-      >
-        <div>
-          <div
-            className="bold"
-            style={{ fontSize: 24 }}
+      <div className="card login-card" aria-busy={isBusy}>
+        {forgotStep === 'none' && (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submit('password');
+            }}
+            style={{ display: 'flex', flexDirection: 'column', gap: 18 }}
           >
-            FSCM Portal
-          </div>
+            <div>
+              <div
+                className="bold"
+                style={{ fontSize: 24 }}
+              >
+                FSCM Portal
+              </div>
 
-          <p className="muted">
-            Đăng nhập để tiếp tục.
-          </p>
-        </div>
-
-        {sessionMessage && (
-          <div className="callout" role="status">
-            {sessionMessage}
-          </div>
-        )}
-
-        {error && (
-          <div className="callout" role="alert">
-            {error}
-          </div>
-        )}
-
-        {env.useMock && (
-          <>
-            <div className="callout callout-info">
-              Chế độ demo: chọn vai trò để kiểm thử.
+              <p className="muted">
+                Đăng nhập để tiếp tục.
+              </p>
             </div>
 
-            <div
-              className="role-cards"
-              role="radiogroup"
-              aria-label="Vai trò demo"
-            >
-              {PORTAL_ROLES.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  role="radio"
-                  aria-checked={role === item}
-                  disabled={isBusy}
-                  className={
-                    `role-card${role === item ? ' active' : ''}`
-                  }
-                  onClick={() => pickRole(item)}
+            {sessionMessage && (
+              <div className="callout" role="status">
+                {sessionMessage}
+              </div>
+            )}
+
+            {error && (
+              <div className="callout" role="alert">
+                {error}
+              </div>
+            )}
+
+            {env.useMock && (
+              <>
+                <div className="callout callout-info">
+                  Chế độ demo: chọn vai trò để kiểm thử.
+                </div>
+
+                <div
+                  className="role-cards"
+                  role="radiogroup"
+                  aria-label="Vai trò demo"
                 >
-                  {roleLabel[item]}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
+                  {PORTAL_ROLES.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      role="radio"
+                      aria-checked={role === item}
+                      disabled={isBusy}
+                      className={
+                        `role-card${role === item ? ' active' : ''}`
+                      }
+                      onClick={() => pickRole(item)}
+                    >
+                      <span className="bold">{roleLabel[item]}</span>
+                      <span className="muted small">{ROLE_HINT[item]}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
 
-        <FormField label="Email">
-          <Input
-            type="email"
-            name="email"
-            value={email}
-            required
-            disabled={isBusy}
-            autoComplete="username"
-            placeholder="Nhập email tài khoản FSCM"
-            onChange={(event) =>
-              setEmail(event.target.value)
-            }
-          />
-        </FormField>
+            <FormField label="Email">
+              <Input
+                type="email"
+                name="email"
+                value={email}
+                required
+                disabled={isBusy}
+                autoComplete="username"
+                placeholder="Nhập email tài khoản FSCM"
+                onChange={(event) =>
+                  setEmail(event.target.value)
+                }
+              />
+            </FormField>
 
-        <FormField label="Mật khẩu">
-          <Input
-            type="password"
-            name="password"
-            value={password}
-            required
-            disabled={isBusy}
-            autoComplete="current-password"
-            placeholder="Nhập mật khẩu"
-            onChange={(event) =>
-              setPassword(event.target.value)
-            }
-          />
-        </FormField>
+            <FormField label="Mật khẩu">
+              <Input
+                type="password"
+                name="password"
+                value={password}
+                required
+                disabled={isBusy}
+                autoComplete="current-password"
+                placeholder="Nhập mật khẩu"
+                onChange={(event) =>
+                  setPassword(event.target.value)
+                }
+              />
+            </FormField>
 
-        <Button
-          type="submit"
-          variant="primary"
-          loading={busy === 'password'}
-          disabled={isBusy}
-        >
-          {env.useMock ? 'Đăng nhập demo' : 'Đăng nhập'}
-        </Button>
-
-        {!env.useMock && (
-          <>
-            <div className="oauth-divider">
-              <span>hoặc</span>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -8 }}>
+              <button
+                type="button"
+                className="btn"
+                style={{
+                  height: 28,
+                  padding: 0,
+                  border: 'none',
+                  color: 'var(--c-primary, #14655B)',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                }}
+                onClick={() => {
+                  setForgotEmail(email);
+                  setForgotStep('form');
+                }}
+              >
+                Quên mật khẩu?
+              </button>
             </div>
 
             <Button
-              type="button"
-              loading={busy === 'microsoft'}
-              disabled={
-                isBusy ||
-                !externalAuthConfig.microsoftConfigured
-              }
-              onClick={() => void submit('microsoft')}
+              type="submit"
+              variant="primary"
+              loading={busy === 'password'}
+              disabled={isBusy}
             >
-              Đăng nhập bằng Microsoft
+              {env.useMock ? 'Đăng nhập demo' : 'Đăng nhập'}
             </Button>
 
-            {!externalAuthConfig.microsoftConfigured && (
-              <p className="muted small">
-                Đăng nhập Microsoft chưa sẵn sàng.
-                Bạn vẫn có thể dùng tài khoản FSCM.
-              </p>
+            {!env.useMock && (
+              <>
+                <div className="oauth-divider">
+                  <span>hoặc</span>
+                </div>
+
+                <Button
+                  type="button"
+                  loading={busy === 'microsoft'}
+                  disabled={
+                    isBusy ||
+                    !externalAuthConfig.microsoftConfigured
+                  }
+                  onClick={() => void submit('microsoft')}
+                >
+                  Đăng nhập bằng Microsoft
+                </Button>
+
+                {!externalAuthConfig.microsoftConfigured && (
+                  <p className="muted small">
+                    Đăng nhập Microsoft chưa sẵn sàng.
+                    Bạn vẫn có thể dùng tài khoản FSCM.
+                  </p>
+                )}
+              </>
             )}
           </form>
         )}
