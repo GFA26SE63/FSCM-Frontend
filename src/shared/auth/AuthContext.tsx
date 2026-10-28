@@ -1,113 +1,330 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { ApiError, errorMessage } from '../api/errors';
 import { env } from '../lib/env';
 import { tokenStore } from './tokenStore';
-import { authApi, type CurrentUser, type ExternalIdentityProvider } from './authApi';
+import { authApi, type CurrentUser } from './authApi';
 import { acquireMicrosoftIdToken } from './externalAuth';
-import { DEMO_ACCOUNTS, type PortalRole } from './roles';
+import {
+  DEMO_ACCOUNTS,
+  type PortalRole,
+} from './roles';
 
-type Status = 'loading' | 'anonymous' | 'authenticated';
+type AuthStatus =
+  | 'loading'
+  | 'anonymous'
+  | 'authenticated';
 
 interface AuthState {
-  status: Status;
+  status: AuthStatus;
   user: CurrentUser | null;
-  /** Mock mode: email + password (any password ≥ 6 chars). */
-  login: (email: string, password: string, role?: PortalRole) => Promise<CurrentUser>;
+  sessionMessage: string | null;
+
+  login: (
+    email: string,
+    password: string,
+    role?: PortalRole,
+  ) => Promise<CurrentUser>;
+
+  loginWithPassword: (
+    email: string,
+    password: string,
+  ) => Promise<CurrentUser>;
+
   loginWithMicrosoft: () => Promise<CurrentUser>;
-  loginWithGoogle: (idToken: string) => Promise<CurrentUser>;
-  /** Demo role switcher in the sidebar – signs in as the demo account of that role. */
-  switchRole: (role: PortalRole) => Promise<CurrentUser>;
+
+  switchRole: (
+    role: PortalRole,
+  ) => Promise<CurrentUser>;
+
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const qc = useQueryClient();
-  const [status, setStatus] = useState<Status>(tokenStore.get() ? 'loading' : 'anonymous');
+export function AuthProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const queryClient = useQueryClient();
+
+  const [status, setStatus] = useState<AuthStatus>(
+    tokenStore.get() ? 'loading' : 'anonymous',
+  );
   const [user, setUser] = useState<CurrentUser | null>(null);
+  const [sessionMessage, setSessionMessage] =
+    useState<string | null>(null);
+
+  const version = useRef(0);
+  const loginBusy = useRef(false);
+
+  const clearSession = useCallback(
+    (message: string | null = null) => {
+      version.current += 1;
+      tokenStore.clear();
+      setUser(null);
+      setStatus('anonymous');
+      setSessionMessage(message);
+      queryClient.clear();
+    },
+    [queryClient],
+  );
 
   const logout = useCallback(() => {
-    tokenStore.clear();
-    setUser(null);
-    setStatus('anonymous');
-    qc.clear();
-  }, [qc]);
+    const refreshToken = tokenStore.getRefreshToken();
+
+    clearSession();
+
+    if (!env.useMock && refreshToken) {
+      void authApi.logout(refreshToken).catch(() => {
+        // Phiên trên FE đã được xóa.
+        // Chỉ hiển thị nếu chưa bắt đầu một phiên khác.
+        if (!tokenStore.get()) {
+          setSessionMessage(
+            'Đã thoát trên trình duyệt này. Không kết nối được máy chủ để thu hồi phiên.',
+          );
+        }
+      });
+    }
+  }, [clearSession]);
 
   useEffect(() => {
-    tokenStore.setUnauthorizedHandler(logout);
+    let cancelled = false;
+    const currentVersion = version.current;
+
+    tokenStore.setUnauthorizedHandler(() => {
+      clearSession(
+        'Phiên đăng nhập đã hết hạn hoặc không còn hợp lệ. Hãy đăng nhập lại.',
+      );
+    });
+
     if (tokenStore.get()) {
-      authApi
-        .me()
-        .then((u) => {
-          setUser(u);
+      void authApi.me().then(
+        (currentUser) => {
+          if (
+            cancelled ||
+            version.current !== currentVersion
+          ) {
+            return;
+          }
+
+          setUser(currentUser);
           setStatus('authenticated');
-        })
-        .catch(() => logout());
+        },
+        (error: unknown) => {
+          if (
+            cancelled ||
+            version.current !== currentVersion
+          ) {
+            return;
+          }
+
+          clearSession(errorMessage(error));
+        },
+      );
     }
-    return () => tokenStore.setUnauthorizedHandler(null);
-  }, [logout]);
 
-  const signIn = useCallback(
-    async (email: string, password: string, role?: PortalRole) => {
-      const { accessToken } = await authApi.mockToken({ email, password, role });
-      tokenStore.set(accessToken);
-      qc.clear();
-      const u = await authApi.me();
-      setUser(u);
-      setStatus('authenticated');
-      return u;
-    },
-    [qc],
-  );
+    return () => {
+      cancelled = true;
+      tokenStore.setUnauthorizedHandler(null);
+    };
+  }, [clearSession]);
 
-  const exchangeExternalIdentity = useCallback(
-    async (provider: ExternalIdentityProvider, idToken: string) => {
-      if (env.useMock) return signIn(DEMO_ACCOUNTS.Admin.email, `${provider}-sso`);
-      const { accessToken } = await authApi.externalLogin(provider, idToken);
-      tokenStore.set(accessToken);
-      qc.clear();
+  const authenticate = useCallback(
+    async (
+      acquireSession: () => Promise<{
+        accessToken: string;
+        refreshToken?: string;
+      }>,
+    ): Promise<CurrentUser> => {
+      if (loginBusy.current) {
+        throw new ApiError(
+          409,
+          'Đang xử lý đăng nhập',
+        );
+      }
+
+      loginBusy.current = true;
+      const currentVersion = ++version.current;
+
+      setSessionMessage(null);
+      tokenStore.clear();
+      setUser(null);
+      queryClient.clear();
+
       try {
+        const session = await acquireSession();
+
+        if (version.current !== currentVersion) {
+          throw new ApiError(
+            409,
+            'Yêu cầu đăng nhập không còn hiệu lực',
+          );
+        }
+
+        tokenStore.set(
+          session.accessToken,
+          session.refreshToken,
+        );
+
         const currentUser = await authApi.me();
+
+        if (version.current !== currentVersion) {
+          throw new ApiError(
+            409,
+            'Phiên đăng nhập đã thay đổi',
+          );
+        }
+
         setUser(currentUser);
         setStatus('authenticated');
+
         return currentUser;
       } catch (error) {
-        tokenStore.clear();
+        if (version.current === currentVersion) {
+          clearSession();
+        }
+
         throw error;
+      } finally {
+        loginBusy.current = false;
       }
     },
-    [qc, signIn],
+    [clearSession, queryClient],
   );
 
-  const loginWithMicrosoft = useCallback(async () => {
-    if (env.useMock) return signIn(DEMO_ACCOUNTS.Admin.email, 'microsoft-sso');
-    return exchangeExternalIdentity('microsoft', await acquireMicrosoftIdToken());
-  }, [exchangeExternalIdentity, signIn]);
+  const login = useCallback(
+    async (
+      email: string,
+      password: string,
+      role?: PortalRole,
+    ): Promise<CurrentUser> => {
+      if (!env.useMock) {
+        throw new ApiError(
+          403,
+          'Đăng nhập demo đã bị tắt',
+        );
+      }
 
-  const loginWithGoogle = useCallback(
-    (idToken: string) => exchangeExternalIdentity('google', idToken),
-    [exchangeExternalIdentity],
+      return authenticate(() =>
+        authApi.mockToken({ email, password, role }),
+      );
+    },
+    [authenticate],
   );
 
-  const switchRole = useCallback((role: PortalRole) => signIn(DEMO_ACCOUNTS[role].email, 'demo-switch', role), [signIn]);
+  const loginWithPassword = useCallback(
+    async (
+      email: string,
+      password: string,
+    ): Promise<CurrentUser> => {
+      if (env.useMock) {
+        return login(email, password);
+      }
+
+      return authenticate(() =>
+        authApi.loginLocal(email, password),
+      );
+    },
+    [authenticate, login],
+  );
+
+  const loginWithMicrosoft = useCallback(
+    async (): Promise<CurrentUser> => {
+      if (env.useMock) {
+        return login(
+          DEMO_ACCOUNTS.Admin.email,
+          'microsoft-demo',
+          'Admin',
+        );
+      }
+
+      return authenticate(async () => {
+        const microsoftIdToken =
+          await acquireMicrosoftIdToken();
+
+        return authApi.exchangeEntra(microsoftIdToken);
+      });
+    },
+    [authenticate, login],
+  );
+
+  const switchRole = useCallback(
+    async (role: PortalRole): Promise<CurrentUser> => {
+      if (!env.useMock) {
+        throw new ApiError(
+          403,
+          'Không được đổi vai trò trong phiên thật',
+        );
+      }
+
+      return login(
+        DEMO_ACCOUNTS[role].email,
+        'demo-switch',
+        role,
+      );
+    },
+    [login],
+  );
 
   const value = useMemo<AuthState>(
-    () => ({ status, user, login: signIn, loginWithMicrosoft, loginWithGoogle, switchRole, logout }),
-    [status, user, signIn, loginWithMicrosoft, loginWithGoogle, switchRole, logout],
+    () => ({
+      status,
+      user,
+      sessionMessage,
+      login,
+      loginWithPassword,
+      loginWithMicrosoft,
+      switchRole,
+      logout,
+    }),
+    [
+      status,
+      user,
+      sessionMessage,
+      login,
+      loginWithPassword,
+      loginWithMicrosoft,
+      switchRole,
+      logout,
+    ],
   );
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth(): AuthState {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>');
-  return ctx;
+  const context = useContext(AuthContext);
+
+  if (!context) {
+    throw new Error(
+      'useAuth must be used inside AuthProvider',
+    );
+  }
+
+  return context;
 }
 
-/** Convenience for components: current role (throws if not signed in). */
 export function useRole(): PortalRole {
   const { user } = useAuth();
-  if (!user) throw new Error('Not authenticated');
+
+  if (!user) {
+    throw new Error('Not authenticated');
+  }
+
   return user.role;
 }
