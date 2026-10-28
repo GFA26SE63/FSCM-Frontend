@@ -38,6 +38,17 @@ export const post = <T = void>(url: string, body?: unknown) => http.post<T>(url,
 export const put = <T = void>(url: string, body?: unknown) => http.put<T>(url, body).then((r) => r.data);
 export const del = <T = void>(url: string) => http.delete<T>(url).then((r) => r.data);
 
-/** GET a paged collection and return every item (list screens page/filter on the client with DataTable). */
+/**
+ * GET a collection and return every item (list screens page/filter on the client with DataTable).
+ *
+ * Accepts both shapes the API uses, because it genuinely uses both: some endpoints answer with a
+ * paged envelope and some — `/warehouses`, `/categories`, `/promotions` — with a bare array. When
+ * this only read `.items`, calling it on an array endpoint produced `undefined` rather than an
+ * error, so the screen rendered empty with nothing in the console and nothing in the network tab
+ * that looked wrong. That failure has now been found three separate times; it costs one line to
+ * stop finding it again.
+ */
 export const getAll = <T>(url: string, params?: object) =>
-  http.get<{ items: T[] }>(url, { params: { size: 500, ...params } }).then((r) => r.data.items);
+  http
+    .get<{ items: T[] } | T[]>(url, { params: { size: 500, ...params } })
+    .then((r) => (Array.isArray(r.data) ? r.data : (r.data?.items ?? [])));

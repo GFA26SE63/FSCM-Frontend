@@ -7,7 +7,12 @@
  * across batches or warehouses still points at the money that was approved — picking never
  * recalculates a price.
  */
-export type RunPickingStatus = 'Issued' | 'Picking' | 'Completed' | 'Exception';
+/**
+ * As the server spells them. `Ready` is the end of picking, not the end of the order: the cartons
+ * are on the dock, nothing has left and no stock has moved. `NeedsHandling` is a sheet someone
+ * closed with an exception, which holds every order on it.
+ */
+export type RunPickingStatus = 'Issued' | 'Picking' | 'Ready' | 'NeedsHandling';
 
 export interface RunPickingSplit {
   id: string;
