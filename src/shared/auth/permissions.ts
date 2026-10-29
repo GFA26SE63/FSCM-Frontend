@@ -11,6 +11,7 @@ export const ACTION_ROLES = {
   'territory.assign': ['Admin', 'SalesManager'],
 
   'products.manage': ['Admin'],
+  'loyalty.manage': ['Admin'],
   'categories.manage': ['Admin'],
   'warehouses.manage': ['Admin'],
 

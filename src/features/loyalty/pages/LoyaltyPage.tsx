@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useAuth } from '@/shared/auth/AuthContext';
+import { assertPermission, can } from '@/shared/auth/permissions';
 import { useNavigate } from '@/shared/router/compat';
 import { Button, Card, DataTable, Fields, FormDialog, PageHeader, StatusChip, type Column } from '@/shared/ui';
 import { formatDate, formatMoney, formatNumber } from '@/shared/lib';
@@ -6,6 +8,8 @@ import { useBalances, useProgram, useUpdateProgram } from '../hooks';
 import type { BalanceRow } from '../types';
 
 export function LoyaltyPage() {
+  const { user } = useAuth();
+  const mayManage = can(user, 'loyalty.manage');
   const navigate = useNavigate();
   const program = useProgram();
   const balances = useBalances();
@@ -30,7 +34,7 @@ export function LoyaltyPage() {
     <>
       <PageHeader title="Loyalty – điểm" subtitle="Một chương trình điểm duy nhất, áp dụng cho mọi retailer. Điểm cộng sau khi đơn đã giao và đã thanh toán." />
       {p && (
-        <Card title={`${p.code} · ${p.name}`} actions={<><StatusChip domain="loyaltyProgram" value={active ? 'Running' : 'Paused'} /><Button size="sm" onClick={() => setEdit(true)}>Sửa</Button></>}>
+        <Card title={`${p.code} · ${p.name}`} actions={<><StatusChip domain="loyaltyProgram" value={active ? 'Running' : 'Paused'} />{mayManage && <Button size="sm" onClick={() => setEdit(true)}>Sửa</Button>}</>}>
           <Fields cols={3} items={[
             { label: 'Retailer áp dụng', value: p.retailerIds?.length ? `${p.retailerIds.length} retailer` : (p.scope ?? '—') },
             { label: 'Hiệu lực', value: `${formatDate(startAt)} – ${formatDate(endAt)}` },
@@ -52,7 +56,7 @@ export function LoyaltyPage() {
         rowActionsWidth="90px"
         rowActions={(r) => <Button size="sm" onClick={() => navigate(`/loyalty/${r.retailerCode}`)}>Xem</Button>}
       />
-      {p && (
+      {p && mayManage && (
         <FormDialog
           open={edit}
           width={680}
@@ -76,6 +80,7 @@ export function LoyaltyPage() {
           ]}
           onClose={() => setEdit(false)}
           onSubmit={async (v) => {
+            assertPermission(user, 'loyalty.manage');
             await update.mutateAsync({ id: p.id ?? p.code, name: v.name, description: v.description || null,
               spendAmountPerPoint: Number(v.spendAmountPerPoint), minimumRedeemPoints: Number(v.minimumRedeemPoints),
               startAt: new Date(`${v.startAt}T00:00:00Z`).toISOString(), endAt: new Date(`${v.endAt}T00:00:00Z`).toISOString(),
