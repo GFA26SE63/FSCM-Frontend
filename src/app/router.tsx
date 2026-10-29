@@ -15,7 +15,7 @@ const Loading = () => (
 
 function Home() {
   const { user } = useAuth();
-  return <Navigate to={user ? HOME_BY_ROLE[user.role] : '/login'} replace />;
+  return <Navigate to={user ? (HOME_BY_ROLE[user.role] || '/dashboard') : '/login'} replace />;
 }
 
 /** Route table: /login + the authenticated shell; every screen is wrapped in a role guard (SPEC §10). */

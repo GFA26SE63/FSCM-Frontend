@@ -221,3 +221,59 @@ sách khuyến mãi (F24-FE). Cả hai đều không bị `tsc` bắt và không
    coi `/{code}` và `/{id:guid}` là một route và cho ra con số sai (70 thay vì 89).
 3. Tài khoản dev để kiểm: `admin@fscm.local` (và `operator@`, `sales@`, `warehouse.keeper@`,
    `sales.manager@`, `retailer@` — cùng `@fscm.local`), mật khẩu trùng mật khẩu DB.
+
+---
+
+## Cập nhật 26/10/2026 — đo lại bằng bảng route, và `.env` đã đổi
+
+Lần này đo **tĩnh**: trích mọi `[Route]` + `[HttpXxx]` trong `FSCM.API/Controllers` ra bảng 185 route,
+rồi đối chiếu với mọi lời gọi trong `features/*/api.ts`. Không cần API chạy, nên ai cũng lặp lại được.
+
+| | |
+| --- | --- |
+| Lời gọi trong `features/*/api.ts` | 140 |
+| Khớp route backend | 88 |
+| **Không khớp** | **43 path, nằm ở 15 feature** |
+
+**`.env` giờ là `VITE_USE_MOCK=false`.** Câu "chưa ai va phải" trong phần trên **không còn đúng**:
+Portal đang gọi API thật, nên mỗi path dưới đây là một màn hỏng thật chứ không phải rủi ro trên giấy.
+
+Hai loại khác hẳn nhau, đừng xử lý chung:
+
+**(1) Đổi tên — backend có, Portal gọi sai đường.** Sửa ở phía Portal là xong:
+
+| Portal gọi | Backend thật |
+| --- | --- |
+| `/drivers`, `/vehicles` | `/deliveries/drivers`, `/deliveries/vehicles` |
+| `/labels/{x}` | `/qr-labels/{x}` |
+| `/transfers`, `/transfers/{x}/receive`, `/transfers/suggestions` | `/internal-transfers...` |
+| `/retailers/{x}/mlor` | `/retailers/{x}/mlor-resolution` |
+| `/batch-discounts/{x}/stop` | `/batch-discounts/{x}/remove` |
+| `/rankings/products` | `/reports/sales-ranking` |
+
+**(2) Backend chưa có gì cả.** Không sửa được ở Portal: `/receivables`, `/disposals*`, `/kpi/sales`,
+`/notifications*`, `/areas`, `/sales-staff*`, `/retailer-registrations*`, `/rotation/*`,
+`/dashboard`, `/settings`, `/business-configurations/eta.schedule`, `/batches`.
+
+`redeem` → `/loyalty/redemptions/{x}/{x}` là **dương tính giả**: đoạn `{x}` thứ hai là tên thao tác
+(`approve|deliver|complete|reject`) và cả bốn đều có thật.
+
+### Đã dọn trong lần này
+
+- Xoá hẳn feature `picking` cũ (phiếu soạn theo **đơn**). Nó gọi `/picking-lists/{x}/scan` và
+  `/picking-lists/{x}/ship` — một cái sai số nhiều, một cái **không tồn tại** — và mô hình một phiếu
+  một đơn không phải thứ server có. F43 đã nằm ở feature `runpicking`, đọc đúng phiếu theo đợt/kho.
+- `runpicking` sửa từ vựng trạng thái: server gửi `Ready`/`NeedsHandling`, không phải
+  `Completed`/`Exception`.
+- Thêm feature `shipments` cho F93.
+
+### Một gốc rễ đáng sửa, không phải chuyện đặt tên
+
+`getAll` đọc `.items`, nhưng server trả **mảng trần** ở một số endpoint (`/warehouses`,
+`/categories`, `/promotions`). Gọi `getAll` lên endpoint như vậy cho ra `undefined` — màn rỗng,
+console im, network tab trông bình thường. Lỗi này đã bắt được **ba lần riêng biệt**. `getAll` giờ
+nhận cả hai hình dạng.
+
+Mock cũng đang dạy sai: nó phân trang `/warehouses` trong khi server trả mảng, và bỏ mất `id` của
+kho. Đã sửa cho khớp server. Chỗ nào mock còn khác server thì nó không phải mock — nó là một
+contract thứ hai không ai ký.

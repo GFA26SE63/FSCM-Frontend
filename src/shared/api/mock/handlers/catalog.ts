@@ -7,8 +7,18 @@ const catName = (code: string) => db.categories.find((c) => c.code === code)?.na
 const productSummary = (p: DbProduct) => ({
   // The server addresses products by identifier; the code stays for people to read.
   id: mockGuid(p.sku),
-  sku: p.sku, name: p.name, categoryCode: p.categoryCode, categoryName: catName(p.categoryCode), packSpec: p.packSpec, basePrice: p.basePrice,
-  shelfLifeDays: p.shelfLifeDays, nearExpiryDays: p.nearExpiryDays, defaultMlor: p.defaultMlor, status: p.status,
+  sku: p.sku,
+  name: p.name,
+  categoryCode: p.categoryCode,
+  categoryName: catName(p.categoryCode),
+  productCategoryId: mockGuid(p.categoryCode),
+  categoryId: mockGuid(p.categoryCode),
+  packSpec: p.packSpec,
+  basePrice: p.basePrice,
+  shelfLifeDays: p.shelfLifeDays,
+  nearExpiryDays: p.nearExpiryDays,
+  defaultMlor: p.defaultMlor,
+  status: p.status,
 });
 const productDetail = (p: DbProduct) => ({
   ...productSummary(p), unitCost: p.unitCost, replaceOf: p.replaceOf, replacedBy: p.replacedBy,
@@ -39,26 +49,37 @@ export function registerCatalog(r: MockRouter) {
   // Plain array on the real API too; /products stays paged.
   r.get('/categories', () => db.categories.map(categoryDto));
   r.get('/categories/:code', ({ params }) => {
-    const c = db.categories.find((x) => x.code === params.code) ?? (() => { throw notFound(`Danh mục ${params.code}`); })();
+    const c = db.categories.find((x) => x.code === params.code || mockGuid(x.code) === params.code) ?? (() => { throw notFound(`Danh mục ${params.code}`); })();
     return { ...categoryDto(c), products: db.products.filter((p) => p.categoryCode === c.code).map(productSummary) };
   });
   r.post('/categories', ({ body }) => {
     const name = String(body?.name ?? '').trim();
     if (!name) throw validation({ name: ['Bắt buộc nhập.'] });
     if (db.categories.some((c) => c.name === name)) throw validation({ name: ['Tên đã tồn tại.'] });
-    const code = 'CAT-' + String(Math.max(0, ...db.categories.map((c) => Number(c.code.slice(4)))) + 1).padStart(2, '0');
+    const code = body?.code ? String(body.code).trim().toUpperCase() : 'CAT-' + String(Math.max(0, ...db.categories.map((c) => Number(c.code.slice(4)))) + 1).padStart(2, '0');
     const c: DbCategory = { code, name, description: body?.description ?? '', status: body?.status ?? 'Active' };
     db.categories.push(c);
     return categoryDto(c);
   });
   r.put('/categories/:code', ({ params, body }) => {
-    const c = db.categories.find((x) => x.code === params.code) ?? (() => { throw notFound(`Danh mục ${params.code}`); })();
+    const c = db.categories.find((x) => x.code === params.code || mockGuid(x.code) === params.code) ?? (() => { throw notFound(`Danh mục ${params.code}`); })();
     if (db.categories.some((x) => x.name === body?.name && x.code !== c.code)) throw validation({ name: ['Tên đã tồn tại.'] });
     Object.assign(c, { name: body?.name ?? c.name, description: body?.description ?? c.description, status: body?.status ?? c.status });
     return categoryDto(c);
   });
+  r.patch('/categories/:code/status', ({ params, body }) => {
+    const c = db.categories.find((x) => x.code === params.code || mockGuid(x.code) === params.code) ?? (() => { throw notFound(`Danh mục ${params.code}`); })();
+    c.status = body?.isActive === false ? 'Inactive' : 'Active';
+    return categoryDto(c);
+  });
 
-  r.get('/products', ({ query }) => paginate(db.products.map(productSummary), query, (p) => `${p.sku} ${p.name} ${p.categoryName}`));
+  r.get('/products', ({ query }) => {
+    let prods = db.products;
+    if (query?.categoryId) {
+      prods = prods.filter((p) => p.categoryCode === query.categoryId || mockGuid(p.categoryCode) === query.categoryId);
+    }
+    return paginate(prods.map(productSummary), query, (p) => `${p.sku} ${p.name} ${p.categoryName}`);
+  });
   r.get('/products/:sku', ({ params }) => productDetail(find(params.sku)));
   r.post('/products', ({ body }) => {
     const sku = nextSku();

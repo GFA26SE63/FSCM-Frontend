@@ -1,4 +1,5 @@
-import { FormDialog, QueryState, Modal } from '@/shared/ui';
+import { useState } from 'react';
+import { FormDialog, QueryState, Modal, Button, Callout } from '@/shared/ui';
 import { useOrder, useCancelOrder, useDispatchOrder, useDispatchOptions, useRejectOrder } from '../hooks';
 
 interface ReasonDialogProps {
@@ -7,34 +8,132 @@ interface ReasonDialogProps {
   onClose: () => void;
 }
 
-/** Reason (required) for "Từ chối" (system / reviewer) or "Hủy đơn" (on request, before dispatch). */
+const REJECT_REASONS = [
+  'Retailer không đồng ý giá sau khi khuyến mãi thay đổi',
+  'Tồn kho không đủ để đáp ứng đơn',
+  'Đơn vượt hạn mức công nợ',
+  'Retailer đang nợ quá hạn',
+  'Sản phẩm không còn phân phối tại khu vực này',
+  'Đơn trùng lặp',
+  'Thông tin đơn không hợp lệ',
+  'Khác (nhập tay)',
+];
+
+const CANCEL_REASONS = [
+  'Retailer yêu cầu hủy qua điện thoại',
+  'Retailer yêu cầu hủy qua Sales',
+  'Đặt nhầm sản phẩm / số lượng',
+  'Đổi sang đặt tuần sau',
+  'Retailer tạm ngừng kinh doanh',
+  'Điểm giao không tiếp cận được',
+  'Đơn trùng lặp',
+  'Khác (nhập tay)',
+];
+
+/** Reason (required) for "Từ chối" or "Hủy đơn" with predefined dropdowns & attachments matching prototype. */
 export function ReasonDialog({ code, mode, onClose }: ReasonDialogProps) {
   const reject = useRejectOrder();
   const cancel = useCancelOrder();
   const isReject = mode === 'reject';
+  const options = isReject ? REJECT_REASONS : CANCEL_REASONS;
+
+  const [selectedReason, setSelectedReason] = useState(options[0]);
+  const [customReason, setCustomReason] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  if (!code) return null;
+
+  const effectiveReason = selectedReason === 'Khác (nhập tay)' ? customReason.trim() : selectedReason;
+  const isValid = Boolean(effectiveReason);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isValid || busy) return;
+    setBusy(true);
+    try {
+      await (isReject ? reject : cancel).mutateAsync({ code, reason: effectiveReason });
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <FormDialog
-      open={!!code}
-      width={520}
-      columns={1}
-      danger
-      title={`${isReject ? 'Từ chối đơn' : 'Hủy đơn'} ${code ?? ''}`}
-      submitLabel={isReject ? 'Từ chối đơn' : 'Xác nhận hủy đơn'}
-      initial={{ reason: '' }}
-      fields={[
-        {
-          key: 'reason', type: 'textarea', required: true,
-          label: isReject ? 'Lý do từ chối (bắt buộc)' : 'Lý do hủy (bắt buộc)',
-          placeholder: isReject ? 'Ví dụ: Retailer không đồng ý giá sau khi khuyến mãi thay đổi' : 'Ví dụ: Retailer gọi điện yêu cầu hủy, đổi sang đặt tuần sau',
-        },
-      ]}
-      note={isReject ? 'Hàng đang tạm giữ sẽ được trả lại; Sales và retailer nhận thông báo kèm lý do.' : 'Operator hủy đơn khi retailer hoặc Sales yêu cầu (đơn chưa xuất kho). Hàng tạm giữ / Reserved được trả lại tồn khả dụng; picking list (nếu có) bị hủy; Sales và retailer nhận thông báo.'}
+    <Modal
+      open={Boolean(code)}
+      title={isReject ? `Từ chối đơn ${code}` : `Hủy đơn ${code}`}
       onClose={onClose}
-      onSubmit={async (v) => {
-        await (isReject ? reject : cancel).mutateAsync({ code: code!, reason: v.reason });
-        onClose();
-      }}
-    />
+      width={480}
+      footer={
+        <>
+          <Button type="button" onClick={onClose} disabled={busy}>
+            Đóng
+          </Button>
+          <Button
+            type="submit"
+            form="reason-form"
+            variant="danger-solid"
+            disabled={!isValid || busy}
+            loading={busy}
+          >
+            {isReject ? 'Từ chối đơn' : 'Xác nhận hủy đơn'}
+          </Button>
+        </>
+      }
+    >
+      <form id="reason-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {!isReject && (
+          <>
+            <span className="small muted">
+              Hủy đơn theo yêu cầu của retailer hoặc Sales (đơn chưa có phần xuất kho).
+            </span>
+            <Callout tone="warn">
+              <strong>Tác động:</strong> Hàng tạm giữ / Reserved được trả lại quỹ tồn khả dụng; phiếu soạn hàng (nếu có) bị hủy; Sales và retailer nhận thông báo.
+            </Callout>
+          </>
+        )}
+
+        <label className="lbl">
+          {isReject ? 'Lý do từ chối (bắt buộc)' : 'Lý do hủy (bắt buộc)'}
+          <select
+            className="inp"
+            value={selectedReason}
+            onChange={(e) => setSelectedReason(e.target.value)}
+          >
+            {options.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {selectedReason === 'Khác (nhập tay)' && (
+          <label className="lbl">
+            Lý do cụ thể *
+            <textarea
+              className="inp"
+              style={{ height: 72 }}
+              value={customReason}
+              onChange={(e) => setCustomReason(e.target.value)}
+              placeholder="Nhập lý do cụ thể…"
+              required
+            />
+          </label>
+        )}
+
+        <div className="lbl">
+          Minh chứng đính kèm (tùy chọn)
+          <label className="btn btn-sm" style={{ cursor: 'pointer', alignSelf: 'flex-start', marginTop: 4 }}>
+            + Đính kèm ảnh / file
+            <input type="file" multiple accept="image/*,.pdf,.doc,.docx" style={{ display: 'none' }} />
+          </label>
+          <span className="muted small">
+            Tối đa 5 file, mỗi file ≤ 10 MB.
+          </span>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

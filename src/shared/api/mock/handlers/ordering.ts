@@ -2,12 +2,11 @@ import { db } from '../fixtures';
 import type { DbOrder } from '../fixtures/types';
 import { MockRouter, businessRule, conflict, notFound, paginate, validation } from '../router';
 import { actor, actorLabel, nextSeq, order, orderById, requireRole, retailer } from './common';
-import { allocationRunOf, allocationTraceOf, decidePlanVersion, findRunOfVersion, planVersionsOf, orderDetail, orderSummary, pickingLists, pricingOf, traceOf } from './orderView';
+import { allocationRunOf, allocationTraceOf, businessDateOfRun, decidePlanVersion, findRunOfVersion, planVersionsOf, orderDetail, orderReadinessOf, orderSummary, pricingOf, runPickingSheetsOf, traceOf } from './orderView';
 import { MOCK_TODAY, stamp } from '../engines/clock';
 import { addDays } from '../../../lib/dates';
 
 const push = (o: DbOrder, label: string) => o.timeline.push({ at: stamp(), label });
-const byCode = (code: string) => pickingLists().find((p) => p.code === code) ?? (() => { throw notFound(`Picking list ${code}`); })();
 
 function loyaltyAfterDelivery(o: DbOrder) {
   const acc = db.loyalty.find((a) => a.retailerCode === o.retailerCode);
@@ -139,26 +138,16 @@ export function registerOrdering(r: MockRouter) {
     return orderDetail(o);
   });
 
-  // ---- picking lists (Warehouse Keeper) ----
-  r.get('/picking-lists', ({ query }) => paginate(pickingLists(), query, (p) => `${p.code} ${p.orderCode} ${p.warehouseName}`));
-  r.get('/picking-lists/:code', ({ params }) => byCode(params.code));
-  r.post('/picking-lists/:code/scan', (req) => {
-    const p = byCode(req.params.code);
-    if (p.status === 'Shipped') throw conflict('Picking list đã xuất.');
-    db.pickStatus[p.code] = 'Picking';
-    const o = order(p.orderCode);
-    if (o.status === 'Approved') { o.status = 'Picking'; push(o, 'Warehouse Keeper bắt đầu soạn hàng – quét tem batch'); }
-    return byCode(p.code);
+  // ---- run picking sheets (F43) and whether an order may leave (F93) ----
+  //
+  // One sheet per warehouse per run, never one per order: the gather is a trip to a batch and it
+  // splits back to every order the run gave that batch to.
+  r.get('/allocation-runs/:runId/picking-lists', ({ params }) => {
+    const date = businessDateOfRun(params.runId);
+    if (!date) throw notFound(`Đợt ${params.runId}`);
+    return runPickingSheetsOf(date);
   });
-  r.post('/picking-lists/:code/ship', (req) => {
-    const p = byCode(req.params.code);
-    if (p.status === 'Shipped') throw conflict('Picking list đã xuất.');
-    db.pickStatus[p.code] = 'Shipped';
-    const o = order(p.orderCode);
-    const rest = pickingLists().filter((x) => x.orderCode === o.code && x.code !== p.code && x.status !== 'Shipped');
-    if (!rest.length) { o.status = 'Shipped'; push(o, 'Warehouse Keeper xác nhận xuất đủ các picking list – trừ tồn thực tế'); }
-    return { picking: byCode(p.code), remainingLists: rest.length, orderStatus: o.status };
-  });
+  r.get('/shipments/orders/:id/readiness', ({ params }) => orderReadinessOf(orderById(params.id)));
 
   // ---- complaints ----
   const complaintDto = (c: (typeof db.complaints)[number]) => ({ ...c, retailerName: retailer(c.retailerCode).name });

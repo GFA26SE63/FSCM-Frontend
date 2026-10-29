@@ -13,6 +13,8 @@ export interface AppRoute {
   label: string;
   roles: PortalRole[];
   badge?: keyof MenuBadges;
+  /** Hidden from sidebar menu (e.g. preserved routes not in prototype prod sidebar). */
+  hidden?: boolean;
   list: LazyExoticComponent<ComponentType>;
   /** Extra sub-routes relative to /<key> (detail, create, scan …). */
   sub?: { path: string; element: LazyExoticComponent<ComponentType> }[];
@@ -26,8 +28,8 @@ const SM: PortalRole = 'SalesManager';
 const orders = () => import('@/features/orders');
 const allocation = () => import('@/features/allocation');
 const debts = () => import('@/features/debts');
-const picking = () => import('@/features/picking');
 const runpicking = () => import('@/features/runpicking');
+const shipments = () => import('@/features/shipments');
 const receipts = () => import('@/features/receipts');
 const whtransfer = () => import('@/features/whtransfer');
 const rotation = () => import('@/features/rotation');
@@ -50,21 +52,18 @@ const complaints = () => import('@/features/complaints');
 const config = () => import('@/features/config');
 const dashboard = () => import('@/features/dashboard');
 
-/** Single source for routing + sidebar menu (order = menu order, roles = who sees / may open it). */
+/** Single source for routing + sidebar menu (matching prototype prod menuAll order and roles). */
 export const APP_ROUTES: AppRoute[] = [
   { key: 'dashboard', label: 'Dashboard', roles: [A], list: page(dashboard, 'DashboardPage') },
   { key: 'orders', label: 'Đơn hàng', roles: [A, OP], badge: 'orders', list: page(orders, 'OrdersPage'), sub: [{ path: ':code', element: page(orders, 'OrderDetailPage') }] },
   { key: 'allocation', label: 'Duyệt phương án đợt', roles: [A], list: page(allocation, 'AllocationRunPage') },
   { key: 'debts', label: 'Công nợ', roles: [A, OP], badge: 'debts', list: page(debts, 'DebtsPage') },
   { key: 'runpicking', label: 'Phiếu soạn theo đợt', roles: [A, OP, WK], list: page(runpicking, 'RunPickingPage') },
-  { key: 'picking', label: 'Picking list', roles: [A, WK], list: page(picking, 'PickingListPage'), sub: [{ path: ':code', element: page(picking, 'PickingDetailPage') }] },
+  { key: 'readiness', label: 'Sẵn sàng xuất', roles: [A, OP, WK], list: page(shipments, 'OrderReadinessPage') },
   {
     key: 'receipts', label: 'Nhập kho', roles: [A, WK], list: page(receipts, 'ReceiptsPage'),
     sub: [{ path: 'new', element: page(receipts, 'ReceiptFormPage') }, { path: ':code', element: page(receipts, 'ReceiptDetailPage') }],
   },
-  { key: 'whtransfer', label: 'Điều chuyển kho', roles: [A, WK], list: page(whtransfer, 'TransfersPage'), sub: [{ path: ':code', element: page(whtransfer, 'TransferDetailPage') }] },
-  { key: 'rotation', label: 'Luân chuyển cận hạn', roles: [A], list: page(rotation, 'RotationPage'), sub: [{ path: ':id', element: page(rotation, 'RotationDetailPage') }] },
-  { key: 'fleet', label: 'Xe & người giao', roles: [A, OP], list: page(fleet, 'FleetPage'), sub: [{ path: ':id', element: page(fleet, 'FleetDetailPage') }] },
   { key: 'batches', label: 'Quản lý batch', roles: [A, WK, OP], list: page(batches, 'BatchesPage'), sub: [{ path: ':code', element: page(batches, 'BatchDetailPage') }] },
   { key: 'batchpromo', label: 'Giảm giá theo HSD', roles: [A], list: page(batchpromo, 'BatchPromoPage'), sub: [{ path: 'scan', element: page(batchpromo, 'BatchPromoScanPage') }] },
   {
@@ -76,9 +75,9 @@ export const APP_ROUTES: AppRoute[] = [
     sub: [{ path: 'new', element: page(promos, 'PromoFormPage') }, { path: ':id', element: page(promos, 'PromoDetailPage') }],
   },
   { key: 'retailers', label: 'Retailer', roles: [A, OP], badge: 'retailers', list: page(retailers, 'RetailersPage'), sub: [{ path: ':code', element: page(retailers, 'RetailerDetailPage') }] },
-  { key: 'loyalty', label: 'Loyalty – điểm', roles: [A], list: page(loyalty, 'LoyaltyPage'), sub: [{ path: ':code', element: page(loyalty, 'LoyaltyDetailPage') }] },
-  { key: 'gifts', label: 'Quà đổi điểm', roles: [A], list: page(gifts, 'GiftsPage') },
-  { key: 'redeem', label: 'Yêu cầu đổi quà', roles: [A, OP], badge: 'redeem', list: page(redeem, 'RedeemPage'), sub: [{ path: ':code', element: page(redeem, 'RedeemDetailPage') }] },
+  { key: 'loyalty', label: 'Loyalty', roles: [A, OP], list: page(loyalty, 'LoyaltyPage'), sub: [{ path: ':code', element: page(loyalty, 'LoyaltyDetailPage') }] },
+  { key: 'redeem', label: 'Đổi quà', roles: [A, OP], badge: 'redeem', list: page(redeem, 'RedeemPage'), sub: [{ path: ':code', element: page(redeem, 'RedeemDetailPage') }] },
+  { key: 'gifts', label: 'Danh mục quà đổi điểm', roles: [A], list: page(gifts, 'GiftsPage') },
   { key: 'regions', label: 'Khu vực & nhóm Sales', roles: [A, SM], list: page(regions, 'RegionsPage'), sub: [{ path: ':code', element: page(regions, 'GroupDetailPage') }] },
   { key: 'cats', label: 'Danh mục sản phẩm', roles: [A], list: page(categories, 'CategoriesPage'), sub: [{ path: ':code', element: page(categories, 'CategoryDetailPage') }] },
   { key: 'skus', label: 'Sản phẩm (SKU)', roles: [A], list: page(products, 'ProductsPage'), sub: [{ path: ':sku', element: page(products, 'ProductDetailPage') }] },
@@ -87,7 +86,12 @@ export const APP_ROUTES: AppRoute[] = [
   { key: 'kpi', label: 'KPI Sales', roles: [A, SM], list: page(kpi, 'KpiPage'), sub: [{ path: ':name', element: page(kpi, 'KpiDetailPage') }] },
   { key: 'complaints', label: 'Khiếu nại', roles: [A, OP], badge: 'complaints', list: page(complaints, 'ComplaintsPage'), sub: [{ path: ':code', element: page(complaints, 'ComplaintDetailPage') }] },
   { key: 'config', label: 'Cấu hình hệ thống', roles: [A], list: page(config, 'ConfigPage') },
+
+  /* Routes preserved for direct navigation / backward compatibility, not shown in prototype prod sidebar */
+  { key: 'whtransfer', label: 'Điều chuyển kho', roles: [A, WK], hidden: true, list: page(whtransfer, 'TransfersPage'), sub: [{ path: ':code', element: page(whtransfer, 'TransferDetailPage') }] },
+  { key: 'rotation', label: 'Luân chuyển cận hạn', roles: [A], hidden: true, list: page(rotation, 'RotationPage'), sub: [{ path: ':id', element: page(rotation, 'RotationDetailPage') }] },
+  { key: 'fleet', label: 'Xe & người giao', roles: [A, OP], hidden: true, list: page(fleet, 'FleetPage'), sub: [{ path: ':id', element: page(fleet, 'FleetDetailPage') }] },
 ];
 
-/** First screen after login (prototype: Admin/Operator → orders, Warehouse Keeper → picking, Sales Manager → regions). */
-export const HOME_BY_ROLE: Record<PortalRole, string> = { Admin: '/orders', Operator: '/orders', WarehouseKeeper: '/picking', SalesManager: '/regions' };
+/** First screen after login (Admin/Operator → orders, Warehouse Keeper → the run's picking sheets, Sales Manager → regions). */
+export const HOME_BY_ROLE: Record<PortalRole, string> = { Admin: '/orders', Operator: '/orders', WarehouseKeeper: '/runpicking', SalesManager: '/regions' };
