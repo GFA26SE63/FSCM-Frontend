@@ -7,7 +7,7 @@ export const ACTION_ROLES = {
   'users.manage': ['Admin'],
 
   'regions.manage': ['Admin'],
-  'salesGroups.manage': ['Admin'],
+  'salesGroups.manage': ['Admin', 'SalesManager'],
   'territory.assign': ['Admin', 'SalesManager'],
 
   'products.manage': ['Admin'],
