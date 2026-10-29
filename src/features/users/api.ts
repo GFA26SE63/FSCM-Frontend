@@ -1,6 +1,5 @@
-import { graphql } from '@/shared/api/graphql';
 import { ApiError } from '@/shared/api/errors';
-import { http, post, put } from '@/shared/api/http';
+import { get, http, post, put } from '@/shared/api/http';
 import type {
   CreatedUser,
   CreateUserInput,
@@ -13,101 +12,28 @@ import type {
   UserPage,
 } from './types';
 
-const USERS_QUERY = `
-  query Users(
-    $search: String
-    $role: String
-    $isActive: Boolean
-    $page: Int!
-    $pageSize: Int!
-  ) {
-    users(
-      search: $search
-      role: $role
-      isActive: $isActive
-      page: $page
-      pageSize: $pageSize
-    ) {
-      items {
-        id
-        email
-        fullName
-        role
-        isActive
-        identityProvider
-        createdAt
-        updatedAt
-      }
-      page
-      pageSize
-      totalCount
-    }
-  }
-`;
+const scopePageSize = 20;
 
-const USER_QUERY = `
-  query User($id: UUID!) {
-    user(id: $id) {
-      id
-      email
-      fullName
-      role
-      mustChangePassword
-      scope {
-        warehouseIds
-        regionIds
-        salesGroupIds
-        retailerIds
-      }
-    }
-  }
-`;
-
-const scopeListRoots: Record<ScopeKind, string> = {
-  warehouses: 'warehouses(includeInactive: false,',
-  regions: 'regions(includeInactive: false,',
-  'sales-groups': 'salesGroups(includeInactive: false,',
-  retailers: 'retailers(status: "Active",',
-};
-
-const scopeDetailRoots: Record<ScopeKind, string> = {
-  warehouses: 'warehouse',
-  regions: 'region',
-  'sales-groups': 'salesGroup',
-  retailers: 'retailer',
-};
+interface RetailerOptionsPage {
+  items: ScopeOption[];
+  totalCount: number;
+}
 
 export const userApi = {
-  async list(filters: UserFilters): Promise<UserPage> {
-    const result = await graphql<{ users: UserPage }>(
-      USERS_QUERY,
-      {
-        search: filters.search.trim() || null,
-        role: filters.role || null,
-        isActive:
-          filters.activity === ''
-            ? null
-            : filters.activity === 'active',
-        page: filters.page,
-        pageSize: filters.pageSize,
-      },
-    );
+  list: (filters: UserFilters): Promise<UserPage> =>
+    get<UserPage>('/users', {
+      search: filters.search.trim() || undefined,
+      role: filters.role || undefined,
+      isActive:
+        filters.activity === ''
+          ? undefined
+          : filters.activity === 'active',
+      page: filters.page,
+      pageSize: filters.pageSize,
+    }),
 
-    return result.users;
-  },
-
-  async get(id: string): Promise<UserDetail> {
-    const result = await graphql<{ user: UserDetail | null }>(
-      USER_QUERY,
-      { id },
-    );
-
-    if (!result.user) {
-      throw new ApiError(404, 'Không tìm thấy tài khoản.');
-    }
-
-    return result.user;
-  },
+  get: (id: string): Promise<UserDetail> =>
+    get<UserDetail>(`/users/${encodeURIComponent(id)}`),
 
   create: (input: CreateUserInput) =>
     post<CreatedUser>('/users', input),
@@ -130,39 +56,47 @@ export const userApi = {
     search: string,
     after: string | null,
   ): Promise<ScopeConnection> {
-    const query = `
-      query ScopeOptions($search: String!, $after: String) {
-        options: ${scopeListRoots[kind]}
-          first: 20
-          after: $after
-          where: {
-            or: [
-              { name: { contains: $search } }
-              { code: { contains: $search } }
-            ]
-          }
-        ) {
-          nodes {
-            id
-            code
-            name
-          }
-          pageInfo {
-            endCursor
-            hasNextPage
-          }
-        }
-      }
-    `;
+    // AssignmentPicker accepts an opaque cursor; REST uses page numbers.
+    const page = after === null ? 1 : Number(after);
+    if (!Number.isSafeInteger(page) || page < 1) {
+      throw new ApiError(400, 'Trang phân quyền không hợp lệ.');
+    }
 
-    const result = await graphql<{
-      options: ScopeConnection;
-    }>(query, {
-      search: search.trim(),
-      after,
-    });
+    let nodes: ScopeOption[];
+    let hasNextPage: boolean;
 
-    return result.options;
+    if (kind === 'retailers') {
+      const result = await get<RetailerOptionsPage>('/retailers', {
+        status: 'Active',
+        search: search.trim() || undefined,
+        page,
+        pageSize: scopePageSize,
+      });
+      nodes = result.items;
+      hasNextPage = page * scopePageSize < result.totalCount;
+    } else {
+      // These three REST endpoints return unpaged active collections.
+      const result = await get<ScopeOption[]>(`/${kind}`, {
+        includeInactive: false,
+      });
+      const term = search.trim().toLocaleLowerCase('vi-VN');
+      const matching = result.filter((item) =>
+        !term ||
+        item.name.toLocaleLowerCase('vi-VN').includes(term) ||
+        item.code.toLocaleLowerCase('vi-VN').includes(term),
+      );
+      const offset = (page - 1) * scopePageSize;
+      nodes = matching.slice(offset, offset + scopePageSize);
+      hasNextPage = offset + scopePageSize < matching.length;
+    }
+
+    return {
+      nodes,
+      pageInfo: {
+        endCursor: hasNextPage ? String(page + 1) : null,
+        hasNextPage,
+      },
+    };
   },
 
   async changeScope(input: {
@@ -187,46 +121,16 @@ export async function getAssignmentNames(
   kind: ScopeKind,
   ids: string[],
 ): Promise<ScopeOption[]> {
-  if (ids.length === 0) return [];
-
-  const root = scopeDetailRoots[kind];
   const result: ScopeOption[] = [];
 
   for (let offset = 0; offset < ids.length; offset += 20) {
     const batch = ids.slice(offset, offset + 20);
-
-    const definitions = batch
-      .map((_, index) => `$id${index}: UUID!`)
-      .join(', ');
-
-    const fields = batch
-      .map(
-        (_, index) => `
-          item${index}: ${root}(id: $id${index}) {
-            id
-            code
-            name
-          }
-        `,
-      )
-      .join('\n');
-
-    const variables = Object.fromEntries(
-      batch.map((id, index) => [`id${index}`, id]),
+    const items = await Promise.all(
+      batch.map((id) =>
+        get<ScopeOption>(`/${kind}/${encodeURIComponent(id)}`),
+      ),
     );
-
-    const data = await graphql<
-      Record<string, ScopeOption | null>
-    >(
-      `query AssignmentNames(${definitions}) {
-        ${fields}
-      }`,
-      variables,
-    );
-
-    for (const item of Object.values(data)) {
-      if (item) result.push(item);
-    }
+    result.push(...items);
   }
 
   return result;
