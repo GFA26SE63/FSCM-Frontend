@@ -124,12 +124,6 @@ export function RegionsPage() {
       text: (area) => area.name,
     },
     {
-      key: 'region',
-      header: 'Vùng miền',
-      width: '120px',
-      text: (area) => area.region,
-    },
-    {
       key: 'manager',
       header: 'Sales Manager',
       width: '160px',
@@ -142,14 +136,14 @@ export function RegionsPage() {
       text: (area) => area.managerName,
     },
     {
-      key: 'wards',
-      header: 'Phường / Xã trực thuộc',
+      key: 'description',
+      header: 'Mô tả / Phạm vi',
       render: (area) => (
         <span className="small muted">
-          {area.wards.length > 0 ? area.wards.join(', ') : '— Chưa khai báo'}
+          {area.description || '— Chưa khai báo'}
         </span>
       ),
-      text: (area) => area.wards.join(', '),
+      text: (area) => area.description || '',
     },
     {
       key: 'groups',
@@ -282,7 +276,7 @@ export function RegionsPage() {
           error={areas.error}
           rowKey={(area) => area.code}
           columns={areaColumns}
-          searchPlaceholder="Mã, tên khu vực, Sales Manager, phường/xã…"
+          searchPlaceholder="Mã, tên khu vực, Sales Manager, mô tả…"
           actions={
             manageRegions ? (
               <Button variant="primary" onClick={() => setAreaDlg(true)}>

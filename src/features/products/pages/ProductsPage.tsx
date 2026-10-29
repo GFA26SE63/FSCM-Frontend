@@ -1,55 +1,225 @@
 import { useState } from 'react';
+import { Can } from '@/shared/auth/Can';
 import { useNavigate } from '@/shared/router/compat';
-import { Button, DataTable, PageHeader, StatusChip, type Column } from '@/shared/ui';
-import { formatMoney, statusLabels } from '@/shared/lib';
+
+import {
+  Button,
+  DataTable,
+  Modal,
+  PageHeader,
+  QueryState,
+  StatusChip,
+  type Column,
+} from '@/shared/ui';
+
+import { statusLabels } from '@/shared/lib';
 import { useProduct, useProducts } from '../hooks';
 import { ProductActions } from '../components/ProductActions';
 import { ProductDialog } from '../components/ProductDialog';
+import { lifeText, priceText } from '../utils';
+
 import type { Product } from '../types';
 
-/** "Sản phẩm (SKU)" – Draft / Published / Inactive lifecycle with clone ("Tạo bản mới"). */
 export function ProductsPage() {
   const navigate = useNavigate();
   const query = useProducts();
-  const [editing, setEditing] = useState<{ sku: string | null } | null>(null);
+
+  const [editing, setEditing] = useState<{
+    id: string | null;
+  } | null>(null);
+
   const columns: Column<Product>[] = [
-    { key: 'sku', header: 'SKU', width: '90px', render: (p) => <span className="bold">{p.sku}</span> },
-    { key: 'name', header: 'Tên sản phẩm' },
-    { key: 'cat', header: 'Danh mục', width: '140px', text: (p) => p.categoryName },
-    { key: 'pack', header: 'Quy cách', width: '170px', text: (p) => p.packSpec },
-    { key: 'price', header: 'Giá / thùng', width: '110px', align: 'right', text: (p) => formatMoney(p.basePrice) },
-    { key: 'life', header: 'Hạn dùng', width: '100px', align: 'right', text: (p) => `${p.shelfLifeDays} ngày` },
-    { key: 'status', header: 'Trạng thái', width: '115px', render: (p) => <StatusChip domain="product" value={p.status} /> },
+    {
+      key: 'sku',
+      header: 'SKU',
+      width: '95px',
+      render: (p) => (
+        <span className="bold">{p.sku}</span>
+      ),
+    },
+    {
+      key: 'name',
+      header: 'Tên sản phẩm',
+    },
+    {
+      key: 'categoryName',
+      header: 'Danh mục',
+      width: '150px',
+    },
+    {
+      key: 'unit',
+      header: 'Đơn vị',
+      width: '85px',
+    },
+    {
+      key: 'price',
+      header: 'Giá / đơn vị',
+      width: '130px',
+      align: 'right',
+      text: (p) => priceText(p.currentUnitPrice),
+    },
+    {
+      key: 'life',
+      header: 'Hạn dùng',
+      width: '130px',
+      text: (p) => lifeText(p.shelfLifeHours),
+    },
+    {
+      key: 'status',
+      header: 'Trạng thái',
+      width: '120px',
+      text: (p) => statusLabels.product[p.status],
+      render: (p) => (
+        <StatusChip
+          domain="product"
+          value={p.status}
+        />
+      ),
+    },
   ];
+
   return (
     <>
-      <PageHeader title="Sản phẩm (SKU)" subtitle="Nháp → Publish (khóa thông tin) → Inactive. Muốn đổi thông tin đã publish: Tạo bản mới." />
+      <PageHeader
+        title="Sản phẩm (SKU)"
+        subtitle="Nháp → Đăng bán → Ngừng bán. Thông tin được khóa sau khi đăng bán; giá được quản lý riêng."
+      />
+
+      {query.error && (
+        <Button
+          onClick={() => void query.refetch()}
+        >
+          Thử tải lại
+        </Button>
+      )}
+
       <DataTable
         title="Danh sách sản phẩm"
         rows={query.data}
         loading={query.isLoading}
         error={query.error}
-        rowKey={(p) => p.sku}
+        rowKey={(p) => p.id}
         columns={columns}
         searchPlaceholder="SKU, tên, danh mục…"
         filters={[
-          { label: 'Trạng thái', options: Object.values(statusLabels.product), value: (p) => statusLabels.product[p.status] },
-          { label: 'Danh mục', options: [...new Set((query.data ?? []).map((p) => p.categoryName))], value: (p) => p.categoryName },
+          {
+            label: 'Trạng thái',
+            options: Object.values(
+              statusLabels.product,
+            ),
+            value: (p) =>
+              statusLabels.product[p.status],
+          },
+          {
+            label: 'Danh mục',
+            options: [
+              ...new Set(
+                (query.data ?? []).map(
+                  (p) => p.categoryName,
+                ),
+              ),
+            ],
+            value: (p) => p.categoryName,
+          },
         ]}
-        actions={<Button variant="primary" onClick={() => setEditing({ sku: null })}>+ Thêm sản phẩm</Button>}
-        onRowClick={(p) => navigate(`/skus/${p.sku}`)}
-        rowActionsWidth="300px"
-        rowActions={(p) => (<><Button size="sm" onClick={() => navigate(`/skus/${p.sku}`)}>Xem</Button><ProductActions p={p} onEdit={() => setEditing({ sku: p.sku })} /></>)}
+        actions={
+          <Can permission="products.manage">
+            <Button
+              variant="primary"
+              onClick={() =>
+                setEditing({ id: null })
+              }
+            >
+              + Thêm sản phẩm
+            </Button>
+          </Can>
+        }
+        onRowClick={(p) =>
+          navigate('/skus/' + p.id)
+        }
+        rowActionsWidth="410px"
+        rowActions={(p) => (
+          <>
+            <Button
+              size="sm"
+              onClick={() =>
+                navigate('/skus/' + p.id)
+              }
+            >
+              Xem
+            </Button>
+
+            <ProductActions
+              p={p}
+              onEdit={() =>
+                setEditing({ id: p.id })
+              }
+            />
+          </>
+        )}
       />
-      <EditHost state={editing} onClose={() => setEditing(null)} />
+
+      {editing && (
+        <EditHost
+          id={editing.id}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </>
   );
 }
 
-/** Loads the draft being edited (or none for create) and mounts the dialog. */
-function EditHost({ state, onClose }: { state: { sku: string | null } | null; onClose: () => void }) {
-  const detail = useProduct(state?.sku ?? '');
-  if (!state) return null;
-  if (state.sku && !detail.data) return null;
-  return <ProductDialog open product={state.sku ? detail.data : null} onClose={onClose} />;
+function EditHost({
+  id,
+  onClose,
+}: {
+  id: string | null;
+  onClose: () => void;
+}) {
+  const query = useProduct(id ?? '');
+
+  if (!id) {
+    return (
+      <ProductDialog
+        open
+        onClose={onClose}
+      />
+    );
+  }
+
+  if (
+    query.isLoading ||
+    query.error ||
+    !query.data
+  ) {
+    return (
+      <Modal
+        open
+        title="Tải sản phẩm"
+        onClose={onClose}
+      >
+        <QueryState query={query}>
+          {() => null}
+        </QueryState>
+
+        {query.error && (
+          <Button
+            onClick={() =>
+              void query.refetch()
+            }
+          >
+            Thử lại
+          </Button>
+        )}
+      </Modal>
+    );
+  }
+
+  return (
+    <ProductDialog
+      open
+      product={query.data}
+      onClose={onClose}
+    />
+  );
 }

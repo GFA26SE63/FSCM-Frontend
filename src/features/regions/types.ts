@@ -2,9 +2,9 @@ export interface Area {
   id?: string;
   code: string;
   name: string;
-  region: string;
+  description?: string;
+  managerId?: string | null;
   managerName: string;
-  wards: string[];
   groups: string[];
   retailerCount: number;
   isActive?: boolean;
@@ -25,6 +25,7 @@ export interface SalesGroup {
   name?: string;
   areaCode: string;
   areaName: string;
+  managerId?: string | null;
   managerName: string;
   members: string[];
   retailerCount: number;
@@ -33,43 +34,47 @@ export interface SalesGroup {
 }
 
 export interface SalesStaff {
-  userId?: string;
+  userId: string;
   name: string;
-  groupCode: string | null;
-  groupId?: string | null;
   email?: string;
   phone?: string;
+  groupCode: string | null;
+  groupId: string | null;
 }
 
 export interface AreaInput {
   code: string;
   name: string;
-  region: string;
-  managerName: string;
-  wards?: string[];
+  description?: string;
+  managerId?: string | null;
 }
 
 export interface GroupInput {
   code: string;
+  name?: string;
   areaCode: string;
-  managerName: string;
+  managerId?: string | null;
+  managerName?: string;
   members: string[];
 }
 
 export interface TransferInput {
   name: string;
+  userId?: string;
   toGroup: string;
+  destinationSalesGroupId?: string;
   effectiveDate?: string;
 }
 
 export interface GroupRetailerItem {
+  id?: string;
   code: string;
   name: string;
   address: string;
   contact: string;
   phone: string;
-  kind: string;
-  size: 'S' | 'M' | 'L';
-  potentialClass: 'A' | 'B' | 'C';
+  kind?: string;
+  size?: 'S' | 'M' | 'L';
+  potentialClass?: 'A' | 'B' | 'C';
   status: 'Active' | 'Locked';
 }

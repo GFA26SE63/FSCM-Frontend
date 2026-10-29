@@ -178,17 +178,30 @@ export function registerPartners(r: MockRouter) {
 
   // OpenAPI /api/v1/territory-assignments/retailers
   r.get('/territory-assignments/retailers', ({ query }) => {
-    const list = db.retailers.map((x) => ({
+    let list = db.retailers.map((x) => ({
       id: mockGuid(`ret-assign-${x.code}`),
       retailerId: mockGuid(x.code),
       retailerCode: x.code,
       retailerName: x.name,
+      address: x.address,
+      contact: x.contact,
+      phone: x.phone,
+      kind: x.kind,
+      size: x.size,
+      potentialClass: x.potentialClass,
       salesGroupId: mockGuid(x.groupCode),
       salesGroupCode: x.groupCode,
       assignedAt: '2026-01-01T00:00:00Z',
       unassignedAt: null,
       isActive: x.status === 'Active',
+      status: x.status,
     }));
+    if (query.salesGroupId) {
+      list = list.filter((r) => r.salesGroupId === query.salesGroupId || r.salesGroupCode === query.salesGroupId);
+    }
+    if (query.retailerId) {
+      list = list.filter((r) => r.retailerId === query.retailerId || r.retailerCode === query.retailerId);
+    }
     return paginate(list, query);
   });
 

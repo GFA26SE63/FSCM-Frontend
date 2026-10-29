@@ -72,11 +72,11 @@ export function GroupDetailPage() {
                 g.memberRows?.length
                   ? g.memberRows
                   : g.members.map((m) => ({
-                      name: m,
-                      groupCode: g.code,
-                      revenueAfterPromo: 0,
-                      revenueBeforePromo: 0,
-                    }))
+                    name: m,
+                    groupCode: g.code,
+                    revenueAfterPromo: 0,
+                    revenueBeforePromo: 0,
+                  }))
               }
               empty="Chưa có nhân viên Sales trong nhóm này."
               columns={[
@@ -153,12 +153,12 @@ export function GroupDetailPage() {
                 {
                   header: 'Quy mô',
                   align: 'center',
-                  cell: (r) => r.size,
+                  cell: (r) => r.size || '—',
                 },
                 {
                   header: 'Tiềm năng',
                   align: 'center',
-                  cell: (r) => <StatusChip value={r.potentialClass} />,
+                  cell: (r) => (r.potentialClass ? <StatusChip value={r.potentialClass} /> : '—'),
                 },
                 {
                   header: 'Trạng thái',

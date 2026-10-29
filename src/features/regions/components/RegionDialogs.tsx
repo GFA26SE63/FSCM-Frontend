@@ -35,9 +35,8 @@ export function AreaDialog({
 }) {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
-  const [region, setRegion] = useState('Miền Nam');
-  const [managerName, setManagerName] = useState('Hồ Gia Bảo');
-  const [wardsText, setWardsText] = useState('');
+  const [description, setDescription] = useState('');
+  const [managerId, setManagerId] = useState('');
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
 
@@ -50,9 +49,8 @@ export function AreaDialog({
     if (open) {
       setCode('');
       setName('');
-      setRegion('Miền Nam');
-      setManagerName(managers[0]?.name ?? 'Hồ Gia Bảo');
-      setWardsText('');
+      setDescription('');
+      setManagerId(managers[0]?.id ?? '');
       setErrors({});
       setGeneralError(null);
     }
@@ -75,16 +73,11 @@ export function AreaDialog({
     if (!validate()) return;
     setGeneralError(null);
     try {
-      const wards = wardsText
-        .split(',')
-        .map((w) => w.trim())
-        .filter(Boolean);
       const payload: AreaInput = {
         code: code.trim().toUpperCase(),
         name: name.trim(),
-        region,
-        managerName,
-        wards,
+        description: description.trim() || undefined,
+        managerId: managerId || null,
       };
       await create.mutateAsync(payload);
       toast.show(`Đã tạo khu vực ${payload.name} (${payload.code}).`);
@@ -98,6 +91,11 @@ export function AreaDialog({
       }
     }
   };
+
+  const managerOptions = useMemo(() => {
+    const base = [{ value: '', label: '— Chưa phân công —' }];
+    return base.concat(managers.map((m) => ({ value: m.id, label: m.name })));
+  }, [managers]);
 
   return (
     <Modal
@@ -143,32 +141,22 @@ export function AreaDialog({
           />
         </FormField>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <FormField label="Vùng miền">
-            <Select
-              value={region}
-              options={['Miền Nam', 'Miền Trung', 'Miền Bắc']}
-              onChange={(e) => setRegion(e.target.value)}
-            />
-          </FormField>
-
-          <FormField label="Sales Manager phụ trách">
-            <Select
-              value={managerName}
-              options={managers.map((m) => ({ value: m.name, label: m.name }))}
-              onChange={(e) => setManagerName(e.target.value)}
-            />
-          </FormField>
-        </div>
+        <FormField label="Sales Manager phụ trách">
+          <Select
+            value={managerId}
+            options={managerOptions}
+            onChange={(e) => setManagerId(e.target.value)}
+          />
+        </FormField>
 
         <FormField
-          label="Phường / Xã trực thuộc"
-          hint="Nhập danh sách phường/xã, phân tách bằng dấu phẩy (,)"
+          label="Mô tả / Phạm vi địa lý"
+          hint="Mô tả các phường, xã hoặc đặc thù khu vực này"
         >
           <Input
-            value={wardsText}
-            onChange={(e) => setWardsText(e.target.value)}
-            placeholder="Thới An, Tân Chánh Hiệp, Hiệp Thành, Thạnh Lộc"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Khu vực Quận 12 bao gồm Thới An, Tân Chánh Hiệp..."
           />
         </FormField>
       </div>
@@ -201,7 +189,7 @@ export function GroupDialog({
 
   const [code, setCode] = useState('');
   const [areaCode, setAreaCode] = useState('');
-  const [managerName, setManagerName] = useState('');
+  const [managerId, setManagerId] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [staffSearch, setStaffSearch] = useState('');
   const [errors, setErrors] = useState<Record<string, string[]>>({});
@@ -212,14 +200,14 @@ export function GroupDialog({
       if (group) {
         setCode(group.code);
         setAreaCode(group.areaCode);
-        setManagerName(group.managerName);
+        setManagerId(group.managerId ?? '');
         setSelectedMembers(group.members ?? []);
       } else {
-        const defaultArea = areas[0]?.code ?? 'Q12';
+        const defaultArea = areas[0]?.code ?? '';
         const matchedArea = areas.find((a) => a.code === defaultArea);
         setCode('');
         setAreaCode(defaultArea);
-        setManagerName(matchedArea?.managerName ?? managers[0]?.name ?? 'Hồ Gia Bảo');
+        setManagerId(matchedArea?.managerId ?? managers[0]?.id ?? '');
         setSelectedMembers([]);
       }
       setStaffSearch('');
@@ -228,12 +216,11 @@ export function GroupDialog({
     }
   }, [open, group, areas, managers]);
 
-  // Sync manager when area changes (if manager exists for that area)
   const handleAreaChange = (nextAreaCode: string) => {
     setAreaCode(nextAreaCode);
     const matched = areas.find((a) => a.code === nextAreaCode);
-    if (matched?.managerName) {
-      setManagerName(matched.managerName);
+    if (matched?.managerId) {
+      setManagerId(matched.managerId);
     }
   };
 
@@ -249,6 +236,11 @@ export function GroupDialog({
     return staff.filter((s) => s.name.toLowerCase().includes(q));
   }, [staff, staffSearch]);
 
+  const managerOptions = useMemo(() => {
+    const base = [{ value: '', label: '— Chưa phân công —' }];
+    return base.concat(managers.map((m) => ({ value: m.id, label: m.name })));
+  }, [managers]);
+
   const validate = () => {
     const err: Record<string, string[]> = {};
     const c = code.trim().toUpperCase();
@@ -260,7 +252,6 @@ export function GroupDialog({
       }
     }
     if (!areaCode) err.areaCode = ['Chọn khu vực.'];
-    if (!managerName) err.managerName = ['Chọn Sales Manager.'];
     if (!selectedMembers.length) {
       err.members = ['Vui lòng chọn ít nhất 1 nhân viên Sales cho nhóm.'];
     }
@@ -274,10 +265,12 @@ export function GroupDialog({
     if (!validate()) return;
     setGeneralError(null);
     try {
+      const selectedManagerObj = managers.find((m) => m.id === managerId);
       const payload: GroupInput = {
         code: code.trim().toUpperCase(),
         areaCode,
-        managerName,
+        managerId: managerId || null,
+        managerName: selectedManagerObj?.name ?? undefined,
         members: selectedMembers,
       };
       if (edit) {
@@ -320,7 +313,7 @@ export function GroupDialog({
       }
     >
       <div className="callout" style={{ marginBottom: 12 }}>
-        Mỗi nhân viên Sales thuộc đúng một nhóm. Nếu chọn Sales đang ở nhóm khác, họ sẽ tự động được chuyển sang nhóm này khi bạn lưu.
+        Mỗi nhân viên Sales thuộc đúng một nhóm. Nếu chọn Sales đang ở nhóm khác, họ sẽ tự động được điều chuyển sang nhóm này khi bạn lưu.
       </div>
 
       {generalError && <Callout tone="danger">{generalError}</Callout>}
@@ -349,11 +342,11 @@ export function GroupDialog({
           </FormField>
         </div>
 
-        <FormField label="Sales Manager quản lý" required error={errors.managerName?.[0]}>
+        <FormField label="Sales Manager phụ trách">
           <Select
-            value={managerName}
-            options={managers.map((m) => ({ value: m.name, label: m.name }))}
-            onChange={(e) => setManagerName(e.target.value)}
+            value={managerId}
+            options={managerOptions}
+            onChange={(e) => setManagerId(e.target.value)}
           />
         </FormField>
 
@@ -403,7 +396,7 @@ export function GroupDialog({
 
                 return (
                   <div
-                    key={s.name}
+                    key={s.userId || s.name}
                     onClick={() => toggleMember(s.name)}
                     style={{
                       display: 'flex',
@@ -479,11 +472,6 @@ export function TransferStaffDialog({
     [staff, staffName],
   );
 
-  const currentGroup = useMemo(
-    () => groups.find((g) => g.code === currentStaff?.groupCode),
-    [groups, currentStaff],
-  );
-
   const targetGroup = useMemo(
     () => groups.find((g) => g.code === toGroup),
     [groups, toGroup],
@@ -526,7 +514,9 @@ export function TransferStaffDialog({
     try {
       await transfer.mutateAsync({
         name: staffName,
+        userId: currentStaff?.userId,
         toGroup,
+        destinationSalesGroupId: targetGroup?.id,
         effectiveDate: effectiveDate || undefined,
       });
       toast.show(
@@ -546,8 +536,8 @@ export function TransferStaffDialog({
   return (
     <Modal
       open={open}
-      title="Chuyển Sales sang nhóm khác"
-      subtitle="Điều chuyển nhân sự giữa các nhóm Sales & khu vực"
+      title="Điều chuyển nhân viên Sales"
+      subtitle="Chuyển Sales sang nhóm phụ trách địa bàn mới"
       width={560}
       onClose={onClose}
       footer={
@@ -584,39 +574,27 @@ export function TransferStaffDialog({
         </FormField>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div>
-            <span className="fl" style={{ fontSize: 12, color: '#64748B' }}>Nhóm hiện tại</span>
-            <div className="inp readonly" style={{ marginTop: 4 }}>
-              {currentStaff?.groupCode ? (
-                <span>
-                  <b>{currentStaff.groupCode}</b> ({currentGroup?.areaName ?? '—'})
-                </span>
-              ) : (
-                <span className="muted">Chưa có nhóm</span>
-              )}
+          <FormField label="Nhóm hiện tại">
+            <div className="inp readonly">
+              {currentStaff?.groupCode ? `Nhóm ${currentStaff.groupCode}` : 'Chưa phân nhóm'}
             </div>
-          </div>
+          </FormField>
 
-          <FormField label="Nhóm đích" required error={errors.toGroup?.[0]}>
+          <FormField label="Nhóm đích chuyển đến" required error={errors.toGroup?.[0]}>
             <Select
               value={toGroup}
-              options={groups.map((g) => ({
-                value: g.code,
-                label: `${g.code} · ${g.areaName}`,
-                disabled: g.code === currentStaff?.groupCode,
-              }))}
+              options={groups
+                .filter((g) => g.code !== currentStaff?.groupCode)
+                .map((g) => ({
+                  value: g.code,
+                  label: `${g.code} (${g.areaName})`,
+                }))}
               onChange={(e) => setToGroup(e.target.value)}
             />
           </FormField>
         </div>
 
-        {targetGroup && (
-          <div style={{ padding: '8px 12px', background: '#F8FAFC', borderRadius: 8, fontSize: 13, border: '1px solid #E2E8F0' }}>
-            <span className="muted">Thông tin nhóm đích:</span> Khu vực <b>{targetGroup.areaName}</b> · Quản lý bởi <b>{targetGroup.managerName}</b>
-          </div>
-        )}
-
-        <FormField label="Ngày hiệu lực" hint="Để trống nếu có hiệu lực ngay lập tức">
+        <FormField label="Ngày có hiệu lực" hint="Mặc định áp dụng từ hôm nay">
           <Input
             type="date"
             value={effectiveDate}
