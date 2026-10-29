@@ -28,6 +28,7 @@ export function GroupDetailPage() {
 
   const manageGroups = can(user, 'salesGroups.manage');
   const assignTerritory = can(user, 'territory.assign');
+  const mayOpenRetailers = user?.role === 'Admin' || user?.role === 'Operator';
 
   return (
     <QueryState query={query}>
@@ -125,7 +126,7 @@ export function GroupDetailPage() {
               columns={[
                 {
                   header: 'Mã retailer',
-                  cell: (r) => (
+                  cell: (r) => mayOpenRetailers ? (
                     <a
                       href={`/retailers/${r.code}`}
                       onClick={(e) => {
@@ -136,7 +137,7 @@ export function GroupDetailPage() {
                     >
                       {r.code}
                     </a>
-                  ),
+                  ) : <span style={{ fontWeight: 600 }}>{r.code}</span>,
                 },
                 {
                   header: 'Tên điểm bán',

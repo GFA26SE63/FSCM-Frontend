@@ -19,11 +19,13 @@ export const usePlanVersions = (runId: string | undefined) =>
 
 export const useApprovePlan = () =>
   useApiMutation(allocationApi.approve, {
+    permission: 'allocation.approve',
     success: (v) =>
       `Đã duyệt phương án bản ${v.versionNumber} của đợt ${v.runCode}. Hàng đã được giữ; phiếu soạn phát hành theo từng kho.`,
   });
 
 export const useRequestRecalculation = () =>
   useApiMutation(allocationApi.requestRecalculation, {
+    permission: 'allocation.recalculate',
     success: (v) => `Đã yêu cầu tính lại đợt ${v.runCode}. Bản mới sẽ được trình duyệt lại, bản cũ giữ nguyên để đối chiếu.`,
   });

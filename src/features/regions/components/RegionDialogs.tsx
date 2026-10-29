@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { toApiError } from '@/shared/api/errors';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { errorMessage, toApiError } from '@/shared/api/errors';
+import { useAuth } from '@/shared/auth/AuthContext';
+import { assertPermission, can } from '@/shared/auth/permissions';
 import {
   Button,
   Callout,
@@ -456,152 +458,101 @@ export function TransferStaffDialog({
   initialStaffName?: string;
   onClose: () => void;
 }) {
-  const { data: staff = [] } = useStaff();
-  const { data: groups = [] } = useGroups();
+  const { user } = useAuth();
+  const staffQuery = useStaff(open);
+  const groupsQuery = useGroups();
   const transfer = useTransferStaff();
   const toast = useToast();
-
-  const [staffName, setStaffName] = useState('');
-  const [toGroup, setToGroup] = useState('');
-  const [effectiveDate, setEffectiveDate] = useState('');
-  const [errors, setErrors] = useState<Record<string, string[]>>({});
-  const [generalError, setGeneralError] = useState<string | null>(null);
-
-  const currentStaff = useMemo(
-    () => staff.find((s) => s.name === staffName),
-    [staff, staffName],
-  );
-
-  const targetGroup = useMemo(
-    () => groups.find((g) => g.code === toGroup),
-    [groups, toGroup],
-  );
+  const saving = useRef(false);
+  const [userId, setUserId] = useState('');
+  const [groupId, setGroupId] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (open) {
-      const selected = initialStaffName || staff[0]?.name || '';
-      setStaffName(selected);
-      const s = staff.find((x) => x.name === selected);
-      const firstOtherGroup = groups.find((g) => g.code !== s?.groupCode)?.code ?? groups[0]?.code ?? '';
-      setToGroup(firstOtherGroup);
-      setEffectiveDate(new Date().toISOString().slice(0, 10));
-      setErrors({});
-      setGeneralError(null);
+      setUserId('');
+      setGroupId('');
+      setError('');
     }
-  }, [open, initialStaffName, staff, groups]);
+  }, [open, initialStaffName]);
 
-  const handleStaffChange = (name: string) => {
-    setStaffName(name);
-    const s = staff.find((x) => x.name === name);
-    const firstOther = groups.find((g) => g.code !== s?.groupCode)?.code ?? '';
-    setToGroup(firstOther);
-  };
-
-  const validate = () => {
-    const err: Record<string, string[]> = {};
-    if (!staffName) err.staffName = ['Chọn nhân viên Sales.'];
-    if (!toGroup) err.toGroup = ['Chọn nhóm đích.'];
-    else if (currentStaff?.groupCode === toGroup) {
-      err.toGroup = ['Nhóm đích phải khác nhóm hiện tại của nhân viên.'];
-    }
-    setErrors(err);
-    return Object.keys(err).length === 0;
-  };
-
+  const staff = staffQuery.data ?? [];
+  const current = staff.find((s) => s.userId === userId)
+    ?? (!userId ? staff.find((s) => s.name === initialStaffName) ?? staff[0] : undefined);
+  const destinations = (groupsQuery.data ?? []).filter(
+    (g) => g.isActive !== false && g.id && g.id !== current?.groupId,
+  );
+  const destination = destinations.find((g) => g.id === groupId)
+    ?? (!groupId ? destinations[0] : undefined);
+  const loading = staffQuery.isLoading || groupsQuery.isLoading;
+  const loadError = staffQuery.error || groupsQuery.error;
+  const mayAssign = can(user, 'territory.assign');
+  const close = () => { if (!saving.current) onClose(); };
   const submit = async () => {
-    if (!validate()) return;
-    setGeneralError(null);
+    if (saving.current || loading || loadError) return;
+    setError('');
     try {
-      await transfer.mutateAsync({
-        name: staffName,
-        userId: currentStaff?.userId,
-        toGroup,
-        destinationSalesGroupId: targetGroup?.id,
-        effectiveDate: effectiveDate || undefined,
-      });
-      toast.show(
-        `Đã chuyển Sales ${staffName} từ nhóm ${currentStaff?.groupCode ?? 'Chưa phân nhóm'} sang nhóm ${toGroup}.`,
-      );
-      onClose();
-    } catch (e) {
-      const err = toApiError(e);
-      if (Object.keys(err.fieldErrors).length > 0) {
-        setErrors(err.fieldErrors);
-      } else {
-        setGeneralError(err.detail ?? err.title);
+      assertPermission(user, 'territory.assign');
+      if (!current || !destination?.id) {
+        setError('Chọn nhân viên và nhóm đích hợp lệ.');
+        return;
       }
+      saving.current = true;
+      await transfer.mutateAsync({
+        name: current.name,
+        userId: current.userId,
+        toGroup: destination.code,
+        destinationSalesGroupId: destination.id,
+      });
+      toast.show('Đã chuyển Sales ' + current.name + ' sang nhóm ' + destination.code + '.');
+      onClose();
+    } catch (failure) {
+      setError(errorMessage(failure));
+    } finally {
+      saving.current = false;
     }
   };
 
+  if (!mayAssign) return null;
   return (
-    <Modal
-      open={open}
-      title="Điều chuyển nhân viên Sales"
-      subtitle="Chuyển Sales sang nhóm phụ trách địa bàn mới"
-      width={560}
-      onClose={onClose}
-      footer={
-        <>
-          <Button onClick={onClose} disabled={transfer.isPending}>
-            Hủy
-          </Button>
-          <Button
-            variant="primary"
-            onClick={submit}
-            disabled={transfer.isPending}
-          >
-            {transfer.isPending ? 'Đang chuyển…' : 'Xác nhận chuyển'}
-          </Button>
-        </>
-      }
+    <Modal open={open} title="Điều chuyển nhân viên Sales" width={560} onClose={close}
+      footer={<>
+        <Button onClick={close} disabled={transfer.isPending}>Hủy</Button>
+        <Button variant="primary" loading={transfer.isPending}
+          disabled={loading || Boolean(loadError) || !current || !destination}
+          onClick={() => void submit()}>Xác nhận chuyển</Button>
+      </>}
     >
-      <div className="callout" style={{ marginBottom: 12 }}>
-        Sau khi chuyển, nhân viên này sẽ chịu trách nhiệm chăm sóc và phụ trách đặt hàng cho các retailer thuộc nhóm đích.
-      </div>
-
-      {generalError && <Callout tone="danger">{generalError}</Callout>}
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <FormField label="Nhân viên Sales" required error={errors.staffName?.[0]}>
-          <Select
-            value={staffName}
-            options={staff.map((s) => ({
-              value: s.name,
-              label: `${s.name} (${s.groupCode ? `Nhóm ${s.groupCode}` : 'Chưa phân nhóm'})`,
-            }))}
-            onChange={(e) => handleStaffChange(e.target.value)}
-          />
+      <Callout tone="info">
+        Điều chuyển có hiệu lực ngay.
+        {user?.role === 'SalesManager' && ' Chỉ điều chuyển giữa các nhóm bạn được phân công.'}
+      </Callout>
+      {loading && <p>Đang tải nhân viên và nhóm Sales…</p>}
+      {loadError && <Callout tone="danger">{errorMessage(loadError)}</Callout>}
+      {error && <Callout tone="danger">{error}</Callout>}
+      {!loading && !loadError && staff.length === 0 && <Callout tone="info">
+        Chưa có nhân viên Sales trong phạm vi được phân công.
+      </Callout>}
+      {!loading && !loadError && current && destinations.length === 0 && <Callout tone="info">
+        Chưa có nhóm đích khác được phép điều chuyển. Liên hệ Admin để kiểm tra phân công.
+      </Callout>}
+      <fieldset disabled={loading || Boolean(loadError) || transfer.isPending}
+        style={{ border: 0, padding: 0, margin: 0, display: 'grid', gap: 14, minWidth: 0 }}>
+        <FormField label="Nhân viên Sales" required>
+          <Select value={current?.userId ?? ''} options={staff.map((s) => ({
+            value: s.userId,
+            label: s.name + ' (' + (s.groupCode ?? 'Chưa phân nhóm') + ')',
+          }))} onChange={(e) => { setUserId(e.target.value); setGroupId(''); }} />
         </FormField>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <FormField label="Nhóm hiện tại">
-            <div className="inp readonly">
-              {currentStaff?.groupCode ? `Nhóm ${currentStaff.groupCode}` : 'Chưa phân nhóm'}
-            </div>
-          </FormField>
-
-          <FormField label="Nhóm đích chuyển đến" required error={errors.toGroup?.[0]}>
-            <Select
-              value={toGroup}
-              options={groups
-                .filter((g) => g.code !== currentStaff?.groupCode)
-                .map((g) => ({
-                  value: g.code,
-                  label: `${g.code} (${g.areaName})`,
-                }))}
-              onChange={(e) => setToGroup(e.target.value)}
-            />
-          </FormField>
-        </div>
-
-        <FormField label="Ngày có hiệu lực" hint="Mặc định áp dụng từ hôm nay">
-          <Input
-            type="date"
-            value={effectiveDate}
-            onChange={(e) => setEffectiveDate(e.target.value)}
-          />
+        <FormField label="Nhóm hiện tại">
+          <div className="inp readonly">{current?.groupCode ?? 'Chưa phân nhóm'}</div>
         </FormField>
-      </div>
+        <FormField label="Nhóm đích" required>
+          <Select value={destination?.id ?? ''} options={destinations.map((g) => ({
+            value: g.id!, label: g.code + ' (' + g.areaName + ')',
+          }))} onChange={(e) => setGroupId(e.target.value)} />
+        </FormField>
+      </fieldset>
     </Modal>
   );
 }

@@ -14,8 +14,8 @@ export interface GroupMember {
   userId?: string;
   name: string;
   groupCode: string;
-  revenueAfterPromo: number;
-  revenueBeforePromo: number;
+  revenueAfterPromo?: number;
+  revenueBeforePromo?: number;
 }
 
 export interface SalesGroup {
