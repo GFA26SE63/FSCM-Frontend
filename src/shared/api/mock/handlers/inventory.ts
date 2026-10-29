@@ -8,17 +8,100 @@ import { daysBetween } from '../../../lib/dates';
 import { IdFormat } from '../../../lib/ids';
 import { quoteTransit } from '../engines/transit';
 
-// ---------- batches ----------
+// ---------- batches & inventory ----------
+interface DbLock {
+  id: string;
+  batchId: string;
+  batchCode: string;
+  warehouseId: string;
+  warehouseCode: string;
+  productId: string;
+  sku: string;
+  lockedQuantity: number;
+  status: 'Active' | 'Released';
+  reason: string;
+  requiresResolution: boolean;
+  lockedByUserId: string;
+  releasedByUserId: string | null;
+  releasedAt: string | null;
+  note: string | null;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const mockLocks: DbLock[] = [
+  {
+    id: 'e1000000-0000-0000-0000-000000000001',
+    batchId: mockGuid('WH-SG-SKU001-20261105'),
+    batchCode: 'WH-SG-SKU001-20261105',
+    warehouseId: mockGuid('WH-SG'),
+    warehouseCode: 'WH-SG',
+    productId: mockGuid('SKU001'),
+    sku: 'SKU001',
+    lockedQuantity: 15,
+    status: 'Active' as const,
+    reason: 'Kiểm định chất lượng định kỳ',
+    requiresResolution: true,
+    lockedByUserId: mockGuid('Admin'),
+    releasedByUserId: null,
+    releasedAt: null,
+    note: 'Lấy mẫu kiểm định lô định kỳ theo kế hoạch QC tháng 9',
+    version: 1,
+    createdAt: '2026-09-25T08:30:00Z',
+    updatedAt: '2026-09-25T08:30:00Z',
+  },
+];
+
 export function batchDto(b: DbBatch) {
   const p = product(b.sku);
   const remaining = daysBetween(MOCK_TODAY, b.expiry);
   const discount = db.batchDiscounts.find((d) => d.batchCode === b.code && d.status === 'Active');
+  const activeLocks = mockLocks.filter((l) => l.batchCode === b.code && l.status === 'Active');
+  const lockedQty = activeLocks.reduce((acc, l) => acc + l.lockedQuantity, 0);
+
+  const onHand = b.disposed ? 0 : b.available + b.held;
+  const held = b.disposed ? 0 : b.held;
+  const available = Math.max(0, onHand - held - lockedQty);
+
   return {
-    code: b.code, warehouseCode: b.warehouseCode, warehouseName: warehouseName(b.warehouseCode), sku: b.sku, productName: p.name, expiry: b.expiry,
-    onHand: b.disposed ? 0 : b.available + b.held, held: b.disposed ? 0 : b.held, available: b.disposed ? 0 : b.available, shelfLifeDays: p.shelfLifeDays,
-    remainingDays: remaining, remainingPct: Math.round((remaining / p.shelfLifeDays) * 100),
-    expiryStatus: b.disposed ? 'Disposed' : remaining <= 0 ? 'Expired' : remaining <= p.nearExpiryDays ? 'NearExpiry' : 'Normal',
-    discountPct: discount?.discountPct ?? null, discountUntil: discount?.validTo ?? null, discountCode: discount?.code ?? null,
+    batchId: mockGuid(b.code),
+    batchCode: b.code,
+    warehouseId: mockGuid(b.warehouseCode),
+    warehouseCode: b.warehouseCode,
+    warehouseName: warehouseName(b.warehouseCode),
+    productId: mockGuid(b.sku),
+    sku: b.sku,
+    productName: p.name,
+    expirationDate: b.expiry,
+    expiryStatus: b.disposed
+      ? ('Disposed' as const)
+      : remaining <= 0
+        ? ('Expired' as const)
+        : remaining <= p.nearExpiryDays
+          ? ('NearExpiry' as const)
+          : ('Normal' as const),
+    stockStatus: available > 0 ? 'InStock' : 'OutOfStock',
+    onHandQuantity: onHand,
+    reservedQuantity: held,
+    lockedQuantity: lockedQty,
+    availableQuantity: available,
+    hasLockRequiringResolution: activeLocks.some((l) => l.requiresResolution),
+    version: 1,
+    updatedAt: `${MOCK_TODAY}T08:00:00Z`,
+
+    // Compatibility
+    code: b.code,
+    expiry: b.expiry,
+    onHand,
+    held,
+    available,
+    shelfLifeDays: p.shelfLifeDays,
+    remainingDays: remaining,
+    remainingPct: Math.round((remaining / p.shelfLifeDays) * 100),
+    discountPct: discount?.discountPct ?? null,
+    discountUntil: discount?.validTo ?? null,
+    discountCode: discount?.code ?? null,
   };
 }
 const findBatch = (code: string) => db.batches.find((b) => b.code === code) ?? (() => { throw notFound(`Batch ${code}`); })();
@@ -180,6 +263,175 @@ export function registerInventory(r: MockRouter) {
     const isActive = typeof body?.isActive === 'boolean' ? body.isActive : w.status !== 'Active';
     w.status = isActive ? 'Active' : 'Paused';
     return whDto(w);
+  });
+
+
+  // ---- OpenAPI /inventory ----
+  r.get('/inventory', ({ query }) => {
+    let rows = db.batches.map(batchDto);
+    if (!query.includeExpired || query.includeExpired === 'false') {
+      rows = rows.filter((b) => b.expiryStatus !== 'Expired' && b.expiryStatus !== 'Disposed');
+    }
+    if (query.warehouseId) {
+      rows = rows.filter((b) => b.warehouseId === query.warehouseId || b.warehouseCode === query.warehouseId);
+    }
+    if (query.productId) {
+      rows = rows.filter((b) => b.productId === query.productId || b.sku === query.productId);
+    }
+    return rows;
+  });
+
+  r.get('/inventory/batches/:batchId', ({ params }) => {
+    const b = db.batches.find((x) => x.code === params.batchId || mockGuid(x.code) === params.batchId);
+    if (!b) throw notFound(`Lô hàng ${params.batchId}`);
+    return batchDto(b);
+  });
+
+  r.get('/inventory/history', ({ query }) => {
+    const list: Record<string, unknown>[] = [];
+    const targetBatches = query.batchId
+      ? db.batches.filter((b) => b.code === query.batchId || mockGuid(b.code) === query.batchId)
+      : db.batches;
+
+    targetBatches.slice(0, 15).forEach((b) => {
+      const rc = db.receipts.find((x) => x.lines.some((l) => l.batchCode === b.code));
+      list.push({
+        id: mockGuid(`HIST-RCP-${b.code}`),
+        batchId: mockGuid(b.code),
+        batchCode: b.code,
+        warehouseCode: b.warehouseCode,
+        sku: b.sku,
+        transactionType: 'Receipt',
+        sourceType: 'GoodsReceipt',
+        sourceId: mockGuid(rc?.code ?? 'PN-01'),
+        referenceCode: rc?.code ?? `PN-${yymmdd(b.expiry)}-01`,
+        onHandDelta: b.available + b.held + 20,
+        reservedDelta: 0,
+        onHandAfter: b.available + b.held + 20,
+        reservedAfter: 0,
+        availableAfter: b.available + b.held + 20,
+        note: 'Nhập kho từ nhà cung cấp',
+        createdByUserId: mockGuid(warehouse(b.warehouseCode).keeperName ?? 'Keeper'),
+        occurredAt: rc?.receivedAt ?? `${b.expiry}T07:30:00Z`,
+      });
+
+      if (b.held > 0) {
+        list.push({
+          id: mockGuid(`HIST-RES-${b.code}`),
+          batchId: mockGuid(b.code),
+          batchCode: b.code,
+          warehouseCode: b.warehouseCode,
+          sku: b.sku,
+          transactionType: 'Reservation',
+          sourceType: 'SalesOrder',
+          sourceId: mockGuid('SO-1021'),
+          referenceCode: 'DH-001021A',
+          onHandDelta: 0,
+          reservedDelta: b.held,
+          onHandAfter: b.available + b.held,
+          reservedAfter: b.held,
+          availableAfter: b.available,
+          note: 'Tạm giữ theo đơn hàng đã duyệt',
+          createdByUserId: mockGuid('Operator'),
+          occurredAt: '2026-09-26T08:40:00Z',
+        });
+      }
+
+      mockLocks.filter((l) => l.batchCode === b.code).forEach((l) => {
+        list.push({
+          id: mockGuid(`HIST-LOCK-${l.id}`),
+          batchId: l.batchId,
+          batchCode: l.batchCode,
+          warehouseCode: l.warehouseCode,
+          sku: l.sku,
+          transactionType: l.status === 'Active' ? 'Lock' : 'Release',
+          sourceType: 'InventoryLock',
+          sourceId: l.id,
+          referenceCode: `LOCK-${l.id.slice(0, 8)}`,
+          onHandDelta: 0,
+          reservedDelta: 0,
+          onHandAfter: b.available + b.held,
+          reservedAfter: b.held,
+          availableAfter: Math.max(0, b.available - l.lockedQuantity),
+          note: l.status === 'Active' ? `Khóa tồn: ${l.reason}` : `Mở khóa: ${l.note ?? ''}`,
+          createdByUserId: l.lockedByUserId,
+          occurredAt: l.status === 'Active' ? l.createdAt : (l.releasedAt ?? l.updatedAt),
+        });
+      });
+    });
+
+    list.sort((a, b) => (String(a.occurredAt) < String(b.occurredAt) ? 1 : -1));
+    return list;
+  });
+
+  // ---- OpenAPI /inventory-locks ----
+  r.get('/inventory-locks', ({ query }) => {
+    let list = [...mockLocks];
+    if (query.batchId) {
+      list = list.filter((l) => l.batchId === query.batchId || l.batchCode === query.batchId);
+    }
+    if (query.warehouseId) {
+      list = list.filter((l) => l.warehouseId === query.warehouseId || l.warehouseCode === query.warehouseId);
+    }
+    if (query.status) {
+      list = list.filter((l) => l.status === query.status);
+    }
+    return list;
+  });
+
+  r.get('/inventory-locks/:lockId', ({ params }) => {
+    const l = mockLocks.find((x) => x.id === params.lockId);
+    if (!l) throw notFound(`Khóa ${params.lockId}`);
+    return l;
+  });
+
+  r.post('/inventory-locks', (req) => {
+    const { body } = req;
+    const batchId = String(body?.batchId ?? '');
+    const b = db.batches.find((x) => x.code === batchId || mockGuid(x.code) === batchId);
+    if (!b) throw notFound(`Không tìm thấy lô hàng ${batchId}`);
+
+    const qty = Number(body?.quantity ?? 0);
+    if (qty <= 0) throw validation({ quantity: ['Số lượng khóa phải lớn hơn 0.'] });
+
+    const lockId = mockGuid(`LOCK-${Date.now()}`);
+    const newLock: DbLock = {
+      id: lockId,
+      batchId: mockGuid(b.code),
+      batchCode: b.code,
+      warehouseId: mockGuid(b.warehouseCode),
+      warehouseCode: b.warehouseCode,
+      productId: mockGuid(b.sku),
+      sku: b.sku,
+      lockedQuantity: qty,
+      status: 'Active',
+      reason: String(body?.reason ?? 'Kiểm định chất lượng'),
+      requiresResolution: true,
+      lockedByUserId: mockGuid(actor(req).name),
+      releasedByUserId: null,
+      releasedAt: null,
+      note: body?.note ? String(body.note) : null,
+      version: 1,
+      createdAt: stamp(),
+      updatedAt: stamp(),
+    };
+
+    mockLocks.unshift(newLock);
+    return newLock;
+  });
+
+  r.post('/inventory-locks/:lockId/release', (req) => {
+    const l = mockLocks.find((x) => x.id === req.params.lockId);
+    if (!l) throw notFound(`Không tìm thấy khóa ${req.params.lockId}`);
+    if (l.status !== 'Active') throw conflict('Khóa đã được giải phóng trước đó.');
+
+    l.status = 'Released';
+    l.releasedByUserId = mockGuid(actor(req).name);
+    l.releasedAt = stamp();
+    l.note = req.body?.note ? String(req.body.note) : l.note;
+    l.version += 1;
+    l.updatedAt = stamp();
+    return l;
   });
 
   // ---- batches & labels ----

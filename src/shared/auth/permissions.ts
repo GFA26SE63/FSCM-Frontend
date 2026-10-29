@@ -35,6 +35,9 @@ export const ACTION_ROLES = {
   'redeem.manage': ['Admin', 'Operator'],
   'complaints.resolve': ['Admin', 'Operator'],
 
+  'inventory.lock': ['Admin', 'WarehouseKeeper', 'Operator'],
+  'inventory.viewHistory': ['Admin', 'WarehouseKeeper', 'Operator'],
+
   'retailers.review': ['Admin'],
   'retailers.status': ['Admin'],
 
