@@ -11,6 +11,7 @@ import type {
   UserFilters,
   UserPage,
 } from './types';
+import { assertCreatableRole } from './userPolicy';
 
 const scopePageSize = 20;
 
@@ -35,13 +36,30 @@ export const userApi = {
   get: (id: string): Promise<UserDetail> =>
     get<UserDetail>(`/users/${encodeURIComponent(id)}`),
 
-  create: (input: CreateUserInput) =>
-    post<CreatedUser>('/users', input),
+  async create(
+    input: CreateUserInput,
+  ): Promise<CreatedUser> {
+    assertCreatableRole(input.role);
 
-  update: ({ id, ...input }: UpdateUserInput) =>
+    return post<CreatedUser>('/users', {
+      email: input.email,
+      fullName: input.fullName,
+      role: input.role,
+      identityProvider: input.identityProvider,
+    });
+  },
+
+  update: ({
+    id,
+    email,
+    fullName,
+  }: UpdateUserInput) =>
     put<UserDetail>(
       `/users/${encodeURIComponent(id)}`,
-      input,
+      {
+        email,
+        fullName,
+      },
     ),
 
   async setStatus(input: { id: string; isActive: boolean }) {
