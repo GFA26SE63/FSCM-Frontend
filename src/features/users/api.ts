@@ -3,6 +3,7 @@ import { get, http, post, put } from '@/shared/api/http';
 import type {
   CreatedUser,
   CreateUserInput,
+  IdentityProvider,
   ScopeConnection,
   ScopeKind,
   ScopeOption,
@@ -11,6 +12,7 @@ import type {
   UserDetail,
   UserFilters,
   UserPage,
+  UserRole,
 } from './types';
 
 const scopePageSize = 20;
@@ -20,20 +22,44 @@ interface RetailerOptionsPage {
   totalCount: number;
 }
 
-function normalizeUser(u: any): User {
+interface RawUserItem {
+  id?: string;
+  userId?: string;
+  email?: string;
+  loginName?: string;
+  fullName?: string;
+  name?: string;
+  role?: UserRole;
+  isActive?: boolean;
+  status?: string;
+  identityProvider?: IdentityProvider;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface RawUserPage {
+  items?: RawUserItem[];
+  page?: number;
+  pageSize?: number;
+  size?: number;
+  totalCount?: number;
+  total?: number;
+}
+
+function normalizeUser(u: RawUserItem): User {
   return {
     id: String(u.id ?? u.userId ?? ''),
     email: String(u.email ?? u.loginName ?? ''),
     fullName: String(u.fullName ?? u.name ?? u.email ?? ''),
-    role: u.role,
+    role: (u.role ?? 'Sales') as UserRole,
     isActive: typeof u.isActive === 'boolean' ? u.isActive : u.status === 'Active',
-    identityProvider: u.identityProvider ?? 'Local',
+    identityProvider: (u.identityProvider ?? 'Local') as IdentityProvider,
     createdAt: u.createdAt ?? new Date().toISOString(),
     updatedAt: u.updatedAt ?? new Date().toISOString(),
   };
 }
 
-function normalizeUserPage(raw: any, filters: UserFilters): UserPage {
+function normalizeUserPage(raw: RawUserPage | RawUserItem[] | null | undefined, filters: UserFilters): UserPage {
   if (Array.isArray(raw)) {
     return {
       items: raw.map(normalizeUser),
@@ -53,7 +79,7 @@ function normalizeUserPage(raw: any, filters: UserFilters): UserPage {
 
 export const userApi = {
   list: async (filters: UserFilters): Promise<UserPage> => {
-    const raw = await get<any>('/users', {
+    const raw = await get<RawUserPage | RawUserItem[]>('/users', {
       search: filters.search.trim() || undefined,
       role: filters.role || undefined,
       isActive:

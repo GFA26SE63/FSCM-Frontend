@@ -458,7 +458,7 @@ export const warehouseApi = {
       // Keep default active transit table settings
     }
 
-    let retailerDistances: RetailerDistance[] = [];
+    let retailerDistances: RetailerDistance[];
     if (Array.isArray(rawDetail.retailerDistances) && rawDetail.retailerDistances.length > 0) {
       retailerDistances = rawDetail.retailerDistances.map((r) => {
         const km =

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toApiError } from '@/shared/api/errors';
 import {
   Button,
@@ -87,7 +87,7 @@ export function WarehouseDialog({
   }, [warehouse, open, keepers]);
 
   // Synchronize Map Picking -> Address & Coordinates
-  const handleCoordPicked = async (pickedLat: number, pickedLng: number) => {
+  const handleCoordPicked = useCallback(async (pickedLat: number, pickedLng: number) => {
     const lat = Math.round(pickedLat * 10000) / 10000;
     const lng = Math.round(pickedLng * 10000) / 10000;
     setForm((prev) => ({ ...prev, lat, lng }));
@@ -107,7 +107,7 @@ export function WarehouseDialog({
     } finally {
       setGeocoding(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     if (!open) return;
@@ -124,7 +124,7 @@ export function WarehouseDialog({
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [open]);
+  }, [open, handleCoordPicked]);
 
   // Synchronize Address Input -> Map Coordinates
   const handleGeocodeFromAddress = async () => {
