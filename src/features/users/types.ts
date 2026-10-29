@@ -132,22 +132,22 @@ export function assignmentsFromUser(user: UserDetail): Assignments {
 
   switch (user.role) {
     case 'WarehouseKeeper':
-      values.warehouses = [...user.scope.warehouseIds];
+      values.warehouses = [...(user.scope?.warehouseIds ?? [])];
       break;
 
     case 'Sales':
-      values['sales-groups'] = [...user.scope.salesGroupIds];
+      values['sales-groups'] = [...(user.scope?.salesGroupIds ?? [])];
       break;
 
     case 'SalesManager':
-      values['sales-groups'] = [...user.scope.salesGroupIds];
+      values['sales-groups'] = [...(user.scope?.salesGroupIds ?? [])];
 
       // Khi sửa, regions chỉ chứa các region muốn bổ sung.
       // scope.regionIds còn chứa region kế thừa từ nhóm Sales.
       break;
 
     case 'Retailer':
-      values.retailers = [...user.scope.retailerIds];
+      values.retailers = [...(user.scope?.retailerIds ?? [])];
       break;
   }
 
