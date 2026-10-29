@@ -18,6 +18,7 @@ export const useGroup = (code: string) =>
   useQuery({
     queryKey: ['regions', 'group', code],
     queryFn: () => regionApi.group(code),
+    enabled: !!code,
   });
 
 export const useStaff = () =>
@@ -26,27 +27,35 @@ export const useStaff = () =>
     queryFn: regionApi.staff,
   });
 
+export const useManagers = () =>
+  useQuery({
+    queryKey: ['regions', 'managers'],
+    queryFn: regionApi.managers,
+  });
+
+export const useGroupRetailers = (groupCode: string) =>
+  useQuery({
+    queryKey: ['regions', 'group-retailers', groupCode],
+    queryFn: () => regionApi.retailersInGroup(groupCode),
+    enabled: !!groupCode,
+  });
+
 export const useCreateArea = () =>
   useApiMutation(regionApi.createArea, {
     permission: 'regions.manage',
-    success: (area) => `Đã tạo khu vực ${area.name}.`,
   });
 
 export const useCreateGroup = () =>
   useApiMutation(regionApi.createGroup, {
     permission: 'salesGroups.manage',
-    success: (group) => `Đã tạo nhóm Sales ${group.code}.`,
   });
 
 export const useUpdateGroup = () =>
   useApiMutation(regionApi.updateGroup, {
     permission: 'salesGroups.manage',
-    success: (group) => `Đã cập nhật nhóm ${group.code}.`,
   });
 
 export const useTransferStaff = () =>
   useApiMutation(regionApi.transfer, {
     permission: 'territory.assign',
-    success: (result) =>
-      `Đã chuyển ${result.name} sang nhóm ${result.toGroup}.`,
   });
