@@ -6,6 +6,7 @@ import type {
   ScopeKind,
   UserDetail,
 } from './types';
+import { assertCreatableRole } from './userPolicy';
 
 interface SaveInput {
   id: string;
@@ -32,6 +33,8 @@ function directlyManagedIds(
 }
 
 export async function finishUserSave(input: SaveInput) {
+  assertCreatableRole(input.role);
+
   // Đọc lại khi retry vì request trước có thể đã lưu một phần.
   const current = await userApi.get(input.id);
 

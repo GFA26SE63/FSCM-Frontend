@@ -25,6 +25,7 @@ import {
   type UserDetail,
 } from '../types';
 import { AssignmentPicker } from './AssignmentPicker';
+import { isCreatableRole } from '../userPolicy';
 
 interface Props {
   user?: UserDetail;
@@ -40,7 +41,9 @@ export function UserDialog({ user, onClose }: Props) {
   );
   const [email, setEmail] = useState(user?.email ?? '');
   const [role, setRole] = useState<CreatableRole>(
-    user && user.role !== 'Admin' ? user.role : 'Sales',
+    isCreatableRole(user?.role)
+      ? user.role
+      : 'Sales',
   );
   const [provider, setProvider] =
     useState<IdentityProvider>('Local');
@@ -66,7 +69,9 @@ export function UserDialog({ user, onClose }: Props) {
   const savingRef = useRef(false);
 
   const identityLocked = !!created;
-  const kinds = assignmentKinds[role];
+  const kinds = isCreatableRole(role)
+    ? assignmentKinds[role]
+    : [];
 
   function confirmTokenSaved() {
     return (
@@ -91,6 +96,11 @@ export function UserDialog({ user, onClose }: Props) {
 
   function validate() {
     const next: Record<string, string> = {};
+
+    if (!isCreatableRole(role)) {
+      next.role =
+        'Không được tạo hoặc nâng quyền thành Admin. Hãy chọn vai trò hợp lệ.';
+    }
 
     if (!fullName.trim()) {
       next.fullName = 'Bắt buộc nhập họ tên.';
@@ -395,9 +405,19 @@ export function UserDialog({ user, onClose }: Props) {
                 disabled={!!user || identityLocked}
                 options={roleOptions}
                 onChange={(event) => {
-                  setRole(
-                    event.target.value as CreatableRole,
-                  );
+                  const nextRole = event.target.value;
+
+                  if (!isCreatableRole(nextRole)) {
+                    setErrors((current) => ({
+                      ...current,
+                      role:
+                        'Vai trò không hợp lệ. Không được chọn Admin.',
+                    }));
+
+                    return;
+                  }
+
+                  setRole(nextRole);
                   setAssignments(emptyAssignments());
                   setErrors({});
                 }}

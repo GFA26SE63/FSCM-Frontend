@@ -1,4 +1,9 @@
-import type { AppRole } from '@/shared/auth/roles';
+import {
+  roleLabel,
+  type AppRole,
+} from '@/shared/auth/roles';
+
+import { CREATABLE_ROLES } from './userPolicy';
 
 export type UserRole = AppRole;
 export type CreatableRole = Exclude<UserRole, 'Admin'>;
@@ -97,13 +102,10 @@ export type Assignments = Record<ScopeKind, string[]>;
 export const roleOptions: {
   value: CreatableRole;
   label: string;
-}[] = [
-  { value: 'Operator', label: 'Operator' },
-  { value: 'SalesManager', label: 'Sales Manager' },
-  { value: 'WarehouseKeeper', label: 'Warehouse Keeper' },
-  { value: 'Sales', label: 'Sales' },
-  { value: 'Retailer', label: 'Retailer' },
-];
+}[] = CREATABLE_ROLES.map((role) => ({
+  value: role,
+  label: roleLabel[role],
+}));
 
 export const assignmentKinds: Record<CreatableRole, ScopeKind[]> = {
   Operator: [],
