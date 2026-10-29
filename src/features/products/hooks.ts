@@ -1,6 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { useApiMutation } from '@/shared/hooks';
 import { productApi } from './api';
+import { saveProductDraft } from './saveDraft';
+
+export const useSaveProductDraft = () => useApiMutation(saveProductDraft, {
+  permission: 'products.manage', success: (p) => 'Đã lưu bản nháp ' + p.sku + '.',
+});
+export const useCreateReplacement = () => useApiMutation(productApi.replacement, {
+  permission: 'products.manage', success: (p) => 'Đã tạo bản thay thế ' + p.sku + '.',
+});
 
 export const useProducts = () =>
   useQuery({

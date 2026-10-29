@@ -80,7 +80,12 @@ export const APP_ROUTES: AppRoute[] = [
   { key: 'gifts', label: 'Danh mục quà đổi điểm', roles: [A], list: page(gifts, 'GiftsPage') },
   { key: 'regions', label: 'Khu vực & nhóm Sales', roles: [A, SM], list: page(regions, 'RegionsPage'), sub: [{ path: ':code', element: page(regions, 'GroupDetailPage') }] },
   { key: 'cats', label: 'Danh mục sản phẩm', roles: [A], list: page(categories, 'CategoriesPage'), sub: [{ path: ':code', element: page(categories, 'CategoryDetailPage') }] },
-  { key: 'skus', label: 'Sản phẩm (SKU)', roles: [A], list: page(products, 'ProductsPage'), sub: [{ path: ':sku', element: page(products, 'ProductDetailPage') }] },
+  { key: 'skus', label: 'Sản phẩm (SKU)', roles: [A], list: page(products, 'ProductsPage'), sub: [
+    { path: 'new', element: page(products, 'ProductCreatePage') },
+    { path: ':sku/edit', element: page(products, 'ProductEditPage') },
+    { path: ':sku/new-version', element: page(products, 'ProductReplacementPage') },
+    { path: ':sku', element: page(products, 'ProductDetailPage') },
+  ] },
   { key: 'whs', label: 'Kho', roles: [A], list: page(warehouses, 'WarehousesPage'), sub: [{ path: ':code', element: page(warehouses, 'WarehouseDetailPage') }] },
   { key: 'users', label: 'Người dùng', roles: [A], list: page(users, 'UsersPage'), sub: [{ path: ':id', element: page(users, 'UserDetailPage') }] },
   { key: 'kpi', label: 'KPI Sales', roles: [A, SM], list: page(kpi, 'KpiPage'), sub: [{ path: ':name', element: page(kpi, 'KpiDetailPage') }] },
