@@ -32,6 +32,45 @@ function readRetailer(body: Record<string, unknown>, existing?: DbRetailer) {
 }
 
 export function registerPartners(r: MockRouter) {
+  // OpenAPI /api/v1/regions endpoints
+  r.get('/regions', ({ query }) => {
+    const list = db.areas.map((a) => ({
+      id: mockGuid(a.code),
+      code: a.code,
+      name: a.name,
+      description: a.region || a.name,
+      isActive: true,
+      groups: db.groups.filter((g) => g.areaCode === a.code).map((g) => g.code),
+      retailerCount: db.retailers.filter((x) => x.areaCode === a.code).length,
+    }));
+    return paginate(list, query);
+  });
+  r.post('/regions', ({ body }) => {
+    const code = String(body?.code ?? '').trim().toUpperCase();
+    const name = String(body?.name ?? '').trim();
+    const errors: Record<string, string[]> = {};
+    if (!code) errors.code = ['Bắt buộc nhập.']; else if (db.areas.some((a) => a.code === code)) errors.code = ['Mã đã tồn tại.'];
+    if (!name) errors.name = ['Bắt buộc nhập.']; else if (db.areas.some((a) => a.name === name)) errors.name = ['Tên đã tồn tại.'];
+    if (Object.keys(errors).length) throw validation(errors);
+    const a = { code, name, region: body?.description ?? body?.region ?? 'Miền Nam', managerName: body?.managerName ?? 'Hồ Gia Bảo', wards: body?.wards ?? [] };
+    db.areas.push(a);
+    return { id: mockGuid(code), code, name, description: a.region, isActive: true };
+  });
+  r.get('/regions/:id', ({ params }) => {
+    const a = db.areas.find((x) => x.code === params.id || mockGuid(x.code) === params.id) ?? (() => { throw notFound(`Region ${params.id}`); })();
+    return { id: mockGuid(a.code), code: a.code, name: a.name, description: a.region, isActive: true };
+  });
+  r.put('/regions/:id', ({ params, body }) => {
+    const a = db.areas.find((x) => x.code === params.id || mockGuid(x.code) === params.id) ?? (() => { throw notFound(`Region ${params.id}`); })();
+    if (body?.name) a.name = String(body.name).trim();
+    if (body?.description) a.region = String(body.description).trim();
+    return { id: mockGuid(a.code), code: a.code, name: a.name, description: a.region, isActive: true };
+  });
+  r.patch('/regions/:id/status', ({ params, body }) => {
+    const a = db.areas.find((x) => x.code === params.id || mockGuid(x.code) === params.id) ?? (() => { throw notFound(`Region ${params.id}`); })();
+    return { id: mockGuid(a.code), code: a.code, name: a.name, isActive: body?.isActive ?? true };
+  });
+
   r.get('/areas', ({ query }) => paginate(db.areas.map((a) => ({ ...a, groups: db.groups.filter((g) => g.areaCode === a.code).map((g) => g.code), retailerCount: db.retailers.filter((x) => x.areaCode === a.code).length })), query));
   r.post('/areas', ({ body }) => {
     const code = String(body?.code ?? '').trim().toUpperCase();
@@ -46,32 +85,90 @@ export function registerPartners(r: MockRouter) {
   });
 
   const groupDto = (g: (typeof db.groups)[number]) => ({
-    ...g, areaName: areaName(g.areaCode), retailerCount: db.retailers.filter((x) => x.groupCode === g.code).length,
+    id: mockGuid(g.code),
+    regionId: mockGuid(g.areaCode),
+    regionCode: g.areaCode,
+    regionName: areaName(g.areaCode),
+    isActive: true,
+    ...g,
+    areaName: areaName(g.areaCode),
+    retailerCount: db.retailers.filter((x) => x.groupCode === g.code).length,
     memberRows: g.members.map((m) => { const k = db.kpi.find((x) => x.name === m); return { name: m, groupCode: g.code, revenueAfterPromo: k?.after ?? 0, revenueBeforePromo: k?.before ?? 0 }; }),
   });
   r.get('/sales-groups', ({ query }) => paginate(db.groups.map(groupDto), query));
-  r.get('/sales-groups/:code', ({ params }) => groupDto(db.groups.find((g) => g.code === params.code) ?? (() => { throw notFound(`Nhóm ${params.code}`); })()));
+  r.get('/sales-groups/:code', ({ params }) => groupDto(db.groups.find((g) => g.code === params.code || mockGuid(g.code) === params.code) ?? (() => { throw notFound(`Nhóm ${params.code}`); })()));
   const saveGroup = (code: string, body: Record<string, unknown>, create: boolean) => {
     const members = (body.members as string[]) ?? [];
     if (create) {
       if (!code) throw validation({ code: ['Bắt buộc nhập.'] });
       if (db.groups.some((g) => g.code === code)) throw validation({ code: ['Mã đã tồn tại.'] });
     }
-    if (!members.length) throw validation({ members: ['Chọn ít nhất một Sales.'] });
     // a Sales belongs to ONE group – moving them here removes them from the old one
-    db.groups.forEach((g) => { if (g.code !== code) g.members = g.members.filter((m) => !members.includes(m)); });
-    let g = db.groups.find((x) => x.code === code);
-    if (!g) { g = { code, areaCode: String(body.areaCode ?? 'Q12'), managerName: String(body.managerName ?? 'Hồ Gia Bảo'), members }; db.groups.push(g); }
-    else Object.assign(g, { areaCode: body.areaCode ?? g.areaCode, managerName: body.managerName ?? g.managerName, members });
+    if (members.length) {
+      db.groups.forEach((g) => { if (g.code !== code) g.members = g.members.filter((m) => !members.includes(m)); });
+    }
+    let g = db.groups.find((x) => x.code === code || mockGuid(x.code) === code);
+    if (!g) { g = { code, areaCode: String(body.areaCode ?? body.regionId ?? 'Q12'), managerName: String(body.managerName ?? 'Hồ Gia Bảo'), members }; db.groups.push(g); }
+    else Object.assign(g, { name: body.name ?? g.code, areaCode: body.areaCode ?? g.areaCode, managerName: body.managerName ?? g.managerName, members: members.length ? members : g.members });
     return groupDto(g);
   };
   r.post('/sales-groups', ({ body }) => saveGroup(String(body?.code ?? '').trim().toUpperCase(), body ?? {}, true));
   r.put('/sales-groups/:code', ({ params, body }) => saveGroup(params.code, body ?? {}, false));
+  r.patch('/sales-groups/:code/status', ({ params, body }) => {
+    const g = db.groups.find((x) => x.code === params.code || mockGuid(x.code) === params.code) ?? (() => { throw notFound(`Nhóm ${params.code}`); })();
+    return { ...groupDto(g), isActive: body?.isActive ?? true };
+  });
+
+  // OpenAPI /api/v1/territory-assignments/sales
+  r.get('/territory-assignments/sales', ({ query }) => {
+    const memberships = db.groups.flatMap((g) =>
+      g.members.map((name) => ({
+        id: mockGuid(`${g.code}-${name}`),
+        salesGroupId: mockGuid(g.code),
+        salesGroupCode: g.code,
+        userId: mockGuid(name),
+        userEmail: `${name.toLowerCase().replace(/\s+/g, '')}@example.com`,
+        userFullName: name,
+        assignedAt: '2026-01-01T00:00:00Z',
+        unassignedAt: null,
+        isActive: true,
+      }))
+    );
+    let list = memberships;
+    if (query.salesGroupId) list = list.filter((m) => m.salesGroupId === query.salesGroupId || m.salesGroupCode === query.salesGroupId);
+    if (query.userId) list = list.filter((m) => m.userId === query.userId || m.userFullName === query.userId);
+    return list;
+  });
+  r.put('/territory-assignments/sales/:userId', ({ params, body }) => {
+    const targetUserId = params.userId;
+    const destGroupId = String(body?.destinationSalesGroupId ?? '');
+    const destGroup = db.groups.find((g) => g.code === destGroupId || mockGuid(g.code) === destGroupId);
+    if (!destGroup) throw validation({ destinationSalesGroupId: ['Không tìm thấy nhóm bán hàng đích.'] });
+    const staffName = db.salesStaff.find((s) => s === targetUserId || mockGuid(s) === targetUserId) ?? targetUserId;
+    db.groups.forEach((g) => {
+      g.members = g.members.filter((m) => m !== staffName);
+    });
+    if (!destGroup.members.includes(staffName)) {
+      destGroup.members.push(staffName);
+    }
+    return {
+      id: mockGuid(`${destGroup.code}-${staffName}`),
+      salesGroupId: mockGuid(destGroup.code),
+      salesGroupCode: destGroup.code,
+      userId: mockGuid(staffName),
+      userEmail: `${staffName.toLowerCase().replace(/\s+/g, '')}@example.com`,
+      userFullName: staffName,
+      assignedAt: new Date().toISOString(),
+      unassignedAt: null,
+      isActive: true,
+    };
+  });
+
   r.get('/sales-staff', () => db.salesStaff.map((name) => ({ name, groupCode: db.groups.find((g) => g.members.includes(name))?.code ?? null })));
   r.post('/sales-staff/transfer', ({ body }) => {
     const { name, toGroup } = body ?? {};
     const from = db.groups.find((g) => g.members.includes(name));
-    const to = db.groups.find((g) => g.code === toGroup);
+    const to = db.groups.find((g) => g.code === toGroup || mockGuid(g.code) === toGroup);
     if (!to) throw validation({ toGroup: ['Chọn nhóm đích.'] });
     if (from?.code === to.code) throw validation({ toGroup: ['Nhóm đích phải khác nhóm hiện tại.'] });
     if (from) from.members = from.members.filter((m) => m !== name);
@@ -79,7 +176,28 @@ export function registerPartners(r: MockRouter) {
     return { name, fromGroup: from?.code ?? null, toGroup: to.code, effectiveDate: body?.effectiveDate ?? null };
   });
 
-  r.get('/retailers', ({ query }) => paginate(db.retailers.map(retailerDto), query, (x) => `${x.code} ${x.name} ${x.address} ${x.areaCode}`));
+  // OpenAPI /api/v1/territory-assignments/retailers
+  r.get('/territory-assignments/retailers', ({ query }) => {
+    const list = db.retailers.map((x) => ({
+      id: mockGuid(`ret-assign-${x.code}`),
+      retailerId: mockGuid(x.code),
+      retailerCode: x.code,
+      retailerName: x.name,
+      salesGroupId: mockGuid(x.groupCode),
+      salesGroupCode: x.groupCode,
+      assignedAt: '2026-01-01T00:00:00Z',
+      unassignedAt: null,
+      isActive: x.status === 'Active',
+    }));
+    return paginate(list, query);
+  });
+
+  r.get('/retailers', ({ query }) => {
+    let rows = db.retailers.map(retailerDto);
+    if (query.groupCode) rows = rows.filter((r) => r.groupCode === query.groupCode);
+    if (query.areaCode) rows = rows.filter((r) => r.areaCode === query.areaCode);
+    return paginate(rows, query, (x) => `${x.code} ${x.name} ${x.address} ${x.areaCode}`);
+  });
   r.get('/retailers/:code', ({ params }) => retailerDto(find(params.code)));
   r.post('/retailers', ({ body }) => {
     const x = readRetailer(body ?? {});

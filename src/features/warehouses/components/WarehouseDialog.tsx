@@ -283,7 +283,7 @@ export function WarehouseDialog({
           Khi lưu tọa độ, hệ thống tính lại khoảng cách đường bộ (Dijkstra) từ kho tới tất cả retailer – dùng cho bước B2a (phạm vi 20 km) và ETA.
         </div>
 
-        {generalError && <Callout tone="bad">{generalError}</Callout>}
+        {generalError && <Callout tone="danger">{generalError}</Callout>}
 
         <div className="form-sec" style={{ marginTop: 12 }}>
           <div className="form-sec-title" style={{ fontWeight: 700, marginBottom: 10 }}>

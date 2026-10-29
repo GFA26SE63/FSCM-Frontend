@@ -12,6 +12,16 @@ import type {
   WarehouseType,
 } from './types';
 
+interface RawWarehouseKeeper {
+  userId?: string;
+  userFullName?: string;
+  fullName?: string;
+  email?: string;
+  userEmail?: string;
+  assignedAt?: string;
+  isActive?: boolean;
+}
+
 interface RawWarehouse {
   id?: string;
   warehouseId?: string;
@@ -30,11 +40,13 @@ interface RawWarehouse {
   keeperUserId?: string | null;
   keeperName?: string | null;
   warehouseKeeperName?: string | null;
+  keepers?: RawWarehouseKeeper[] | null;
   capacityPallets?: number;
   capacity?: number;
   minStock?: number;
   minStockPerSku?: number;
   minRegionalStock?: number;
+  minimumStockThresholdCartons?: number;
   isActive?: boolean;
   status?: string;
   batchCount?: number;
@@ -195,7 +207,18 @@ function normalizeWarehouse(raw: RawWarehouse): Warehouse {
   const type = normalizeType(raw);
   const status = normalizeStatus(raw);
   const invList = raw.inventory ?? raw.batches;
-  const minStockVal = Number(raw.minStock ?? raw.minStockPerSku ?? raw.minRegionalStock);
+  const minStockVal = Number(
+    raw.minimumStockThresholdCartons ?? raw.minStock ?? raw.minStockPerSku ?? raw.minRegionalStock,
+  );
+  const firstKeeper = Array.isArray(raw.keepers) && raw.keepers[0] ? raw.keepers[0] : null;
+  const keeperId = firstKeeper?.userId ?? raw.keeperId ?? raw.keeperUserId ?? null;
+  const keeperName =
+    firstKeeper?.userFullName ??
+    firstKeeper?.fullName ??
+    raw.keeperName ??
+    raw.warehouseKeeperName ??
+    null;
+
   return {
     id: raw.id ?? raw.warehouseId,
     code: String(raw.code ?? raw.warehouseCode ?? ''),
@@ -204,8 +227,8 @@ function normalizeWarehouse(raw: RawWarehouse): Warehouse {
     lat: Number(raw.lat ?? raw.latitude ?? 0),
     lng: Number(raw.lng ?? raw.longitude ?? 0),
     type,
-    keeperId: raw.keeperId ?? raw.keeperUserId ?? null,
-    keeperName: raw.keeperName ?? raw.warehouseKeeperName ?? null,
+    keeperId,
+    keeperName,
     capacityPallets: Number(raw.capacityPallets ?? raw.capacity ?? 0),
     minStock: !Number.isNaN(minStockVal) && minStockVal > 0 ? minStockVal : type === 'Central' ? 80 : 30,
     isActive: status === 'Active',
@@ -400,7 +423,7 @@ export const warehouseApi = {
     ];
 
     try {
-      const ttRes = await get<{
+      let ttRes: {
         version?: number;
         maxServingDistanceMeters?: number;
         bands?: {
@@ -409,7 +432,14 @@ export const warehouseApi = {
           transitMinutes: number;
           estimatedCostAmount: number;
         }[];
-      }>('/transit-tables/active');
+      } | null = null;
+
+      try {
+        ttRes = await get('/transit-tables/current');
+      } catch {
+        ttRes = await get('/transit-tables/active');
+      }
+
       if (ttRes) {
         if (ttRes.version) transitTableVersion = ttRes.version;
         if (ttRes.maxServingDistanceMeters) {
@@ -506,14 +536,29 @@ export const warehouseApi = {
       });
     }
 
+    // OpenAPI CreateWarehouseRequest: code, name, type, address, latitude, longitude, providerPlaceId, minimumStockThresholdCartons (additionalProperties: false)
     const payload = {
-      ...body,
       code: codeUpper,
-      warehouseType: body.type,
+      name: body.name.trim(),
+      type: body.type,
+      address: body.address.trim(),
       latitude: body.lat,
       longitude: body.lng,
-      minStockPerSku: body.minStock,
-      isActive: body.status === 'Active',
+      providerPlaceId: null,
+      minimumStockThresholdCartons: Math.round(body.minStock || 0),
+      ...(env.useMock
+        ? {
+            warehouseType: body.type,
+            lat: body.lat,
+            lng: body.lng,
+            minStockPerSku: body.minStock,
+            minStock: body.minStock,
+            capacityPallets: body.capacityPallets,
+            keeperName: body.keeperName,
+            isActive: body.status === 'Active',
+            status: body.status,
+          }
+        : {}),
     };
 
     const res = await post<RawWarehouse>('/warehouses', payload);
@@ -539,19 +584,34 @@ export const warehouseApi = {
     });
 
     const target = env.useMock ? idOrCode : await resolveWarehouseId(idOrCode);
+    // OpenAPI UpdateWarehouseRequest: name, type, address, latitude, longitude, providerPlaceId, minimumStockThresholdCartons (NO code, additionalProperties: false)
     const payload = {
-      ...body,
-      code: codeUpper,
-      warehouseType: body.type,
+      name: body.name.trim(),
+      type: body.type,
+      address: body.address.trim(),
       latitude: body.lat,
       longitude: body.lng,
-      minStockPerSku: body.minStock,
-      isActive: body.status === 'Active',
+      providerPlaceId: null,
+      minimumStockThresholdCartons: Math.round(body.minStock || 0),
+      ...(env.useMock
+        ? {
+            code: codeUpper,
+            warehouseType: body.type,
+            lat: body.lat,
+            lng: body.lng,
+            minStockPerSku: body.minStock,
+            minStock: body.minStock,
+            capacityPallets: body.capacityPallets,
+            keeperName: body.keeperName,
+            isActive: body.status === 'Active',
+            status: body.status,
+          }
+        : {}),
     };
 
     const res = await put<RawWarehouse>(`/warehouses/${target}`, payload);
     const updated = rememberWarehouse(
-      normalizeWarehouse({ ...payload, ...res, id: isUuid(target) ? target : res?.id }),
+      normalizeWarehouse({ ...payload, ...res, code: codeUpper, id: isUuid(target) ? target : res?.id }),
     );
 
     if (!env.useMock && body.keeperId && isUuid(body.keeperId) && isUuid(target)) {
@@ -567,10 +627,11 @@ export const warehouseApi = {
 
   async updateStatus(idOrCode: string, isActive: boolean): Promise<Warehouse> {
     const target = env.useMock ? idOrCode : await resolveWarehouseId(idOrCode);
-    const res = await patch<RawWarehouse>(`/warehouses/${target}/status`, {
-      isActive,
-      status: isActive ? 'Active' : 'Paused',
-    });
+    // OpenAPI UpdateWarehouseStatusRequest: isActive (additionalProperties: false)
+    const payload = env.useMock
+      ? { isActive, status: isActive ? 'Active' : 'Paused' }
+      : { isActive };
+    const res = await patch<RawWarehouse>(`/warehouses/${target}/status`, payload);
     return rememberWarehouse(
       normalizeWarehouse({
         ...res,

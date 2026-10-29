@@ -26,7 +26,27 @@ const findBatch = (code: string) => db.batches.find((b) => b.code === code) ?? (
 // ---------- warehouses ----------
 // The server identifies a warehouse by guid as well as by code, and screens that join on the id
 // (run picking sheets, shipment parts) find nothing without it.
-const whDto = (w: DbWarehouse) => ({ ...w, id: mockGuid(w.code), minStock: w.minStock ?? (w.type === 'Central' ? 80 : 30), isActive: w.status === 'Active', batchCount: db.batches.filter((b) => b.warehouseCode === w.code && !b.disposed).length });
+const whDto = (w: DbWarehouse) => ({
+  ...w,
+  id: mockGuid(w.code),
+  latitude: w.lat,
+  longitude: w.lng,
+  minimumStockThresholdCartons: w.minStock ?? (w.type === 'Central' ? 80 : 30),
+  minStock: w.minStock ?? (w.type === 'Central' ? 80 : 30),
+  keepers: w.keeperName
+    ? [
+        {
+          userId: mockGuid(w.keeperName),
+          fullName: w.keeperName,
+          userFullName: w.keeperName,
+          email: `${w.keeperName.toLowerCase().replace(/\s+/g, '')}@example.com`,
+          isActive: true,
+        },
+      ]
+    : [],
+  isActive: w.status === 'Active',
+  batchCount: db.batches.filter((b) => b.warehouseCode === w.code && !b.disposed).length,
+});
 const findWh = (code: string) => db.warehouses.find((w) => w.code === code || mockGuid(w.code) === code) ?? (() => { throw notFound(`Kho ${code}`); })();
 
 // ---------- documents ----------
@@ -133,7 +153,7 @@ export function registerInventory(r: MockRouter) {
     if (Number.isNaN(Number(rawLng)) || rawLng === '' || rawLng === undefined) errors.lng = ['Phải là số.'];
     if (Object.keys(errors).length) throw validation(errors);
     const type = ((body.type ?? body.warehouseType) as 'Central' | 'Regional') ?? existing?.type ?? 'Regional';
-    const minStock = Number(body.minStock ?? body.minStockPerSku) || existing?.minStock || (type === 'Central' ? 80 : 30);
+    const minStock = Number(body.minimumStockThresholdCartons ?? body.minStock ?? body.minStockPerSku) || existing?.minStock || (type === 'Central' ? 80 : 30);
     const status = typeof body.isActive === 'boolean' ? (body.isActive ? 'Active' : 'Paused') : ((body.status as 'Active' | 'Paused') ?? existing?.status ?? 'Active');
     return { code, name: String(body.name), address: String(body.address), lat: Number(body.lat ?? body.latitude), lng: Number(body.lng ?? body.longitude), type, keeperName: (body.keeperName as string) || null, capacityPallets: Number(body.capacityPallets) || 0, minStock, status };
   };

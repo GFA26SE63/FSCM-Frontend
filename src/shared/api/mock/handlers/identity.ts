@@ -13,7 +13,22 @@ const DEMO: Record<string, { email: string; name: string }> = {
 };
 const ROLES = ['Admin', 'Operator', 'SalesManager', 'WarehouseKeeper', 'Sales', 'Retailer'];
 
-const userDto = (u: DbUser) => ({ ...u });
+const userDto = (u: DbUser) => ({
+  ...u,
+  email: u.loginName,
+  fullName: u.name,
+  isActive: u.status === 'Active',
+  identityProvider: 'Local',
+  createdAt: '2026-01-01T00:00:00Z',
+  updatedAt: '2026-01-01T00:00:00Z',
+  mustChangePassword: false,
+  scope: {
+    warehouseIds: [],
+    regionIds: [],
+    salesGroupIds: [],
+    retailerIds: [],
+  },
+});
 
 export function registerIdentity(r: MockRouter) {
   r.post('/auth/mock-token', ({ body }) => {

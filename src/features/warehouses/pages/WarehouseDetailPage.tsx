@@ -175,7 +175,8 @@ export function WarehouseDetailPage() {
               />
               {lowStockWarnings.length > 0 && (
                 <div style={{ marginTop: 14 }}>
-                  <Callout tone="warn" title="Dưới tồn tối thiểu:">
+                  <Callout tone="warn">
+                    <strong>Dưới tồn tối thiểu: </strong>
                     {lowStockWarnings.join(' · ')} – cần nhập bổ sung.
                   </Callout>
                 </div>
