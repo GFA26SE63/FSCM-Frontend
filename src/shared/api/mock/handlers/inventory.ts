@@ -26,8 +26,8 @@ const findBatch = (code: string) => db.batches.find((b) => b.code === code) ?? (
 // ---------- warehouses ----------
 // The server identifies a warehouse by guid as well as by code, and screens that join on the id
 // (run picking sheets, shipment parts) find nothing without it.
-const whDto = (w: DbWarehouse) => ({ ...w, id: mockGuid(w.code), batchCount: db.batches.filter((b) => b.warehouseCode === w.code).length });
-const findWh = (code: string) => db.warehouses.find((w) => w.code === code) ?? (() => { throw notFound(`Kho ${code}`); })();
+const whDto = (w: DbWarehouse) => ({ ...w, id: mockGuid(w.code), minStock: w.minStock ?? (w.type === 'Central' ? 80 : 30), isActive: w.status === 'Active', batchCount: db.batches.filter((b) => b.warehouseCode === w.code && !b.disposed).length });
+const findWh = (code: string) => db.warehouses.find((w) => w.code === code || mockGuid(w.code) === code) ?? (() => { throw notFound(`Kho ${code}`); })();
 
 // ---------- documents ----------
 const receiptDto = (x: DbReceipt) => ({ ...x, warehouseName: warehouseName(x.warehouseCode), batchCount: x.lines.length, totalQty: x.lines.reduce((a, l) => a + l.qty, 0), lines: x.lines.map((l) => ({ ...l, productName: product(l.sku).name })) });
@@ -113,9 +113,10 @@ export function registerInventory(r: MockRouter) {
     const retailerDistances = db.retailers.map((x) => {
       const km = db.retailerDist[x.code]?.[w.code] ?? 0;
       const q = quoteTransit(km, 'retailer', db.transit.bands, db.settings.dmaxRetailerKm);
-      return { retailerCode: x.code, retailerName: x.name, km, transitDays: q?.days ?? null, withinRange: !!q };
+      return { retailerCode: x.code, retailerName: x.name, km, transitDays: q?.days ?? null, estimatedCost: q?.cost ?? null, withinRange: !!q };
     });
-    return { ...whDto(w), retailerDistances };
+    const inventory = db.batches.filter((b) => b.warehouseCode === w.code).map(batchDto);
+    return { ...whDto(w), retailerDistances, inventory };
   });
   const readWh = (body: Record<string, unknown>, existing?: DbWarehouse) => {
     const errors: Record<string, string[]> = {};
@@ -126,10 +127,15 @@ export function registerInventory(r: MockRouter) {
     }
     if (!String(body.name ?? '').trim()) errors.name = ['Bắt buộc nhập.'];
     if (!String(body.address ?? '').trim()) errors.address = ['Bắt buộc nhập.'];
-    if (Number.isNaN(Number(body.lat)) || body.lat === '' || body.lat === undefined) errors.lat = ['Phải là số.'];
-    if (Number.isNaN(Number(body.lng)) || body.lng === '' || body.lng === undefined) errors.lng = ['Phải là số.'];
+    const rawLat = body.lat ?? body.latitude;
+    if (Number.isNaN(Number(rawLat)) || rawLat === '' || rawLat === undefined) errors.lat = ['Phải là số.'];
+    const rawLng = body.lng ?? body.longitude;
+    if (Number.isNaN(Number(rawLng)) || rawLng === '' || rawLng === undefined) errors.lng = ['Phải là số.'];
     if (Object.keys(errors).length) throw validation(errors);
-    return { code, name: String(body.name), address: String(body.address), lat: Number(body.lat), lng: Number(body.lng), type: (body.type as 'Central' | 'Regional') ?? 'Regional', keeperName: (body.keeperName as string) || null, capacityPallets: Number(body.capacityPallets) || 0, status: (body.status as 'Active' | 'Paused') ?? 'Active' };
+    const type = ((body.type ?? body.warehouseType) as 'Central' | 'Regional') ?? existing?.type ?? 'Regional';
+    const minStock = Number(body.minStock ?? body.minStockPerSku) || existing?.minStock || (type === 'Central' ? 80 : 30);
+    const status = typeof body.isActive === 'boolean' ? (body.isActive ? 'Active' : 'Paused') : ((body.status as 'Active' | 'Paused') ?? existing?.status ?? 'Active');
+    return { code, name: String(body.name), address: String(body.address), lat: Number(body.lat ?? body.latitude), lng: Number(body.lng ?? body.longitude), type, keeperName: (body.keeperName as string) || null, capacityPallets: Number(body.capacityPallets) || 0, minStock, status };
   };
   r.post('/warehouses', ({ body }) => {
     const w = readWh(body ?? {});
@@ -138,9 +144,21 @@ export function registerInventory(r: MockRouter) {
     Object.keys(db.retailerDist).forEach((k) => (db.retailerDist[k][w.code] = 15 + (w.code.charCodeAt(4) % 20)));
     return whDto(w);
   });
+  r.patch('/warehouses/:code/status', ({ params, body }) => {
+    const w = findWh(params.code);
+    const isActive = typeof body?.isActive === 'boolean' ? body.isActive : w.status !== 'Active';
+    w.status = isActive ? 'Active' : 'Paused';
+    return whDto(w);
+  });
   r.put('/warehouses/:code', ({ params, body }) => {
     const w = findWh(params.code);
     Object.assign(w, readWh(body ?? {}, w));
+    return whDto(w);
+  });
+  r.patch('/warehouses/:code/status', ({ params, body }) => {
+    const w = findWh(params.code);
+    const isActive = typeof body?.isActive === 'boolean' ? body.isActive : w.status !== 'Active';
+    w.status = isActive ? 'Active' : 'Paused';
     return whDto(w);
   });
 

@@ -13,7 +13,7 @@ export interface DbProduct {
 
 export interface DbWarehouse {
   code: string; name: string; address: string; lat: number; lng: number; type: 'Central' | 'Regional';
-  keeperName: string | null; capacityPallets: number; status: 'Active' | 'Paused';
+  keeperName: string | null; capacityPallets: number; minStock?: number; status: 'Active' | 'Paused';
 }
 
 export interface DbArea { code: string; name: string; region: string; managerName: string; wards: string[] }
