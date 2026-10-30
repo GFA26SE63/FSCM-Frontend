@@ -59,7 +59,8 @@ export interface CreateUserInput {
   email: string;
   fullName: string;
   role: CreatableRole;
-  identityProvider: IdentityProvider;
+  phone: string;
+  password: string;
 }
 
 export interface CreatedUser {

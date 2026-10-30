@@ -105,7 +105,8 @@ export const userApi = {
       email: input.email,
       fullName: input.fullName,
       role: input.role,
-      identityProvider: input.identityProvider,
+      phone: input.phone,
+      password: input.password,
     });
   },
 
