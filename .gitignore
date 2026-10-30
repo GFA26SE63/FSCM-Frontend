@@ -9,6 +9,8 @@ pnpm-debug.log*
 dist/
 dist-ssr/
 coverage/
+playwright-report/
+test-results/
 *.tsbuildinfo
 .vite/
 
