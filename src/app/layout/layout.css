@@ -34,6 +34,14 @@
 /* login */
 .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--c-bg); padding: 24px; }
 .login-card { width: 440px; padding: 36px; display: flex; flex-direction: column; gap: 18px; }
+.password-input { position: relative; }
+.password-input .inp { padding-right: 42px; }
+.password-toggle { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 6px; background: transparent; color: var(--c-muted); cursor: pointer; }
+.password-toggle:hover:not(:disabled) { background: var(--c-surface-2); color: var(--c-primary); }
+.password-toggle:focus-visible { outline: 2px solid var(--c-primary); outline-offset: 1px; }
+.password-toggle:disabled { cursor: not-allowed; opacity: .55; }
+.login-options { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.login-options .link-btn:disabled { cursor: not-allowed; opacity: .55; }
 .role-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .role-card { border: 1px solid var(--c-border); background: #fff; border-radius: var(--radius-sm); padding: 10px 12px; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
 .role-card.active { border-color: var(--c-primary); background: var(--c-primary-soft); }
@@ -41,6 +49,8 @@
 .oauth-divider { display: flex; align-items: center; gap: 12px; color: var(--c-muted); font-size: 12px; }
 .oauth-divider::before, .oauth-divider::after { content: ''; flex: 1; height: 1px; background: var(--c-border); }
 .google-signin { min-height: 44px; display: flex; justify-content: center; }
+.google-login-button { width: 100%; min-height: 40px; display: flex; justify-content: center; }
+.google-login-button > div, .google-login-button iframe { width: 100% !important; }
 
 /* shared patterns used by feature pages */
 .link-btn { background: none; border: none; padding: 0; color: var(--c-primary); font-weight: 600; cursor: pointer; font-size: inherit; text-align: left; }

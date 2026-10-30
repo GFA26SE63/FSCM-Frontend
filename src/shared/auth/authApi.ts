@@ -56,6 +56,11 @@ export interface AuthenticationResult {
   user: BackendCurrentUser;
 }
 
+export interface PasswordResetRequestResult {
+  message: string;
+  resetToken?: string | null;
+}
+
 const identityHttp = axios.create({
   baseURL: `${env.apiBaseUrl}/api/v1/auth`,
   timeout: 20_000,
@@ -152,6 +157,21 @@ export const authApi = {
           'Backend không trả đủ thông tin phiên.',
         );
       }
+
+      return response.data;
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
+
+  async requestPasswordReset(
+    email: string,
+  ): Promise<PasswordResetRequestResult> {
+    try {
+      const response = await identityHttp.post<PasswordResetRequestResult>(
+        '/password-reset/request',
+        { email: email.trim() },
+      );
 
       return response.data;
     } catch (error) {
