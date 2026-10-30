@@ -18,6 +18,7 @@ export const useUser = (id: string) =>
 
 export const useSetUserStatus = () =>
   useApiMutation(userApi.setStatus, {
+    permission: 'users.manage',
     success: (_, input) =>
       input.isActive
         ? 'Đã bật tài khoản.'

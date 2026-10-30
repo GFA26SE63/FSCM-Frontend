@@ -43,9 +43,9 @@ interface BackendCurrentUser {
   email: string;
   fullName: string;
   role: string;
-  mustChangePassword: boolean;
-  scope: IdentityScope;
-  scopeLabels: IdentityScopeLabels;
+  mustChangePassword?: boolean;
+  scope?: IdentityScope;
+  scopeLabels?: IdentityScopeLabels;
 }
 
 export interface AuthenticationResult {
@@ -66,7 +66,7 @@ const identityHttp = axios.create({
 });
 
 function mapCurrentUser(user: BackendCurrentUser): CurrentUser {
-  if (!isPortalRole(user.role)) {
+  if (!user || !isPortalRole(user.role)) {
     throw new ApiError(
       403,
       'Không có quyền truy cập Portal',
@@ -74,16 +74,21 @@ function mapCurrentUser(user: BackendCurrentUser): CurrentUser {
     );
   }
 
+  const warehouseCode =
+    user.scopeLabels?.warehouses?.[0]?.code ?? null;
+  const areaCodes =
+    user.scopeLabels?.regions?.map((region) => region.code) ?? [];
+
   return {
-    id: user.id,
+    id: String(user.id),
     name: user.fullName,
     email: user.email,
     role: user.role,
-    mustChangePassword: user.mustChangePassword,
+    mustChangePassword: Boolean(user.mustChangePassword),
     scope: user.scope,
     scopeLabels: user.scopeLabels,
-    warehouseCode: user.scopeLabels.warehouses[0]?.code ?? null,
-    areaCodes: user.scopeLabels.regions.map((region) => region.code),
+    warehouseCode,
+    areaCodes,
   };
 }
 
