@@ -48,12 +48,17 @@ interface BackendCurrentUser {
   scopeLabels?: IdentityScopeLabels;
 }
 
-export interface AuthenticationResult {
+interface BackendAuthenticationResult {
   accessToken: string;
   accessTokenExpiresAt: string;
   refreshToken: string;
   refreshTokenExpiresAt: string;
   user: BackendCurrentUser;
+}
+
+export interface AuthenticationResult
+  extends Omit<BackendAuthenticationResult, 'user'> {
+  user: CurrentUser;
 }
 
 export interface PasswordResetRequestResult {
@@ -103,7 +108,7 @@ export const authApi = {
     password: string,
   ): Promise<AuthenticationResult> {
     try {
-      const response = await identityHttp.post<AuthenticationResult>(
+      const response = await identityHttp.post<BackendAuthenticationResult>(
         '/login',
         {
           email: email.trim(),
@@ -122,7 +127,10 @@ export const authApi = {
         );
       }
 
-      return response.data;
+      return {
+        ...response.data,
+        user: mapCurrentUser(response.data.user),
+      };
     } catch (error) {
       throw toApiError(error);
     }
@@ -137,7 +145,7 @@ export const authApi = {
     googleIdToken: string,
   ): Promise<AuthenticationResult> {
     try {
-      const response = await identityHttp.post<AuthenticationResult>(
+      const response = await identityHttp.post<BackendAuthenticationResult>(
         '/google/exchange',
         undefined,
         {
@@ -158,7 +166,10 @@ export const authApi = {
         );
       }
 
-      return response.data;
+      return {
+        ...response.data,
+        user: mapCurrentUser(response.data.user),
+      };
     } catch (error) {
       throw toApiError(error);
     }

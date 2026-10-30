@@ -11,7 +11,11 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { ApiError, errorMessage } from '../api/errors';
 import { tokenStore } from './tokenStore';
-import { authApi, type CurrentUser } from './authApi';
+import {
+  authApi,
+  type AuthenticationResult,
+  type CurrentUser,
+} from './authApi';
 import { type PortalRole } from './roles';
 
 type AuthStatus =
@@ -127,10 +131,7 @@ export function AuthProvider({
 
   const authenticate = useCallback(
     async (
-      acquireSession: () => Promise<{
-        accessToken: string;
-        refreshToken?: string;
-      }>,
+      acquireSession: () => Promise<AuthenticationResult>,
     ): Promise<CurrentUser> => {
       if (loginBusy.current) {
         throw new ApiError(
@@ -162,7 +163,7 @@ export function AuthProvider({
           session.refreshToken,
         );
 
-        const currentUser = await authApi.me();
+        const currentUser = session.user;
 
         if (version.current !== currentVersion) {
           throw new ApiError(

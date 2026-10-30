@@ -61,4 +61,24 @@ test('remember-login UI never persists the password', () => {
   assert.match(loginSource, /Quên mật khẩu\?/);
   assert.match(loginSource, /aria-label=\{showPassword \? 'Ẩn mật khẩu' : 'Hiện mật khẩu'\}/);
   assert.match(loginSource, /width="368"/);
+  const mainSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/app/main.tsx'),
+    'utf8',
+  );
+  assert.match(mainSource, /GoogleOAuthProvider clientId=\{env\.google\.clientId\} locale="vi"/);
+});
+
+test('successful login uses the user returned with the session without a second me request', () => {
+  const contextSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/shared/auth/AuthContext.tsx'),
+    'utf8',
+  );
+
+  const authenticateBody = contextSource.slice(
+    contextSource.indexOf('const authenticate'),
+    contextSource.indexOf('const loginWithPassword'),
+  );
+
+  assert.match(authenticateBody, /const currentUser = session\.user/);
+  assert.doesNotMatch(authenticateBody, /authApi\.me\(\)/);
 });

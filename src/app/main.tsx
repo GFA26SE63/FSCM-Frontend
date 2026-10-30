@@ -11,7 +11,7 @@ function bootstrap() {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       {env.google.clientId ? (
-        <GoogleOAuthProvider clientId={env.google.clientId}>
+        <GoogleOAuthProvider clientId={env.google.clientId} locale="vi">
           {app}
         </GoogleOAuthProvider>
       ) : app}
