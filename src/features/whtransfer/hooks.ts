@@ -10,4 +10,3 @@ export const useTransferLookups = (enabled: boolean) => ({
   batches: useQuery({ queryKey: ['transfers', 'batches'], queryFn: transferApi.batches, enabled }),
 });
 export const useCreateTransfer = () => useApiMutation(transferApi.create, { success: (t) => `Đã tạo phiếu điều chuyển ${t.code} – Đang vận chuyển.` });
-export const useReceiveTransfer = () => useApiMutation(transferApi.receive, { success: (t) => `Kho ${t.toWarehouseName} đã nhận ${t.code}; batch đích ${t.destinationBatch}.` });

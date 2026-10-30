@@ -14,8 +14,8 @@
 | `405` — sai method | 2 |
 | **Tổng lời gọi trong `features/*/api.ts`** | **128** |
 
-Nguyên nhân gốc: Portal được dựng như prototype trên mock **trước khi** backend có, nên hai bên đặt
-tên và chọn khóa độc lập với nhau. Hiện `.env` để `VITE_USE_MOCK=true` nên chưa ai va phải.
+Nguyên nhân gốc: Portal và backend ban đầu được thiết kế độc lập, nên hai bên đặt tên và chọn khóa
+độc lập với nhau.
 
 Phân loại dưới đây **đã sửa tay** sau khi đối chiếu từng controller — bản phân loại tự động xếp nhầm
 một số endpoint vào "chưa có" trong khi backend đã có dưới tên khác.
@@ -29,16 +29,11 @@ một số endpoint vào "chưa có" trong khi backend đã có dưới tên kh�
 | Cổng API | `.env` → `VITE_API_BASE_URL=http://localhost:5080` | **5246** (theo `launchSettings.json`) |
 | Môi trường khi chạy API | chạy kèm `--no-launch-profile` → `Hosting environment: Production` → không nạp `appsettings.Development.json` → không có connection string → **mọi request 500** | chạy `--launch-profile http` (profile này set `ASPNETCORE_ENVIRONMENT=Development`) |
 
-### 0b. Tắt mock là không đăng nhập được
+### 0b. Đăng nhập API thật — đã xử lý
 
-Với `VITE_USE_MOCK=false`, màn login **chỉ còn SSO Microsoft / Google**. Entra chưa cấu hình nên
-không bấm được, và không có đường nhập email + mật khẩu — **trong khi backend có sẵn
-`POST /auth/login`** nhận email + mật khẩu và trả JWT (đã thử, `200`).
-
-Hệ quả: hiện **không ai trong nhóm kiểm được Portal với API thật qua giao diện**. Cách duy nhất là
-lấy token bằng `curl` rồi nhét vào `sessionStorage['fscm.portal.token']`.
-
-Cần một trong hai: thêm form email/mật khẩu vào màn login khi chạy dev, hoặc cấu hình Entra.
+Màn login hỗ trợ cả email/mật khẩu và Google. Google ID token được
+đổi tại `POST /api/v1/auth/google/exchange`; nếu chưa cấu hình `VITE_GOOGLE_CLIENT_ID`, người dùng
+vẫn có thể đăng nhập bằng tài khoản FSCM cục bộ.
 
 ### 0c. `/notifications` hỏng trên **mọi** màn
 
@@ -108,7 +103,7 @@ Portal gửi **mã nghiệp vụ** (`DH-001024`, `SKU001`, `CAT-01`), route back
 `{id:guid}` nên không khớp.
 
 **Cách sửa:** thêm `id` (GUID) vào DTO trả về của endpoint danh sách, đổi route param ở
-`app/routes.tsx`, đổi `api.ts` sang gọi theo `id`, và **sửa mock trả `id` theo**.
+`app/routes.tsx`, rồi đổi `api.ts` sang gọi theo `id`.
 
 | Feature | Lời gọi | Backend thực có |
 | --- | --- | --- |
@@ -176,8 +171,8 @@ Nhóm này **không sửa cơ học được**, phải thống nhất tên giữ
 
 ## 3. Nhóm C — backend chưa có (46 lời gọi)
 
-**Không phải lỗi.** Phần lớn là tính năng S2/S3 chưa tới lượt. Ghi ra để biết màn nào hiện mới chỉ
-sống trên mock.
+**Không phải lỗi.** Phần lớn là tính năng S2/S3 chưa tới lượt. Ghi ra để biết màn nào chưa thể hoạt
+động cho đến khi backend hỗ trợ.
 
 | Feature Portal | Lời gọi chưa có backend |
 | --- | --- |
@@ -209,14 +204,13 @@ trang. Helper trong `shared/api/http.ts` khác nhau theo đó:
 
 Dùng nhầm `getAll` cho endpoint trả mảng thuần thì nó đọc `.items` của mảng, nhận `undefined`, và
 màn hình **rỗng mà không báo lỗi gì**. Đã xảy ra hai lần: lịch sử bảng vận chuyển (F54-FE), rồi danh
-sách khuyến mãi (F24-FE). Cả hai đều không bị `tsc` bắt và không lộ ra khi chạy mock.
+sách khuyến mãi (F24-FE). Cả hai đều không bị `tsc` bắt.
 
 ---
 
 ## 5. Quy tắc khi sửa
 
-1. **Sửa mock theo shape thật của server** rồi mới đóng việc. Mock trả shape cũ thì `tsc` vẫn xanh,
-   chạy mock vẫn xanh, chỉ gãy khi nối API thật.
+1. **Kiểm response thật của server** rồi mới đóng việc. `tsc` vẫn xanh khi JSON runtime sai shape.
 2. Kiểm bằng cách bật API thật rồi gọi thử, đừng tin phép so khớp đường dẫn trên giấy — phép so tĩnh
    coi `/{code}` và `/{id:guid}` là một route và cho ra con số sai (70 thay vì 89).
 3. Tài khoản dev để kiểm: `admin@fscm.local` (và `operator@`, `sales@`, `warehouse.keeper@`,
@@ -235,8 +229,7 @@ rồi đối chiếu với mọi lời gọi trong `features/*/api.ts`. Không c
 | Khớp route backend | 88 |
 | **Không khớp** | **43 path, nằm ở 15 feature** |
 
-**`.env` giờ là `VITE_USE_MOCK=false`.** Câu "chưa ai va phải" trong phần trên **không còn đúng**:
-Portal đang gọi API thật, nên mỗi path dưới đây là một màn hỏng thật chứ không phải rủi ro trên giấy.
+Portal gọi API thật, nên mỗi path dưới đây là một màn hỏng thật chứ không phải rủi ro trên giấy.
 
 Hai loại khác hẳn nhau, đừng xử lý chung:
 
@@ -274,6 +267,5 @@ Hai loại khác hẳn nhau, đừng xử lý chung:
 console im, network tab trông bình thường. Lỗi này đã bắt được **ba lần riêng biệt**. `getAll` giờ
 nhận cả hai hình dạng.
 
-Mock cũng đang dạy sai: nó phân trang `/warehouses` trong khi server trả mảng, và bỏ mất `id` của
-kho. Đã sửa cho khớp server. Chỗ nào mock còn khác server thì nó không phải mock — nó là một
-contract thứ hai không ai ký.
+Portal từng phân trang `/warehouses` trong khi server trả mảng, và bỏ mất `id` của kho. Hai điểm này
+đã được sửa cho khớp server.

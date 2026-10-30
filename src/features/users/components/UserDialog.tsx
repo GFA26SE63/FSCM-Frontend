@@ -336,7 +336,7 @@ export function UserDialog({ user, onClose }: Props) {
             ) : (
               <p>
                 Phương thức đăng nhập ban đầu:
-                Microsoft Entra.
+                Google.
               </p>
             )}
           </div>
@@ -419,8 +419,8 @@ export function UserDialog({ user, onClose }: Props) {
                       label: 'Email và mật khẩu',
                     },
                     {
-                      value: 'Entra',
-                      label: 'Microsoft Entra ID',
+                      value: 'Google',
+                      label: 'Google',
                     },
                   ]}
                   onChange={(event) =>

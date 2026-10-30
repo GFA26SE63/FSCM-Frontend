@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
 import { Button, Card, DataTable, PageHeader, SimpleTable, StatusChip, type Column } from '@/shared/ui';
 import { formatCases, formatDate, statusLabel } from '@/shared/lib';
-import { useReceiveTransfer, useReplenishmentSuggestions, useTransfers } from '../hooks';
+import { useReplenishmentSuggestions, useTransfers } from '../hooks';
 import { TransferDialog } from '../components/TransferDialog';
 import type { ReplenishmentSuggestion, Transfer, TransferInput } from '../types';
 
@@ -10,7 +10,6 @@ export function TransfersPage() {
   const navigate = useNavigate();
   const query = useTransfers();
   const suggestions = useReplenishmentSuggestions();
-  const receive = useReceiveTransfer();
   const [dialog, setDialog] = useState<{ initial?: Partial<TransferInput> } | null>(null);
 
   const columns: Column<Transfer>[] = [
@@ -59,7 +58,6 @@ export function TransfersPage() {
         rowActions={(t) => (
           <>
             <Button size="sm" onClick={() => navigate(`/whtransfer/${t.code}`)}>Xem</Button>
-            {t.status === 'InTransit' && <Button size="sm" variant="primary" onClick={() => receive.mutate(t.code)}>Xác nhận nhận</Button>}
           </>
         )}
       />

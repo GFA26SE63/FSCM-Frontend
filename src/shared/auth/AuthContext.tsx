@@ -10,14 +10,9 @@ import {
 } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ApiError, errorMessage } from '../api/errors';
-import { env } from '../lib/env';
 import { tokenStore } from './tokenStore';
 import { authApi, type CurrentUser } from './authApi';
-import { acquireMicrosoftIdToken } from './externalAuth';
-import {
-  DEMO_ACCOUNTS,
-  type PortalRole,
-} from './roles';
+import { type PortalRole } from './roles';
 
 type AuthStatus =
   | 'loading'
@@ -29,22 +24,12 @@ interface AuthState {
   user: CurrentUser | null;
   sessionMessage: string | null;
 
-  login: (
-    email: string,
-    password: string,
-    role?: PortalRole,
-  ) => Promise<CurrentUser>;
-
   loginWithPassword: (
     email: string,
     password: string,
   ) => Promise<CurrentUser>;
 
-  loginWithMicrosoft: () => Promise<CurrentUser>;
-
-  switchRole: (
-    role: PortalRole,
-  ) => Promise<CurrentUser>;
+  loginWithGoogle: (googleIdToken: string) => Promise<CurrentUser>;
 
   logout: () => void;
 }
@@ -85,7 +70,7 @@ export function AuthProvider({
 
     clearSession();
 
-    if (!env.useMock && refreshToken) {
+    if (refreshToken) {
       void authApi.logout(refreshToken).catch(() => {
         // Phiên trên FE đã được xóa.
         // Chỉ hiển thị nếu chưa bắt đầu một phiên khác.
@@ -203,78 +188,23 @@ export function AuthProvider({
     [clearSession, queryClient],
   );
 
-  const login = useCallback(
-    async (
-      email: string,
-      password: string,
-      role?: PortalRole,
-    ): Promise<CurrentUser> => {
-      if (!env.useMock) {
-        throw new ApiError(
-          403,
-          'Đăng nhập demo đã bị tắt',
-        );
-      }
-
-      return authenticate(() =>
-        authApi.mockToken({ email, password, role }),
-      );
-    },
-    [authenticate],
-  );
-
   const loginWithPassword = useCallback(
     async (
       email: string,
       password: string,
     ): Promise<CurrentUser> => {
-      if (env.useMock) {
-        return login(email, password);
-      }
-
       return authenticate(() =>
         authApi.loginLocal(email, password),
       );
     },
-    [authenticate, login],
+    [authenticate],
   );
 
-  const loginWithMicrosoft = useCallback(
-    async (): Promise<CurrentUser> => {
-      if (env.useMock) {
-        return login(
-          DEMO_ACCOUNTS.Admin.email,
-          'microsoft-demo',
-          'Admin',
-        );
-      }
-
-      return authenticate(async () => {
-        const microsoftIdToken =
-          await acquireMicrosoftIdToken();
-
-        return authApi.exchangeEntra(microsoftIdToken);
-      });
+  const loginWithGoogle = useCallback(
+    async (googleIdToken: string): Promise<CurrentUser> => {
+      return authenticate(() => authApi.exchangeGoogle(googleIdToken));
     },
-    [authenticate, login],
-  );
-
-  const switchRole = useCallback(
-    async (role: PortalRole): Promise<CurrentUser> => {
-      if (!env.useMock) {
-        throw new ApiError(
-          403,
-          'Không được đổi vai trò trong phiên thật',
-        );
-      }
-
-      return login(
-        DEMO_ACCOUNTS[role].email,
-        'demo-switch',
-        role,
-      );
-    },
-    [login],
+    [authenticate],
   );
 
   const value = useMemo<AuthState>(
@@ -282,20 +212,16 @@ export function AuthProvider({
       status,
       user,
       sessionMessage,
-      login,
       loginWithPassword,
-      loginWithMicrosoft,
-      switchRole,
+      loginWithGoogle,
       logout,
     }),
     [
       status,
       user,
       sessionMessage,
-      login,
       loginWithPassword,
-      loginWithMicrosoft,
-      switchRole,
+      loginWithGoogle,
       logout,
     ],
   );

@@ -1,17 +1,12 @@
 import { matchPath } from 'react-router-dom';
 import { useRef, useState } from 'react';
+import { GoogleLogin } from '@react-oauth/google';
 import {
   Navigate,
   useLocation,
 } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
-import { externalAuthConfig } from '@/shared/auth/externalAuth';
-import {
-  DEMO_ACCOUNTS,
-  PORTAL_ROLES,
-  roleLabel,
-  type PortalRole,
-} from '@/shared/auth/roles';
+import { type PortalRole } from '@/shared/auth/roles';
 import { errorMessage } from '@/shared/api/errors';
 import { env } from '@/shared/lib/env';
 import {
@@ -21,7 +16,7 @@ import {
 } from '@/shared/ui';
 import { APP_ROUTES, HOME_BY_ROLE } from '../routes';
 
-type LoginMethod = 'password' | 'microsoft';
+type LoginMethod = 'password' | 'google';
 
 function getReturnPath(
   state: unknown,
@@ -78,23 +73,16 @@ export function LoginPage() {
     status,
     user,
     sessionMessage,
-    login,
     loginWithPassword,
-    loginWithMicrosoft,
+    loginWithGoogle,
   } = useAuth();
 
   const location = useLocation();
   const submitting = useRef(false);
 
-  const [role, setRole] = useState<PortalRole>('Admin');
+  const [email, setEmail] = useState('');
 
-  const [email, setEmail] = useState(
-    env.useMock ? DEMO_ACCOUNTS.Admin.email : '',
-  );
-
-  const [password, setPassword] = useState(
-    env.useMock ? '12345678' : '',
-  );
+  const [password, setPassword] = useState('');
 
   const [busy, setBusy] =
     useState<LoginMethod | null>(null);
@@ -117,35 +105,22 @@ export function LoginPage() {
     return <Navigate to={destination} replace />;
   }
 
-  const pickRole = (nextRole: PortalRole) => {
-    setRole(nextRole);
-    setEmail(DEMO_ACCOUNTS[nextRole].email);
-    setError(null);
-  };
-
-  const submit = async (method: LoginMethod) => {
+  const submitPassword = async () => {
     if (submitting.current) return;
 
     if (
-      method === 'password' &&
-      (!email.trim() || !password)
+      !email.trim() || !password
     ) {
       setError('Vui lòng nhập email và mật khẩu.');
       return;
     }
 
     submitting.current = true;
-    setBusy(method);
+    setBusy('password');
     setError(null);
 
     try {
-      if (method === 'microsoft') {
-        await loginWithMicrosoft();
-      } else if (env.useMock) {
-        await login(email.trim(), password, role);
-      } else {
-        await loginWithPassword(email.trim(), password);
-      }
+      await loginWithPassword(email.trim(), password);
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -156,6 +131,22 @@ export function LoginPage() {
 
   const isBusy = busy !== null;
 
+  const submitGoogle = async (googleIdToken: string) => {
+    if (submitting.current) return;
+    submitting.current = true;
+    setBusy('google');
+    setError(null);
+
+    try {
+      await loginWithGoogle(googleIdToken);
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      submitting.current = false;
+      setBusy(null);
+    }
+  };
+
   return (
     <div className="login-wrap">
       <form
@@ -163,7 +154,7 @@ export function LoginPage() {
         aria-busy={isBusy}
         onSubmit={(event) => {
           event.preventDefault();
-          void submit('password');
+          void submitPassword();
         }}
       >
         <div>
@@ -189,36 +180,6 @@ export function LoginPage() {
           <div className="callout" role="alert">
             {error}
           </div>
-        )}
-
-        {env.useMock && (
-          <>
-            <div className="callout callout-info">
-              Chế độ demo: chọn vai trò để kiểm thử.
-            </div>
-
-            <div
-              className="role-cards"
-              role="radiogroup"
-              aria-label="Vai trò demo"
-            >
-              {PORTAL_ROLES.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  role="radio"
-                  aria-checked={role === item}
-                  disabled={isBusy}
-                  className={
-                    `role-card${role === item ? ' active' : ''}`
-                  }
-                  onClick={() => pickRole(item)}
-                >
-                  {roleLabel[item]}
-                </button>
-              ))}
-            </div>
-          </>
         )}
 
         <FormField label="Email">
@@ -257,35 +218,43 @@ export function LoginPage() {
           loading={busy === 'password'}
           disabled={isBusy}
         >
-          {env.useMock ? 'Đăng nhập demo' : 'Đăng nhập'}
+          Đăng nhập
         </Button>
 
-        {!env.useMock && (
-          <>
+        <>
             <div className="oauth-divider">
               <span>hoặc</span>
             </div>
 
-            <Button
-              type="button"
-              loading={busy === 'microsoft'}
-              disabled={
-                isBusy ||
-                !externalAuthConfig.microsoftConfigured
-              }
-              onClick={() => void submit('microsoft')}
-            >
-              Đăng nhập bằng Microsoft
-            </Button>
+            {env.google.clientId && !isBusy && (
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <GoogleLogin
+                  text="signin_with"
+                  onSuccess={(response) => {
+                    if (response.credential) {
+                      void submitGoogle(response.credential);
+                    } else {
+                      setError('Google không trả về ID token. Hãy thử lại.');
+                    }
+                  }}
+                  onError={() =>
+                    setError('Đăng nhập Google thất bại. Hãy thử lại.')
+                  }
+                />
+              </div>
+            )}
 
-            {!externalAuthConfig.microsoftConfigured && (
+            {busy === 'google' && (
+              <p className="muted small">Đang đăng nhập bằng Google…</p>
+            )}
+
+            {!env.google.clientId && (
               <p className="muted small">
-                Đăng nhập Microsoft chưa sẵn sàng.
+                Đăng nhập Google chưa sẵn sàng.
                 Bạn vẫn có thể dùng tài khoản FSCM.
               </p>
             )}
-          </>
-        )}
+        </>
       </form>
     </div>
   );

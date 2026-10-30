@@ -2,7 +2,7 @@ import type { AppRole } from '@/shared/auth/roles';
 
 export type UserRole = AppRole;
 export type CreatableRole = Exclude<UserRole, 'Admin'>;
-export type IdentityProvider = 'Local' | 'Entra';
+export type IdentityProvider = 'Local' | 'Google';
 
 export interface User {
   id: string;

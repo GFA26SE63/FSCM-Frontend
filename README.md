@@ -6,14 +6,12 @@ Web cho Admin, Operator, Warehouse Keeper, Sales Manager (FA26SE083 · GFA26SE63
 
 ```bash
 npm install
-cp .env.example .env        # VITE_USE_MOCK=true: chạy không cần backend (dữ liệu mẫu prototype 27/09/2026)
+cp .env.example .env        # cấu hình URL backend và Google OAuth client ID
 npm run dev                 # http://localhost:5173
 npm run build               # tsc -b && vite build → dist/ (deploy Vercel)
 ```
 
-Đăng nhập mock: chọn vai trò, email demo (vd. `khoa.pm@fscm.local` – Admin), mật khẩu bất kỳ ≥ 6 ký tự. Sidebar có ô "Xem với vai trò (demo)" để đổi vai trò nhanh.
-
-Nối backend thật: `VITE_USE_MOCK=false`, cấu hình `VITE_API_BASE_URL`, `VITE_ENTRA_*` và `VITE_GOOGLE_CLIENT_ID`; backend cần đổi ID token tại `POST /api/v1/auth/external-login` thành JWT FSCM.
+Cấu hình `VITE_API_BASE_URL` và `VITE_GOOGLE_CLIENT_ID`; backend đổi Google ID token tại `POST /api/v1/auth/google/exchange` thành JWT FSCM.
 
 ## Kiến trúc và cấu trúc thư mục
 
@@ -22,7 +20,7 @@ Portal dùng kiến trúc feature-based. `app` lắp ráp ứng dụng, `shared`
 ```
 src/
 ├─ app/
-│  ├─ main.tsx              điểm vào browser, cài mock adapter trước khi render
+│  ├─ main.tsx              điểm vào browser
 │  ├─ App.tsx               root component
 │  ├─ providers.tsx         React Query, Auth và Toast providers
 │  ├─ router.tsx            ghép route, auth guard, role guard và lazy loading
@@ -33,10 +31,6 @@ src/
 │  ├─ api/
 │  │  ├─ http.ts            Axios duy nhất: base URL, Bearer, ProblemDetails → ApiError
 │  │  ├─ errors.ts/types.ts contract hạ tầng dùng chung
-│  │  └─ mock/              adapter chạy trong browser
-│  │     ├─ fixtures/       dữ liệu prototype dùng chung
-│  │     ├─ handlers/       route mock theo module, mô phỏng REST
-│  │     └─ engines/        thuật toán mô phỏng allocation/pricing/transit/rotation
 │  ├─ auth/                 session context, token store, external auth và guards
 │  ├─ router/               lớp tương thích router; feature không import router package trực tiếp
 │  ├─ hooks/                hook kỹ thuật dùng cho nhiều feature
@@ -68,7 +62,7 @@ mọi tầng có thể dùng shared/ui, shared/lib và shared/auth khi phù hợ
 - Query key được định nghĩa trong hook của feature, có chứa mọi filter ảnh hưởng response. Mutation phải invalidate/refetch đúng key liên quan.
 - `app/routes.tsx` là nguồn sự thật cho URL, menu và role; backend vẫn là nơi quyết định authorization cuối cùng.
 - Feature khác chỉ import qua `features/<x>/index.ts` nếu cần dùng public API; tránh import sâu vào `pages/` hoặc component nội bộ.
-- Không đưa business rule authoritative vào UI/mock engine. Engine mock chỉ phục vụ demo; khi nối backend, kết quả server thắng.
+- Không đưa business rule authoritative vào UI; kết quả server luôn là nguồn sự thật.
 - Khi thêm GraphQL, đặt client/provider ở `shared/api`, operation và hook ở feature. GraphQL dùng cho Query; command vẫn gọi REST theo API hiện tại. Sau REST mutation phải đồng bộ cả React Query cache và Apollo cache nếu cùng màn dùng hai nguồn.
 - Giữ alias `@/*`, TypeScript strict, lazy route và role guard theo pattern đang có. Không thêm global state nếu server state có thể do React Query/Apollo quản lý hoặc state chỉ thuộc một page.
 
@@ -78,8 +72,7 @@ mọi tầng có thể dùng shared/ui, shared/lib và shared/auth khi phù hợ
 2. Định nghĩa DTO theo response backend, sau đó viết API function và query/mutation hook.
 3. Tạo page chỉ sử dụng hook/component; xử lý loading/error bằng shared UI.
 4. Export route component trong `index.ts` và thêm đúng một khai báo vào `APP_ROUTES`.
-5. Nếu mock mode cần hỗ trợ, thêm handler vào module phù hợp và fixture tối thiểu; contract mock phải giống backend.
-6. Chạy `npm run lint` và `npm run build` trước khi bàn giao.
+5. Chạy `npm run lint` và `npm run build` trước khi bàn giao.
 
 Feature ↔ menu: dashboard · orders (chi tiết + **Giải thích phân bổ B1–B4** + chi phí giao ước tính) · debts (công nợ một phần, thu một lần) · **runpicking (Phiếu soạn theo đợt: lấy gom theo batch, chia về từng dòng đơn)** · picking · receipts · whtransfer · **rotation (Luân chuyển cận hạn: đề xuất, bảng điểm từng kho ứng viên, duyệt / sửa SL / bỏ qua)** · **fleet (Xe & người giao)** · batches · batchpromo · disposal · promos · retailers · loyalty · gifts · redeem · regions · categories · products (nháp / publish / inactive / clone) · warehouses · users (không tạo Admin) · kpi · complaints · config (**lịch ngày chạy đợt: giờ chốt + mốc nhắc**, trọng số phân bổ, trọng số luân chuyển, Dmax, **bảng vận chuyển dùng chung**, tỷ lệ điểm).
 
@@ -141,15 +134,12 @@ Cửa sổ "Giải thích phân bổ" đọc trace mà đợt 12:00 ghi lại, q
 - Đơn không đủ hàng được **ghi là thiếu**; đợt không tự từ chối đơn, không tự hạ MLOR, không nới bán
   kính, và không lấy batch của đơn trước để nhường đơn sau.
 
-Mock map engine theo-ngày sẵn có sang shape thật. Hai chỗ mock không làm được, đã ghi chú tại chỗ
-trong `orderView.ts`: chỉ giữ xếp hạng đầy đủ của lượt đầu, và không có dữ liệu `Released`.
-
 Endpoint phía đợt (trace, giá) key theo **định danh** chứ không theo mã đơn, nên `OrderDetail` có
-trường `id`; mock sinh id ổn định từ mã đơn bằng `mockGuid`.
+trường `id`.
 
 ## Contract FE ↔ BE: chỗ đã khớp và chỗ chưa
 
-Portal được dựng như prototype trên mock trước khi backend có; hai bên thiết kế độc lập. Đo bằng
+Portal và backend ban đầu được thiết kế độc lập. Đo bằng
 cách bật API thật (Azure dev DB) rồi gọi **đúng đường dẫn và đúng loại giá trị** Portal gửi, không
 đăng nhập — `401` nghĩa là route khớp, `404` nghĩa là không (23/10/2026):
 
@@ -165,7 +155,7 @@ cách bật API thật (Azure dev DB) rồi gọi **đúng đường dẫn và �
 **A. Route có sẵn, chỉ sai kiểu khóa — 23 chỗ.** Portal gửi mã nghiệp vụ (`DH-001024`, `SKU001`),
 route backend ràng buộc `{id:guid}` nên không khớp. Gặp ở `orders` (7), `products` (4),
 `categories`, `warehouses`, `users`, `sales-groups`, `retailers`, `goods-receipts`, `promotions`.
-Sửa được cơ học: thêm `id` vào DTO, đổi route param, sửa mock theo. `orders` và `promos` đã làm.
+Sửa được cơ học: thêm `id` vào DTO và đổi route param. `orders` và `promos` đã làm.
 
 **B. Cùng nhóm tài nguyên nhưng khác tên — 6 chỗ.** Phải thống nhất tên với backend:
 
@@ -180,7 +170,7 @@ Sửa được cơ học: thêm `id` vào DTO, đổi route param, sửa mock th
 **C. Backend chưa có tính năng — 60 chỗ.** `dashboard`, `notifications`, `complaints`, `disposal`,
 `gifts`, `redeem`, `loyalty`, `rotation`, `whtransfer`, `kpi`, `fleet`, `/settings`, `/areas`,
 `/sales-staff`, `/retailer-registrations`. Phần lớn là S2/S3 chưa làm — **không phải lỗi**, nhưng
-cũng có nghĩa là các màn đó mới chỉ chạy được trên mock.
+cũng có nghĩa là các màn đó chưa thể hoạt động cho đến khi backend hỗ trợ.
 
 **Danh sách: mảng thuần hay `{ items }`?** Backend không nhất quán, nên mỗi lời gọi phải chọn đúng
 helper. Đo trên API đang chạy (23/10/2026):
@@ -193,12 +183,12 @@ Dùng `getAll` cho một endpoint trả mảng thuần thì nó đọc `.items` 
 hình **rỗng không báo lỗi gì**. Đây là lỗi đã xảy ra hai lần (lịch sử bảng vận chuyển, rồi khuyến
 mãi), nên kiểm shape thật trước khi tin `tsc`.
 
-Khi sửa một feature cho khớp backend, **sửa cả mock theo shape thật** rồi mới đóng việc; mock trả
-shape cũ thì `tsc` vẫn xanh mà màn hình gãy lúc chạy.
+Khi sửa một feature cho khớp backend, kiểm tra response thật lúc chạy; `tsc` không xác minh được
+shape JSON do server trả về.
 
 ## Lệch contract Portal ↔ Backend
 
-Portal dựng trên mock trước khi backend có, nên hai bên đặt tên và chọn khóa độc lập. Đo ngày
+Portal và backend từng đặt tên và chọn khóa độc lập. Đo ngày
 23/10/2026 bằng cách gọi API thật: **89/128 lời gọi trong `features/*/api.ts` trả `404`**.
 
 Danh sách đầy đủ từng chỗ, chia theo cách xử lý (sai kiểu khóa / khác tên / backend chưa có), cùng
@@ -206,4 +196,4 @@ bẫy "mảng thuần vs `{ items }`": [docs/contract-gaps.md](docs/contract-gap
 
 ## Lưu ý khi nối API thật
 
-Kiểu dữ liệu trong `features/*/types.ts` đang khớp với mock handler. Khi backend chạy, sinh type từ Swagger (`npx openapi-typescript http://localhost:5080/swagger/v1/swagger.json -o src/shared/api/schema.d.ts`) rồi đối chiếu từng feature; chỗ nào lệch thì sửa một phía cho thống nhất (ưu tiên giữ tên trường của backend).
+Sinh type từ Swagger (`npx openapi-typescript http://localhost:5080/swagger/v1/swagger.json -o src/shared/api/schema.d.ts`) rồi đối chiếu từng feature; chỗ nào lệch thì sửa một phía cho thống nhất (ưu tiên giữ tên trường của backend).

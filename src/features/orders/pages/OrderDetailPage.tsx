@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { useParams } from '@/shared/router/compat';
 import { Button, Callout, Card, Chip, Fields, PageHeader, QueryState, SimpleTable, StatusChip } from '@/shared/ui';
 import { formatCases, formatDate, formatDateTime, formatHours, formatKm, formatMoney, formatPercent, formatScore, paymentLabel } from '@/shared/lib';
-import { env } from '@/shared/lib';
-import { useConfirmReceipt, useOrder, useOrderPrice } from '../hooks';
+import { useOrder, useOrderPrice } from '../hooks';
 import { AllocationTraceDialog } from '../components/AllocationTraceDialog';
 import { OrderActions } from '../components/OrderActions';
 import type { OrderDetail, OrderLineMlor } from '../types';
@@ -21,7 +20,6 @@ const allocationChip: Record<OrderDetail['allocationState'], string> = {
 
 function OrderBody({ o }: { o: OrderDetail }) {
   const [trace, setTrace] = useState(false);
-  const receipt = useConfirmReceipt();
   const price = useOrderPrice(o.id);
   return (
     <OrderActions>
@@ -36,9 +34,6 @@ function OrderBody({ o }: { o: OrderDetail }) {
               <div className="row-wrap">
                 <Button onClick={() => setTrace(true)}>Giải thích phân bổ (B1–B4)</Button>
                 {buttons(o.code, o.status, 'md')}
-                {env.useMock && o.status === 'Delivering' && (
-                  <Button loading={receipt.isPending} onClick={() => receipt.mutate(o.code)}>Giả lập quét QR nhận hàng</Button>
-                )}
               </div>
             }
           />

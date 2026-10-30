@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { get, post } from '../api/http';
+import { get } from '../api/http';
 import { ApiError, toApiError } from '../api/errors';
 import { env } from '../lib/env';
 import { isPortalRole, type PortalRole } from './roles';
@@ -33,7 +33,7 @@ export interface CurrentUser {
   scope?: IdentityScope;
   scopeLabels?: IdentityScopeLabels;
 
-  // Giữ tương thích với mock và UI hiện có.
+  // Normalize the API response for the current UI.
   warehouseCode?: string | null;
   areaCodes?: string[];
 }
@@ -119,24 +119,20 @@ export const authApi = {
   },
 
   async me(): Promise<CurrentUser> {
-    if (env.useMock) {
-      return get<CurrentUser>('/me');
-    }
-
     const user = await get<BackendCurrentUser>('/auth/me');
     return mapCurrentUser(user);
   },
 
-  async exchangeEntra(
-    microsoftIdToken: string,
+  async exchangeGoogle(
+    googleIdToken: string,
   ): Promise<AuthenticationResult> {
     try {
       const response = await identityHttp.post<AuthenticationResult>(
-        '/entra/exchange',
+        '/google/exchange',
         undefined,
         {
           headers: {
-            Authorization: `Bearer ${microsoftIdToken}`,
+            Authorization: `Bearer ${googleIdToken}`,
           },
         },
       );
@@ -164,23 +160,5 @@ export const authApi = {
     } catch (error) {
       throw toApiError(error);
     }
-  },
-
-  async mockToken(body: {
-    email: string;
-    password: string;
-    role?: PortalRole;
-  }): Promise<{ accessToken: string }> {
-    if (!env.useMock) {
-      throw new ApiError(
-        403,
-        'Đăng nhập demo đã bị tắt',
-      );
-    }
-
-    return post<{ accessToken: string }>(
-      '/auth/mock-token',
-      body,
-    );
   },
 };

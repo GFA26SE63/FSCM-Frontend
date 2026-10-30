@@ -1,22 +1,22 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { http } from '@/shared/api/http';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { env } from '@/shared/lib/env';
 import '@/shared/ui/styles.css';
 import './layout/layout.css';
 import { App } from './App';
 
-async function bootstrap() {
-  // Mock mode: swap axios' adapter for the in-browser API (prototype seed data + allocation / rotation engines).
-  if (env.useMock) {
-    const { installMock } = await import('@/shared/api/mock');
-    installMock(http);
-  }
+function bootstrap() {
+  const app = <App />;
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <App />
+      {env.google.clientId ? (
+        <GoogleOAuthProvider clientId={env.google.clientId}>
+          {app}
+        </GoogleOAuthProvider>
+      ) : app}
     </StrictMode>,
   );
 }
 
-void bootstrap();
+bootstrap();
