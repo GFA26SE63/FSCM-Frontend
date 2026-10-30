@@ -196,4 +196,4 @@ bẫy "mảng thuần vs `{ items }`": [docs/contract-gaps.md](docs/contract-gap
 
 ## Lưu ý khi nối API thật
 
-Sinh type từ Swagger (`npx openapi-typescript http://localhost:5080/swagger/v1/swagger.json -o src/shared/api/schema.d.ts`) rồi đối chiếu từng feature; chỗ nào lệch thì sửa một phía cho thống nhất (ưu tiên giữ tên trường của backend).
+Sinh type từ Swagger (`npx openapi-typescript http://localhost:5246/swagger/v1/swagger.json -o src/shared/api/schema.d.ts`) rồi đối chiếu từng feature; chỗ nào lệch thì sửa một phía cho thống nhất (ưu tiên giữ tên trường của backend).
