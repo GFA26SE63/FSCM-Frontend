@@ -83,17 +83,25 @@ export const productApi = {
   inactivate: (id: string) =>
     post<void>(path(id) + '/inactivate'),
 
-  setPrice: ({
+  setPrice: async ({
     id,
     unitPrice,
   }: {
     id: string;
     unitPrice: number;
-  }) =>
-    post<ProductPrice>(
+  }): Promise<ProductPrice> => {
+    const current = await productApi.get(id);
+    if (current.status !== 'Draft') {
+      throw new ApiError(409, 'Giá đã khóa', 'Chỉ bản nháp được chỉnh giá. Hãy tạo bản mới từ sản phẩm đã đăng bán.');
+    }
+    return post<ProductPrice>(
       path(id) + '/prices',
       { unitPrice },
-    ),
+    );
+  },
+
+  replacement: ({ id, ...input }: Omit<CreateProductInput, 'productCategoryId'> & { id: string }) =>
+    post<Product>(path(id) + '/replacement', input),
 
   clone: ({
     id,

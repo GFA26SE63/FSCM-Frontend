@@ -1,21 +1,20 @@
-import { useState } from 'react';
 import { Can } from '@/shared/auth/Can';
 import { useNavigate } from '@/shared/router/compat';
 
 import {
   Button,
   DataTable,
-  Modal,
+
   PageHeader,
-  QueryState,
+
   StatusChip,
   type Column,
 } from '@/shared/ui';
 
 import { statusLabels } from '@/shared/lib';
-import { useProduct, useProducts } from '../hooks';
+import { useProducts } from '../hooks';
 import { ProductActions } from '../components/ProductActions';
-import { ProductDialog } from '../components/ProductDialog';
+
 import { lifeText, priceText } from '../utils';
 
 import type { Product } from '../types';
@@ -23,10 +22,6 @@ import type { Product } from '../types';
 export function ProductsPage() {
   const navigate = useNavigate();
   const query = useProducts();
-
-  const [editing, setEditing] = useState<{
-    id: string | null;
-  } | null>(null);
 
   const columns: Column<Product>[] = [
     {
@@ -82,7 +77,7 @@ export function ProductsPage() {
     <>
       <PageHeader
         title="Sản phẩm (SKU)"
-        subtitle="Nháp → Đăng bán → Ngừng bán. Thông tin được khóa sau khi đăng bán; giá được quản lý riêng."
+        subtitle="Nháp → Đăng bán → Ngừng bán. Thông tin và giá được khóa sau khi đăng bán. Muốn chỉnh sửa, hãy tạo bản mới."
       />
 
       {query.error && (
@@ -127,7 +122,7 @@ export function ProductsPage() {
             <Button
               variant="primary"
               onClick={() =>
-                setEditing({ id: null })
+                navigate('/skus/new')
               }
             >
               + Thêm sản phẩm
@@ -151,75 +146,10 @@ export function ProductsPage() {
 
             <ProductActions
               p={p}
-              onEdit={() =>
-                setEditing({ id: p.id })
-              }
             />
           </>
         )}
       />
-
-      {editing && (
-        <EditHost
-          id={editing.id}
-          onClose={() => setEditing(null)}
-        />
-      )}
     </>
-  );
-}
-
-function EditHost({
-  id,
-  onClose,
-}: {
-  id: string | null;
-  onClose: () => void;
-}) {
-  const query = useProduct(id ?? '');
-
-  if (!id) {
-    return (
-      <ProductDialog
-        open
-        onClose={onClose}
-      />
-    );
-  }
-
-  if (
-    query.isLoading ||
-    query.error ||
-    !query.data
-  ) {
-    return (
-      <Modal
-        open
-        title="Tải sản phẩm"
-        onClose={onClose}
-      >
-        <QueryState query={query}>
-          {() => null}
-        </QueryState>
-
-        {query.error && (
-          <Button
-            onClick={() =>
-              void query.refetch()
-            }
-          >
-            Thử lại
-          </Button>
-        )}
-      </Modal>
-    );
-  }
-
-  return (
-    <ProductDialog
-      open
-      product={query.data}
-      onClose={onClose}
-    />
   );
 }

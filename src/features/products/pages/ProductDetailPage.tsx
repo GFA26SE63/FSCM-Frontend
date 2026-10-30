@@ -1,5 +1,3 @@
-import { useState } from 'react';
-
 import {
   Link,
   useNavigate,
@@ -19,7 +17,7 @@ import {
 import { formatDate } from '@/shared/lib';
 import { useProduct } from '../hooks';
 import { ProductActions } from '../components/ProductActions';
-import { ProductDialog } from '../components/ProductDialog';
+
 import { lifeText, priceText } from '../utils';
 
 export function ProductDetailPage() {
@@ -27,7 +25,6 @@ export function ProductDetailPage() {
 
   const navigate = useNavigate();
   const query = useProduct(productId);
-  const [editing, setEditing] = useState(false);
 
   return (
     <>
@@ -64,7 +61,7 @@ export function ProductDetailPage() {
                 <ProductActions
                   p={p}
                   size="md"
-                  onEdit={() => setEditing(true)}
+
                   onDeleted={() =>
                     navigate('/skus')
                   }
@@ -72,21 +69,23 @@ export function ProductDetailPage() {
               }
             />
 
-            {p.status !== 'Draft' && (
+            {p.status === 'Published' && (
               <Callout tone="neutral">
                 Thông tin sản phẩm đã khóa.
                 Dùng “Tạo bản mới” để tạo một
-                bản nháp độc lập. Giá được
-                quản lý riêng khi sản phẩm
-                còn hoạt động.
+                bản nháp thay thế. Giá và
+                thông tin không được sửa sau khi
+                đăng bán.
               </Callout>
             )}
+
+            {p.status === 'Inactive' && <Callout tone="neutral">Sản phẩm đã ngừng bán. Thông tin và giá chỉ được xem.</Callout>}
 
             {p.status === 'Draft' &&
               p.currentUnitPrice == null && (
                 <Callout tone="info">
                   Sản phẩm chưa có giá.
-                  Chọn “Cập nhật giá”
+                  Chọn “Sửa nháp / giá”
                   trước khi đăng bán.
                 </Callout>
               )}
@@ -174,17 +173,6 @@ export function ProductDetailPage() {
                 ]}
               />
             </Card>
-
-            {editing && (
-              <ProductDialog
-                key={p.id}
-                open
-                product={p}
-                onClose={() =>
-                  setEditing(false)
-                }
-              />
-            )}
           </>
         )}
       </QueryState>
