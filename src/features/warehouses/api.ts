@@ -1,6 +1,5 @@
-import { get, getAll, patch, post, put } from '@/shared/api/http';
-import { graphql } from '@/shared/api/graphql';
-import { env } from '@/shared/lib';
+import { get, getAll, patch, post, put } from "@/shared/api/http";
+import { graphql } from "@/shared/api/graphql";
 import type {
   RetailerDistance,
   Warehouse,
@@ -10,7 +9,7 @@ import type {
   WarehouseKeeperOption,
   WarehouseStatus,
   WarehouseType,
-} from './types';
+} from "./types";
 
 interface RawWarehouseKeeper {
   userId?: string;
@@ -73,7 +72,7 @@ interface RawInventoryItem {
   available?: number;
   quantityAvailable?: number;
   remainingDays?: number;
-  expiryStatus?: 'Normal' | 'NearExpiry' | 'Expired' | 'Disposed';
+  expiryStatus?: "Normal" | "NearExpiry" | "Expired" | "Disposed";
 }
 
 interface RawRetailerDistance {
@@ -154,46 +153,56 @@ const WAREHOUSE_DETAIL_BASIC_QUERY = `
 `;
 
 function isUuid(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    value,
+  );
 }
 
 function normalizeType(raw: RawWarehouse): WarehouseType {
-  const t = String(raw.type ?? raw.warehouseType ?? 'Regional').toLowerCase();
-  if (t === 'central' || t.includes('tổng') || t === '1') return 'Central';
-  return 'Regional';
+  const t = String(raw.type ?? raw.warehouseType ?? "Regional").toLowerCase();
+  if (t === "central" || t.includes("tổng") || t === "1") return "Central";
+  return "Regional";
 }
 
 function normalizeStatus(raw: RawWarehouse): WarehouseStatus {
-  if (typeof raw.isActive === 'boolean') return raw.isActive ? 'Active' : 'Paused';
-  if (raw.status === 'Paused' || raw.status === 'Inactive' || raw.status === 'Locked') return 'Paused';
-  return 'Active';
+  if (typeof raw.isActive === "boolean")
+    return raw.isActive ? "Active" : "Paused";
+  if (
+    raw.status === "Paused" ||
+    raw.status === "Inactive" ||
+    raw.status === "Locked"
+  )
+    return "Paused";
+  return "Active";
 }
 
 function normalizeInventoryItem(raw: RawInventoryItem): WarehouseInventoryItem {
   const available = Number(raw.available ?? raw.quantityAvailable ?? 0);
   const held = Number(raw.held ?? raw.reserved ?? raw.quantityReserved ?? 0);
   const onHand = Number(raw.onHand ?? raw.quantityOnHand ?? available + held);
-  const expiry = String(raw.expiry ?? raw.expiryDate ?? '').slice(0, 10);
+  const expiry = String(raw.expiry ?? raw.expiryDate ?? "").slice(0, 10);
   let remainingDays = raw.remainingDays;
   if (remainingDays === undefined && expiry) {
-    const diff = Math.ceil((new Date(expiry).getTime() - Date.now()) / 86400000);
+    const diff = Math.ceil(
+      (new Date(expiry).getTime() - Date.now()) / 86400000,
+    );
     if (Number.isFinite(diff)) remainingDays = diff;
   }
-  const expiryStatus: WarehouseInventoryItem['expiryStatus'] =
+  const expiryStatus: WarehouseInventoryItem["expiryStatus"] =
     raw.expiryStatus ??
     (remainingDays !== undefined
       ? remainingDays <= 0
-        ? 'Expired'
+        ? "Expired"
         : remainingDays <= 10
-          ? 'NearExpiry'
-          : 'Normal'
-      : 'Normal');
+          ? "NearExpiry"
+          : "Normal"
+      : "Normal");
 
   return {
     id: raw.id ?? raw.batchId,
-    code: String(raw.code ?? raw.batchCode ?? '—'),
-    sku: String(raw.sku ?? raw.productCode ?? '—'),
-    productName: String(raw.productName ?? raw.sku ?? raw.productCode ?? '—'),
+    code: String(raw.code ?? raw.batchCode ?? "—"),
+    sku: String(raw.sku ?? raw.productCode ?? "—"),
+    productName: String(raw.productName ?? raw.sku ?? raw.productCode ?? "—"),
     expiry,
     onHand,
     held,
@@ -208,10 +217,15 @@ function normalizeWarehouse(raw: RawWarehouse): Warehouse {
   const status = normalizeStatus(raw);
   const invList = raw.inventory ?? raw.batches;
   const minStockVal = Number(
-    raw.minimumStockThresholdCartons ?? raw.minStock ?? raw.minStockPerSku ?? raw.minRegionalStock,
+    raw.minimumStockThresholdCartons ??
+      raw.minStock ??
+      raw.minStockPerSku ??
+      raw.minRegionalStock,
   );
-  const firstKeeper = Array.isArray(raw.keepers) && raw.keepers[0] ? raw.keepers[0] : null;
-  const keeperId = firstKeeper?.userId ?? raw.keeperId ?? raw.keeperUserId ?? null;
+  const firstKeeper =
+    Array.isArray(raw.keepers) && raw.keepers[0] ? raw.keepers[0] : null;
+  const keeperId =
+    firstKeeper?.userId ?? raw.keeperId ?? raw.keeperUserId ?? null;
   const keeperName =
     firstKeeper?.userFullName ??
     firstKeeper?.fullName ??
@@ -221,24 +235,39 @@ function normalizeWarehouse(raw: RawWarehouse): Warehouse {
 
   return {
     id: raw.id ?? raw.warehouseId,
-    code: String(raw.code ?? raw.warehouseCode ?? ''),
-    name: String(raw.name ?? raw.warehouseName ?? ''),
-    address: String(raw.address ?? ''),
+    code: String(raw.code ?? raw.warehouseCode ?? ""),
+    name: String(raw.name ?? raw.warehouseName ?? ""),
+    address: String(raw.address ?? ""),
     lat: Number(raw.lat ?? raw.latitude ?? 0),
     lng: Number(raw.lng ?? raw.longitude ?? 0),
     type,
     keeperId,
     keeperName,
     capacityPallets: Number(raw.capacityPallets ?? raw.capacity ?? 0),
-    minStock: !Number.isNaN(minStockVal) && minStockVal > 0 ? minStockVal : type === 'Central' ? 80 : 30,
-    isActive: status === 'Active',
+    minStock:
+      !Number.isNaN(minStockVal) && minStockVal > 0
+        ? minStockVal
+        : type === "Central"
+          ? 80
+          : 30,
+    isActive: status === "Active",
     status,
-    batchCount: typeof raw.batchCount === 'number' ? raw.batchCount : Array.isArray(invList) ? invList.length : 0,
+    batchCount:
+      typeof raw.batchCount === "number"
+        ? raw.batchCount
+        : Array.isArray(invList)
+          ? invList.length
+          : 0,
   };
 }
 
 /** Road distance estimate (Haversine * 1.3 road factor, matching prototype roadKm) */
-export function estimateRoadKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+export function estimateRoadKm(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
   const toRad = (x: number) => (x * Math.PI) / 180;
   const R = 6371;
   const dLat = toRad(lat2 - lat1);
@@ -262,11 +291,16 @@ function quoteRetailerTransit(
   const matched =
     bands.find((b) => km >= b.fromKm && km <= b.toKm) ??
     bands[bands.length - 1];
-  return matched ? { days: matched.days, cost: matched.cost } : { days: km <= 10 ? 1 : 2, cost: km <= 10 ? 300000 : 500000 };
+  return matched
+    ? { days: matched.days, cost: matched.cost }
+    : { days: km <= 10 ? 1 : 2, cost: km <= 10 ? 300000 : 500000 };
 }
 
 const codeToIdMap = new Map<string, string>();
-const keeperOverrideMap = new Map<string, { keeperId: string | null; keeperName: string | null }>();
+const keeperOverrideMap = new Map<
+  string,
+  { keeperId: string | null; keeperName: string | null }
+>();
 const minStockOverrideMap = new Map<string, number>();
 
 function rememberWarehouse(w: Warehouse): Warehouse {
@@ -298,7 +332,9 @@ async function resolveWarehouseId(idOrCode: string): Promise<string> {
   return idOrCode;
 }
 
-async function enrichKeepersFromUsers(warehouses: Warehouse[]): Promise<Warehouse[]> {
+async function enrichKeepersFromUsers(
+  warehouses: Warehouse[],
+): Promise<Warehouse[]> {
   if (warehouses.every((w) => w.keeperName)) return warehouses;
   try {
     const keepers = await warehouseApi.listKeepers();
@@ -324,85 +360,95 @@ async function enrichKeepersFromUsers(warehouses: Warehouse[]): Promise<Warehous
 
 export const warehouseApi = {
   async list(): Promise<Warehouse[]> {
-    if (!env.useMock) {
-      try {
-        const data = await graphql<{ warehouses: RawWarehouse[] }>(WAREHOUSES_QUERY, {
+    try {
+      const data = await graphql<{ warehouses: RawWarehouse[] }>(
+        WAREHOUSES_QUERY,
+        {
           includeInactive: true,
-        });
-        if (Array.isArray(data?.warehouses)) {
-          const items = data.warehouses.map(normalizeWarehouse).map(rememberWarehouse);
-          return enrichKeepersFromUsers(items);
-        }
-      } catch {
-        // Fallback to REST GET /api/v1/warehouses
+        },
+      );
+      if (Array.isArray(data?.warehouses)) {
+        const items = data.warehouses
+          .map(normalizeWarehouse)
+          .map(rememberWarehouse);
+        return enrichKeepersFromUsers(items);
       }
+    } catch {
+      // Fallback to REST GET /api/v1/warehouses
     }
-    const res = await getAll<RawWarehouse>('/warehouses', {
+    const res = await getAll<RawWarehouse>("/warehouses", {
       includeInactive: true,
     });
     const items = res.map(normalizeWarehouse).map(rememberWarehouse);
     return enrichKeepersFromUsers(items);
   },
 
-  async get(idOrCode: string, canViewInventory = true): Promise<WarehouseDetail> {
+  async get(
+    idOrCode: string,
+    canViewInventory = true,
+  ): Promise<WarehouseDetail> {
     let rawDetail: RawWarehouse | null = null;
 
-    if (!env.useMock) {
-      const targetId = await resolveWarehouseId(idOrCode);
-      if (isUuid(targetId)) {
-        if (canViewInventory) {
-          try {
-            const data = await graphql<{ warehouse: RawWarehouse | null }>(
-              WAREHOUSE_DETAIL_WITH_INV_QUERY,
-              { id: targetId },
-            );
-            if (data?.warehouse) rawDetail = data.warehouse;
-          } catch {
-            // Fallback to basic query or REST
-          }
-        }
-        if (!rawDetail) {
-          try {
-            const data = await graphql<{ warehouse: RawWarehouse | null }>(
-              WAREHOUSE_DETAIL_BASIC_QUERY,
-              { id: targetId },
-            );
-            if (data?.warehouse) rawDetail = data.warehouse;
-          } catch {
-            // Fallback to REST
-          }
+    const targetId = await resolveWarehouseId(idOrCode);
+    if (isUuid(targetId)) {
+      if (canViewInventory) {
+        try {
+          const data = await graphql<{ warehouse: RawWarehouse | null }>(
+            WAREHOUSE_DETAIL_WITH_INV_QUERY,
+            { id: targetId },
+          );
+          if (data?.warehouse) rawDetail = data.warehouse;
+        } catch {
+          // Fallback to basic query or REST
         }
       }
       if (!rawDetail) {
         try {
-          rawDetail = await get<RawWarehouse>(`/warehouses/${targetId}`);
-        } catch {
-          const all = await warehouseApi.list();
-          const matched = all.find(
-            (w) => w.code.toUpperCase() === idOrCode.toUpperCase() || w.id === idOrCode,
+          const data = await graphql<{ warehouse: RawWarehouse | null }>(
+            WAREHOUSE_DETAIL_BASIC_QUERY,
+            { id: targetId },
           );
-          if (matched) rawDetail = matched;
+          if (data?.warehouse) rawDetail = data.warehouse;
+        } catch {
+          // Fallback to REST
         }
       }
-    } else {
-      rawDetail = await get<RawWarehouse>(`/warehouses/${idOrCode}`);
+    }
+    if (!rawDetail) {
+      try {
+        rawDetail = await get<RawWarehouse>(`/warehouses/${targetId}`);
+      } catch {
+        const all = await warehouseApi.list();
+        const matched = all.find(
+          (w) =>
+            w.code.toUpperCase() === idOrCode.toUpperCase() ||
+            w.id === idOrCode,
+        );
+        if (matched) rawDetail = matched;
+      }
     }
 
     if (!rawDetail) {
       throw new Error(`Không tìm thấy kho ${idOrCode}`);
     }
 
-    const baseList = await enrichKeepersFromUsers([rememberWarehouse(normalizeWarehouse(rawDetail))]);
+    const baseList = await enrichKeepersFromUsers([
+      rememberWarehouse(normalizeWarehouse(rawDetail)),
+    ]);
     const base = baseList[0];
 
     // 1. Inventory batches
-    let inventory: WarehouseInventoryItem[] = Array.isArray(rawDetail.inventory ?? rawDetail.batches)
-      ? (rawDetail.inventory ?? rawDetail.batches ?? []).map(normalizeInventoryItem)
+    let inventory: WarehouseInventoryItem[] = Array.isArray(
+      rawDetail.inventory ?? rawDetail.batches,
+    )
+      ? (rawDetail.inventory ?? rawDetail.batches ?? []).map(
+          normalizeInventoryItem,
+        )
       : [];
 
     if (inventory.length === 0 && canViewInventory) {
       try {
-        const batchRes = await getAll<RawInventoryItem>('/batches', {
+        const batchRes = await getAll<RawInventoryItem>("/batches", {
           warehouse: base.code,
           warehouseId: base.id,
         });
@@ -435,9 +481,9 @@ export const warehouseApi = {
       } | null = null;
 
       try {
-        ttRes = await get('/transit-tables/current');
+        ttRes = await get("/transit-tables/current");
       } catch {
-        ttRes = await get('/transit-tables/active');
+        ttRes = await get("/transit-tables/active");
       }
 
       if (ttRes) {
@@ -459,27 +505,35 @@ export const warehouseApi = {
     }
 
     let retailerDistances: RetailerDistance[];
-    if (Array.isArray(rawDetail.retailerDistances) && rawDetail.retailerDistances.length > 0) {
+    if (
+      Array.isArray(rawDetail.retailerDistances) &&
+      rawDetail.retailerDistances.length > 0
+    ) {
       retailerDistances = rawDetail.retailerDistances.map((r) => {
         const km =
-          typeof r.km === 'number'
+          typeof r.km === "number"
             ? r.km
-            : typeof r.distanceKm === 'number'
+            : typeof r.distanceKm === "number"
               ? r.distanceKm
-              : typeof r.distanceMeters === 'number'
+              : typeof r.distanceMeters === "number"
                 ? Math.round((r.distanceMeters / 1000) * 10) / 10
                 : 0;
         const quote = quoteRetailerTransit(km, dmaxRetailerKm, bands);
         return {
           retailerId: r.retailerId,
-          retailerCode: String(r.retailerCode ?? r.code ?? ''),
-          retailerName: String(r.retailerName ?? r.name ?? ''),
+          retailerCode: String(r.retailerCode ?? r.code ?? ""),
+          retailerName: String(r.retailerName ?? r.name ?? ""),
           lat: r.lat,
           lng: r.lng,
           km,
-          transitDays: r.transitDays !== undefined ? r.transitDays : (quote?.days ?? null),
-          estimatedCost: r.estimatedCost !== undefined ? r.estimatedCost : (quote?.cost ?? null),
-          withinRange: r.withinRange !== undefined ? r.withinRange : km <= dmaxRetailerKm,
+          transitDays:
+            r.transitDays !== undefined ? r.transitDays : (quote?.days ?? null),
+          estimatedCost:
+            r.estimatedCost !== undefined
+              ? r.estimatedCost
+              : (quote?.cost ?? null),
+          withinRange:
+            r.withinRange !== undefined ? r.withinRange : km <= dmaxRetailerKm,
         };
       });
     } else {
@@ -493,7 +547,7 @@ export const warehouseApi = {
           lng?: number;
           latitude?: number;
           longitude?: number;
-        }>('/retailers');
+        }>("/retailers");
         retailerDistances = retailers.map((r) => {
           const rLat = Number(r.lat ?? r.latitude ?? 10.87);
           const rLng = Number(r.lng ?? r.longitude ?? 106.65);
@@ -501,8 +555,8 @@ export const warehouseApi = {
           const quote = quoteRetailerTransit(km, dmaxRetailerKm, bands);
           return {
             retailerId: r.id,
-            retailerCode: String(r.code ?? r.retailerCode ?? ''),
-            retailerName: String(r.name ?? ''),
+            retailerCode: String(r.code ?? r.retailerCode ?? ""),
+            retailerName: String(r.name ?? ""),
             lat: rLat,
             lng: rLng,
             km,
@@ -546,25 +600,19 @@ export const warehouseApi = {
       longitude: body.lng,
       providerPlaceId: null,
       minimumStockThresholdCartons: Math.round(body.minStock || 0),
-      ...(env.useMock
-        ? {
-            warehouseType: body.type,
-            lat: body.lat,
-            lng: body.lng,
-            minStockPerSku: body.minStock,
-            minStock: body.minStock,
-            capacityPallets: body.capacityPallets,
-            keeperName: body.keeperName,
-            isActive: body.status === 'Active',
-            status: body.status,
-          }
-        : {}),
     };
 
-    const res = await post<RawWarehouse>('/warehouses', payload);
-    const created = rememberWarehouse(normalizeWarehouse({ ...payload, ...res }));
+    const res = await post<RawWarehouse>("/warehouses", payload);
+    const created = rememberWarehouse(
+      normalizeWarehouse({ ...payload, ...res }),
+    );
 
-    if (!env.useMock && body.keeperId && created.id && isUuid(body.keeperId) && isUuid(created.id)) {
+    if (
+      body.keeperId &&
+      created.id &&
+      isUuid(body.keeperId) &&
+      isUuid(created.id)
+    ) {
       try {
         await put(`/users/${body.keeperId}/scope/warehouses/${created.id}`);
       } catch {
@@ -583,7 +631,7 @@ export const warehouseApi = {
       keeperName: body.keeperName ?? null,
     });
 
-    const target = env.useMock ? idOrCode : await resolveWarehouseId(idOrCode);
+    const target = await resolveWarehouseId(idOrCode);
     // OpenAPI UpdateWarehouseRequest: name, type, address, latitude, longitude, providerPlaceId, minimumStockThresholdCartons (NO code, additionalProperties: false)
     const payload = {
       name: body.name.trim(),
@@ -593,28 +641,19 @@ export const warehouseApi = {
       longitude: body.lng,
       providerPlaceId: null,
       minimumStockThresholdCartons: Math.round(body.minStock || 0),
-      ...(env.useMock
-        ? {
-            code: codeUpper,
-            warehouseType: body.type,
-            lat: body.lat,
-            lng: body.lng,
-            minStockPerSku: body.minStock,
-            minStock: body.minStock,
-            capacityPallets: body.capacityPallets,
-            keeperName: body.keeperName,
-            isActive: body.status === 'Active',
-            status: body.status,
-          }
-        : {}),
     };
 
     const res = await put<RawWarehouse>(`/warehouses/${target}`, payload);
     const updated = rememberWarehouse(
-      normalizeWarehouse({ ...payload, ...res, code: codeUpper, id: isUuid(target) ? target : res?.id }),
+      normalizeWarehouse({
+        ...payload,
+        ...res,
+        code: codeUpper,
+        id: isUuid(target) ? target : res?.id,
+      }),
     );
 
-    if (!env.useMock && body.keeperId && isUuid(body.keeperId) && isUuid(target)) {
+    if (body.keeperId && isUuid(body.keeperId) && isUuid(target)) {
       try {
         await put(`/users/${body.keeperId}/scope/warehouses/${target}`);
       } catch {
@@ -626,19 +665,20 @@ export const warehouseApi = {
   },
 
   async updateStatus(idOrCode: string, isActive: boolean): Promise<Warehouse> {
-    const target = env.useMock ? idOrCode : await resolveWarehouseId(idOrCode);
+    const target = await resolveWarehouseId(idOrCode);
     // OpenAPI UpdateWarehouseStatusRequest: isActive (additionalProperties: false)
-    const payload = env.useMock
-      ? { isActive, status: isActive ? 'Active' : 'Paused' }
-      : { isActive };
-    const res = await patch<RawWarehouse>(`/warehouses/${target}/status`, payload);
+    const payload = { isActive };
+    const res = await patch<RawWarehouse>(
+      `/warehouses/${target}/status`,
+      payload,
+    );
     return rememberWarehouse(
       normalizeWarehouse({
         ...res,
         id: isUuid(target) ? target : res?.id,
         code: res?.code ?? idOrCode,
         isActive,
-        status: isActive ? 'Active' : 'Paused',
+        status: isActive ? "Active" : "Paused",
       }),
     );
   },
@@ -655,19 +695,19 @@ export const warehouseApi = {
         role?: string;
         roles?: string[];
         scope?: string;
-      }>('/users');
+      }>("/users");
       const keepers = users
         .filter((u) => {
-          const role = u.role ?? (Array.isArray(u.roles) ? u.roles[0] : '');
+          const role = u.role ?? (Array.isArray(u.roles) ? u.roles[0] : "");
           return (
-            role === 'WarehouseKeeper' ||
-            String(role).toLowerCase().includes('keeper') ||
-            String(role).toLowerCase().includes('thủ kho')
+            role === "WarehouseKeeper" ||
+            String(role).toLowerCase().includes("keeper") ||
+            String(role).toLowerCase().includes("thủ kho")
           );
         })
         .map((u) => ({
-          id: String(u.id ?? u.userId ?? u.loginName ?? u.name ?? ''),
-          name: String(u.name ?? u.fullName ?? u.loginName ?? ''),
+          id: String(u.id ?? u.userId ?? u.loginName ?? u.name ?? ""),
+          name: String(u.name ?? u.fullName ?? u.loginName ?? ""),
           loginName: u.loginName ?? u.email,
           scope: u.scope,
         }));
@@ -676,16 +716,18 @@ export const warehouseApi = {
       // Fallback to default keepers list when non-Admin or endpoint unavailable
     }
     return [
-      { id: 'Đỗ Văn Tâm', name: 'Đỗ Văn Tâm', scope: 'Kho Thới An' },
-      { id: 'Ngô Thị Lan', name: 'Ngô Thị Lan', scope: 'Kho Tân Chánh Hiệp' },
-      { id: 'Bùi Quang Minh', name: 'Bùi Quang Minh', scope: 'Kho Gò Vấp' },
-      { id: 'Lý Hoàng Nam', name: 'Lý Hoàng Nam', scope: 'Kho Thủ Đức' },
-      { id: 'Trịnh Văn Hậu', name: 'Trịnh Văn Hậu', scope: 'Kho Củ Chi' },
-      { id: 'Võ Thanh Hải', name: 'Võ Thanh Hải', scope: 'Kho Cần Giờ' },
+      { id: "Đỗ Văn Tâm", name: "Đỗ Văn Tâm", scope: "Kho Thới An" },
+      { id: "Ngô Thị Lan", name: "Ngô Thị Lan", scope: "Kho Tân Chánh Hiệp" },
+      { id: "Bùi Quang Minh", name: "Bùi Quang Minh", scope: "Kho Gò Vấp" },
+      { id: "Lý Hoàng Nam", name: "Lý Hoàng Nam", scope: "Kho Thủ Đức" },
+      { id: "Trịnh Văn Hậu", name: "Trịnh Văn Hậu", scope: "Kho Củ Chi" },
+      { id: "Võ Thanh Hải", name: "Võ Thanh Hải", scope: "Kho Cần Giờ" },
     ];
   },
 
-  async getRetailerMapPoints(): Promise<{ code: string; name: string; address: string; lat: number; lng: number }[]> {
+  async getRetailerMapPoints(): Promise<
+    { code: string; name: string; address: string; lat: number; lng: number }[]
+  > {
     try {
       const retailers = await getAll<{
         code?: string;
@@ -696,11 +738,11 @@ export const warehouseApi = {
         lng?: number;
         latitude?: number;
         longitude?: number;
-      }>('/retailers');
+      }>("/retailers");
       return retailers.map((r) => ({
-        code: String(r.code ?? r.retailerCode ?? ''),
-        name: String(r.name ?? ''),
-        address: String(r.address ?? ''),
+        code: String(r.code ?? r.retailerCode ?? ""),
+        name: String(r.name ?? ""),
+        address: String(r.address ?? ""),
         lat: Number(r.lat ?? r.latitude ?? 10.87),
         lng: Number(r.lng ?? r.longitude ?? 106.65),
       }));
