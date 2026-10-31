@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useParams } from '@/shared/router/compat';
-import { Button, Callout, Card, Chip, Fields, PageHeader, QueryState, SimpleTable, StatusChip } from '@/shared/ui';
-import { formatCases, formatDate, formatDateTime, formatHours, formatKm, formatMoney, formatPercent, formatScore, paymentLabel } from '@/shared/lib';
-import { useOrder, useOrderPrice } from '../hooks';
+import { useNavigate, useParams } from '@/shared/router/compat';
+import { useRole } from '@/shared/auth/AuthContext';
+import { Button, Callout, Card, Fields, PageHeader, QueryState, SimpleTable, StatusChip } from '@/shared/ui';
+import { formatCases, formatDate, formatDateTime, formatHours, formatMoney, formatPercent, paymentLabel, statusLabel } from '@/shared/lib';
+import { useOrder } from '../hooks';
 import { AllocationTraceDialog } from '../components/AllocationTraceDialog';
 import { OrderActions } from '../components/OrderActions';
 import { hasReconciledOfficialTotal, officialFragmentTotal } from '../priceBreakdown';
@@ -63,20 +64,20 @@ function WorkflowLinks({ order }: { order: OrderDetail }) {
 
 function OrderBody({ order }: { order: OrderDetail }) {
   const [trace, setTrace] = useState(false);
-  const price = useOrderPrice(o.id);
+  const reconciled = hasReconciledOfficialTotal(order);
   return (
     <OrderActions>
       {({ buttons, dialogs }) => (
         <>
           <PageHeader
             back="/orders"
-            title={`Đơn ${o.code}`}
-            subtitle={`${o.retailerName} · ${o.retailerCode} · tạo ${formatDateTime(o.createdAt)}`}
-            chips={<StatusChip domain="order" value={o.status} />}
+            title={`Đơn ${order.orderCode}`}
+            subtitle={`${order.retailerName} · ${order.retailerCode} · tạo ${formatDateTime(order.createdAt)}`}
+            chips={<StatusChip domain="order" value={order.status} />}
             actions={
               <div className="row-wrap">
                 <Button onClick={() => setTrace(true)}>Giải thích phân bổ (B1–B4)</Button>
-                {buttons(o.code, o.status, 'md')}
+                {buttons({ id: order.id, orderCode: order.orderCode, status: order.status, version: order.version }, 'md')}
               </div>
             }
           />

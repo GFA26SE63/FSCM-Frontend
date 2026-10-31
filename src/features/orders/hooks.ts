@@ -17,8 +17,8 @@ export const useDispatchOptions = (enabled: boolean) => ({
   drivers: useQuery({ queryKey: ['dispatch', 'drivers'], queryFn: orderApi.drivers, enabled }),
 });
 
-export const useApproveOrder = () => useApiMutation(orderApi.approve, { success: (o) => `Đã duyệt ${o.code}. Đã sinh picking list theo kho và báo Sales, retailer, Warehouse Keeper.` });
-export const useRejectOrder = () => useApiMutation(orderApi.reject, { success: (o) => `Đã từ chối ${o.code}, trả hàng tạm giữ và báo Sales, retailer.` });
-export const useCancelOrder = () => useApiMutation(orderApi.cancel, { success: (o) => `Đã hủy ${o.code}, trả lại hàng tạm giữ và báo Sales, retailer.` });
+export const useApproveOrder = () => useApiMutation(orderApi.approve, { success: (o) => `Đã duyệt ${o.orderCode}. Đơn sẽ vào đợt phân bổ kế tiếp.` });
+export const useRejectOrder = () => useApiMutation(orderApi.reject, { success: (o) => `Đã từ chối ${o.orderCode}.` });
+export const useCancelOrder = () => useApiMutation(orderApi.cancel, { success: (o) => `Đã hủy ${o.orderCode}.` });
 export const useDispatchOrder = () =>
-  useApiMutation(orderApi.dispatch, { success: (o) => `Đã chuyển ${o.code} sang Đang giao và báo retailer: ${o.delivery?.driverName} (${o.delivery?.driverPhone}), xe ${o.delivery?.plate}.` });
+  useApiMutation(orderApi.dispatch, { success: () => 'Đã tạo yêu cầu điều phối.' });
