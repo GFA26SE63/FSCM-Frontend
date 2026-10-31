@@ -7,7 +7,7 @@ import { CREATABLE_ROLES } from './userPolicy';
 
 export type UserRole = AppRole;
 export type CreatableRole = Exclude<UserRole, 'Admin'>;
-export type IdentityProvider = 'Local' | 'Entra';
+export type IdentityProvider = 'Local' | 'Google';
 
 export interface User {
   id: string;
@@ -59,7 +59,8 @@ export interface CreateUserInput {
   email: string;
   fullName: string;
   role: CreatableRole;
-  identityProvider: IdentityProvider;
+  phone: string;
+  password: string;
 }
 
 export interface CreatedUser {

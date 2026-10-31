@@ -8,12 +8,17 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test:products": "node --test tests/products.test.cjs",
+    "test:auth": "node --test tests/auth.test.cjs",
     "test:rbac": "node --test tests/rbac.test.cjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report",
+    "test:e2e:install": "playwright install chromium"
   },
   "dependencies": {
     "@apollo/client": "^4.2.9",
-    "@azure/msal-browser": "^5.25.1",
+    "@react-oauth/google": "^0.13.5",
     "@tanstack/react-query": "^5.101.4",
     "axios": "^1.19.0",
     "graphql": "^16.14.2",
@@ -27,6 +32,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.12.3",
     "@types/react": "^19.2.14",

@@ -1,5 +1,28 @@
-import { get, http, post } from '../api/http';
-import type { PortalRole } from './roles';
+import axios from 'axios';
+import { get } from '../api/http';
+import { ApiError, toApiError } from '../api/errors';
+import { env } from '../lib/env';
+import { isPortalRole, type PortalRole } from './roles';
+
+export interface IdentityScope {
+  warehouseIds: string[];
+  regionIds: string[];
+  salesGroupIds: string[];
+  retailerIds: string[];
+}
+
+export interface ScopeLabel {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface IdentityScopeLabels {
+  warehouses: ScopeLabel[];
+  regions: ScopeLabel[];
+  salesGroups: ScopeLabel[];
+  retailers: ScopeLabel[];
+}
 
 export interface CurrentUser {
   id: string;
@@ -10,7 +33,7 @@ export interface CurrentUser {
   scope?: IdentityScope;
   scopeLabels?: IdentityScopeLabels;
 
-  // Giữ tương thích với mock và UI hiện có.
+  // Normalize the API response for the current UI.
   warehouseCode?: string | null;
   areaCodes?: string[];
 }
@@ -25,12 +48,22 @@ interface BackendCurrentUser {
   scopeLabels?: IdentityScopeLabels;
 }
 
-export interface AuthenticationResult {
+interface BackendAuthenticationResult {
   accessToken: string;
   accessTokenExpiresAt: string;
   refreshToken: string;
   refreshTokenExpiresAt: string;
   user: BackendCurrentUser;
+}
+
+export interface AuthenticationResult
+  extends Omit<BackendAuthenticationResult, 'user'> {
+  user: CurrentUser;
+}
+
+export interface PasswordResetRequestResult {
+  message: string;
+  resetToken?: string | null;
 }
 
 const identityHttp = axios.create({
@@ -70,12 +103,98 @@ function mapCurrentUser(user: BackendCurrentUser): CurrentUser {
 }
 
 export const authApi = {
-  me: async () => mapBackendUser(await get<BackendCurrentUser>('/auth/me')),
-  login: (email: string, password: string) =>
-    post<{ accessToken: string; refreshToken: string }>('/auth/login', { email, password }),
-  /** Entra bearer token is validated by the backend exchange policy; business APIs only receive the FSCM JWT. */
-  exchangeEntra: (idToken: string) =>
-    http.post<{ accessToken: string; refreshToken: string }>('/auth/entra/exchange', undefined, {
-      headers: { Authorization: `Bearer ${idToken}` },
-    }).then((response) => response.data),
+  async loginLocal(
+    email: string,
+    password: string,
+  ): Promise<AuthenticationResult> {
+    try {
+      const response = await identityHttp.post<BackendAuthenticationResult>(
+        '/login',
+        {
+          email: email.trim(),
+          password,
+        },
+      );
+
+      if (
+        !response.data.accessToken ||
+        !response.data.refreshToken
+      ) {
+        throw new ApiError(
+          502,
+          'Phản hồi đăng nhập không hợp lệ',
+          'Backend không trả đủ thông tin phiên.',
+        );
+      }
+
+      return {
+        ...response.data,
+        user: mapCurrentUser(response.data.user),
+      };
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
+
+  async me(): Promise<CurrentUser> {
+    const user = await get<BackendCurrentUser>('/auth/me');
+    return mapCurrentUser(user);
+  },
+
+  async exchangeGoogle(
+    googleIdToken: string,
+  ): Promise<AuthenticationResult> {
+    try {
+      const response = await identityHttp.post<BackendAuthenticationResult>(
+        '/google/exchange',
+        undefined,
+        {
+          headers: {
+            Authorization: `Bearer ${googleIdToken}`,
+          },
+        },
+      );
+
+      if (
+        !response.data.accessToken ||
+        !response.data.refreshToken
+      ) {
+        throw new ApiError(
+          502,
+          'Phản hồi đăng nhập không hợp lệ',
+          'Backend không trả đủ thông tin phiên.',
+        );
+      }
+
+      return {
+        ...response.data,
+        user: mapCurrentUser(response.data.user),
+      };
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
+
+  async requestPasswordReset(
+    email: string,
+  ): Promise<PasswordResetRequestResult> {
+    try {
+      const response = await identityHttp.post<PasswordResetRequestResult>(
+        '/password-reset/request',
+        { email: email.trim() },
+      );
+
+      return response.data;
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
+
+  async logout(refreshToken: string): Promise<void> {
+    try {
+      await identityHttp.post('/logout', { refreshToken });
+    } catch (error) {
+      throw toApiError(error);
+    }
+  },
 };

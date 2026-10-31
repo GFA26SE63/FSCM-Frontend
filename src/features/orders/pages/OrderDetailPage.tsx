@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from '@/shared/router/compat';
-import { useRole } from '@/shared/auth/AuthContext';
-import { Button, Callout, Card, Fields, PageHeader, QueryState, SimpleTable, StatusChip } from '@/shared/ui';
-import { formatCases, formatDate, formatDateTime, formatHours, formatMoney, formatPercent, paymentLabel, statusLabel } from '@/shared/lib';
-import { useOrder } from '../hooks';
+import { useParams } from '@/shared/router/compat';
+import { Button, Callout, Card, Chip, Fields, PageHeader, QueryState, SimpleTable, StatusChip } from '@/shared/ui';
+import { formatCases, formatDate, formatDateTime, formatHours, formatKm, formatMoney, formatPercent, formatScore, paymentLabel } from '@/shared/lib';
+import { useOrder, useOrderPrice } from '../hooks';
 import { AllocationTraceDialog } from '../components/AllocationTraceDialog';
 import { OrderActions } from '../components/OrderActions';
 import { hasReconciledOfficialTotal, officialFragmentTotal } from '../priceBreakdown';
@@ -64,17 +63,22 @@ function WorkflowLinks({ order }: { order: OrderDetail }) {
 
 function OrderBody({ order }: { order: OrderDetail }) {
   const [trace, setTrace] = useState(false);
-  const reconciled = hasReconciledOfficialTotal(order);
+  const price = useOrderPrice(o.id);
   return (
     <OrderActions>
       {({ buttons, dialogs }) => (
         <>
           <PageHeader
             back="/orders"
-            title={`Đơn ${order.orderCode}`}
-            subtitle={`${order.retailerName} · ${order.retailerCode} · server nhận ${formatDateTime(order.serverReceivedAt)}`}
-            chips={<StatusChip domain="order" value={order.status} />}
-            actions={<div className="row-wrap"><Button onClick={() => setTrace(true)}>Giải thích phân bổ</Button>{buttons(order, 'md')}</div>}
+            title={`Đơn ${o.code}`}
+            subtitle={`${o.retailerName} · ${o.retailerCode} · tạo ${formatDateTime(o.createdAt)}`}
+            chips={<StatusChip domain="order" value={o.status} />}
+            actions={
+              <div className="row-wrap">
+                <Button onClick={() => setTrace(true)}>Giải thích phân bổ (B1–B4)</Button>
+                {buttons(o.code, o.status, 'md')}
+              </div>
+            }
           />
 
           {order.rejectionReason && <Callout tone="danger"><b>Lý do từ chối/thiếu:</b> {order.rejectionReason}</Callout>}

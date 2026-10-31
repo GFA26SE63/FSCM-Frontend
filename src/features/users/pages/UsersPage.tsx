@@ -51,8 +51,8 @@ export function UsersPage() {
       key: 'provider',
       header: 'Đăng nhập ban đầu',
       text: (user) =>
-        user.identityProvider === 'Entra'
-          ? 'Microsoft Entra'
+        user.identityProvider === 'Google'
+          ? 'Google'
           : 'Email / mật khẩu',
     },
     {

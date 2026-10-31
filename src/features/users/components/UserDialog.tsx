@@ -3,13 +3,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@/shared/router/compat';
 import {
   Button,
+  ConfirmDialog,
   FormField,
   Input,
   Modal,
   Select,
 } from '@/shared/ui';
 import { toApiError } from '@/shared/api/errors';
-import { formatDateTime } from '@/shared/lib';
 import { userApi } from '../api';
 import { finishUserSave } from '../saveUser';
 import {
@@ -21,7 +21,6 @@ import {
   type Assignments,
   type CreatedUser,
   type CreatableRole,
-  type IdentityProvider,
   type UserDetail,
 } from '../types';
 import { AssignmentPicker } from './AssignmentPicker';
@@ -40,14 +39,13 @@ export function UserDialog({ user, onClose }: Props) {
     user?.fullName ?? '',
   );
   const [email, setEmail] = useState(user?.email ?? '');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
   const [role, setRole] = useState<CreatableRole>(
     isCreatableRole(user?.role)
       ? user.role
       : 'Sales',
   );
-  const [provider, setProvider] =
-    useState<IdentityProvider>('Local');
-
   const [assignments, setAssignments] =
     useState<Assignments>(() =>
       user
@@ -64,6 +62,8 @@ export function UserDialog({ user, onClose }: Props) {
   const [created, setCreated] =
     useState<CreatedUser | null>(null);
   const [uncertain, setUncertain] = useState(false);
+  const [confirmationOpen, setConfirmationOpen] =
+    useState(false);
 
   const createdRef = useRef<CreatedUser | null>(null);
   const savingRef = useRef(false);
@@ -73,18 +73,8 @@ export function UserDialog({ user, onClose }: Props) {
     ? assignmentKinds[role]
     : [];
 
-  function confirmTokenSaved() {
-    return (
-      !created?.activationToken ||
-      window.confirm(
-        'Bạn đã lưu activation token chưa? Đóng form sẽ không giữ token trên màn hình.',
-      )
-    );
-  }
-
   function close() {
     if (savingRef.current) return;
-    if (!confirmTokenSaved()) return;
     onClose();
   }
 
@@ -114,6 +104,23 @@ export function UserDialog({ user, onClose }: Props) {
     ) {
       next.email =
         'Nhập email hợp lệ, tối đa 150 ký tự.';
+    }
+
+    if (!user && !/^0\d{9}$/.test(phone.trim())) {
+      next.phone =
+        'Số điện thoại gồm 10 chữ số và bắt đầu bằng 0.';
+    }
+
+    if (
+      !user &&
+      (password.length < 12 ||
+        !/[A-Z]/.test(password) ||
+        !/[a-z]/.test(password) ||
+        !/\d/.test(password) ||
+        !/[^A-Za-z0-9]/.test(password))
+    ) {
+      next.password =
+        'Mật khẩu tối thiểu 12 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.';
     }
 
     if (
@@ -173,13 +180,15 @@ export function UserDialog({ user, onClose }: Props) {
             fullName: fullName.trim(),
             email: email.trim().toLowerCase(),
             role,
-            identityProvider: provider,
+            phone: phone.trim(),
+            password,
           });
 
           // Ghi nhớ ngay sau POST thành công.
           // Retry phía dưới không tạo lại tài khoản.
           createdRef.current = result;
           setCreated(result);
+          setPassword('');
           id = result.userId;
         } catch (error) {
           const apiError = toApiError(error);
@@ -219,8 +228,9 @@ export function UserDialog({ user, onClose }: Props) {
       for (const key of [
         'fullName',
         'email',
+        'phone',
+        'password',
         'role',
-        'identityProvider',
       ]) {
         const fieldError = apiError.field(key);
         if (fieldError) fieldErrors[key] = fieldError;
@@ -245,7 +255,8 @@ export function UserDialog({ user, onClose }: Props) {
   if (user?.role === 'Admin') return null;
 
   return (
-    <Modal
+    <>
+      <Modal
       open
       title={
         done
@@ -266,8 +277,6 @@ export function UserDialog({ user, onClose }: Props) {
             <Button
               variant="primary"
               onClick={() => {
-                if (!confirmTokenSaved()) return;
-
                 const id = created.userId;
                 onClose();
                 navigate(
@@ -282,11 +291,19 @@ export function UserDialog({ user, onClose }: Props) {
               variant="primary"
               loading={busy}
               disabled={uncertain}
-              onClick={() => void save()}
+              onClick={() => {
+                if (user) {
+                  void save();
+                } else if (validate()) {
+                  setConfirmationOpen(true);
+                }
+              }}
             >
               {created
                 ? 'Tiếp tục gán assignment'
-                : 'Lưu tài khoản'}
+                : user
+                  ? 'Lưu tài khoản'
+                  : 'Tạo mới tài khoản'}
             </Button>
           )}
         </>
@@ -318,37 +335,10 @@ export function UserDialog({ user, onClose }: Props) {
               {created.email}
             </p>
 
-            {created.activationToken ? (
-              <>
-                <p>
-                  Lưu activation token để người dùng
-                  kích hoạt và đặt mật khẩu.
-                </p>
-
-                <textarea
-                  className="inp"
-                  aria-label="Activation token"
-                  readOnly
-                  rows={4}
-                  value={created.activationToken}
-                  onFocus={(event) =>
-                    event.currentTarget.select()
-                  }
-                />
-
-                <p>
-                  Hết hạn:{' '}
-                  {formatDateTime(
-                    created.activationTokenExpiresAt,
-                  )}
-                </p>
-              </>
-            ) : (
-              <p>
-                Phương thức đăng nhập ban đầu:
-                Microsoft Entra.
-              </p>
-            )}
+            <p>
+              Người dùng có thể đăng nhập bằng mật khẩu
+              hoặc tài khoản Google cùng email.
+            </p>
           </div>
         )}
 
@@ -425,31 +415,41 @@ export function UserDialog({ user, onClose }: Props) {
             </FormField>
 
             {!user && (
-              <FormField
-                label="Phương thức đăng nhập ban đầu"
-                required
-                error={errors.identityProvider}
-              >
-                <Select
-                  value={provider}
-                  disabled={identityLocked}
-                  options={[
-                    {
-                      value: 'Local',
-                      label: 'Email và mật khẩu',
-                    },
-                    {
-                      value: 'Entra',
-                      label: 'Microsoft Entra ID',
-                    },
-                  ]}
-                  onChange={(event) =>
-                    setProvider(
-                      event.target.value as IdentityProvider,
-                    )
-                  }
-                />
-              </FormField>
+              <>
+                <FormField
+                  label="Số điện thoại"
+                  required
+                  error={errors.phone}
+                >
+                  <Input
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    value={phone}
+                    maxLength={10}
+                    readOnly={identityLocked}
+                    onChange={(event) =>
+                      setPhone(event.target.value)
+                    }
+                  />
+                </FormField>
+
+                <FormField
+                  label="Mật khẩu"
+                  required
+                  error={errors.password}
+                >
+                  <Input
+                    type="password"
+                    autoComplete="new-password"
+                    value={password}
+                    readOnly={identityLocked}
+                    onChange={(event) =>
+                      setPassword(event.target.value)
+                    }
+                  />
+                </FormField>
+              </>
             )}
 
             {user?.role === 'SalesManager' && (
@@ -513,12 +513,33 @@ export function UserDialog({ user, onClose }: Props) {
           </fieldset>
         )}
 
-        <p className="muted">
-          Không tạo hoặc chỉnh sửa Admin tại đây.
-          Form sửa giữ nguyên role và phương thức
-          đăng nhập ban đầu.
-        </p>
       </div>
-    </Modal>
+      </Modal>
+
+      <ConfirmDialog
+        open={confirmationOpen}
+        title="Xác nhận tạo mới tài khoản"
+        confirmLabel="Hoàn tất tạo tài khoản"
+        onClose={() => setConfirmationOpen(false)}
+        onConfirm={async () => {
+          setConfirmationOpen(false);
+          await save();
+        }}
+        message={
+          <div style={{ display: 'grid', gap: 10 }}>
+            <p className="muted" style={{ margin: 0 }}>
+              Vui lòng kiểm tra lại thông tin trước khi hoàn tất.
+            </p>
+            <dl style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 8, margin: 0 }}>
+              <dt>Họ tên</dt><dd style={{ margin: 0 }}>{fullName.trim()}</dd>
+              <dt>Email đăng nhập</dt><dd style={{ margin: 0 }}>{email.trim().toLowerCase()}</dd>
+              <dt>Số điện thoại</dt><dd style={{ margin: 0 }}>{phone.trim()}</dd>
+              <dt>Vai trò</dt><dd style={{ margin: 0 }}>{role}</dd>
+              <dt>Mật khẩu</dt><dd style={{ margin: 0 }}>{'•'.repeat(Math.min(password.length, 12))}</dd>
+            </dl>
+          </div>
+        }
+      />
+    </>
   );
 }

@@ -9,10 +9,14 @@ import {
   type ReactNode,
 } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { ApiError, errorMessage } from '../api/errors';
 import { tokenStore } from './tokenStore';
-import { authApi, type CurrentUser } from './authApi';
-import { acquireMicrosoftIdToken } from './externalAuth';
-import type { PortalRole } from './roles';
+import {
+  authApi,
+  type AuthenticationResult,
+  type CurrentUser,
+} from './authApi';
+import { type PortalRole } from './roles';
 
 type AuthStatus =
   | 'loading'
@@ -22,8 +26,15 @@ type AuthStatus =
 interface AuthState {
   status: AuthStatus;
   user: CurrentUser | null;
-  login: (email: string, password: string) => Promise<CurrentUser>;
-  loginWithMicrosoft: () => Promise<CurrentUser>;
+  sessionMessage: string | null;
+
+  loginWithPassword: (
+    email: string,
+    password: string,
+  ) => Promise<CurrentUser>;
+
+  loginWithGoogle: (googleIdToken: string) => Promise<CurrentUser>;
+
   logout: () => void;
 }
 
@@ -63,7 +74,7 @@ export function AuthProvider({
 
     clearSession();
 
-    if (!env.useMock && refreshToken) {
+    if (refreshToken) {
       void authApi.logout(refreshToken).catch(() => {
         // Phiên trên FE đã được xóa.
         // Chỉ hiển thị nếu chưa bắt đầu một phiên khác.
@@ -111,14 +122,32 @@ export function AuthProvider({
         },
       );
     }
-    return () => tokenStore.setUnauthorizedHandler(null);
-  }, [logout]);
 
-  const acceptToken = useCallback(
-    async (request: Promise<{ accessToken: string }>) => {
-      const { accessToken } = await request;
-      tokenStore.set(accessToken);
-      qc.clear();
+    return () => {
+      cancelled = true;
+      tokenStore.setUnauthorizedHandler(null);
+    };
+  }, [clearSession]);
+
+  const authenticate = useCallback(
+    async (
+      acquireSession: () => Promise<AuthenticationResult>,
+    ): Promise<CurrentUser> => {
+      if (loginBusy.current) {
+        throw new ApiError(
+          409,
+          'Đang xử lý đăng nhập',
+        );
+      }
+
+      loginBusy.current = true;
+      const currentVersion = ++version.current;
+
+      setSessionMessage(null);
+      tokenStore.clear();
+      setUser(null);
+      queryClient.clear();
+
       try {
         const session = await acquireSession();
 
@@ -134,7 +163,7 @@ export function AuthProvider({
           session.refreshToken,
         );
 
-        const currentUser = await authApi.me();
+        const currentUser = session.user;
 
         if (version.current !== currentVersion) {
           throw new ApiError(
@@ -160,54 +189,48 @@ export function AuthProvider({
     [clearSession, queryClient],
   );
 
-  const login = useCallback(
-    async (
-      email: string,
-      password: string,
-      role?: PortalRole,
-    ): Promise<CurrentUser> => {
-      if (!env.useMock) {
-        throw new ApiError(
-          403,
-          'Đăng nhập demo đã bị tắt',
-        );
-      }
-
-      return authenticate(() =>
-        authApi.mockToken({ email, password, role }),
-      );
-    },
-    [authenticate],
-  );
-
   const loginWithPassword = useCallback(
     async (
       email: string,
       password: string,
     ): Promise<CurrentUser> => {
-      if (env.useMock) {
-        return login(email, password);
-      }
-
       return authenticate(() =>
         authApi.loginLocal(email, password),
       );
     },
-    [qc],
+    [authenticate],
   );
 
-  const login = useCallback(
-    (email: string, password: string) => acceptToken(authApi.login(email, password)),
-    [acceptToken],
+  const loginWithGoogle = useCallback(
+    async (googleIdToken: string): Promise<CurrentUser> => {
+      return authenticate(() => authApi.exchangeGoogle(googleIdToken));
+    },
+    [authenticate],
   );
-
-  const loginWithMicrosoft = useCallback(async () => {
-    return acceptToken(authApi.exchangeEntra(await acquireMicrosoftIdToken()));
-  }, [acceptToken]);
 
   const value = useMemo<AuthState>(
-    () => ({ status, user, login, loginWithMicrosoft, logout }),
-    [status, user, login, loginWithMicrosoft, logout],
+    () => ({
+      status,
+      user,
+      sessionMessage,
+      loginWithPassword,
+      loginWithGoogle,
+      logout,
+    }),
+    [
+      status,
+      user,
+      sessionMessage,
+      loginWithPassword,
+      loginWithGoogle,
+      logout,
+    ],
+  );
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 
