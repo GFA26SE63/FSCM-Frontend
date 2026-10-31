@@ -1,28 +1,5 @@
-import axios from 'axios';
-import { get, post } from '../api/http';
-import { ApiError, toApiError } from '../api/errors';
-import { env } from '../lib/env';
-import { isPortalRole, type PortalRole } from './roles';
-
-export interface IdentityScope {
-  warehouseIds: string[];
-  regionIds: string[];
-  salesGroupIds: string[];
-  retailerIds: string[];
-}
-
-export interface ScopeLabel {
-  id: string;
-  code: string;
-  name: string;
-}
-
-export interface IdentityScopeLabels {
-  warehouses: ScopeLabel[];
-  regions: ScopeLabel[];
-  salesGroups: ScopeLabel[];
-  retailers: ScopeLabel[];
-}
+import { get, http, post } from '../api/http';
+import type { PortalRole } from './roles';
 
 export interface CurrentUser {
   id: string;
@@ -93,99 +70,12 @@ function mapCurrentUser(user: BackendCurrentUser): CurrentUser {
 }
 
 export const authApi = {
-  async loginLocal(
-    email: string,
-    password: string,
-  ): Promise<AuthenticationResult> {
-    try {
-      const response = await identityHttp.post<AuthenticationResult>(
-        '/login',
-        {
-          email: email.trim(),
-          password,
-        },
-      );
-
-      if (
-        !response.data.accessToken ||
-        !response.data.refreshToken
-      ) {
-        throw new ApiError(
-          502,
-          'Phản hồi đăng nhập không hợp lệ',
-          'Backend không trả đủ thông tin phiên.',
-        );
-      }
-
-      return response.data;
-    } catch (error) {
-      throw toApiError(error);
-    }
-  },
-
-  async me(): Promise<CurrentUser> {
-    if (env.useMock) {
-      return get<CurrentUser>('/me');
-    }
-
-    const user = await get<BackendCurrentUser>('/auth/me');
-    return mapCurrentUser(user);
-  },
-
-  async exchangeEntra(
-    microsoftIdToken: string,
-  ): Promise<AuthenticationResult> {
-    try {
-      const response = await identityHttp.post<AuthenticationResult>(
-        '/entra/exchange',
-        undefined,
-        {
-          headers: {
-            Authorization: `Bearer ${microsoftIdToken}`,
-          },
-        },
-      );
-
-      if (
-        !response.data.accessToken ||
-        !response.data.refreshToken
-      ) {
-        throw new ApiError(
-          502,
-          'Phản hồi đăng nhập không hợp lệ',
-          'Backend không trả đủ thông tin phiên.',
-        );
-      }
-
-      return response.data;
-    } catch (error) {
-      throw toApiError(error);
-    }
-  },
-
-  async logout(refreshToken: string): Promise<void> {
-    try {
-      await identityHttp.post('/logout', { refreshToken });
-    } catch (error) {
-      throw toApiError(error);
-    }
-  },
-
-  async mockToken(body: {
-    email: string;
-    password: string;
-    role?: PortalRole;
-  }): Promise<{ accessToken: string }> {
-    if (!env.useMock) {
-      throw new ApiError(
-        403,
-        'Đăng nhập demo đã bị tắt',
-      );
-    }
-
-    return post<{ accessToken: string }>(
-      '/auth/mock-token',
-      body,
-    );
-  },
+  me: async () => mapBackendUser(await get<BackendCurrentUser>('/auth/me')),
+  login: (email: string, password: string) =>
+    post<{ accessToken: string; refreshToken: string }>('/auth/login', { email, password }),
+  /** Entra bearer token is validated by the backend exchange policy; business APIs only receive the FSCM JWT. */
+  exchangeEntra: (idToken: string) =>
+    http.post<{ accessToken: string; refreshToken: string }>('/auth/entra/exchange', undefined, {
+      headers: { Authorization: `Bearer ${idToken}` },
+    }).then((response) => response.data),
 };

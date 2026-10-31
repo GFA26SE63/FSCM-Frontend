@@ -9,15 +9,10 @@ import {
   type ReactNode,
 } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ApiError, errorMessage } from '../api/errors';
-import { env } from '../lib/env';
 import { tokenStore } from './tokenStore';
 import { authApi, type CurrentUser } from './authApi';
 import { acquireMicrosoftIdToken } from './externalAuth';
-import {
-  DEMO_ACCOUNTS,
-  type PortalRole,
-} from './roles';
+import type { PortalRole } from './roles';
 
 type AuthStatus =
   | 'loading'
@@ -27,25 +22,8 @@ type AuthStatus =
 interface AuthState {
   status: AuthStatus;
   user: CurrentUser | null;
-  sessionMessage: string | null;
-
-  login: (
-    email: string,
-    password: string,
-    role?: PortalRole,
-  ) => Promise<CurrentUser>;
-
-  loginWithPassword: (
-    email: string,
-    password: string,
-  ) => Promise<CurrentUser>;
-
+  login: (email: string, password: string) => Promise<CurrentUser>;
   loginWithMicrosoft: () => Promise<CurrentUser>;
-
-  switchRole: (
-    role: PortalRole,
-  ) => Promise<CurrentUser>;
-
   logout: () => void;
 }
 
@@ -133,35 +111,14 @@ export function AuthProvider({
         },
       );
     }
+    return () => tokenStore.setUnauthorizedHandler(null);
+  }, [logout]);
 
-    return () => {
-      cancelled = true;
-      tokenStore.setUnauthorizedHandler(null);
-    };
-  }, [clearSession]);
-
-  const authenticate = useCallback(
-    async (
-      acquireSession: () => Promise<{
-        accessToken: string;
-        refreshToken?: string;
-      }>,
-    ): Promise<CurrentUser> => {
-      if (loginBusy.current) {
-        throw new ApiError(
-          409,
-          'Đang xử lý đăng nhập',
-        );
-      }
-
-      loginBusy.current = true;
-      const currentVersion = ++version.current;
-
-      setSessionMessage(null);
-      tokenStore.clear();
-      setUser(null);
-      queryClient.clear();
-
+  const acceptToken = useCallback(
+    async (request: Promise<{ accessToken: string }>) => {
+      const { accessToken } = await request;
+      tokenStore.set(accessToken);
+      qc.clear();
       try {
         const session = await acquireSession();
 
@@ -236,74 +193,21 @@ export function AuthProvider({
         authApi.loginLocal(email, password),
       );
     },
-    [authenticate, login],
+    [qc],
   );
 
-  const loginWithMicrosoft = useCallback(
-    async (): Promise<CurrentUser> => {
-      if (env.useMock) {
-        return login(
-          DEMO_ACCOUNTS.Admin.email,
-          'microsoft-demo',
-          'Admin',
-        );
-      }
-
-      return authenticate(async () => {
-        const microsoftIdToken =
-          await acquireMicrosoftIdToken();
-
-        return authApi.exchangeEntra(microsoftIdToken);
-      });
-    },
-    [authenticate, login],
+  const login = useCallback(
+    (email: string, password: string) => acceptToken(authApi.login(email, password)),
+    [acceptToken],
   );
 
-  const switchRole = useCallback(
-    async (role: PortalRole): Promise<CurrentUser> => {
-      if (!env.useMock) {
-        throw new ApiError(
-          403,
-          'Không được đổi vai trò trong phiên thật',
-        );
-      }
-
-      return login(
-        DEMO_ACCOUNTS[role].email,
-        'demo-switch',
-        role,
-      );
-    },
-    [login],
-  );
+  const loginWithMicrosoft = useCallback(async () => {
+    return acceptToken(authApi.exchangeEntra(await acquireMicrosoftIdToken()));
+  }, [acceptToken]);
 
   const value = useMemo<AuthState>(
-    () => ({
-      status,
-      user,
-      sessionMessage,
-      login,
-      loginWithPassword,
-      loginWithMicrosoft,
-      switchRole,
-      logout,
-    }),
-    [
-      status,
-      user,
-      sessionMessage,
-      login,
-      loginWithPassword,
-      loginWithMicrosoft,
-      switchRole,
-      logout,
-    ],
-  );
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
+    () => ({ status, user, login, loginWithMicrosoft, logout }),
+    [status, user, login, loginWithMicrosoft, logout],
   );
 }
 
