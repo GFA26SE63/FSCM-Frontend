@@ -5,20 +5,63 @@ import { formatCases, formatDate, formatDateTime, formatHours, formatKm, formatM
 import { useOrder, useOrderPrice } from '../hooks';
 import { AllocationTraceDialog } from '../components/AllocationTraceDialog';
 import { OrderActions } from '../components/OrderActions';
-import type { OrderDetail, OrderLineMlor } from '../types';
+import { hasReconciledOfficialTotal, officialFragmentTotal } from '../priceBreakdown';
+import type { OrderDetail, OrderLine, OrderLineMlor } from '../types';
 
-/** Where the threshold came from. Only the first is a rule the retailer has for this SKU. */
 const MLOR_SOURCES: Record<OrderLineMlor['sourceScope'], string> = {
-  Sku: 'riêng SKU của retailer',
-  Category: 'theo nhóm hàng của retailer',
+  Sku: 'SKU riêng của retailer',
+  Category: 'category của retailer',
   Default: 'mặc định sản phẩm',
 };
 
-const allocationChip: Record<OrderDetail['allocationState'], string> = {
-  Held: 'Đang tạm giữ', Reserved: 'Đã giữ (Reserved)', Dispatched: 'Đã xuất kho', Released: 'Đã trả hàng', Failed: 'Không đủ hàng',
-};
+function PriceBreakdown({ line }: { line: OrderLine }) {
+  return (
+    <details open={line.allocationFragments.length > 0} style={{ borderTop: '1px solid var(--c-border)' }}>
+      <summary style={{ cursor: 'pointer', padding: '12px 16px' }}>
+        <b>Dòng {line.lineNumber} · {line.sku} · {line.productName}</b>{' '}
+        <span className="muted">— {line.allocationFragments.length} phần batch · {formatMoney(line.officialNetAmount ?? line.indicativeNetAmount)}</span>
+      </summary>
+      <SimpleTable
+        compact
+        rows={line.allocationFragments}
+        empty="Chưa có bản giá theo batch; giá hiện tại vẫn là giá dự kiến trước phân bổ."
+        columns={[
+          { header: 'Kho / batch', cell: (x) => <>{x.warehouseCode}<br /><b>{x.batchCode}</b><br /><span className="muted small">HSD {formatDate(x.batchExpirationDate)}</span></> },
+          { header: 'Lượng', align: 'right', cell: (x) => formatCases(x.quantity) },
+          { header: 'Giá niêm yết', align: 'right', cell: (x) => formatMoney(x.listUnitPrice) },
+          { header: 'KM thường', align: 'right', cell: (x) => <>−{formatMoney(x.ordinaryPromotionDiscountPerUnit)}<br /><span className="muted small">cơ sở {formatMoney(x.baseUnitPrice)}</span></> },
+          { header: 'HSD tại mốc giá', align: 'right', cell: (x) => <>{formatPercent(x.remainingShelfLifePercent, 2)}<br /><span className="muted small">ETA còn {formatHours(x.remainingLifeHoursAtArrival)}</span></> },
+          {
+            header: 'Quy tắc F98',
+            cell: (x) => <>{x.discountRuleId == null ? 'Không khớp bậc giảm' : [x.discountRuleScope, x.discountRuleCode].filter(Boolean).join(' · ')}<br /><span className="muted small">v{x.discountRuleVersion} · {x.discountReason}</span></>,
+          },
+          { header: 'Giảm HSD', align: 'right', cell: (x) => <>−{formatMoney(x.shelfLifeDiscountPerUnit)}<br /><span className="muted small">{x.discountType ?? 'Không giảm'}{x.discountValue == null ? '' : ` · ${x.discountValue}`}</span></> },
+          { header: 'Giá cuối', align: 'right', cell: (x) => <><b>{formatMoney(x.finalUnitPrice)}</b><br /><span className="muted small">{formatMoney(x.netAmount)}</span></> },
+        ]}
+      />
+      {line.allocationFragments.length > 0 && (
+        <div className="kv" style={{ padding: '10px 16px' }}>
+          <span className="muted">Tổng phần giá bất biến của dòng</span>
+          <b>{formatMoney(officialFragmentTotal(line))}</b>
+        </div>
+      )}
+    </details>
+  );
+}
 
-function OrderBody({ o }: { o: OrderDetail }) {
+function WorkflowLinks({ order }: { order: OrderDetail }) {
+  const navigate = useNavigate();
+  const role = useRole();
+  return (
+    <div className="row-wrap">
+      {role === 'Admin' && order.allocationRunId && <Button onClick={() => navigate('/allocation')}>Duyệt đợt {order.allocationRunCode ?? ''}</Button>}
+      {(role === 'Admin' || role === 'Operator') && order.warehouseProgress.some((x) => x.pickingListId) && <Button onClick={() => navigate('/runpicking')}>Theo dõi soạn hàng</Button>}
+      {(role === 'Admin' || role === 'Operator') && order.officialAmount != null && <Button onClick={() => navigate('/debts')}>Thanh toán / công nợ</Button>}
+    </div>
+  );
+}
+
+function OrderBody({ order }: { order: OrderDetail }) {
   const [trace, setTrace] = useState(false);
   const price = useOrderPrice(o.id);
   return (
@@ -38,165 +81,82 @@ function OrderBody({ o }: { o: OrderDetail }) {
             }
           />
 
-          {o.rejectReason && <Callout tone="danger"><b>Lý do từ chối:</b> {o.rejectReason}</Callout>}
-          {o.cancelReason && <Callout tone="danger"><b>Lý do hủy đơn:</b> {o.cancelReason}</Callout>}
-          {o.promoChange && (
-            <Callout tone="warn">
-              <b>Khuyến mãi thay đổi khi đồng bộ:</b> giảm giá offline {formatMoney(o.promoChange.localDiscount)} → chính thức {formatMoney(o.promoChange.officialDiscount)}. {o.promoChange.reason}
-            </Callout>
-          )}
+          {order.rejectionReason && <Callout tone="danger"><b>Lý do từ chối/thiếu:</b> {order.rejectionReason}</Callout>}
+          {order.hasOfflineDifference && <Callout tone="warn">Điều kiện/giá server nhận khác snapshot offline; giá dự kiến offline là {formatMoney(order.offlineEstimatedAmount)}.</Callout>}
+          {!reconciled && <Callout tone="danger">Tổng giá chính thức không khớp tổng các fragment F98. Không dùng số tiền này để thu hoặc đối soát.</Callout>}
 
           <Card title="Thông tin đơn hàng">
-            <Fields
-              cols={3}
-              items={[
-                { label: 'Retailer', value: `${o.retailerName} (${o.retailerCode})` },
-                { label: 'Địa chỉ giao', value: o.retailerAddress },
-                { label: 'Khu vực / nhóm Sales', value: `${o.areaName} · ${o.groupCode}` },
-                { label: 'Sales phụ trách', value: o.salesName },
-                { label: 'Kênh tạo', value: <StatusChip domain="channel" value={o.channel} /> },
-                { label: 'Đồng bộ', value: o.syncedAt ? `${formatDateTime(o.syncedAt)} · ${o.syncMode}` : '—' },
-                { label: 'Thanh toán', value: paymentLabel(o.paymentMethod, o.termDays) },
-                { label: 'Tình trạng thanh toán', value: o.paymentStatus },
-                { label: 'Người duyệt', value: o.reviewer || '—' },
-              ]}
-            />
+            <Fields cols={3} items={[
+              { label: 'Retailer', value: `${order.retailerName} (${order.retailerCode})` },
+              { label: 'Địa chỉ giao', value: order.deliveryAddress },
+              { label: 'Ngày yêu cầu nhận', value: formatDate(order.requestedDeliveryDate) },
+              { label: 'Nguồn', value: order.source === 'Offline' ? 'Offline gửi thủ công' : 'Sales tạo online' },
+              { label: 'Thanh toán', value: paymentLabel(order.paymentMethod, order.creditTermDays) },
+              { label: 'Đợt phân bổ', value: order.allocationRunCode ? `${order.allocationRunCode} · bản ${order.allocationPlanVersion ?? '—'}` : 'Chưa vào đợt' },
+              { label: 'Kết quả phân bổ', value: order.allocationResult ?? order.allocationState },
+              { label: 'Người tạo', value: order.createdByUserId },
+              { label: 'Người duyệt', value: order.reviewedByUserId ?? '—' },
+            ]} />
           </Card>
 
-          <div className="grid-aside">
-            <Card title="Tóm tắt đơn hàng" flush>
-              <SimpleTable
-                rows={o.lines}
-                columns={[
-                  { header: '#', width: '40px', cell: (l) => l.no },
-                  { header: 'SKU', width: '90px', cell: (l) => l.sku },
-                  { header: 'Sản phẩm', cell: (l) => l.name },
-                  { header: 'Đơn giá', align: 'right', cell: (l) => formatMoney(l.unitPrice) },
-                  { header: 'SL (thùng)', align: 'right', cell: (l) => l.qty },
-                  { header: 'Khuyến mãi', cell: (l) => (l.promotionCode ? <Chip tone="ok">{l.promotionCode} · {l.promotionPct}%</Chip> : '—') },
-                  {
-                    header: 'MLOR · nguồn',
-                    cell: (l) => (
-                      <span>
-                        {formatPercent(l.mlor.minimumLifeRatio * 100, 1)}
-                        {l.mlor.minimumLifeHours != null && <> · ≥ {formatHours(l.mlor.minimumLifeHours)}</>}
-                        <br />
-                        <span className="muted small">{MLOR_SOURCES[l.mlor.sourceScope] ?? l.mlor.sourceScope}</span>
-                      </span>
-                    ),
-                  },
-                  {
-                    header: 'Thành tiền',
-                    align: 'right',
-                    cell: (l) => (
-                      <span>
-                        {formatMoney(l.lineTotal)}
-                        {l.finalPricePendingAllocation && <><br /><span className="muted small">dự kiến</span></>}
-                      </span>
-                    ),
-                  },
-                ]}
-              />
-            </Card>
-            <Card title="Tóm tắt khuyến mãi">
-              <div className="stack-sm">
-                {o.promotions.length === 0 && <span className="muted">Không có khuyến mãi áp dụng.</span>}
-                {o.promotions.map((p) => (
-                  <div key={p.no} className="kv"><span><b>{p.code}</b> · {p.name}<br /><span className="muted small">{p.detail}</span></span><span>−{formatMoney(p.amount)}</span></div>
-                ))}
-                <div className="kv"><span className="muted">Tổng tiền hàng</span><span>{formatMoney(o.totalBeforePromo)}</span></div>
-                <div className="kv"><span className="muted">Giảm giá</span><span>−{formatMoney(o.discount)}</span></div>
-                <div className="total-line"><span>Thành tiền</span><span>{formatMoney(o.finalPrice)}</span></div>
-                <span className="muted small">Tổng {o.totalQty} thùng</span>
-              </div>
-            </Card>
-          </div>
-
-          <Card title="Kết quả phân bổ hàng" actions={<Chip tone={o.allocationState === 'Failed' ? 'danger' : o.allocationState === 'Released' ? 'neutral' : 'ok'}>{allocationChip[o.allocationState]}</Chip>} flush>
+          <Card title="Giá dự kiến và giá chính thức" flush>
             <SimpleTable
-              rows={o.allocations}
-              empty="Chưa có phân bổ (đơn bị từ chối hoặc đã trả hàng)."
+              rows={order.lines}
               columns={[
-                { header: 'Kho', cell: (a) => a.warehouseName },
-                { header: 'SKU', width: '90px', cell: (a) => a.sku },
-                { header: 'Batch', cell: (a) => a.batchCode },
-                { header: 'HSD', cell: (a) => formatDate(a.expiry) },
-                { header: 'Khoảng cách', align: 'right', cell: (a) => formatKm(a.km) },
-                { header: 'Dự kiến đến', cell: (a) => formatDate(a.eta) },
-                { header: 'HSD còn lại', align: 'right', cell: (a) => `${a.remainingDays} ngày` },
-                { header: 'Số lượng', align: 'right', cell: (a) => formatCases(a.qty) },
-                { header: 'Điểm', align: 'right', cell: (a) => formatScore(a.score) },
+                { header: '#', width: '40px', cell: (line) => line.lineNumber },
+                { header: 'SKU / sản phẩm', cell: (line) => <><b>{line.sku}</b><br /><span className="muted small">{line.productName}</span></> },
+                { header: 'SL', align: 'right', cell: (line) => formatCases(line.quantity) },
+                { header: 'Giá niêm yết', align: 'right', cell: (line) => formatMoney(line.unitPrice) },
+                { header: 'KM thường', align: 'right', cell: (line) => <>−{formatMoney(line.discountAmount)}<br /><span className="muted small">{line.ordinaryPromotion?.code ?? 'Không có'}</span></> },
+                { header: 'Giá dự kiến', align: 'right', cell: (line) => formatMoney(line.indicativeNetAmount) },
+                { header: 'Giá chính thức', align: 'right', cell: (line) => line.officialNetAmount == null ? 'Chưa chốt' : <b>{formatMoney(line.officialNetAmount)}</b> },
+                {
+                  header: 'MLOR · nguồn', cell: (line) => <>{formatPercent(line.mlor.minimumLifeRatio * 100, 1)}{line.mlor.minimumLifeHours != null && <> · ≥ {formatHours(line.mlor.minimumLifeHours)}</>}<br /><span className="muted small">{MLOR_SOURCES[line.mlor.sourceScope]} · v{line.mlor.sourceVersion}</span></>,
+                },
               ]}
             />
-            {o.estimatedDeliveryCost && (
-              <div style={{ padding: '12px 16px' }}>
-                <b>Chi phí giao ước tính: {formatMoney(o.estimatedDeliveryCost.total)}</b>
-                <span className="muted small"> — {o.estimatedDeliveryCost.parts.map((p) => `${p.warehouseName} ${formatKm(p.km)} ${formatMoney(p.cost)}`).join(' · ')}. Chỉ hiển thị, không là trọng số phân bổ.</span>
-              </div>
-            )}
+            <div className="kv" style={{ padding: '12px 16px' }}>
+              <span>Dự kiến: <b>{formatMoney(order.indicativeAmount)}</b></span>
+              <span>Chính thức: <b>{order.officialAmount == null ? 'Chưa chốt sau duyệt đợt' : formatMoney(order.officialAmount)}</b></span>
+            </div>
           </Card>
 
-          <Card title="Chi tiết giá theo batch" flush>
-            {!price.data ? (
-              <span className="muted" style={{ padding: '12px 16px', display: 'block' }}>
-                Đơn này chưa có bản giá phân bổ.
-              </span>
-            ) : (
-              <>
-                <div className="kv" style={{ padding: '12px 16px' }}>
-                  <span>
-                    {/* Một phương án chờ duyệt là báo giá, chưa phải giá để thu tiền. */}
-                    {price.data.isApproved ? 'Giá đã chốt' : 'Phương án giá chờ duyệt'} · đợt {price.data.runCode} ·
-                    bản {price.data.planVersionNumber} · định giá {formatDateTime(price.data.pricedAt)}
-                  </span>
-                  <b>{formatMoney(price.data.finalAmount)}</b>
-                </div>
-                <SimpleTable
-                  rows={price.data.lines.flatMap((line) => line.parts.map((part) => ({ ...part, sku: line.sku })))}
-                  columns={[
-                    { header: 'SKU', cell: (x) => x.sku },
-                    { header: 'Batch', cell: (x) => x.batchCode },
-                    { header: 'Lượng', align: 'right', cell: (x) => formatCases(x.quantity) },
-                    { header: 'Giá niêm yết', align: 'right', cell: (x) => formatMoney(x.listUnitPrice) },
-                    { header: 'Giá cơ sở', align: 'right', cell: (x) => formatMoney(x.baseNetUnitPrice) },
-                    { header: '% HSD tính giá', align: 'right', cell: (x) => `${x.remainingShelfLifePercent}%` },
-                    { header: 'Giảm HSD', align: 'right', cell: (x) => formatMoney(x.shelfLifeDiscountPerUnit) },
-                    { header: 'Giá cuối', align: 'right', cell: (x) => <strong>{formatMoney(x.finalNetUnitPrice)}</strong> },
-                    { header: 'Thành tiền', align: 'right', cell: (x) => formatMoney(x.amount) },
-                  ]}
-                />
-              </>
-            )}
+          <Card title="Chi tiết giá bất biến theo SKU / batch (F98)" flush>
+            {order.lines.map((line) => <PriceBreakdown key={line.id} line={line} />)}
           </Card>
 
-          {o.delivery && (
-            <Card title="Giao hàng">
-              <Fields cols={3} items={[
-                { label: 'Xe giao', value: `${o.delivery.plate} · ${o.delivery.vehicleType}` },
-                { label: 'Người giao', value: `${o.delivery.driverCode} · ${o.delivery.driverName}` },
-                { label: 'SĐT / xuất phát', value: `${o.delivery.driverPhone} · ${formatDateTime(o.delivery.departedAt)}` },
-              ]} />
-            </Card>
-          )}
-          {o.receivable && (
-            <Callout tone={o.receivable.status === 'Overdue' ? 'danger' : 'info'}>
-              Công nợ: <StatusChip domain="receivable" value={o.receivable.status} /> · hạn {formatDate(o.receivable.dueDate)} · còn phải thu {formatMoney(o.receivable.outstanding)}
-            </Callout>
-          )}
-          <Card title="Loyalty">
-            <span>{o.loyalty.state === 'Earned' ? `Đã cộng ${o.loyalty.points} điểm.` : o.loyalty.state === 'None' ? 'Chưa phát sinh điểm.' : `Dự kiến ${o.loyalty.points} điểm – ${o.loyalty.state === 'AwaitingScan' ? 'chờ retailer quét QR nhận hàng' : 'chờ thanh toán'}.`}</span>
+          <Card title="Tiến độ theo kho" flush>
+            <SimpleTable
+              rows={order.warehouseProgress}
+              empty="Chưa phát sinh phần giao theo kho."
+              columns={[
+                { header: 'Kho', cell: (x) => x.warehouseCode },
+                { header: 'Phiếu soạn', cell: (x) => x.pickingCode ?? '—' },
+                { header: 'Trạng thái soạn', cell: (x) => x.pickingStatus ?? '—' },
+                { header: 'Phần giao', cell: (x) => x.shipmentCode ?? '—' },
+                { header: 'Trạng thái giao', cell: (x) => x.shipmentStatus ?? '—' },
+                { header: 'Dự kiến', align: 'right', cell: (x) => formatCases(x.plannedQuantity) },
+                { header: 'Đã soạn', align: 'right', cell: (x) => formatCases(x.pickedQuantity) },
+                { header: 'Đã nhận', align: 'right', cell: (x) => formatCases(x.receivedQuantity) },
+              ]}
+            />
           </Card>
+
+          <Card title="Đi tới nghiệp vụ liên quan"><WorkflowLinks order={order} /></Card>
 
           <Card title="Lịch sử xử lý">
             <div className="timeline">
-              {[...o.timeline].reverse().map((t, i) => (
-                <div className="timeline-item" key={i}><span className="t">{formatDateTime(t.at)}</span><span>{t.label}</span></div>
+              {[...order.history].reverse().map((event, index) => (
+                <div className="timeline-item" key={`${event.changedAt}-${index}`}>
+                  <span className="t">{formatDateTime(event.changedAt)}</span>
+                  <span>{statusLabel('order', event.toStatus)}{event.reason ? ` · ${event.reason}` : ''}</span>
+                </div>
               ))}
             </div>
           </Card>
 
           {dialogs}
-          <AllocationTraceDialog orderId={o.id} code={o.code} open={trace} onClose={() => setTrace(false)} />
+          <AllocationTraceDialog orderId={order.id} code={order.orderCode} open={trace} onClose={() => setTrace(false)} />
         </>
       )}
     </OrderActions>
@@ -204,7 +164,7 @@ function OrderBody({ o }: { o: OrderDetail }) {
 }
 
 export function OrderDetailPage() {
-  const { code = '' } = useParams();
-  const query = useOrder(code);
-  return <QueryState query={query}>{(o) => <OrderBody o={o} />}</QueryState>;
+  const { orderId = '' } = useParams();
+  const query = useOrder(orderId);
+  return <QueryState query={query}>{(order) => <OrderBody order={order} />}</QueryState>;
 }

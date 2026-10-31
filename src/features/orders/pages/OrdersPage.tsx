@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
 import { Button, DataTable, Input, PageHeader, StatusChip, type Column } from '@/shared/ui';
-import { formatMoney, formatShortDateTime, paymentLabel, statusLabel, statusLabels } from '@/shared/lib';
+import { formatCases, formatMoney, formatShortDateTime, paymentLabel, statusLabel, statusLabels } from '@/shared/lib';
 import { useOrders } from '../hooks';
 import { OrderActions } from '../components/OrderActions';
 import type { OrderSummary } from '../types';
 
-/** "Đơn hàng" list – filters Trạng thái / Kênh tạo / Từ ngày; row actions depend on status. */
 export function OrdersPage() {
   const navigate = useNavigate();
   const query = useOrders();
@@ -14,48 +13,41 @@ export function OrdersPage() {
   const rows = (query.data ?? []).filter((o) => !from || o.createdAt.slice(0, 10) >= from);
 
   const columns: Column<OrderSummary>[] = [
-    { key: 'code', header: 'Mã đơn', width: '104px', render: (o) => <span className="bold">{o.code}</span> },
+    { key: 'orderCode', header: 'Mã đơn', width: '112px', render: (o) => <span className="bold">{o.orderCode}</span> },
     { key: 'retailer', header: 'Retailer', width: '180px', text: (o) => `${o.retailerCode} ${o.retailerName}`, render: (o) => (<><div className="strong">{o.retailerName}</div><div className="muted small">{o.retailerCode}</div></>) },
-    { key: 'items', header: 'Sản phẩm', text: (o) => o.itemsSummary },
-    { key: 'sales', header: 'Sales', width: '130px', text: (o) => o.salesName },
-    { key: 'createdAt', header: 'Ngày tạo', width: '110px', text: (o) => formatShortDateTime(o.createdAt) },
-    { key: 'channel', header: 'Kênh', width: '80px', render: (o) => <StatusChip domain="channel" value={o.channel} /> },
-    { key: 'payment', header: 'Thanh toán', width: '150px', text: (o) => paymentLabel(o.paymentMethod, o.termDays) },
-    { key: 'total', header: 'Thành tiền', width: '120px', align: 'right', text: (o) => formatMoney(o.total) },
-    { key: 'status', header: 'Trạng thái', width: '130px', render: (o) => <StatusChip domain="order" value={o.status} /> },
+    { key: 'lines', header: 'Đơn hàng', text: (o) => `${o.lineCount} SKU ${o.totalCartons} thùng`, render: (o) => <>{o.lineCount} SKU<br /><span className="muted small">{formatCases(o.totalCartons)}</span></> },
+    { key: 'createdAt', header: 'Server nhận', width: '125px', text: (o) => formatShortDateTime(o.createdAt) },
+    { key: 'source', header: 'Nguồn', width: '82px', render: (o) => <StatusChip domain="channel" value={o.source === 'Offline' ? 'Offline' : 'Online'} /> },
+    { key: 'payment', header: 'Thanh toán', width: '120px', text: (o) => paymentLabel(o.paymentMethod) },
+    {
+      key: 'amount', header: 'Giá trị', width: '138px', align: 'right',
+      render: (o) => <>{formatMoney(o.officialAmount ?? o.indicativeAmount)}<br /><span className="muted small">{o.officialAmount == null ? 'dự kiến' : 'chính thức'}</span></>,
+    },
+    { key: 'status', header: 'Trạng thái', width: '145px', render: (o) => <StatusChip domain="order" value={o.status} /> },
+    { key: 'progress', header: 'Đợt / giao', width: '145px', text: (o) => `${o.allocationResult ?? o.allocationState} ${o.shipmentCount}`, render: (o) => <>{o.allocationResult ?? o.allocationState}<br /><span className="muted small">{o.shipmentCount} phần giao</span></> },
   ];
 
   return (
     <OrderActions>
       {({ buttons, dialogs }) => (
         <>
-          <PageHeader title="Đơn hàng" subtitle="Duyệt đơn, xem giải thích phân bổ B1–B4, cập nhật giao hàng. Đơn không đủ hàng được ghi là thiếu, đợt không tự từ chối đơn." />
+          <PageHeader title="Đơn hàng" subtitle="Giá dự kiến trước đợt, giá chính thức sau duyệt và tiến độ từng phần theo kho." />
           <DataTable
             title="Danh sách đơn hàng"
             rows={rows}
             loading={query.isLoading}
             error={query.error}
-            rowKey={(o) => o.code}
+            rowKey={(o) => o.id}
             columns={columns}
-            searchPlaceholder="Mã đơn, retailer, sản phẩm, Sales…"
+            searchPlaceholder="Mã đơn, retailer, trạng thái…"
             filters={[
               { label: 'Trạng thái', options: Object.values(statusLabels.order), value: (o) => statusLabel('order', o.status) },
-              { label: 'Kênh tạo', options: ['Online', 'Offline'], value: (o) => o.channel },
+              { label: 'Nguồn', options: ['Online', 'Offline'], value: (o) => o.source === 'Offline' ? 'Offline' : 'Online' },
             ]}
-            filterExtra={
-              <label className="lbl">
-                Từ ngày
-                <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-              </label>
-            }
-            onRowClick={(o) => navigate(`/orders/${o.code}`)}
-            rowActionsWidth="270px"
-            rowActions={(o) => (
-              <>
-                <Button size="sm" onClick={() => navigate(`/orders/${o.code}`)}>Xem</Button>
-                {buttons(o.code, o.status)}
-              </>
-            )}
+            filterExtra={<label className="lbl">Từ ngày<Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label>}
+            onRowClick={(o) => navigate(`/orders/${o.id}`)}
+            rowActionsWidth="300px"
+            rowActions={(o) => <><Button size="sm" onClick={() => navigate(`/orders/${o.id}`)}>Xem</Button>{buttons(o)}</>}
           />
           {dialogs}
         </>

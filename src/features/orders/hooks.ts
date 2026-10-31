@@ -5,14 +5,12 @@ import { orderApi } from './api';
 export const orderKeys = {
   all: ['orders'] as const,
   list: ['orders', 'list'] as const,
-  detail: (code: string) => ['orders', 'detail', code] as const,
-  trace: (code: string) => ['orders', 'trace', code] as const,
+  detail: (orderId: string) => ['orders', 'detail', orderId] as const,
+  trace: (orderId: string) => ['orders', 'trace', orderId] as const,
 };
 
 export const useOrders = () => useQuery({ queryKey: orderKeys.list, queryFn: orderApi.list });
-export const useOrder = (code: string) => useQuery({ queryKey: orderKeys.detail(code), queryFn: () => orderApi.get(code) });
-export const useOrderPrice = (orderId: string | undefined) =>
-  useQuery({ queryKey: ['orders', 'price', orderId], queryFn: () => orderApi.price(orderId as string), enabled: !!orderId });
+export const useOrder = (orderId: string) => useQuery({ queryKey: orderKeys.detail(orderId), queryFn: () => orderApi.get(orderId), enabled: !!orderId });
 export const useAllocationTrace = (orderId: string, enabled: boolean) => useQuery({ queryKey: orderKeys.trace(orderId), queryFn: () => orderApi.trace(orderId), enabled: enabled && !!orderId });
 export const useDispatchOptions = (enabled: boolean) => ({
   vehicles: useQuery({ queryKey: ['dispatch', 'vehicles'], queryFn: orderApi.vehicles, enabled }),
