@@ -10,7 +10,7 @@ export function Sidebar() {
   const { user, logout } = useAuth();
   const { data: badges } = useMenuBadges();
   if (!user) return null;
-  const items = APP_ROUTES.filter((r) => r.roles.includes(user.role));
+  const items = APP_ROUTES.filter((r) => !r.hidden && r.roles.includes(user.role));
 
   return (
     <aside className="sidebar">

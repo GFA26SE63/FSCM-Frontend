@@ -33,13 +33,18 @@ export function masterData(): Master {
       { ...P('SKU009', 'Sữa tươi thanh trùng 950ml (thùng 10 chai)', 'CAT-02', 'Thùng 10 chai', 300000, 255000, 14, 4, 0.3), status: 'Inactive', replacedBy: 'SKU004' },
     ],
     warehouses: [
-      { code: 'WH-TA', name: 'Kho Thới An', address: 'P. Thới An, Q.12', lat: 10.8744, lng: 106.6511, type: 'Regional', keeperName: 'Đỗ Văn Tâm', capacityPallets: 400, status: 'Active' },
-      { code: 'WH-TCH', name: 'Kho Tân Chánh Hiệp', address: 'P. Tân Chánh Hiệp, Q.12', lat: 10.8632, lng: 106.6208, type: 'Regional', keeperName: 'Ngô Thị Lan', capacityPallets: 350, status: 'Active' },
-      { code: 'WH-GV', name: 'Kho Gò Vấp', address: 'P. 14, Q. Gò Vấp', lat: 10.8421, lng: 106.6613, type: 'Regional', keeperName: 'Bùi Quang Minh', capacityPallets: 300, status: 'Active' },
-      { code: 'WH-TD', name: 'Kho Thủ Đức', address: 'P. Linh Trung, TP. Thủ Đức', lat: 10.8696, lng: 106.7791, type: 'Regional', keeperName: 'Lý Hoàng Nam', capacityPallets: 320, status: 'Active' },
-      { code: 'WH-CC', name: 'Kho Củ Chi', address: 'Xã Tân Thông Hội, H. Củ Chi', lat: 10.9741, lng: 106.4932, type: 'Central', keeperName: 'Trịnh Văn Hậu', capacityPallets: 1200, status: 'Active' },
+      { code: 'WH-TA', name: 'Kho Thới An', address: 'P. Thới An, Q.12', lat: 10.8744, lng: 106.6511, type: 'Regional', keeperName: 'Đỗ Văn Tâm', capacityPallets: 400, minStock: 30, status: 'Active' },
+      { code: 'WH-TCH', name: 'Kho Tân Chánh Hiệp', address: 'P. Tân Chánh Hiệp, Q.12', lat: 10.8632, lng: 106.6208, type: 'Regional', keeperName: 'Ngô Thị Lan', capacityPallets: 350, minStock: 30, status: 'Active' },
+      { code: 'WH-GV', name: 'Kho Gò Vấp', address: 'P. 14, Q. Gò Vấp', lat: 10.8421, lng: 106.6613, type: 'Regional', keeperName: 'Bùi Quang Minh', capacityPallets: 300, minStock: 30, status: 'Active' },
+      { code: 'WH-TD', name: 'Kho Thủ Đức', address: 'P. Linh Trung, TP. Thủ Đức', lat: 10.8696, lng: 106.7791, type: 'Regional', keeperName: 'Lý Hoàng Nam', capacityPallets: 320, minStock: 30, status: 'Active' },
+      { code: 'WH-CC', name: 'Kho Củ Chi', address: 'Xã Tân Thông Hội, H. Củ Chi', lat: 10.9741, lng: 106.4932, type: 'Central', keeperName: 'Trịnh Văn Hậu', capacityPallets: 1200, minStock: 80, status: 'Active' },
+      { code: 'WH-CG', name: 'Kho Cần Giờ', address: 'Xã Bình Khánh, H. Cần Giờ', lat: 10.6081, lng: 106.7894, type: 'Regional', keeperName: 'Võ Thanh Hải', capacityPallets: 150, minStock: 30, status: 'Active' },
+
+
+
+
       // Extra demo warehouse far from Gò Vấp (> Dmax_kho) so the rotation trace shows a "> 40 km" rejection.
-      { code: 'WH-CG', name: 'Kho Cần Giờ', address: 'Xã Bình Khánh, H. Cần Giờ', lat: 10.6081, lng: 106.7894, type: 'Regional', keeperName: 'Võ Thanh Hải', capacityPallets: 150, status: 'Active' },
+
     ],
     areas: [
       { code: 'Q12', name: 'Quận 12', region: 'Miền Nam', managerName: 'Hồ Gia Bảo', wards: ['Thới An', 'Tân Chánh Hiệp', 'Hiệp Thành', 'Thạnh Lộc'] },

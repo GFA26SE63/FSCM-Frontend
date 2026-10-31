@@ -12,6 +12,29 @@ export function ReasonDialog({ order, mode, onClose }: ReasonDialogProps) {
   const reject = useRejectOrder();
   const cancel = useCancelOrder();
   const isReject = mode === 'reject';
+  const options = isReject ? REJECT_REASONS : CANCEL_REASONS;
+
+  const [selectedReason, setSelectedReason] = useState(options[0]);
+  const [customReason, setCustomReason] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  if (!code) return null;
+
+  const effectiveReason = selectedReason === 'Khác (nhập tay)' ? customReason.trim() : selectedReason;
+  const isValid = Boolean(effectiveReason);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isValid || busy) return;
+    setBusy(true);
+    try {
+      await (isReject ? reject : cancel).mutateAsync({ code, reason: effectiveReason });
+      onClose();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <FormDialog
       open={order != null}

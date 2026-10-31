@@ -1,9 +1,59 @@
 export type ProductStatus = 'Draft' | 'Published' | 'Inactive';
+
 export interface Product {
-  sku: string; name: string; categoryCode: string; categoryName: string; packSpec: string; basePrice: number;
-  shelfLifeDays: number; nearExpiryDays: number; defaultMlor: number; status: ProductStatus;
+  id: string;
+  productCategoryId: string;
+  categoryCode: string;
+  categoryName: string;
+  replacesProductId: string | null;
+  sku: string;
+  name: string;
+  unit: string;
+  shelfLifeHours: number;
+  nearDateThresholdHours: number;
+  status: ProductStatus;
+  currentUnitPrice: number | null;
+  publishedAt: string | null;
+  inactivatedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
-export interface ProductBatch { warehouseCode: string; warehouseName: string; batchCode: string; expiry: string; available: number }
-export interface ProductDetail extends Product { unitCost: number; replaceOf: string | null; replacedBy: string | null; batches: ProductBatch[] }
-export interface ProductInput { name: string; categoryCode: string; packSpec: string; basePrice: number; unitCost: number; shelfLifeDays: number; nearExpiryDays: number; defaultMlor: number }
-export interface CategoryOption { code: string; name: string; status: string }
+
+export interface ProductFields {
+  productCategoryId: string;
+  name: string;
+  unit: string;
+  shelfLifeHours: number;
+  nearDateThresholdHours: number;
+}
+
+export interface CreateProductInput extends ProductFields {
+  sku: string;
+  initialUnitPrice: number;
+}
+
+export interface CategoryOption {
+  id: string;
+  parentCategoryId: string | null;
+  code: string;
+  name: string;
+  isActive: boolean;
+}
+
+export interface ProductPage {
+  items: Product[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
+export interface ProductPrice {
+  id: string;
+  productId: string;
+  unitPrice: number;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  isActive: boolean;
+  createdAt: string;
+}

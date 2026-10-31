@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test:products": "node --test tests/products.test.cjs",
+    "test:rbac": "node --test tests/rbac.test.cjs",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -1,5 +1,9 @@
-import { useState } from 'react';
-import { Navigate, useNavigate } from '@/shared/router/compat';
+import { matchPath } from 'react-router-dom';
+import { useRef, useState } from 'react';
+import {
+  Navigate,
+  useLocation,
+} from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { externalAuthConfig } from '@/shared/auth/externalAuth';
 import type { PortalRole } from '@/shared/auth/roles';
@@ -14,7 +18,10 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
 
-  if (status === 'authenticated' && user) return <Navigate to={HOME_BY_ROLE[user.role]} replace />;
+  if (status === 'authenticated' && user) {
+    const destination =
+      getReturnPath(location.state, user.role) ??
+      HOME_BY_ROLE[user.role];
 
   const submit = async (request: () => Promise<{ role: PortalRole }>) => {
     setBusy(true);
@@ -24,9 +31,12 @@ export function LoginPage() {
     } catch (error) {
       toast.error(error);
     } finally {
-      setBusy(false);
+      submitting.current = false;
+      setBusy(null);
     }
   };
+
+  const isBusy = busy !== null;
 
   return (
     <div className="login-wrap">
@@ -66,7 +76,35 @@ export function LoginPage() {
             <Button type="button" loading={busy} onClick={() => void submit(loginWithMicrosoft)}>Đăng nhập bằng Microsoft</Button>
           </>
         )}
-      </form>
+
+        {forgotStep === 'sent' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 18 }}>Kiểm tra email</div>
+              <p className="muted" style={{ margin: '4px 0 0', fontSize: 13, lineHeight: 1.5 }}>
+                Nếu <strong>{forgotEmail}</strong> có tài khoản Portal, link đặt lại mật khẩu đã được gửi tới hộp thư. Link hết hạn sau 15 phút.
+              </p>
+            </div>
+            <Button
+              variant="primary"
+              style={{ height: 42 }}
+              onClick={() => {
+                toast.show('Đã gửi lại link đặt lại mật khẩu.');
+              }}
+            >
+              Gửi lại link
+            </Button>
+            <button
+              type="button"
+              className="btn"
+              style={{ height: 36, border: 'none', color: '#14655B', background: 'transparent', cursor: 'pointer' }}
+              onClick={() => setForgotStep('none')}
+            >
+              ← Quay lại đăng nhập
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

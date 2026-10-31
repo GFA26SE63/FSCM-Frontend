@@ -1,10 +1,14 @@
 import { Button } from '@/shared/ui';
+import { useAuth } from '@/shared/auth/AuthContext';
+import { can } from '@/shared/auth/permissions';
 import { useRedeemStep } from '../hooks';
 import type { Redemption } from '../types';
 
 /** Workflow: Requested → (Duyệt | Từ chối) → Approved → Delivered → Done. */
 export function RedeemActions({ x, size = 'sm' }: { x: Redemption; size?: 'sm' | 'md' }) {
   const step = useRedeemStep();
+  const { user } = useAuth();
+  if (!can(user, 'redeem.manage')) return null;
   const run = (s: 'approve' | 'reject' | 'deliver' | 'complete') => step.mutate({ code: x.code, step: s });
   return (
     <>

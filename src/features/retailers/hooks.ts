@@ -25,8 +25,8 @@ export const useRetailerLookups = (enabled = true) => ({
   areas: useQuery({ queryKey: ['retailers', 'areas'], queryFn: retailerApi.areas, enabled }),
   groups: useQuery({ queryKey: ['retailers', 'groups'], queryFn: retailerApi.groups, enabled }),
 });
-export const useCreateRetailer = () => useApiMutation(retailerApi.create, { success: (r) => `Đã tạo retailer ${r.code} · ${r.name}.` });
-export const useUpdateRetailer = () => useApiMutation(retailerApi.update, { success: (r) => `Đã cập nhật retailer ${r.code}.` });
-export const useApproveRegistration = () => useApiMutation(retailerApi.approve, { success: (r) => `Đã duyệt ${r.registration.code}: cấp mã điểm bán ${r.retailer.code} và báo Sales.` });
-export const useRejectRegistration = () => useApiMutation(retailerApi.reject, { success: (r) => `Đã từ chối ${r.code}.` });
-export const useSaveMlor = () => useApiMutation(retailerApi.saveMlor, { success: 'Đã lưu MLOR của retailer.' });
+export const useCreateRetailer = () => useApiMutation(retailerApi.create, { permission: 'retailers.create', success: (r) => `Đã tạo retailer ${r.code} · ${r.name}.` });
+export const useUpdateRetailer = () => useApiMutation(retailerApi.update, { permission: 'retailers.edit', success: (r) => `Đã cập nhật retailer ${r.code}.` });
+export const useApproveRegistration = () => useApiMutation(retailerApi.approve, { permission: 'retailers.review', success: (r) => `Đã duyệt ${r.registration.code}: cấp mã điểm bán ${r.retailer.code} và báo Sales.` });
+export const useRejectRegistration = () => useApiMutation(retailerApi.reject, { permission: 'retailers.review', success: (r) => `Đã từ chối ${r.code}.` });
+export const useSaveMlor = () => useApiMutation(retailerApi.saveMlor, { permission: 'mlor.manage', success: 'Đã lưu MLOR của retailer.' });
