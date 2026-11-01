@@ -1,74 +1,37 @@
-import { can } from '@/shared/auth/permissions';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { useNavigate } from '@/shared/router/compat';
-import { Button, DataTable, PageHeader, StatusChip, type Column } from '@/shared/ui';
-import { statusLabels } from '@/shared/lib';
+import { get, post } from '@/shared/api/http';
 import { useAuth } from '@/shared/auth/AuthContext';
-import { useRetailerRows } from '../hooks';
-import { RegistrationActions } from '../components/RegistrationActions';
-import { RetailerFormDialog } from '../components/RetailerFormDialog';
-import type { RetailerRow } from '../types';
+import { can } from '@/shared/auth/permissions';
+import { Button, DataTable, FormDialog, PageHeader, StatusChip, type Column } from '@/shared/ui';
 
-const statusText = (r: RetailerRow) => (r.statusDomain === 'active' ? statusLabels.active[r.status as 'Active' | 'Locked'] : statusLabels.registration[r.status as 'Pending' | 'Rejected']);
+type Retailer = { id: string; code: string; name: string; contactName?: string; phone?: string; address?: string; status: 'Draft' | 'PendingApproval' | 'Active' | 'Rejected' | 'Inactive'; retailerType: string; salesGroupCode: string; creditTermDays: number };
+type RetailerPage = { items: Retailer[]; totalCount: number };
+const statusLabel: Record<Retailer['status'], string> = { Draft: 'Bản nháp', PendingApproval: 'Chờ duyệt', Active: 'Hoạt động', Rejected: 'Từ chối', Inactive: 'Ngưng hoạt động' };
 
-/** "Retailer" – master list plus Sales registrations (KB-xxxx) waiting for approval. */
+function ReviewDialog({ retailer, onClose }: { retailer: Retailer; onClose: () => void }) {
+  const client = useQueryClient();
+  return <FormDialog open width={560} title={`Duyệt khai báo ${retailer.code}`} submitLabel="Duyệt retailer" initial={{ reason: '', creditTermDays: String(retailer.creditTermDays || 0) }} fields={[{ key: 'creditTermDays', type: 'select' as const, label: 'Kỳ hạn công nợ', required: true, options: [{ value: '0', label: 'Không công nợ' }, { value: '7', label: '7 ngày' }, { value: '14', label: '14 ngày' }, { value: '30', label: '30 ngày' }] }, { key: 'reason', type: 'textarea' as const, label: 'Ghi chú phê duyệt', required: true }]} onClose={onClose} onSubmit={async (value) => { await post(`/retailers/${retailer.id}/review`, { approve: true, creditTermDays: Number(value.creditTermDays), reason: value.reason }); await client.invalidateQueries({ queryKey: ['retailers', 'portal'] }); onClose(); }} />;
+}
+
+/** Operational retailer queue backed by the current Retailers API. */
 export function RetailersPage() {
-  const navigate = useNavigate();
   const { user } = useAuth();
-  const mayCreate = can(user, 'retailers.create');
-  const query = useRetailerRows();
-  const [creating, setCreating] = useState(false);
-  const columns: Column<RetailerRow>[] = [
-    { key: 'code', header: 'Mã', width: '110px', render: (r) => <span className="bold">{r.code}</span> },
-    { key: 'name', header: 'Tên điểm bán', text: (r) => r.name },
-    { key: 'address', header: 'Địa chỉ', text: (r) => r.address },
-    { key: 'area', header: 'Khu vực', width: '110px', text: (r) => r.areaName },
-    { key: 'contact', header: 'Liên hệ', width: '150px', text: (r) => `${r.contact} ${r.phone}`, render: (r) => (<><div>{r.contact || '—'}</div><div className="muted small">{r.phone}</div></>) },
-    { key: 'class', header: 'Nhóm tiềm năng', width: '100px', render: (r) => <StatusChip value={r.potentialClass} /> },
-    { key: 'source', header: 'Nguồn', width: '170px', text: (r) => r.source },
-    { key: 'status', header: 'Trạng thái', width: '115px', render: (r) => <StatusChip value={statusText(r)} /> },
+  const [reviewing, setReviewing] = useState<Retailer | null>(null);
+  const query = useQuery({ queryKey: ['retailers', 'portal'], queryFn: () => get<RetailerPage>('/retailers', { page: 1, pageSize: 100 }) });
+  const rows = query.data?.items ?? [];
+  const columns: Column<Retailer>[] = [
+    { key: 'code', header: 'Mã', width: '120px', text: (row) => row.code },
+    { key: 'name', header: 'Điểm bán', text: (row) => row.name },
+    { key: 'contact', header: 'Liên hệ', text: (row) => `${row.contactName ?? '—'} · ${row.phone ?? '—'}` },
+    { key: 'salesGroup', header: 'Nhóm Sales', width: '130px', text: (row) => row.salesGroupCode },
+    { key: 'type', header: 'Loại hình', text: (row) => row.retailerType },
+    { key: 'credit', header: 'Công nợ', width: '110px', text: (row) => row.creditTermDays ? `${row.creditTermDays} ngày` : 'Không' },
+    { key: 'status', header: 'Trạng thái', width: '140px', render: (row) => <StatusChip value={statusLabel[row.status]} /> },
   ];
-  return (
-    <>
-      <PageHeader title="Retailer" subtitle="Danh sách điểm bán và khai báo mới từ Sales (mã KB-xxxx) chờ duyệt." />
-      <DataTable
-        title="Danh sách retailer"
-        rows={query.data}
-        loading={query.isLoading}
-        error={query.error}
-        rowKey={(r) => r.code}
-        columns={columns}
-        searchPlaceholder="Mã, tên, địa chỉ, liên hệ…"
-        filters={[
-          { label: 'Trạng thái', options: ['Hoạt động', 'Đã khóa', 'Chờ duyệt', 'Bị từ chối'], value: statusText },
-          { label: 'Khu vực', options: [...new Set((query.data ?? []).map((r) => r.areaName))], value: (r) => r.areaName },
-          { label: 'Nhóm tiềm năng', options: ['A', 'B', 'C'], value: (r) => r.potentialClass },
-        ]}
-        actions={
-          mayCreate ? (
-            <Button
-              variant="primary"
-              onClick={() => setCreating(true)}
-            >
-              + Tạo retailer
-            </Button>
-          ) : undefined
-        }
-        onRowClick={(r) => navigate(`/retailers/${r.code}`)}
-        rowActionsWidth="230px"
-        rowActions={(r) => (
-          <>
-            <Button size="sm" onClick={() => navigate(`/retailers/${r.code}`)}>Xem</Button>
-            {r.kind === 'Registration' && r.status === 'Pending' && <RegistrationActions code={r.code} />}
-          </>
-        )}
-      />
-      {mayCreate && creating && (
-        <RetailerFormDialog
-          open
-          onClose={() => setCreating(false)}
-        />
-      )}
-    </>
-  );
+  return <>
+    <PageHeader title="Retailer" subtitle="Theo dõi khai báo từ Sales, duyệt retailer và quản lý trạng thái tài khoản." />
+    <DataTable title="Danh sách retailer" rows={rows} loading={query.isLoading} error={query.error} rowKey={(row) => row.id} columns={columns} searchPlaceholder="Mã, tên điểm bán, liên hệ..." filters={[{ label: 'Trạng thái', options: Object.values(statusLabel), value: (row) => statusLabel[row.status] }]} rowActionsWidth="130px" rowActions={(row) => row.status === 'PendingApproval' && can(user, 'retailers.review') ? <Button size="sm" variant="primary" onClick={() => setReviewing(row)}>Xét duyệt</Button> : null} />
+    {reviewing && <ReviewDialog retailer={reviewing} onClose={() => setReviewing(null)} />}
+  </>;
 }
