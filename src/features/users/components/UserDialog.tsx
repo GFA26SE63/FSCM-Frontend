@@ -113,6 +113,7 @@ export function UserDialog({ user, onClose }: Props) {
 
     if (
       !user &&
+      role !== 'Retailer' &&
       (password.length < 12 ||
         !/[A-Z]/.test(password) ||
         !/[a-z]/.test(password) ||
@@ -336,8 +337,9 @@ export function UserDialog({ user, onClose }: Props) {
             </p>
 
             <p>
-              Người dùng có thể đăng nhập bằng mật khẩu
-              hoặc tài khoản Google cùng email.
+              {created.role === 'Retailer'
+                ? 'Tài khoản Retailer đang chờ kích hoạt. Sau khi gán đúng retailer đã duyệt, chủ điểm bán phải xác minh OTP email và tự tạo mật khẩu trên Mobile.'
+                : 'Người dùng có thể đăng nhập bằng mật khẩu hoặc tài khoản Google cùng email.'}
             </p>
           </div>
         )}
@@ -435,15 +437,16 @@ export function UserDialog({ user, onClose }: Props) {
                 </FormField>
 
                 <FormField
-                  label="Mật khẩu"
-                  required
+                  label={role === 'Retailer' ? 'Mật khẩu (thiết lập qua OTP)' : 'Mật khẩu'}
+                  required={role !== 'Retailer'}
                   error={errors.password}
                 >
                   <Input
                     type="password"
                     autoComplete="new-password"
                     value={password}
-                    readOnly={identityLocked}
+                    readOnly={identityLocked || role === 'Retailer'}
+                    placeholder={role === 'Retailer' ? 'Retailer tự tạo mật khẩu sau khi xác minh OTP' : undefined}
                     onChange={(event) =>
                       setPassword(event.target.value)
                     }
