@@ -3,15 +3,27 @@ import { useState } from 'react';
 import { get, post } from '@/shared/api/http';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
-import { Button, DataTable, FormDialog, PageHeader, StatusChip, type Column } from '@/shared/ui';
+import { Button, Callout, DataTable, FormDialog, PageHeader, StatusChip, type Column } from '@/shared/ui';
 
 type Retailer = { id: string; code: string; name: string; contactName?: string; phone?: string; address?: string; status: 'Draft' | 'PendingApproval' | 'Active' | 'Rejected' | 'Inactive'; retailerType: string; salesGroupCode: string; creditTermDays: number };
+type RetailerDetail = Retailer & { email?: string; forecastRevenue: number; storeSizeSquareMeters: number; purchasingCapacity: number; purchaseFrequencyPerMonth: number; requestedCreditTermDays?: number; assessmentNote?: string; latitude?: number; longitude?: number; mlorDeclarations: { scope: string; categoryName?: string; productName?: string; minimumLifeRatio: number; minimumLifeHours?: number }[] };
 type RetailerPage = { items: Retailer[]; totalCount: number };
 const statusLabel: Record<Retailer['status'], string> = { Draft: 'Bản nháp', PendingApproval: 'Chờ duyệt', Active: 'Hoạt động', Rejected: 'Từ chối', Inactive: 'Ngưng hoạt động' };
 
 function ReviewDialog({ retailer, onClose }: { retailer: Retailer; onClose: () => void }) {
   const client = useQueryClient();
-  return <FormDialog open width={560} title={`Duyệt khai báo ${retailer.code}`} submitLabel="Duyệt retailer" initial={{ reason: '', creditTermDays: String(retailer.creditTermDays || 0) }} fields={[{ key: 'creditTermDays', type: 'select' as const, label: 'Kỳ hạn công nợ', required: true, options: [{ value: '0', label: 'Không công nợ' }, { value: '7', label: '7 ngày' }, { value: '14', label: '14 ngày' }, { value: '30', label: '30 ngày' }] }, { key: 'reason', type: 'textarea' as const, label: 'Ghi chú phê duyệt', required: true }]} onClose={onClose} onSubmit={async (value) => { await post(`/retailers/${retailer.id}/review`, { approve: true, creditTermDays: Number(value.creditTermDays), reason: value.reason }); await client.invalidateQueries({ queryKey: ['retailers', 'portal'] }); onClose(); }} />;
+  const detail = useQuery({ queryKey: ['retailer', retailer.id, 'review'], queryFn: () => get<RetailerDetail>(`/retailers/${retailer.id}`) });
+  if (detail.isLoading) return <FormDialog open width={760} title={`Đang tải khai báo ${retailer.code}`} submitLabel="Đang tải" initial={{}} fields={[]} onClose={onClose} onSubmit={() => undefined} />;
+  if (detail.error || !detail.data) return <FormDialog open width={760} title={`Không tải được ${retailer.code}`} submitLabel="Đóng" initial={{}} fields={[]} onClose={onClose} onSubmit={onClose} note={<Callout tone="danger">Không thể tải chi tiết khai báo để xét duyệt.</Callout>} />;
+  const r = detail.data;
+  return <FormDialog open width={900} columns={3} title={`Xét duyệt khai báo ${r.code}`} subtitle="Kiểm tra toàn bộ thông tin Sales đã khai báo trước khi quyết định." submitLabel="Xác nhận quyết định" initial={{ decision: 'approve', reason: '', creditTermDays: String(r.requestedCreditTermDays ?? r.creditTermDays ?? 0) }} fields={[
+    { key: 'name', type: 'info', label: 'Tên điểm bán', info: () => r.name }, { key: 'contact', type: 'info', label: 'Người liên hệ', info: () => r.contactName ?? '—' }, { key: 'phone', type: 'info', label: 'Số điện thoại', info: () => r.phone ?? '—' },
+    { key: 'email', type: 'info', label: 'Email', info: () => r.email ?? '—' }, { key: 'address', type: 'info', label: 'Địa chỉ', span: 2, info: () => r.address ?? '—' }, { key: 'salesGroup', type: 'info', label: 'Nhóm Sales', info: () => r.salesGroupCode },
+    { key: 'type', type: 'info', label: 'Loại hình', info: () => r.retailerType }, { key: 'area', type: 'info', label: 'Diện tích', info: () => `${r.storeSizeSquareMeters} m²` }, { key: 'capacity', type: 'info', label: 'Sức mua', info: () => `${r.purchasingCapacity} thùng/tháng` },
+    { key: 'frequency', type: 'info', label: 'Tần suất mua', info: () => `${r.purchaseFrequencyPerMonth} lần/tháng` }, { key: 'revenue', type: 'info', label: 'Doanh thu dự báo', info: () => new Intl.NumberFormat('vi-VN').format(r.forecastRevenue) + ' đ' }, { key: 'location', type: 'info', label: 'Tọa độ', info: () => r.latitude != null && r.longitude != null ? `${r.latitude}, ${r.longitude}` : '—' },
+    { key: 'note', type: 'info', label: 'Ghi chú Sales', span: 3, info: () => r.assessmentNote ?? '—' }, { key: 'mlor', type: 'info', label: 'Khai báo MLOR', span: 3, info: () => r.mlorDeclarations.length ? r.mlorDeclarations.map((item) => `${item.productName ?? item.categoryName ?? item.scope}: ${(item.minimumLifeRatio * 100).toFixed(0)}%${item.minimumLifeHours ? ` · ${item.minimumLifeHours} giờ` : ''}`).join(' | ') : 'Không có' },
+    { key: 'decision', type: 'select', label: 'Quyết định', required: true, options: [{ value: 'approve', label: 'Duyệt retailer' }, { value: 'reject', label: 'Từ chối khai báo' }] }, { key: 'creditTermDays', type: 'select', label: 'Kỳ hạn công nợ', required: true, visible: (v) => v.decision === 'approve', options: [{ value: '0', label: 'Không công nợ' }, { value: '7', label: '7 ngày' }, { value: '14', label: '14 ngày' }, { value: '30', label: '30 ngày' }] }, { key: 'reason', type: 'textarea', label: 'Lý do / ghi chú', required: true, span: 3, placeholder: 'Bắt buộc cho cả duyệt và từ chối' },
+  ]} onClose={onClose} onSubmit={async (value) => { await post(`/retailers/${r.id}/review`, { approve: value.decision === 'approve', creditTermDays: value.decision === 'approve' ? Number(value.creditTermDays) : null, reason: value.reason }); await client.invalidateQueries({ queryKey: ['retailers', 'portal'] }); onClose(); }} />;
 }
 
 /** Operational retailer queue backed by the current Retailers API. */
