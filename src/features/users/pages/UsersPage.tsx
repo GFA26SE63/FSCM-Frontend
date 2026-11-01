@@ -43,6 +43,11 @@ export function UsersPage() {
       text: (user) => user.email,
     },
     {
+      key: 'phone',
+      header: 'Số điện thoại',
+      text: (user) => user.phone || '—',
+    },
+    {
       key: 'role',
       header: 'Vai trò',
       text: (user) => roleLabel[user.role],
