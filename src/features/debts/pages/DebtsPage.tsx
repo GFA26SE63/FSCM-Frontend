@@ -1,3 +1,5 @@
+import { useAuth } from '@/shared/auth/AuthContext';
+import { can } from '@/shared/auth/permissions';
 import { useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
 import { Button, Callout, DataTable, FormDialog, PageHeader, Stat, StatusChip, type Column } from '@/shared/ui';
@@ -7,6 +9,8 @@ import type { Receivable } from '../types';
 
 /** "Công nợ" – Unpaid / Paid / Overdue, one full collection per order (no partial payments, no credit limit). */
 export function DebtsPage() {
+  const { user } = useAuth();
+  const mayCollect = can(user, 'payments.collect');
   const navigate = useNavigate();
   const query = useReceivables();
   const collect = useCollectReceivable();
@@ -49,12 +53,20 @@ export function DebtsPage() {
         rowActions={(r) => (
           <>
             <Button size="sm" onClick={() => navigate(`/orders/${r.orderId}`)}>Xem đơn</Button>
-            {r.status !== 'Paid' && <Button size="sm" variant="primary" onClick={() => setTarget(r)}>Ghi nhận đã thu</Button>}
+            {mayCollect && r.status !== 'Paid' && (
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => setTarget(r)}
+              >
+                Ghi nhận đã thu
+              </Button>
+            )}
           </>
         )}
       />
       <FormDialog
-        open={!!target}
+        open={mayCollect && !!target}
         width={540}
         columns={1}
         title={`Ghi nhận thu tiền · ${target?.orderCode ?? ''}`}
@@ -66,13 +78,16 @@ export function DebtsPage() {
         ]}
         note="Thu một lần đủ số tiền. Sau khi xác nhận, điểm loyalty của đơn được cộng cho retailer."
         onClose={() => setTarget(null)}
-        onSubmit={async (v) => {
+        onSubmit={async (values) => {
+          if (!mayCollect || !target) return;
+
           await collect.mutateAsync({
-            orderId: target!.orderId,
-            collectionMethod: v.method,
-            expectedVersion: target!.version,
+            orderId: target.orderId,
+            collectionMethod: values.method,
+            expectedVersion: target.version,
             operationKey: crypto.randomUUID(),
           });
+
           setTarget(null);
         }}
       />

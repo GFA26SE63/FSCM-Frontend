@@ -1,45 +1,60 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useAuth } from '@/shared/auth/AuthContext';
+import { can } from '@/shared/auth/permissions';
+import { errorMessage } from '@/shared/api/errors';
+import { useNavigate } from '@/shared/router/compat';
 import { Button, ConfirmDialog } from '@/shared/ui';
-import { useCloneProduct, useDeleteProduct, useInactivateProduct, usePublishProduct } from '../hooks';
+import { useDeleteProduct, useInactivateProduct, usePublishProduct } from '../hooks';
 import type { Product } from '../types';
 
-type Kind = 'publish' | 'inactivate' | 'clone' | 'delete';
-const copy: Record<Kind, { title: string; message: string; label: string; danger?: boolean }> = {
-  publish: { title: 'Publish sản phẩm', message: 'Sau khi publish, thông tin sản phẩm bị khóa và Sales / retailer thấy sản phẩm. Nếu đây là bản thay thế, SKU cũ sẽ chuyển Inactive.', label: 'Publish' },
-  inactivate: { title: 'Chuyển Inactive', message: 'Sản phẩm không còn xuất hiện khi tạo đơn mới. Tồn kho và đơn cũ không bị ảnh hưởng.', label: 'Chuyển Inactive', danger: true },
-  clone: { title: 'Tạo bản mới', message: 'Tạo bản nháp sao chép từ SKU này để chỉnh sửa. Khi publish bản nháp, SKU hiện tại tự chuyển Inactive.', label: 'Tạo bản nháp' },
-  delete: { title: 'Xóa bản nháp', message: 'Chỉ xóa được bản nháp. Thao tác không thể hoàn tác.', label: 'Xóa', danger: true },
-};
+type Action = 'publish' | 'inactivate' | 'delete';
+const copy = {
+  publish: { title: 'Đăng bán sản phẩm', message: 'Thông tin và giá sẽ khóa trên Portal. Nếu đây là bản thay thế, SKU nguồn sẽ chuyển Ngừng bán.', label: 'Đăng bán', danger: false },
+  inactivate: { title: 'Ngừng bán sản phẩm', message: 'Sản phẩm không còn dùng cho đơn mới.', label: 'Ngừng bán', danger: true },
+  delete: { title: 'Xóa bản nháp', message: 'Xóa bản nháp này? Thao tác không thể hoàn tác.', label: 'Xóa', danger: true },
+} as const;
 
-/** Lifecycle buttons by status: Draft → Publish / Xóa; Published → Tạo bản mới / Inactive; Inactive → Tạo bản mới. */
-export function ProductActions({ p, onEdit, size = 'sm', onDeleted }: { p: Product; onEdit?: () => void; size?: 'sm' | 'md'; onDeleted?: () => void }) {
+export function ProductActions({ p, size = 'sm', onDeleted }: {
+  p: Product; size?: 'sm' | 'md'; onDeleted?: () => void;
+}) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const publish = usePublishProduct();
   const inactivate = useInactivateProduct();
-  const clone = useCloneProduct();
   const remove = useDeleteProduct();
-  const [kind, setKind] = useState<Kind | null>(null);
-  const run = async () => {
-    if (kind === 'publish') await publish.mutateAsync(p.sku);
-    if (kind === 'inactivate') await inactivate.mutateAsync(p.sku);
-    if (kind === 'clone') await clone.mutateAsync(p.sku);
-    if (kind === 'delete') {
-      await remove.mutateAsync(p.sku);
-      onDeleted?.();
-    }
-    setKind(null);
+  const [action, setAction] = useState<Action | null>(null);
+  const [failure, setFailure] = useState('');
+  const saving = useRef(false);
+  const busy = publish.isPending || inactivate.isPending || remove.isPending;
+  if (!can(user, 'products.manage')) return null;
+  const choose = (next: Action) => { setFailure(''); setAction(next); };
+  const confirm = async () => {
+    if (!action || saving.current) return;
+    saving.current = true;
+    setFailure('');
+    try {
+      if (action === 'publish') await publish.mutateAsync(p.id);
+      else if (action === 'inactivate') await inactivate.mutateAsync(p.id);
+      else await remove.mutateAsync(p.id);
+      setAction(null);
+      if (action === 'delete') onDeleted?.();
+    } catch (error) { setFailure(errorMessage(error)); }
+    finally { saving.current = false; }
   };
-  return (
-    <>
-      {p.status === 'Draft' && (
-        <>
-          {onEdit && <Button size={size} onClick={onEdit}>Sửa</Button>}
-          <Button size={size} variant="primary" onClick={() => setKind('publish')}>Publish</Button>
-          <Button size={size} variant="danger" onClick={() => setKind('delete')}>Xóa</Button>
-        </>
-      )}
-      {p.status !== 'Draft' && <Button size={size} onClick={() => setKind('clone')}>Tạo bản mới</Button>}
-      {p.status === 'Published' && <Button size={size} variant="danger" onClick={() => setKind('inactivate')}>Inactive</Button>}
-      {kind && <ConfirmDialog open title={`${copy[kind].title} · ${p.sku}`} message={copy[kind].message} confirmLabel={copy[kind].label} danger={copy[kind].danger} onClose={() => setKind(null)} onConfirm={run} />}
-    </>
-  );
+  return <>
+    {p.status === 'Draft' && <>
+      <Button size={size} disabled={busy} onClick={() => navigate('/skus/' + p.id + '/edit')}>Sửa nháp / giá</Button>
+      <Button size={size} variant="primary" disabled={busy} onClick={() => choose('publish')}>Đăng bán</Button>
+      <Button size={size} variant="danger" disabled={busy} onClick={() => choose('delete')}>Xóa</Button>
+    </>}
+    {p.status === 'Published' && <>
+      <Button size={size} disabled={busy} onClick={() => navigate('/skus/' + p.id + '/new-version')}>Tạo bản mới</Button>
+      <Button size={size} variant="danger" disabled={busy} onClick={() => choose('inactivate')}>Ngừng bán</Button>
+    </>}
+    {action && <ConfirmDialog open title={copy[action].title + ' · ' + p.sku}
+      confirmLabel={copy[action].label} danger={copy[action].danger} onConfirm={confirm}
+      onClose={() => { if (!saving.current) setAction(null); }}
+      message={<><p>{copy[action].message}</p>{failure && <div className="callout callout-danger" role="alert">{failure}</div>}</>}
+    />}
+  </>;
 }

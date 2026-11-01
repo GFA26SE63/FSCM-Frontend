@@ -13,12 +13,4 @@ export const roleLabel: Record<AppRole, string> = {
   Retailer: 'Retailer',
 };
 
-/** Demo accounts used by the mock Entra login and the role switcher (names from the prototype). */
-export const DEMO_ACCOUNTS: Record<PortalRole, { email: string; name: string }> = {
-  Admin: { email: 'khoa.pm@fscm.local', name: 'Phạm Minh Khoa' },
-  Operator: { email: 'trang.lt@fscm.local', name: 'Lý Thu Trang' },
-  WarehouseKeeper: { email: 'tam.dv@fscm.local', name: 'Đỗ Văn Tâm' },
-  SalesManager: { email: 'bao.hg@fscm.local', name: 'Hồ Gia Bảo' },
-};
-
 export const isPortalRole = (r: string): r is PortalRole => (PORTAL_ROLES as string[]).includes(r);

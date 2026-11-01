@@ -1,29 +1,63 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { ApiError } from '../api/errors';
+import {
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query';
+import { useAuth } from '../auth/AuthContext';
+import {
+  assertPermission,
+  type Permission,
+} from '../auth/permissions';
+import {
+  toApiError,
+  type ApiError,
+} from '../api/errors';
 import { useToast } from '../ui/Toast';
 
 interface Options<TData, TVars> {
-  /** Toast text on success (string or built from the result). */
+  permission?: Permission;
   success?: string | ((data: TData, vars: TVars) => string);
   onSuccess?: (data: TData, vars: TVars) => void;
 }
 
-/**
- * Mutation wrapper used by every feature hooks.ts:
- *  - invalidates every cached query on success (lists, details, badges all depend on the same server state),
- *  - shows a success toast, and an error toast mapped from ProblemDetails (ApiError) on failure.
- */
-export function useApiMutation<TVars = void, TData = unknown>(fn: (vars: TVars) => Promise<TData>, options: Options<TData, TVars> = {}) {
-  const qc = useQueryClient();
+export function useApiMutation<
+  TVars = void,
+  TData = unknown,
+>(
+  fn: (vars: TVars) => Promise<TData>,
+  options: Options<TData, TVars> = {},
+) {
+  const queryClient = useQueryClient();
   const toast = useToast();
+  const { user } = useAuth();
+
   return useMutation<TData, ApiError, TVars>({
-    mutationFn: fn,
+    mutationFn: async (vars) => {
+      try {
+        if (options.permission) {
+          assertPermission(user, options.permission);
+        }
+
+        return await fn(vars);
+      } catch (error) {
+        throw toApiError(error);
+      }
+    },
+
     onSuccess: (data, vars) => {
-      void qc.invalidateQueries();
-      const msg = typeof options.success === 'function' ? options.success(data, vars) : options.success;
-      if (msg) toast.show(msg);
+      void queryClient.invalidateQueries();
+
+      const message =
+        typeof options.success === 'function'
+          ? options.success(data, vars)
+          : options.success;
+
+      if (message) toast.show(message);
+
       options.onSuccess?.(data, vars);
     },
-    onError: (err) => toast.error(err),
+
+    onError: (error) => {
+      toast.error(error);
+    },
   });
 }

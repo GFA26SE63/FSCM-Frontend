@@ -1,12 +1,11 @@
 import { useParams } from '@/shared/router/compat';
-import { Button, Callout, Card, Fields, PageHeader, QueryState, StatusChip } from '@/shared/ui';
+import { Callout, Card, Fields, PageHeader, QueryState, StatusChip } from '@/shared/ui';
 import { formatCases, formatDate, formatDateTime, formatScore } from '@/shared/lib';
-import { useReceiveTransfer, useTransfer } from '../hooks';
+import { useTransfer } from '../hooks';
 
 export function TransferDetailPage() {
   const { code = '' } = useParams();
   const query = useTransfer(code);
-  const receive = useReceiveTransfer();
   return (
     <QueryState query={query}>
       {(t) => (
@@ -16,7 +15,6 @@ export function TransferDetailPage() {
             title={`Phiếu điều chuyển ${t.code}`}
             subtitle={`${t.fromWarehouseName} → ${t.toWarehouseName}`}
             chips={<><StatusChip domain="transfer" value={t.status} /><StatusChip domain="transferKind" value={t.kind} /></>}
-            actions={t.status === 'InTransit' ? <Button variant="primary" loading={receive.isPending} onClick={() => receive.mutate(t.code)}>Xác nhận nhận (quét tem)</Button> : undefined}
           />
           {t.kind === 'NearExpiryRotation' && <Callout tone="info">Phiếu sinh từ đề xuất luân chuyển cận hạn đã được Admin duyệt{t.score != null ? ` (điểm S = ${formatScore(t.score)})` : ''}. Batch giữ nguyên HSD tại kho đích.</Callout>}
           {t.receivedNote && <Callout tone="ok">{t.receivedNote}</Callout>}
