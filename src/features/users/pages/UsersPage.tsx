@@ -43,6 +43,11 @@ export function UsersPage() {
       text: (user) => user.email,
     },
     {
+      key: 'phone',
+      header: 'Số điện thoại',
+      text: (user) => user.phone || '—',
+    },
+    {
       key: 'role',
       header: 'Vai trò',
       text: (user) => roleLabel[user.role],
@@ -51,8 +56,8 @@ export function UsersPage() {
       key: 'provider',
       header: 'Đăng nhập ban đầu',
       text: (user) =>
-        user.identityProvider === 'Entra'
-          ? 'Microsoft Entra'
+        user.identityProvider === 'Google'
+          ? 'Google'
           : 'Email / mật khẩu',
     },
     {

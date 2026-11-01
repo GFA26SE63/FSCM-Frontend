@@ -1,12 +1,18 @@
-import type { AppRole } from '@/shared/auth/roles';
+import {
+  roleLabel,
+  type AppRole,
+} from '@/shared/auth/roles';
+
+import { CREATABLE_ROLES } from './userPolicy';
 
 export type UserRole = AppRole;
 export type CreatableRole = Exclude<UserRole, 'Admin'>;
-export type IdentityProvider = 'Local' | 'Entra';
+export type IdentityProvider = 'Local' | 'Google';
 
 export interface User {
   id: string;
   email: string;
+  phone: string;
   fullName: string;
   role: UserRole;
   isActive: boolean;
@@ -54,7 +60,8 @@ export interface CreateUserInput {
   email: string;
   fullName: string;
   role: CreatableRole;
-  identityProvider: IdentityProvider;
+  phone: string;
+  password: string;
 }
 
 export interface CreatedUser {
@@ -97,13 +104,10 @@ export type Assignments = Record<ScopeKind, string[]>;
 export const roleOptions: {
   value: CreatableRole;
   label: string;
-}[] = [
-  { value: 'Operator', label: 'Operator' },
-  { value: 'SalesManager', label: 'Sales Manager' },
-  { value: 'WarehouseKeeper', label: 'Warehouse Keeper' },
-  { value: 'Sales', label: 'Sales' },
-  { value: 'Retailer', label: 'Retailer' },
-];
+}[] = CREATABLE_ROLES.map((role) => ({
+  value: role,
+  label: roleLabel[role],
+}));
 
 export const assignmentKinds: Record<CreatableRole, ScopeKind[]> = {
   Operator: [],
@@ -132,22 +136,22 @@ export function assignmentsFromUser(user: UserDetail): Assignments {
 
   switch (user.role) {
     case 'WarehouseKeeper':
-      values.warehouses = [...user.scope.warehouseIds];
+      values.warehouses = [...(user.scope?.warehouseIds ?? [])];
       break;
 
     case 'Sales':
-      values['sales-groups'] = [...user.scope.salesGroupIds];
+      values['sales-groups'] = [...(user.scope?.salesGroupIds ?? [])];
       break;
 
     case 'SalesManager':
-      values['sales-groups'] = [...user.scope.salesGroupIds];
+      values['sales-groups'] = [...(user.scope?.salesGroupIds ?? [])];
 
       // Khi sửa, regions chỉ chứa các region muốn bổ sung.
       // scope.regionIds còn chứa region kế thừa từ nhóm Sales.
       break;
 
     case 'Retailer':
-      values.retailers = [...user.scope.retailerIds];
+      values.retailers = [...(user.scope?.retailerIds ?? [])];
       break;
   }
 

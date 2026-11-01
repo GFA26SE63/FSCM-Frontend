@@ -9,7 +9,7 @@ import { toApiError } from './errors';
  *  - Authorization: Bearer <FSCM JWT>
  *  - errors are mapped from ProblemDetails to ApiError
  * Provider ID tokens are exchanged during sign-in and are never attached to business API requests.
- * In mock mode (VITE_USE_MOCK=true) main.tsx installs the in-browser adapter from ./mock before rendering.
+ * All requests are sent to the configured ASP.NET Core API.
  */
 export const http = axios.create({
   baseURL: `${env.apiBaseUrl}/api/v1`,
@@ -36,6 +36,7 @@ http.interceptors.response.use(
 export const get = <T>(url: string, params?: object) => http.get<T>(url, { params }).then((r) => r.data);
 export const post = <T = void>(url: string, body?: unknown) => http.post<T>(url, body).then((r) => r.data);
 export const put = <T = void>(url: string, body?: unknown) => http.put<T>(url, body).then((r) => r.data);
+export const patch = <T = void>(url: string, body?: unknown) => http.patch<T>(url, body).then((r) => r.data);
 export const del = <T = void>(url: string) => http.delete<T>(url).then((r) => r.data);
 
 /**

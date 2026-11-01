@@ -11,4 +11,4 @@ const done: Record<RedeemStep, string> = {
 };
 export const useRedemptions = () => useQuery({ queryKey: ['redeem', 'list'], queryFn: redeemApi.list });
 export const useRedemption = (code: string) => useQuery({ queryKey: ['redeem', 'detail', code], queryFn: () => redeemApi.get(code) });
-export const useRedeemStep = () => useApiMutation(redeemApi.step, { success: (_, v) => done[v.step] });
+export const useRedeemStep = () => useApiMutation(redeemApi.step, { permission: 'redeem.manage', success: (_, v) => done[v.step] });
