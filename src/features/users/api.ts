@@ -27,6 +27,7 @@ interface RawUserItem {
   id?: string;
   userId?: string;
   email?: string;
+  phone?: string;
   loginName?: string;
   fullName?: string;
   name?: string;
@@ -51,6 +52,7 @@ function normalizeUser(u: RawUserItem): User {
   return {
     id: String(u.id ?? u.userId ?? ''),
     email: String(u.email ?? u.loginName ?? ''),
+    phone: String(u.phone ?? ''),
     fullName: String(u.fullName ?? u.name ?? u.email ?? ''),
     role: (u.role ?? 'Sales') as UserRole,
     isActive: typeof u.isActive === 'boolean' ? u.isActive : u.status === 'Active',

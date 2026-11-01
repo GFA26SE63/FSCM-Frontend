@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { Check, Copy, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from '@/shared/router/compat';
 import {
   Button,
@@ -64,6 +65,9 @@ export function UserDialog({ user, onClose }: Props) {
   const [uncertain, setUncertain] = useState(false);
   const [confirmationOpen, setConfirmationOpen] =
     useState(false);
+  const [showConfirmationPassword, setShowConfirmationPassword] =
+    useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const createdRef = useRef<CreatedUser | null>(null);
   const savingRef = useRef(false);
@@ -77,6 +81,27 @@ export function UserDialog({ user, onClose }: Props) {
     if (savingRef.current) return;
     onClose();
   }
+
+  async function copyConfirmationValue(field: string, value: string) {
+    if (!value) return;
+    await navigator.clipboard.writeText(value);
+    setCopiedField(field);
+    window.setTimeout(() => setCopiedField((current) => current === field ? null : current), 1500);
+  }
+
+  const copyButton = (field: string, label: string, value: string) => (
+    <button
+      type="button"
+      className="btn btn-ghost btn-sm"
+      style={{ padding: 4, minWidth: 30 }}
+      aria-label={`Sao chép ${label}`}
+      title={`Sao chép ${label}`}
+      disabled={!value}
+      onClick={() => void copyConfirmationValue(field, value)}
+    >
+      {copiedField === field ? <Check size={16} /> : <Copy size={16} />}
+    </button>
+  );
 
   async function refresh() {
     await queryClient.invalidateQueries({
@@ -113,6 +138,7 @@ export function UserDialog({ user, onClose }: Props) {
 
     if (
       !user &&
+      role !== 'Retailer' &&
       (password.length < 12 ||
         !/[A-Z]/.test(password) ||
         !/[a-z]/.test(password) ||
@@ -336,8 +362,9 @@ export function UserDialog({ user, onClose }: Props) {
             </p>
 
             <p>
-              Người dùng có thể đăng nhập bằng mật khẩu
-              hoặc tài khoản Google cùng email.
+              {created.role === 'Retailer'
+                ? 'Tài khoản Retailer đang chờ kích hoạt. Sau khi gán đúng retailer đã duyệt, chủ điểm bán phải xác minh OTP email và tự tạo mật khẩu trên Mobile.'
+                : 'Người dùng có thể đăng nhập bằng mật khẩu hoặc tài khoản Google cùng email.'}
             </p>
           </div>
         )}
@@ -435,15 +462,16 @@ export function UserDialog({ user, onClose }: Props) {
                 </FormField>
 
                 <FormField
-                  label="Mật khẩu"
-                  required
+                  label={role === 'Retailer' ? 'Mật khẩu (thiết lập qua OTP)' : 'Mật khẩu'}
+                  required={role !== 'Retailer'}
                   error={errors.password}
                 >
                   <Input
                     type="password"
                     autoComplete="new-password"
                     value={password}
-                    readOnly={identityLocked}
+                    readOnly={identityLocked || role === 'Retailer'}
+                    placeholder={role === 'Retailer' ? 'Retailer tự tạo mật khẩu sau khi xác minh OTP' : undefined}
                     onChange={(event) =>
                       setPassword(event.target.value)
                     }
@@ -532,10 +560,26 @@ export function UserDialog({ user, onClose }: Props) {
             </p>
             <dl style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 8, margin: 0 }}>
               <dt>Họ tên</dt><dd style={{ margin: 0 }}>{fullName.trim()}</dd>
-              <dt>Email đăng nhập</dt><dd style={{ margin: 0 }}>{email.trim().toLowerCase()}</dd>
-              <dt>Số điện thoại</dt><dd style={{ margin: 0 }}>{phone.trim()}</dd>
+              <dt>Email đăng nhập</dt><dd style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}><span>{email.trim().toLowerCase()}</span>{copyButton('email', 'email', email.trim().toLowerCase())} </dd>
+              <dt>Số điện thoại</dt><dd style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}><span>{phone.trim()}</span>{copyButton('phone', 'số điện thoại', phone.trim())}</dd>
               <dt>Vai trò</dt><dd style={{ margin: 0 }}>{role}</dd>
-              <dt>Mật khẩu</dt><dd style={{ margin: 0 }}>{'•'.repeat(Math.min(password.length, 12))}</dd>
+              <dt>Mật khẩu</dt>
+              <dd style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>{password ? (showConfirmationPassword ? password : '•'.repeat(Math.min(password.length, 12))) : 'Thiết lập qua OTP'}</span>
+                {password && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    style={{ padding: 4, minWidth: 30 }}
+                    aria-label={showConfirmationPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                    title={showConfirmationPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                    onClick={() => setShowConfirmationPassword((current) => !current)}
+                  >
+                    {showConfirmationPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                )}
+                {copyButton('password', 'mật khẩu', password)}
+              </dd>
             </dl>
           </div>
         }

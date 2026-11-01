@@ -7,7 +7,11 @@
 .brand-sub { font-size: 11.5px; color: var(--c-sidebar-sub); }
 .role-switch { color: var(--c-sidebar-sub); padding: 0 6px; }
 .role-switch .inp { height: 34px; background: var(--c-sidebar-2); color: #fff; border-color: var(--c-sidebar-border); }
-.menu-list { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; flex: 1; min-height: 0; }
+.menu-list { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; flex: 1; min-height: 0; padding-right: 4px; scrollbar-width: thin; scrollbar-color: var(--c-sidebar-border) transparent; }
+.menu-list::-webkit-scrollbar { width: 7px; }
+.menu-list::-webkit-scrollbar-track { background: transparent; }
+.menu-list::-webkit-scrollbar-thumb { background: var(--c-sidebar-border); border: 2px solid var(--c-sidebar); border-radius: 999px; }
+.menu-list::-webkit-scrollbar-thumb:hover { background: var(--c-sidebar-sub); }
 .menu { display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; flex: 0 0 34px; padding: 0 12px; border: none; border-radius: 8px; background: transparent; color: var(--c-sidebar-text); font-size: 13.5px; font-weight: 500; cursor: pointer; text-align: left; text-decoration: none; }
 .menu:hover { background: var(--c-sidebar-2); color: #fff; }
 .menu.active { background: var(--c-sidebar-active); color: #fff; font-weight: 600; }
@@ -21,7 +25,12 @@
 
 .app-main { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
 .topbar { height: 60px; flex: 0 0 60px; background: #fff; border-bottom: 1px solid var(--c-border-soft); display: flex; align-items: center; padding: 0 24px; gap: 12px; }
-.topbar-title { font-weight: 700; font-size: 17px; }
+.breadcrumbs { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--c-muted); font-size: 13px; font-weight: 500; }
+.breadcrumb-item { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.breadcrumb-item a { color: var(--c-primary); text-decoration: none; }
+.breadcrumb-item a:hover { text-decoration: underline; }
+.breadcrumb-item [aria-current='page'] { color: var(--c-text); font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+.breadcrumb-separator { color: var(--c-border); }
 
 .bell { position: relative; }
 .bell-badge { position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; border-radius: 999px; background: var(--c-danger); color: #fff; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; padding: 0 4px; }

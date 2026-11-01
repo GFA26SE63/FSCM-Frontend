@@ -38,7 +38,7 @@ export const ACTION_ROLES = {
   "inventory.lock": ["Admin", "WarehouseKeeper", "Operator"],
   "inventory.viewHistory": ["Admin", "WarehouseKeeper", "Operator"],
 
-  "retailers.review": ["Admin"],
+  "retailers.review": ["Admin", "Operator"],
   "retailers.status": ["Admin"],
 
   // MlorConfigurationsController hiện yêu cầu Admin.
