@@ -1,19 +1,17 @@
 import { useLocation } from '@/shared/router/compat';
 import { NotificationBell } from '@/features/notifications';
 import { APP_ROUTES } from '../routes';
+import { Breadcrumbs } from './Breadcrumbs';
 
 export function Topbar() {
   const { pathname } = useLocation();
   const [key, ...rest] = pathname.split('/').filter(Boolean);
   const route = APP_ROUTES.find((r) => r.key === key);
   const label = route?.label ?? 'FSCM Portal';
-  const crumb = `FSCM Portal / ${label}${rest.length ? (rest[0] === 'new' ? ' / Tạo mới' : ' / Chi tiết') : ''}`;
+  const detail = rest.length ? (rest[0] === 'new' ? 'Tạo mới' : 'Chi tiết') : null;
   return (
     <header className="topbar">
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <span className="muted small">{crumb}</span>
-        <span className="topbar-title">{rest.length ? `${label} – ${rest[0] === 'new' ? 'tạo mới' : 'chi tiết'}` : label}</span>
-      </div>
+      <div style={{ flex: 1 }}><Breadcrumbs items={[{ label: 'FSCM Portal', to: '/orders' }, { label, to: `/${key}` }, ...(detail ? [{ label: detail }] : [])]} /></div>
       <NotificationBell />
     </header>
   );
