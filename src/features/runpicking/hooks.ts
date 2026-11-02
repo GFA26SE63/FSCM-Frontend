@@ -1,15 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { runPickingApi } from './api';
+import { pickingApi } from './api';
 
-export const useRunByDate = (businessDate: string) =>
-  useQuery({ queryKey: ['runpicking', 'run', businessDate], queryFn: () => runPickingApi.runByDate(businessDate) });
-
-export const useRunPickingLists = (runId: string | undefined) =>
+export const usePickingLists = (warehouseId?: string, status?: string) =>
   useQuery({
-    queryKey: ['runpicking', 'lists', runId],
-    queryFn: () => runPickingApi.listsForRun(runId as string),
-    enabled: !!runId,
+    queryKey: ['picking-lists', warehouseId ?? '', status ?? ''],
+    queryFn: () => pickingApi.lists(warehouseId, status),
   });
 
 export const useWarehouseOptions = () =>
-  useQuery({ queryKey: ['runpicking', 'warehouses'], queryFn: runPickingApi.warehouses });
+  useQuery({ queryKey: ['picking-lists', 'warehouses'], queryFn: pickingApi.warehouses });
