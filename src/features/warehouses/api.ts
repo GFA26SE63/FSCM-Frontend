@@ -1,15 +1,40 @@
 import { get, getAll, patch, post, put } from "@/shared/api/http";
 import { graphql } from "@/shared/api/graphql";
 import type {
+  CreateRegionInput,
   RetailerDistance,
+  UpdateRegionInput,
   Warehouse,
   WarehouseDetail,
   WarehouseInput,
   WarehouseInventoryItem,
   WarehouseKeeperOption,
+  WarehouseRegion,
   WarehouseStatus,
   WarehouseType,
 } from "./types";
+
+interface RawRegion {
+  id?: string;
+  code?: string;
+  name?: string;
+  description?: string | null;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+function normalizeRegion(raw: RawRegion): WarehouseRegion {
+  return {
+    id: String(raw.id ?? ""),
+    code: String(raw.code ?? ""),
+    name: String(raw.name ?? ""),
+    description: raw.description ?? null,
+    isActive: raw.isActive ?? true,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+  };
+}
 
 interface RawWarehouseKeeper {
   userId?: string;
@@ -52,6 +77,11 @@ interface RawWarehouse {
   inventory?: RawInventoryItem[];
   batches?: RawInventoryItem[];
   retailerDistances?: RawRetailerDistance[];
+  regionId?: string;
+  region_id?: string;
+  regionName?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface RawInventoryItem {
@@ -233,10 +263,13 @@ function normalizeWarehouse(raw: RawWarehouse): Warehouse {
     raw.warehouseKeeperName ??
     null;
 
+  const regionId = String(raw.regionId ?? raw.region_id ?? "");
   return {
     id: raw.id ?? raw.warehouseId,
     code: String(raw.code ?? raw.warehouseCode ?? ""),
     name: String(raw.name ?? raw.warehouseName ?? ""),
+    regionId,
+    regionName: raw.regionName,
     address: String(raw.address ?? ""),
     lat: Number(raw.lat ?? raw.latitude ?? 0),
     lng: Number(raw.lng ?? raw.longitude ?? 0),
@@ -258,6 +291,8 @@ function normalizeWarehouse(raw: RawWarehouse): Warehouse {
         : Array.isArray(invList)
           ? invList.length
           : 0,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
   };
 }
 
@@ -359,6 +394,39 @@ async function enrichKeepersFromUsers(
 }
 
 export const warehouseApi = {
+  async listRegions(includeInactive = true): Promise<WarehouseRegion[]> {
+    const res = await getAll<RawRegion>("/regions", { includeInactive });
+    return res.map(normalizeRegion);
+  },
+
+  async getRegion(id: string): Promise<WarehouseRegion> {
+    const res = await get<RawRegion>(`/regions/${id}`);
+    return normalizeRegion(res);
+  },
+
+  async createRegion(input: CreateRegionInput): Promise<WarehouseRegion> {
+    const payload = {
+      code: input.code.trim().toUpperCase(),
+      name: input.name.trim(),
+      description: input.description?.trim() || null,
+    };
+    const res = await post<RawRegion>("/regions", payload);
+    return normalizeRegion({ ...payload, ...res, id: res?.id || "" });
+  },
+
+  async updateRegion(id: string, input: UpdateRegionInput): Promise<WarehouseRegion> {
+    const payload = {
+      name: input.name.trim(),
+      description: input.description?.trim() || null,
+    };
+    const res = await put<RawRegion>(`/regions/${id}`, payload);
+    return normalizeRegion({ ...payload, ...res, id });
+  },
+
+  async updateRegionStatus(id: string, isActive: boolean): Promise<void> {
+    await patch(`/regions/${id}/status`, { isActive });
+  },
+
   async list(): Promise<Warehouse[]> {
     try {
       const data = await graphql<{ warehouses: RawWarehouse[] }>(
@@ -590,11 +658,11 @@ export const warehouseApi = {
       });
     }
 
-    // OpenAPI CreateWarehouseRequest: code, name, type, address, latitude, longitude, providerPlaceId, minimumStockThresholdCartons (additionalProperties: false)
+    // OpenAPI CreateWarehouseRequest: code, name, regionId, address, latitude, longitude, providerPlaceId, minimumStockThresholdCartons (additionalProperties: false)
     const payload = {
       code: codeUpper,
       name: body.name.trim(),
-      type: body.type,
+      regionId: body.regionId,
       address: body.address.trim(),
       latitude: body.lat,
       longitude: body.lng,
@@ -632,10 +700,10 @@ export const warehouseApi = {
     });
 
     const target = await resolveWarehouseId(idOrCode);
-    // OpenAPI UpdateWarehouseRequest: name, type, address, latitude, longitude, providerPlaceId, minimumStockThresholdCartons (NO code, additionalProperties: false)
+    // OpenAPI UpdateWarehouseRequest: name, regionId, address, latitude, longitude, providerPlaceId, minimumStockThresholdCartons (NO code, additionalProperties: false)
     const payload = {
       name: body.name.trim(),
-      type: body.type,
+      regionId: body.regionId,
       address: body.address.trim(),
       latitude: body.lat,
       longitude: body.lng,

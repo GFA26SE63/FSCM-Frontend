@@ -1,3 +1,4 @@
+import { env } from '@/shared/lib/env';
 import type { MapPoint } from '../types';
 
 export interface MapDocOptions {
@@ -9,8 +10,9 @@ export interface MapDocOptions {
 }
 
 /**
- * Generates a self-contained HTML document (for iframe srcDoc) rendering a Leaflet 1.9.4 map
- * with OpenStreetMap tiles, draggable pin, and an offline SVG fallback.
+ * Generates an HTML document for iframe srcDoc using Vietmap Map API tiles.
+ * - When VITE_VIETMAP_API_KEY is present, renders Vietmap raster tiles with attribution.
+ * - When API key is not configured or in case of tile load error, falls back cleanly to OpenStreetMap / SVG.
  * Emits { type: 'mapPick', lat, lng } (matching prototype) and { type: 'fscm:pick-coords', lat, lng }
  * whenever the user clicks or drags the pin on the map.
  */
@@ -29,11 +31,12 @@ export function buildWarehouseMapDoc({
   const centerJson = JSON.stringify(safeCenter);
   const radMeters = (radiusKm || 0) * 1000;
   const pickEnabled = interactivePick ? 'true' : 'false';
+  const apiKey = env.vietmap.apiKey;
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <style>
-  html,body,#m{height:100%;margin:0;padding:0;font-family:Inter,system-ui,sans-serif;background:#EEF2EC}
+  html,body,#m{height:100%;margin:0;padding:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#EEF2EC}
   .lg{position:absolute;bottom:10px;left:10px;z-index:999;background:#fff;padding:6px 12px;border-radius:6px;border:1px solid #CBD5E1;font-size:11.5px;box-shadow:0 1px 3px rgba(0,0,0,.1);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
   .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:middle}
   .pick-hint{color:#14655B;font-weight:700}
@@ -43,16 +46,14 @@ export function buildWarehouseMapDoc({
 <div id="m"></div>
 <div id="fb"><svg viewBox="0 0 800 380" preserveAspectRatio="xMidYMid meet"></svg></div>
 <div class="lg">
-  <span><i class="dot" style="background:#0F766E"></i>Kho vùng</span>
-  <span><i class="dot" style="background:#7C3AED"></i>Kho tổng</span>
-  <span><i class="dot" style="background:#D97706"></i>Điểm bán (Retailer)</span>
-  <span><i class="dot" style="border:2px dashed #0F766E;background:transparent"></i>Bán kính ${radiusKm} km</span>
+  <span><b style="color:#B85C1E">■</b> Kho</span>
+  <span><b style="color:#1D4ED8">●</b> Retailer</span>
+  <span><span style="color:#14655B">◯</span> Bán kính ${radiusKm} km</span>
   ${interactivePick ? '<span class="pick-hint">· Nhấp hoặc kéo ghim để chọn vị trí & đồng bộ địa chỉ</span>' : ''}
 </div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-var C=${centerJson}, P=${ptsJson}, R=${radMeters}, Z=${zoom}, PICK=${pickEnabled};
-var col={wh:'#0F766E',central:'#7C3AED',ret:'#D97706'};
+var C=${centerJson}, P=${ptsJson}, R=${radMeters}, Z=${zoom}, PICK=${pickEnabled}, VM_KEY=${JSON.stringify(apiKey)};
 var map=null, mk=null, circle=null;
 
 function emitPick(lat,lng){
@@ -90,8 +91,9 @@ function fallback(){
     h+='<circle cx="'+x(C[1])+'" cy="'+y(C[0])+'" r="'+rx+'" fill="#0F766E" fill-opacity="0.08" stroke="#0F766E" stroke-dasharray="6 4"/>';
   }
   P.forEach(function(p){
-    var c=col[p.kind]||'#0F766E';
-    h+='<circle cx="'+x(p.lng)+'" cy="'+y(p.lat)+'" r="'+(p.kind==='ret'?6:9)+'" fill="'+c+'" stroke="#fff" stroke-width="2"/><text x="'+(x(p.lng)+11)+'" y="'+(y(p.lat)+4)+'" font-size="11" fill="#1E293B" font-weight="600">'+p.label+'</text>';
+    var isW = p.kind==='wh'||p.kind==='central';
+    var c = isW ? '#B85C1E' : '#1D4ED8';
+    h+='<circle cx="'+x(p.lng)+'" cy="'+y(p.lat)+'" r="'+(isW?8:6)+'" fill="'+c+'" stroke="#fff" stroke-width="2"/><text x="'+(x(p.lng)+11)+'" y="'+(y(p.lat)+4)+'" font-size="11" fill="#1E293B" font-weight="600">'+p.label+'</text>';
   });
   if(PICK){
     h+='<circle cx="'+x(C[1])+'" cy="'+y(C[0])+'" r="10" fill="#B42318" stroke="#fff" stroke-width="3"/>';
@@ -116,16 +118,32 @@ function fallback(){
 try{
   if(!window.L) throw 0;
   map=L.map('m').setView(C,Z);
-  var tl=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(map);
-  tl.on('tileerror',function(){});
+
+  var tileUrl = VM_KEY
+    ? 'https://maps.vietmap.vn/maps/tiles/st/{z}/{x}/{y}.png?apikey=' + encodeURIComponent(VM_KEY)
+    : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  var tileAttr = VM_KEY
+    ? '&copy; <a href="https://vietmap.vn" target="_blank" rel="noreferrer">Vietmap</a>'
+    : '&copy; OpenStreetMap';
+
+  var tl = L.tileLayer(tileUrl, { maxZoom: 19, attribution: tileAttr }).addTo(map);
+  tl.on('tileerror', function() {
+    if (VM_KEY && !this._fallbackTriggered) {
+      this._fallbackTriggered = true;
+      map.removeLayer(this);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+    }
+  });
 
   if(R>0){
-    circle=L.circle(C,{radius:R,color:'#0F766E',weight:1.5,dashArray:'6 4',fillOpacity:0.07}).addTo(map);
+    circle=L.circle(C,{radius:R,color:'#14655B',weight:1.5,dashArray:'6 4',fillOpacity:0.07}).addTo(map);
   }
 
   P.forEach(function(p){
-    var c=col[p.kind]||'#0F766E';
-    L.circleMarker([p.lat,p.lng],{radius:p.kind==='ret'?7:10,color:'#fff',weight:2,fillColor:c,fillOpacity:0.95})
+    var isW = p.kind==='wh'||p.kind==='central';
+    var c = isW ? '#B85C1E' : '#1D4ED8';
+    var radius = isW ? 9 : 6;
+    L.circleMarker([p.lat,p.lng],{radius:radius,color:'#fff',weight:2,fillColor:c,fillOpacity:0.95})
       .addTo(map).bindPopup('<b>'+p.label+'</b><br/>'+(p.sub||'')+'<br/><small>['+p.lat+', '+p.lng+']</small>');
   });
 

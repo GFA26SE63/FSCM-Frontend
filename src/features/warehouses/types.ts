@@ -1,14 +1,39 @@
 export type WarehouseType = 'Central' | 'Regional';
 export type WarehouseStatus = 'Active' | 'Paused';
+export type SortOrder = 'desc' | 'asc';
+
+export interface WarehouseRegion {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  warehouseCount?: number;
+}
+
+export interface CreateRegionInput {
+  code: string;
+  name: string;
+  description?: string;
+}
+
+export interface UpdateRegionInput {
+  name: string;
+  description?: string;
+}
 
 export interface Warehouse {
   id?: string;
   code: string;
   name: string;
+  regionId?: string;
+  regionName?: string;
   address: string;
   lat: number;
   lng: number;
-  type: WarehouseType;
+  type?: WarehouseType;
   keeperId?: string | null;
   keeperName: string | null;
   capacityPallets: number;
@@ -16,6 +41,8 @@ export interface Warehouse {
   isActive?: boolean;
   status: WarehouseStatus;
   batchCount: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface RetailerDistance {
@@ -53,10 +80,11 @@ export interface WarehouseDetail extends Warehouse {
 export interface WarehouseInput {
   code: string;
   name: string;
+  regionId: string;
   address: string;
   lat: number;
   lng: number;
-  type: WarehouseType;
+  type?: WarehouseType;
   keeperId?: string | null;
   keeperName: string | null;
   capacityPallets: number;
