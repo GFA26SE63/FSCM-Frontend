@@ -28,10 +28,10 @@ import { forwardGeocode, reverseGeocode } from '../lib/geocoding';
 import { buildWarehouseMapDoc } from '../components/warehouseMap';
 
 const defaultForm: WarehouseInput = {
-  code: 'WH-HM',
+  code: '',
   name: '',
   regionId: '',
-  address: 'Xã Bà Điểm, H. Hóc Môn, TP. Hồ Chí Minh',
+  address: '',
   lat: 10.8891,
   lng: 106.5912,
   type: 'Regional',
@@ -109,19 +109,11 @@ function WarehouseEditor({
     };
   });
 
-  // Auto-fill region if not yet set and regions arrive
-  useEffect(() => {
-    if (!form.regionId && regions.length > 0) {
-      const preferred = defaultRegionId && regions.some((r) => r.id === defaultRegionId)
-        ? defaultRegionId
-        : regions[0].id;
-      setForm((prev) => ({ ...prev, regionId: preferred }));
-    }
-  }, [regions, defaultRegionId, form.regionId]);
-
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [geocoding, setGeocoding] = useState(false);
+  const [reverseGeocoding, setReverseGeocoding] = useState(false);
+  const [geocodeError, setGeocodeError] = useState<string | null>(null);
   const [pickerModalOpen, setPickerModalOpen] = useState(false);
   const mapIframeRef = useRef<HTMLIFrameElement | null>(null);
 
@@ -140,24 +132,44 @@ function WarehouseEditor({
     }
   }, [initialWarehouse, keepers, form.keeperId]);
 
-  // Coordinate picked on Map -> reverse geocode to address
+  // Coordinate picked on Map -> update lat/lng coordinates and auto reverse-geocode address
   const handleCoordPicked = useCallback(async (pickedLat: number, pickedLng: number) => {
     const lat = Math.round(pickedLat * 10000) / 10000;
     const lng = Math.round(pickedLng * 10000) / 10000;
-    setForm((prev) => ({ ...prev, lat, lng }));
 
-    setGeocoding(true);
+    // 1. Immediately update lat/lng so coordinates are never lost
+    setForm((prev) => ({ ...prev, lat, lng }));
+    setErrors((prev) => {
+      if (!prev.lat && !prev.lng) return prev;
+      const next = { ...prev };
+      delete next.lat;
+      delete next.lng;
+      return next;
+    });
+
+    // 2. Reverse-geocode to address
+    setReverseGeocoding(true);
+    setGeocodeError(null);
     try {
       const resolvedAddress = await reverseGeocode(lat, lng);
-      if (resolvedAddress) {
-        setForm((prev) => ({ ...prev, address: resolvedAddress }));
+      if (resolvedAddress && resolvedAddress.trim()) {
+        setForm((prev) => ({ ...prev, address: resolvedAddress.trim() }));
+        setErrors((prev) => {
+          if (!prev.address) return prev;
+          const next = { ...prev };
+          delete next.address;
+          return next;
+        });
+        toast.show(`Đã chọn tọa độ [${lat}, ${lng}] và cập nhật địa chỉ.`);
+      } else {
+        toast.show(`Đã chọn tọa độ [${lat}, ${lng}]. Vui lòng nhập địa chỉ cụ thể.`);
       }
     } catch {
-      // Fallback
+      toast.show(`Đã chọn tọa độ [${lat}, ${lng}]. Không thể lấy địa chỉ tự động, bạn có thể nhập thủ công.`);
     } finally {
-      setGeocoding(false);
+      setReverseGeocoding(false);
     }
-  }, []);
+  }, [toast]);
 
   // Listen to iframe map messages
   useEffect(() => {
@@ -167,28 +179,39 @@ function WarehouseEditor({
         typeof e.data.lat === 'number' &&
         typeof e.data.lng === 'number'
       ) {
-        void handleCoordPicked(e.data.lat, e.data.lng);
+        handleCoordPicked(e.data.lat, e.data.lng);
       }
     };
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, [handleCoordPicked]);
 
-  // Address changed -> forward geocode to coordinates
+  // Address geocode -> executed ONLY when user explicitly clicks "Định vị" button
   const handleGeocodeFromAddress = async () => {
-    if (!form.address.trim()) return;
+    const addr = form.address.trim();
+    if (!addr) {
+      setGeocodeError('Vui lòng nhập địa chỉ trước khi định vị.');
+      return;
+    }
     setGeocoding(true);
+    setGeocodeError(null);
     try {
-      const coords = await forwardGeocode(form.address);
-      if (coords) {
+      const coords = await forwardGeocode(addr);
+      if (coords && Number.isFinite(coords.lat) && Number.isFinite(coords.lng)) {
         setForm((prev) => ({ ...prev, lat: coords.lat, lng: coords.lng }));
+        // Move pin & circle on map iframe without reloading the iframe
         mapIframeRef.current?.contentWindow?.postMessage(
           { type: 'setPoint', lat: coords.lat, lng: coords.lng },
           '*',
         );
+        toast.show(`Đã định vị tọa độ: [${coords.lat}, ${coords.lng}]`);
+      } else {
+        setGeocodeError('Không tìm thấy tọa độ cho địa chỉ này trên Vietmap. Bạn có thể chọn trực tiếp trên bản đồ.');
+        toast.error('Không tìm thấy tọa độ phù hợp cho địa chỉ đã nhập.');
       }
-    } catch {
-      // Keep existing coords
+    } catch (err) {
+      setGeocodeError('Lỗi kết nối khi định vị địa chỉ.');
+      toast.error(err);
     } finally {
       setGeocoding(false);
     }
@@ -204,9 +227,18 @@ function WarehouseEditor({
     });
   };
 
+  // Stable initial coordinate anchor so map iframe does NOT reload when user edits fields
+  const initialCoords = useMemo<[number, number]>(() => {
+    return [
+      initialWarehouse?.lat || form.lat || 10.8891,
+      initialWarehouse?.lng || form.lng || 106.5912,
+    ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const mapSrcDoc = useMemo(() => {
     const otherWh = allWarehouses
-      .filter((w) => w.code.toUpperCase() !== form.code.trim().toUpperCase())
+      .filter((w) => !edit || w.code.toUpperCase() !== (initialWarehouse?.code ?? '').toUpperCase())
       .map((w) => ({
         lat: w.lat || 10.87,
         lng: w.lng || 106.65,
@@ -224,14 +256,14 @@ function WarehouseEditor({
     }));
 
     return buildWarehouseMapDoc({
-      center: [form.lat || 10.8891, form.lng || 106.5912],
+      center: initialCoords,
       points: [
         {
-          lat: form.lat || 10.8891,
-          lng: form.lng || 106.5912,
+          lat: initialCoords[0],
+          lng: initialCoords[1],
           kind: 'wh',
-          label: `${form.code || 'Mới'} · ${form.name || 'Kho mới'}`,
-          sub: form.address,
+          label: edit ? `${initialWarehouse?.code} · ${initialWarehouse?.name}` : 'Kho mới',
+          sub: initialWarehouse?.address || '',
         },
         ...otherWh,
         ...retPoints,
@@ -240,32 +272,48 @@ function WarehouseEditor({
       zoom: 12,
       interactivePick: true,
     });
-  }, [allWarehouses, retailers, form.code, form.name, form.address, form.lat, form.lng]);
+  }, [allWarehouses, retailers, edit, initialWarehouse, initialCoords]);
 
   const validate = (): boolean => {
     const nextErr: Record<string, string[]> = {};
     const code = form.code.trim().toUpperCase();
     if (!edit) {
-      if (!/^WH-[A-Z]{2,4}$/.test(code)) {
-        nextErr.code = ['Định dạng WH- + 2–4 chữ in hoa.'];
+      if (!code) {
+        nextErr.code = ['Bắt buộc nhập mã kho.'];
+      } else if (!/^WH-[A-Z0-9]{2,6}$/.test(code)) {
+        nextErr.code = ['Định dạng WH- + 2–6 ký tự chữ/số in hoa (ví dụ: WH-HM, WH-BD).'];
       } else if (allWarehouses.some((w) => w.code.toUpperCase() === code)) {
-        nextErr.code = ['Mã đã tồn tại.'];
+        nextErr.code = ['Mã kho đã tồn tại.'];
       }
     }
-    if (!form.name.trim()) nextErr.name = ['Bắt buộc nhập.'];
+    if (!form.name.trim()) nextErr.name = ['Bắt buộc nhập tên kho.'];
     if (!form.regionId) nextErr.regionId = ['Vui lòng chọn vùng kho.'];
-    if (!form.address.trim()) nextErr.address = ['Bắt buộc nhập.'];
+    if (!form.address.trim()) nextErr.address = ['Bắt buộc nhập địa chỉ.'];
     if (!Number.isFinite(Number(form.minStock)) || Number(form.minStock) <= 0) {
       nextErr.minStock = ['Phải là số > 0.'];
     }
-    if (!Number.isFinite(Number(form.lat))) nextErr.lat = ['Phải là số.'];
-    if (!Number.isFinite(Number(form.lng))) nextErr.lng = ['Phải là số.'];
+    if (!Number.isFinite(Number(form.lat))) nextErr.lat = ['Phải là số hợp lệ.'];
+    if (!Number.isFinite(Number(form.lng))) nextErr.lng = ['Phải là số hợp lệ.'];
 
     setErrors(nextErr);
     return Object.keys(nextErr).length === 0;
   };
 
-  const busy = create.isPending || update.isPending || geocoding;
+  const busy = create.isPending || update.isPending || geocoding || reverseGeocoding;
+
+  const returnTarget = useMemo(() => {
+    if (edit && initialWarehouse) {
+      return `/whs/${initialWarehouse.code}`;
+    }
+    if (defaultRegionId) {
+      return `/whs/regions/${defaultRegionId}`;
+    }
+    return '/whs?tab=warehouses';
+  }, [edit, initialWarehouse, defaultRegionId]);
+
+  const handleCancel = () => {
+    navigate(returnTarget);
+  };
 
   const submit = async () => {
     if (!validate()) return;
@@ -294,7 +342,7 @@ function WarehouseEditor({
         if (payload.regionId) {
           navigate(`/whs/regions/${payload.regionId}`);
         } else {
-          navigate(`/whs/${payload.code}`);
+          navigate(returnTarget);
         }
       }
     } catch (e) {
@@ -322,14 +370,12 @@ function WarehouseEditor({
   return (
     <>
       <PageHeader
-        back={form.regionId ? `/whs/regions/${form.regionId}` : '/whs'}
+        back={returnTarget}
         title={edit ? `Sửa kho ${form.code}` : 'Thêm kho mới'}
         subtitle="Quản lý thông tin vị trí kho, vùng trực thuộc và phân công thủ kho"
         actions={
           <div style={{ display: 'flex', gap: 8 }}>
-            <Button
-              onClick={() => navigate(form.regionId ? `/whs/regions/${form.regionId}` : '/whs')}
-            >
+            <Button onClick={handleCancel}>
               Hủy
             </Button>
             <Button variant="primary" disabled={busy} onClick={submit}>
@@ -375,7 +421,7 @@ function WarehouseEditor({
               value={form.regionId}
               onChange={(e) => set('regionId', e.target.value)}
               options={[
-                { value: '', label: '— Chọn vùng kho —' },
+                { value: '', label: 'Chọn vùng kho' },
                 ...regions.map((r) => ({
                   value: r.id,
                   label: `${r.name} (${r.code})`,
@@ -390,30 +436,38 @@ function WarehouseEditor({
                 Địa chỉ *
                 {geocoding && (
                   <span className="muted" style={{ fontSize: 11, fontWeight: 400 }}>
-                    (Đang đồng bộ…)
+                    (Đang định vị tọa độ…)
+                  </span>
+                )}
+                {reverseGeocoding && (
+                  <span className="muted" style={{ fontSize: 11, fontWeight: 400, color: '#0D9488' }}>
+                    (Đang lấy địa chỉ từ bản đồ…)
                   </span>
                 )}
               </span>
             }
             span={2}
-            error={errors.address?.[0]}
+            error={errors.address?.[0] || geocodeError || undefined}
           >
             <div style={{ display: 'flex', gap: 6 }}>
               <Input
                 style={{ flex: 1 }}
                 invalid={!!errors.address?.[0]}
                 value={form.address}
-                onChange={(e) => set('address', e.target.value)}
-                onBlur={handleGeocodeFromAddress}
-                placeholder="Nhập địa chỉ hoặc chọn trên bản đồ"
+                disabled={reverseGeocoding}
+                onChange={(e) => {
+                  set('address', e.target.value);
+                  if (geocodeError) setGeocodeError(null);
+                }}
+                placeholder={reverseGeocoding ? 'Đang xác định địa chỉ từ bản đồ…' : 'Nhập địa chỉ và bấm Định vị hoặc chọn trên bản đồ'}
               />
               <Button
                 size="sm"
-                title="Định vị tọa độ từ địa chỉ"
-                disabled={geocoding || !form.address.trim()}
+                title="Định vị tọa độ từ địa chỉ đã nhập"
+                disabled={geocoding || reverseGeocoding || !form.address.trim()}
                 onClick={handleGeocodeFromAddress}
               >
-                Định vị
+                {geocoding ? 'Đang định vị…' : 'Định vị'}
               </Button>
             </div>
           </FormField>
@@ -502,7 +556,7 @@ function WarehouseEditor({
               <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
                 <span>Bản đồ vị trí kho so với kho và điểm bán hiện có (vòng tròn = bán kính phục vụ 20 km)</span>
                 <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>
-                  Kéo ghim hoặc bấm vào bản đồ để chọn tọa độ
+                  Bấm nút &quot;Định vị&quot; hoặc kéo ghim trên bản đồ để chọn tọa độ
                 </span>
               </div>
             }
@@ -554,7 +608,7 @@ function WarehouseEditor({
       <Modal
         open={pickerModalOpen}
         title="Chọn vị trí kho trên bản đồ Vietmap"
-        subtitle="Bấm hoặc kéo ghim đến vị trí mong muốn để đồng bộ tọa độ & địa chỉ"
+        subtitle="Bấm hoặc kéo ghim đến vị trí mong muốn để cập nhật tọa độ kho"
         width={1000}
         onClose={() => setPickerModalOpen(false)}
         footer={<Button onClick={() => setPickerModalOpen(false)}>Xác nhận vị trí</Button>}
