@@ -40,3 +40,34 @@ export interface OrderShipmentReadiness {
 
 /** Statuses that mean the goods have physically left that warehouse. */
 export const HAS_LEFT: ShipmentPartStatus[] = ['Issued', 'Delivering', 'Received'];
+
+export interface Shipment {
+  id: string;
+  orderId: string;
+  orderCode: string;
+  warehouseId: string;
+  warehouseCode: string;
+  shipmentCode: string;
+  status: ShipmentPartStatus;
+  version: number;
+  driverId: string | null;
+  driverName: string | null;
+  vehicleId: string | null;
+  plateNumber: string | null;
+}
+
+export interface DeliveryDriver {
+  id: string;
+  warehouseId: string;
+  code: string;
+  fullName: string;
+  isActive: boolean;
+}
+
+export interface DeliveryVehicle {
+  id: string;
+  warehouseId: string;
+  plateNumber: string;
+  vehicleType: string;
+  isActive: boolean;
+}
