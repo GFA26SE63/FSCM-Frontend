@@ -7,18 +7,22 @@ import {
   Card,
   DataTable,
   EmptyState,
+  Modal,
   PageHeader,
   Select,
   StatusChip,
   useToast,
 } from '@/shared/ui';
+import { buildWarehouseMapDoc } from '../components/warehouseMap';
+import { DeactivateWarehouseModal } from '../components/DeactivateWarehouseModal';
 import {
   useRegions,
+  useRetailerMapPoints,
   useUpdateRegionStatus,
   useUpdateWarehouseStatus,
   useWarehouses,
 } from '../hooks';
-import type { SortOrder, Warehouse } from '../types';
+import type { MapPoint, SortOrder, Warehouse } from '../types';
 
 export function RegionWarehousesPage() {
   const { regionId = '' } = useParams<{ regionId: string }>();
@@ -27,12 +31,15 @@ export function RegionWarehousesPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'Admin';
 
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [netMapOpen, setNetMapOpen] = useState(false);
+  const [mapWarehouseFilter, setMapWarehouseFilter] = useState<string>('all');
+
   const regionsQuery = useRegions();
   const warehousesQuery = useWarehouses();
+  const { data: retailers = [] } = useRetailerMapPoints(netMapOpen);
   const updateRegionStatus = useUpdateRegionStatus();
   const updateWarehouseStatus = useUpdateWarehouseStatus();
-
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   const region = useMemo(() => {
     return (regionsQuery.data ?? []).find((r) => r.id === regionId);
@@ -50,6 +57,67 @@ export function RegionWarehousesPage() {
     });
   }, [regionWarehouses, sortOrder]);
 
+  const refWh = useMemo(() => {
+    if (mapWarehouseFilter !== 'all') {
+      const matched = regionWarehouses.find((w) => w.code === mapWarehouseFilter && w.lat);
+      if (matched) return matched;
+    }
+    return regionWarehouses.find((w) => w.lat) ?? regionWarehouses[0];
+  }, [regionWarehouses, mapWarehouseFilter]);
+
+  const netMapDoc = useMemo(() => {
+    if (!netMapOpen || !region) return '';
+    const allWh = warehousesQuery.data ?? [];
+    const points: MapPoint[] = [
+      ...allWh.map((w) => {
+        const reg = (regionsQuery.data ?? []).find((r) => r.id === w.regionId);
+        return {
+          lat: w.lat || 10.87,
+          lng: w.lng || 106.65,
+          kind: 'wh' as const,
+          label: `${w.code} · ${w.name}`,
+          sub: w.address,
+          regionId: w.regionId,
+          regionName: reg?.name,
+        };
+      }),
+      ...retailers.map((r) => ({
+        lat: r.lat || 10.87,
+        lng: r.lng || 106.65,
+        kind: 'ret' as const,
+        label: r.name,
+        sub: `${r.code} · ${r.address}`,
+      })),
+    ];
+    return buildWarehouseMapDoc({
+      center: refWh ? [refWh.lat || 10.8744, refWh.lng || 106.6511] : [10.8744, 106.6511],
+      points,
+      radiusKm: 20,
+      zoom: 12,
+      selectedRegionId: region.id,
+      selectedWarehouseCode: mapWarehouseFilter === 'all' ? null : mapWarehouseFilter,
+    });
+  }, [netMapOpen, region, warehousesQuery.data, regionsQuery.data, retailers, refWh, mapWarehouseFilter]);
+
+  const [deactivatingWarehouse, setDeactivatingWarehouse] = useState<Warehouse | null>(null);
+
+  const handleConfirmDeactivate = async (reason: string) => {
+    if (!deactivatingWarehouse) return;
+    try {
+      await updateWarehouseStatus.mutateAsync({
+        code: deactivatingWarehouse.code,
+        isActive: false,
+      });
+      toast.show(
+        `Đã vô hiệu hóa kho ${deactivatingWarehouse.code}. Lý do: ${reason}`,
+      );
+    } catch (e) {
+      toast.error(e);
+    } finally {
+      setDeactivatingWarehouse(null);
+    }
+  };
+
   const handleToggleRegionStatus = async () => {
     if (!region) return;
     try {
@@ -66,14 +134,13 @@ export function RegionWarehousesPage() {
   };
 
   const handleToggleWarehouseStatus = async (w: Warehouse) => {
+    if (w.status === 'Active') {
+      setDeactivatingWarehouse(w);
+      return;
+    }
     try {
-      const nextActive = w.status !== 'Active';
-      await updateWarehouseStatus.mutateAsync({ code: w.code, isActive: nextActive });
-      toast.show(
-        nextActive
-          ? `Đã kích hoạt lại kho ${w.code}.`
-          : `Đã vô hiệu hóa kho ${w.code}. Kho không còn được chọn khi phân bổ đơn mới.`,
-      );
+      await updateWarehouseStatus.mutateAsync({ code: w.code, isActive: true });
+      toast.show(`Đã kích hoạt lại kho ${w.code}.`);
     } catch (e) {
       toast.error(e);
     }
@@ -133,33 +200,35 @@ export function RegionWarehousesPage() {
           />
         }
         actions={
-          isAdmin && (
-            <div style={{ display: 'flex', gap: 8 }}>
-              {region.isActive ? (
-                <Button
-                  variant="danger"
-                  disabled={updateRegionStatus.isPending}
-                  onClick={handleToggleRegionStatus}
-                >
-                  Tạm ngừng vùng
-                </Button>
-              ) : (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button
+              onClick={() => {
+                setMapWarehouseFilter('all');
+                setNetMapOpen(true);
+              }}
+            >
+              Bản đồ vùng kho
+            </Button>
+            {isAdmin && (
+              <>
+                {!region.isActive && (
+                  <Button
+                    variant="primary"
+                    disabled={updateRegionStatus.isPending}
+                    onClick={handleToggleRegionStatus}
+                  >
+                    Kích hoạt vùng
+                  </Button>
+                )}
                 <Button
                   variant="primary"
-                  disabled={updateRegionStatus.isPending}
-                  onClick={handleToggleRegionStatus}
+                  onClick={() => navigate(`/whs/new?regionId=${region.id}`)}
                 >
-                  Kích hoạt vùng
+                  + Thêm kho vào vùng
                 </Button>
-              )}
-              <Button
-                variant="primary"
-                onClick={() => navigate(`/whs/new?regionId=${region.id}`)}
-              >
-                + Thêm kho vào vùng
-              </Button>
-            </div>
-          )
+              </>
+            )}
+          </div>
         }
       />
 
@@ -265,11 +334,20 @@ export function RegionWarehousesPage() {
             text: (w) => statusLabels.active[w.status] ?? w.status,
           },
         ]}
-        rowActionsWidth="240px"
+        rowActionsWidth="300px"
         rowActions={(w) => (
           <>
             <Button size="sm" onClick={() => navigate(`/whs/${w.code}`)}>
               Xem
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setMapWarehouseFilter(w.code);
+                setNetMapOpen(true);
+              }}
+            >
+              Bản đồ
             </Button>
             {isAdmin && (
               <>
@@ -302,6 +380,74 @@ export function RegionWarehousesPage() {
             )}
           </>
         )}
+      />
+
+      {/* Modal: Bản đồ mạng lưới kho vùng */}
+      <Modal
+        open={netMapOpen}
+        title={`Bản đồ mạng lưới kho · Vùng ${region.name}`}
+        subtitle="Vòng tròn = bán kính phục vụ 20 km quanh từng kho"
+        width={1120}
+        onClose={() => setNetMapOpen(false)}
+        footer={<Button onClick={() => setNetMapOpen(false)}>Đóng</Button>}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {/* Controls Bar */}
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 16,
+              alignItems: 'center',
+              padding: '10px 14px',
+              background: '#F8FAFC',
+              borderRadius: 8,
+              border: '1px solid #E2E8F0',
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#1E293B' }}>
+              Vùng: <span style={{ color: '#059669' }}>{region.name} ({region.code})</span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#1E293B', whiteSpace: 'nowrap' }}>
+                Kho:
+              </label>
+              <Select
+                value={mapWarehouseFilter}
+                onChange={(e) => setMapWarehouseFilter(e.target.value)}
+                options={[
+                  { value: 'all', label: `Tất cả kho trong vùng (${regionWarehouses.length})` },
+                  ...regionWarehouses.map((w) => ({
+                    value: w.code,
+                    label: `${w.code} · ${w.name}`,
+                  })),
+                ]}
+                style={{ minWidth: 260 }}
+              />
+            </div>
+          </div>
+
+          <iframe
+            title={`Bản đồ kho vùng ${region.name}`}
+            srcDoc={netMapDoc}
+            style={{
+              width: '100%',
+              height: 600,
+              border: '1px solid #E2E8F0',
+              borderRadius: 8,
+            }}
+          />
+        </div>
+      </Modal>
+
+      {/* Modal: Xác nhận vô hiệu hóa kho */}
+      <DeactivateWarehouseModal
+        warehouse={deactivatingWarehouse}
+        open={Boolean(deactivatingWarehouse)}
+        onClose={() => setDeactivatingWarehouse(null)}
+        onConfirm={handleConfirmDeactivate}
+        loading={updateWarehouseStatus.isPending}
       />
     </>
   );

@@ -105,4 +105,6 @@ export interface MapPoint {
   kind: 'wh' | 'central' | 'ret';
   label: string;
   sub?: string;
+  regionId?: string;
+  regionName?: string;
 }
