@@ -32,3 +32,5 @@ test-results/
 *.sw?
 
 docs/design
+.agents
+graphify-out

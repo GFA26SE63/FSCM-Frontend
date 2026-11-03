@@ -1,6 +1,6 @@
 /** SPEC §9 – status codes (API, English) ↔ UI labels (Vietnamese, as in the prototype). */
 export const statusLabels = {
-  order: { PendingApproval: 'Chờ duyệt đơn', PendingAllocation: 'Chờ đợt phân bổ', Approved: 'Đã duyệt phương án', Picking: 'Đang soạn hàng', Issued: 'Đã xuất kho', Delivering: 'Đang giao', Delivered: 'Đã giao', Rejected: 'Bị từ chối', Cancelled: 'Đã hủy' },
+  order: { Allocating: 'Đang phân bổ', Quoted: 'Chờ Retailer xác nhận báo giá', AllocationFailed: 'Phân bổ lỗi', OutOfStock: 'Thiếu hàng', AllocationConflict: 'Xung đột tồn', Withdrawn: 'Đã hủy', QuoteRejected: 'Báo giá bị từ chối', QuoteExpired: 'Báo giá hết hạn', PaymentPending: 'Chờ thanh toán', ConvertedToPo: 'Đã tạo PO', Picking: 'Đang soạn hàng', Issued: 'Đã xuất kho', Delivering: 'Đang giao', Delivered: 'Đã giao', Completed: 'Hoàn tất' },
   receivable: { AwaitingDelivery: 'Chờ giao', Unpaid: 'Chưa thu', Paid: 'Đã thu đủ', Overdue: 'Quá hạn' },
   product: { Draft: 'Nháp', Published: 'Đã publish', Inactive: 'Inactive' },
   transfer: { Suggested: 'Gợi ý', InTransit: 'Đang vận chuyển', Received: 'Đã nhận', Cancelled: 'Đã hủy' },
@@ -31,5 +31,5 @@ export function statusLabel(domain: StatusDomain, code: string): string {
   return map[code] ?? code;
 }
 
-export const paymentLabel = (method: string, termDays?: number | null): string =>
-  method === 'Credit' ? `Công nợ – trả sau ${termDays ?? 0} ngày` : method === 'Prepaid' ? 'Trả trước (QR / tiền mặt)' : 'COD';
+export const paymentLabel = (method?: string | null, termDays?: number | null): string =>
+  method === 'Credit' ? `Công nợ – trả sau ${termDays ?? 0} ngày` : method === 'Prepaid' ? 'Trả trước (chuyển khoản)' : 'Chưa chọn — Retailer chọn khi duyệt báo giá';

@@ -31,7 +31,7 @@ export function OrdersPage() {
     <OrderActions>
       {({ buttons, dialogs }) => (
         <>
-          <PageHeader title="Đơn hàng" subtitle="Giá dự kiến trước đợt, giá chính thức sau duyệt và tiến độ từng phần theo kho." />
+          <PageHeader title="Đơn hàng" subtitle="Giá tạm tính khi tạo SO; giá chính thức sau khi allocation chọn batch và áp dụng giảm HSD. Theo dõi tiếp báo giá, PO, soạn và giao hàng." />
           <DataTable
             title="Danh sách đơn hàng"
             rows={rows}

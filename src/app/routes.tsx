@@ -56,9 +56,9 @@ const dashboard = () => import('@/features/dashboard');
 export const APP_ROUTES: AppRoute[] = [
   { key: 'dashboard', label: 'Dashboard', roles: [A], list: page(dashboard, 'DashboardPage') },
   { key: 'orders', label: 'Đơn hàng', roles: [A, OP], badge: 'orders', list: page(orders, 'OrdersPage'), sub: [{ path: ':orderId', element: page(orders, 'OrderDetailPage') }] },
-  { key: 'allocation', label: 'Duyệt phương án đợt', roles: [A], list: page(allocation, 'AllocationRunPage') },
+  { key: 'allocation', label: 'Allocation real-time', roles: [A, OP], list: page(allocation, 'AllocationRunPage') },
   { key: 'debts', label: 'Công nợ', roles: [A, OP], badge: 'debts', list: page(debts, 'DebtsPage') },
-  { key: 'runpicking', label: 'Phiếu soạn theo đợt', roles: [A, OP, WK], list: page(runpicking, 'RunPickingPage') },
+  { key: 'runpicking', label: 'Phiếu soạn hàng', roles: [A, OP, WK], list: page(runpicking, 'RunPickingPage') },
   { key: 'readiness', label: 'Sẵn sàng xuất', roles: [A, OP, WK], list: page(shipments, 'OrderReadinessPage') },
   {
     key: 'receipts', label: 'Nhập kho', roles: [A, WK], list: page(receipts, 'ReceiptsPage'),
@@ -86,7 +86,13 @@ export const APP_ROUTES: AppRoute[] = [
     { path: ':sku/new-version', element: page(products, 'ProductReplacementPage') },
     { path: ':sku', element: page(products, 'ProductDetailPage') },
   ] },
-  { key: 'whs', label: 'Kho', roles: [A], list: page(warehouses, 'WarehousesPage'), sub: [{ path: ':code', element: page(warehouses, 'WarehouseDetailPage') }] },
+  { key: 'whs', label: 'Kho', roles: [A], list: page(warehouses, 'WarehousesPage'), sub: [
+    { path: 'new', element: page(warehouses, 'WarehouseFormPage') },
+    { path: 'regions/:regionId/new', element: page(warehouses, 'WarehouseFormPage') },
+    { path: 'regions/:regionId', element: page(warehouses, 'RegionWarehousesPage') },
+    { path: ':code/edit', element: page(warehouses, 'WarehouseFormPage') },
+    { path: ':code', element: page(warehouses, 'WarehouseDetailPage') },
+  ] },
   { key: 'users', label: 'Người dùng', roles: [A], list: page(users, 'UsersPage'), sub: [{ path: ':id', element: page(users, 'UserDetailPage') }] },
   { key: 'kpi', label: 'KPI Sales', roles: [A, SM], list: page(kpi, 'KpiPage'), sub: [{ path: ':name', element: page(kpi, 'KpiDetailPage') }] },
   { key: 'complaints', label: 'Khiếu nại', roles: [A, OP], badge: 'complaints', list: page(complaints, 'ComplaintsPage'), sub: [{ path: ':code', element: page(complaints, 'ComplaintDetailPage') }] },
