@@ -1,14 +1,22 @@
 export type OrderStatus =
-  | 'PendingApproval'
-  | 'PendingAllocation'
-  | 'Approved'
+  | 'Allocating'
+  | 'Quoted'
+  | 'AllocationFailed'
+  | 'OutOfStock'
+  | 'AllocationConflict'
+  | 'Withdrawn'
+  | 'QuoteRejected'
+  | 'QuoteExpired'
+  | 'PaymentPending'
+  | 'ConvertedToPo'
   | 'Picking'
   | 'Rejected'
   | 'Cancelled'
   | 'Issued'
   | 'Delivering'
-  | 'Delivered';
-export type PaymentMethod = 'COD' | 'Prepaid' | 'Credit';
+  | 'Delivered'
+  | 'Completed';
+export type PaymentMethod = 'Prepaid' | 'Credit';
 
 export interface OrderSummary {
   id: string;
@@ -19,7 +27,7 @@ export interface OrderSummary {
   salesGroupId: string;
   createdByUserId: string;
   status: OrderStatus;
-  paymentMethod: PaymentMethod;
+  paymentMethod: PaymentMethod | null;
   finalAmount: number;
   indicativeAmount: number;
   officialAmount: number | null;

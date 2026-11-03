@@ -23,6 +23,7 @@ import { buildWarehouseMapDoc } from './warehouseMap';
 const empty: WarehouseInput = {
   code: 'WH-HM',
   name: '',
+  regionId: '',
   address: 'Xã Bà Điểm, H. Hóc Môn, TP. Hồ Chí Minh',
   lat: 10.8891,
   lng: 106.5912,
@@ -67,6 +68,7 @@ export function WarehouseDialog({
       setForm({
         code: warehouse.code,
         name: warehouse.name,
+        regionId: warehouse.regionId ?? '',
         address: warehouse.address,
         lat: warehouse.lat,
         lng: warehouse.lng,

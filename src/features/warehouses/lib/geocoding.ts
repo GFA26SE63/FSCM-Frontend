@@ -1,7 +1,10 @@
 /**
  * Geocoding & Reverse-geocoding service for Warehouse address and map picking synchronization.
- * Supports live OpenStreetMap Nominatim lookup with robust fallback to HCM City districts & reference landmarks.
+ * Uses Vietmap Reverse / Search API when VITE_VIETMAP_API_KEY is configured,
+ * with fast fallback to OpenStreetMap Nominatim and HCM City district landmarks.
  */
+
+import { env } from '@/shared/lib/env';
 
 interface KnownLocation {
   name: string;
@@ -99,7 +102,9 @@ function calcDistance(lat1: number, lng1: number, lat2: number, lng2: number): n
 
 /**
  * Reverse-geocode latitude and longitude into a readable address.
- * Attempts OpenStreetMap Nominatim with a fast timeout and falls back to nearest HCM landmark.
+ * 1. Tries Vietmap Reverse v4 API if key is present.
+ * 2. Tries OpenStreetMap Nominatim.
+ * 3. Falls back to nearest HCM City landmark.
  */
 export async function reverseGeocode(lat: number, lng: number): Promise<string> {
   const safeLat = Number(lat);
@@ -108,7 +113,28 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string> 
     return '';
   }
 
-  // 1. Try online reverse geocoding via OpenStreetMap Nominatim
+  // 1. Try Vietmap Reverse v4 API
+  if (env.vietmap.apiKey) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const vmUrl = `https://maps.vietmap.vn/api/reverse/v4?apikey=${encodeURIComponent(env.vietmap.apiKey)}&lat=${safeLat}&lng=${safeLng}&display_type=6`;
+      const res = await fetch(vmUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const data = await res.json();
+        // Vietmap returns address or array of places
+        const addr = Array.isArray(data) ? data[0]?.address : data?.address || data?.display_name;
+        if (addr && typeof addr === 'string') {
+          return addr;
+        }
+      }
+    } catch {
+      // Continue to next provider
+    }
+  }
+
+  // 2. Try online reverse geocoding via OpenStreetMap Nominatim
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 2500);
@@ -151,7 +177,7 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string> 
     // Fallback on network failure or abort
   }
 
-  // 2. Fallback: match nearest known location in TP.HCM
+  // 3. Fallback: match nearest known location in TP.HCM
   let nearest: KnownLocation = KNOWN_LOCATIONS[0];
   let minD = Infinity;
   for (const loc of KNOWN_LOCATIONS) {
@@ -167,7 +193,9 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string> 
 
 /**
  * Forward-geocode address into [latitude, longitude].
- * Searches via Nominatim or falls back to known districts in TP.HCM.
+ * 1. Checks known landmarks.
+ * 2. Tries Vietmap Search v4 if API key available.
+ * 3. Tries Nominatim.
  */
 export async function forwardGeocode(
   address: string,
@@ -183,7 +211,30 @@ export async function forwardGeocode(
     }
   }
 
-  // 2. Try online geocoding via Nominatim
+  // 2. Try Vietmap Search v4
+  if (env.vietmap.apiKey) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const vmUrl = `https://maps.vietmap.vn/api/search/v4?apikey=${encodeURIComponent(env.vietmap.apiKey)}&text=${encodeURIComponent(q)}`;
+      const res = await fetch(vmUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const data = await res.json();
+        const first = Array.isArray(data) ? data[0] : Array.isArray(data?.data) ? data.data[0] : null;
+        if (first && Number.isFinite(Number(first.lat)) && Number.isFinite(Number(first.lng))) {
+          return {
+            lat: Math.round(Number(first.lat) * 10000) / 10000,
+            lng: Math.round(Number(first.lng) * 10000) / 10000,
+          };
+        }
+      }
+    } catch {
+      // Continue to next provider
+    }
+  }
+
+  // 3. Try online geocoding via Nominatim
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 2500);
@@ -216,4 +267,3 @@ export async function forwardGeocode(
 
   return null;
 }
-
