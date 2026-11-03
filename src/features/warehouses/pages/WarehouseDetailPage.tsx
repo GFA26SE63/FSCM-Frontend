@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate, useParams } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
-import { formatMoney, statusLabels } from '@/shared/lib';
+import { formatMoney } from '@/shared/lib';
 import {
   Button,
   Callout,
@@ -14,9 +14,9 @@ import {
   StatusChip,
   useToast,
 } from '@/shared/ui';
-import { WarehouseDialog } from '../components/WarehouseDialog';
 import { buildWarehouseMapDoc } from '../components/warehouseMap';
 import {
+  useRegions,
   useRetailerMapPoints,
   useUpdateWarehouseStatus,
   useWarehouse,
@@ -34,19 +34,24 @@ export function WarehouseDetailPage() {
     user?.role === 'WarehouseKeeper';
 
   const query = useWarehouse(code, canViewInventory);
-  const w = query.data;
+  const wh = query.data;
   const { data: allWarehouses = [] } = useWarehouses();
+  const { data: regions = [] } = useRegions();
   const { data: retailers = [] } = useRetailerMapPoints();
   const updateStatus = useUpdateWarehouseStatus();
-  const [edit, setEdit] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
 
+  const region = useMemo(() => {
+    if (!wh?.regionId) return null;
+    return regions.find((r) => r.id === wh.regionId);
+  }, [wh, regions]);
+
   const lowStockWarnings = useMemo(() => {
-    if (!w || !w.inventory?.length) return [];
-    const min = w.minStock ?? 30;
+    if (!wh || !wh.inventory?.length) return [];
+    const min = wh.minStock ?? 30;
     const bySku = new Map<string, number>();
-    for (const item of w.inventory) {
+    for (const item of wh.inventory) {
       if (item.expiryStatus === 'Expired' || item.expiryStatus === 'Disposed') {
         continue;
       }
@@ -59,25 +64,25 @@ export function WarehouseDetailPage() {
       }
     });
     return low;
-  }, [w]);
+  }, [wh]);
 
   const mapSrcDoc = useMemo(() => {
-    if (!w) return '';
-    const dmax = w.dmaxRetailerKm ?? 20;
+    if (!wh) return '';
+    const dmax = wh.dmaxRetailerKm ?? 20;
     const points: MapPoint[] = [
       {
-        lat: w.lat || 10.87,
-        lng: w.lng || 106.65,
-        kind: w.type === 'Central' ? 'central' : 'wh',
-        label: `${w.code} · ${w.name}`,
-        sub: w.address,
+        lat: wh.lat || 10.87,
+        lng: wh.lng || 106.65,
+        kind: 'wh',
+        label: `${wh.code} · ${wh.name}`,
+        sub: wh.address,
       },
       ...allWarehouses
-        .filter((x) => x.code !== w.code)
+        .filter((x) => x.code !== wh.code)
         .map((x) => ({
           lat: x.lat || 10.87,
           lng: x.lng || 106.65,
-          kind: (x.type === 'Central' ? 'central' : 'wh') as MapPoint['kind'],
+          kind: 'wh' as const,
           label: `${x.code} · ${x.name}`,
           sub: x.address,
         })),
@@ -90,12 +95,12 @@ export function WarehouseDetailPage() {
       })),
     ];
     return buildWarehouseMapDoc({
-      center: [w.lat || 10.87, w.lng || 106.65],
+      center: [wh.lat || 10.87, wh.lng || 106.65],
       points,
       radiusKm: dmax,
       zoom: 12,
     });
-  }, [w, allWarehouses, retailers]);
+  }, [wh, allWarehouses, retailers]);
 
   const handleToggleStatus = async (codeTarget: string, curStatus: 'Active' | 'Paused') => {
     try {
@@ -113,177 +118,205 @@ export function WarehouseDetailPage() {
     }
   };
 
+  const dmax = wh?.dmaxRetailerKm ?? 20;
+
   return (
     <QueryState query={query}>
-      {(wh) => {
-        const dmax = wh.dmaxRetailerKm ?? 20;
-        const transitVer = wh.transitTableVersion ?? 1;
-        return (
-          <>
-            <PageHeader
-              back="/whs"
-              title={`${wh.code} · ${wh.name}`}
-              chips={<StatusChip domain="active" value={wh.status} />}
-              actions={
-                isAdmin ? (
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Button onClick={() => setEdit(true)}>Sửa</Button>
-                    {wh.status === 'Active' ? (
-                      <Button
-                        variant="danger"
-                        disabled={updateStatus.isPending}
-                        onClick={() => handleToggleStatus(wh.code, wh.status)}
-                      >
-                        Vô hiệu hóa
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="primary"
-                        disabled={updateStatus.isPending}
-                        onClick={() => handleToggleStatus(wh.code, wh.status)}
-                      >
-                        Kích hoạt lại
-                      </Button>
-                    )}
-                  </div>
-                ) : undefined
-              }
-            />
-
-            <Card>
-              <Fields
-                cols={2}
-                items={[
-                  { label: 'Mã kho', value: wh.code },
-                  { label: 'Tên kho', value: wh.name },
-                  { label: 'Loại kho', value: statusLabels.warehouseType[wh.type] ?? wh.type },
-                  { label: 'Địa chỉ', value: wh.address },
-                  {
-                    label: 'Tọa độ',
-                    value: wh.lat && wh.lng ? `${wh.lat}, ${wh.lng}` : '[lat, lng]',
-                  },
-                  { label: 'Thủ kho', value: wh.keeperName || '— Chưa gán' },
-                  {
-                    label: 'Tồn tối thiểu',
-                    value: `${wh.minStock ?? 30} thùng / SKU – cảnh báo khi có thể cấp thấp hơn`,
-                  },
-                  {
-                    label: 'Số batch đang có',
-                    value: `${wh.batchCount} batch (${wh.capacityPallets} pallet)`,
-                  },
-                ]}
-              />
-              {lowStockWarnings.length > 0 && (
-                <div style={{ marginTop: 14 }}>
-                  <Callout tone="warn">
-                    <strong>Dưới tồn tối thiểu: </strong>
-                    {lowStockWarnings.join(' · ')} – cần nhập bổ sung.
-                  </Callout>
+      {(whData) => (
+        <>
+          <PageHeader
+            back={whData.regionId ? `/whs/regions/${whData.regionId}` : '/whs'}
+            title={`${whData.code} · ${whData.name}`}
+            subtitle={region ? `Vùng kho: ${region.name} (${region.code})` : undefined}
+            chips={<StatusChip domain="active" value={whData.status} />}
+            actions={
+              isAdmin ? (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Button onClick={() => navigate(`/whs/${whData.code}/edit`)}>Sửa</Button>
+                  {whData.status === 'Active' ? (
+                    <Button
+                      variant="danger"
+                      disabled={updateStatus.isPending}
+                      onClick={() => handleToggleStatus(whData.code, whData.status)}
+                    >
+                      Vô hiệu hóa
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="primary"
+                      disabled={updateStatus.isPending}
+                      onClick={() => handleToggleStatus(whData.code, whData.status)}
+                    >
+                      Kích hoạt lại
+                    </Button>
+                  )}
                 </div>
-              )}
-            </Card>
+              ) : undefined
+            }
+          />
 
-            <Card title={`Bản đồ vị trí kho · vòng tròn bán kính phục vụ ${dmax} km`}>
-              <iframe
-                title="Bản đồ"
-                srcDoc={mapSrcDoc}
-                style={{
-                  width: '100%',
-                  height: 380,
-                  border: '1px solid #E2E5E0',
-                  borderRadius: 8,
-                }}
-              />
-            </Card>
+          <Card>
+            <Fields
+              cols={2}
+              items={[
+                { label: 'Mã kho', value: whData.code },
+                { label: 'Tên kho', value: whData.name },
+                {
+                  label: 'Vùng kho',
+                  value: region ? (
+                    <span
+                      style={{ cursor: 'pointer', color: '#059669', fontWeight: 600 }}
+                      onClick={() => navigate(`/whs/regions/${region.id}`)}
+                    >
+                      {region.name} ({region.code}) ↗
+                    </span>
+                  ) : (
+                    '—'
+                  ),
+                },
+                { label: 'Địa chỉ', value: whData.address },
+                {
+                  label: 'Tọa độ',
+                  value: whData.lat && whData.lng ? `${whData.lat}, ${whData.lng}` : '[lat, lng]',
+                },
+                { label: 'Thủ kho', value: whData.keeperName || '— Chưa gán' },
+                {
+                  label: 'Tồn tối thiểu',
+                  value: `${whData.minStock ?? 30} thùng / SKU – cảnh báo khi có thể cấp thấp hơn`,
+                },
+                {
+                  label: 'Số batch đang có',
+                  value: `${whData.batchCount} batch (${whData.capacityPallets} pallet)`,
+                },
+              ]}
+            />
+            {lowStockWarnings.length > 0 && (
+              <div style={{ marginTop: 14 }}>
+                <Callout tone="warn">
+                  <strong>Dưới tồn tối thiểu: </strong>
+                  {lowStockWarnings.join(' · ')} – cần nhập bổ sung.
+                </Callout>
+              </div>
+            )}
+          </Card>
 
-            <Card
-              title={`Khoảng cách đường bộ tới retailer (Dijkstra) · Bảng vận chuyển v${transitVer}`}
-              flush
-            >
+          <Card title={`Bản đồ vị trí kho · vòng tròn bán kính phục vụ ${dmax} km`} flush>
+            <iframe
+              title="Bản đồ vị trí kho"
+              srcDoc={mapSrcDoc}
+              style={{
+                width: '100%',
+                height: 380,
+                border: 'none',
+              }}
+            />
+          </Card>
+
+          <Card
+            title={`Khoảng cách đường bộ tới retailer (Dijkstra) · Bảng vận chuyển ${
+              whData.transitTableVersion ? `v${whData.transitTableVersion}` : 'active'
+            }`}
+          >
+            <SimpleTable
+              columns={[
+                {
+                  header: 'Retailer',
+                  cell: (r) => (
+                    <b>
+                      {r.retailerCode} · {r.retailerName}
+                    </b>
+                  ),
+                },
+                {
+                  header: 'Khoảng cách',
+                  width: '120px',
+                  cell: (r) => `${r.km} km`,
+                },
+                {
+                  header: 'Thời gian giao',
+                  width: '130px',
+                  cell: (r) => (r.transitDays != null ? `${r.transitDays} ngày` : '—'),
+                },
+                {
+                  header: 'Chi phí giao ước tính',
+                  width: '160px',
+                  cell: (r) => (r.estimatedCost != null ? formatMoney(r.estimatedCost) : '—'),
+                },
+                {
+                  header: `Trong bán kính ${dmax} km`,
+                  width: '150px',
+                  cell: (r) => (
+                    <Chip tone={r.withinRange ? 'success' : 'neutral'}>
+                      {r.withinRange ? 'Phục vụ được' : 'Ngoài bán kính'}
+                    </Chip>
+                  ),
+                },
+              ]}
+              rows={whData.retailerDistances ?? []}
+              empty="Chưa có dữ liệu khoảng cách tới retailer."
+            />
+          </Card>
+
+          {canViewInventory && (
+            <Card title="Tồn kho theo lô hàng (Batch)">
               <SimpleTable
-                rows={wh.retailerDistances}
-                empty="Chưa có dữ liệu khoảng cách tới điểm bán."
                 columns={[
+                  { header: 'Mã batch', cell: (b) => <b>{b.code}</b> },
+                  { header: 'SKU / Tên sản phẩm', cell: (b) => `${b.sku} · ${b.productName}` },
                   {
-                    header: 'Retailer',
-                    cell: (r) => `${r.retailerCode} · ${r.retailerName}`,
-                  },
-                  {
-                    header: 'Khoảng cách',
-                    cell: (r) => `${r.km.toFixed(1)} km`,
-                  },
-                  {
-                    header: 'Thời gian giao',
-                    cell: (r) => (r.transitDays ? `${r.transitDays} ngày` : '—'),
-                  },
-                  {
-                    header: 'Chi phí giao ước tính',
-                    cell: (r) =>
-                      r.estimatedCost ? formatMoney(r.estimatedCost) : '—',
-                  },
-                  {
-                    header: `Trong bán kính ${dmax} km`,
-                    cell: (r) => (
-                      <Chip tone={r.withinRange ? 'ok' : 'neutral'}>
-                        {r.withinRange ? 'Trong phạm vi' : 'Ngoài bán kính'}
-                      </Chip>
+                    header: 'Hạn sử dụng',
+                    cell: (b) => (
+                      <span>
+                        {b.expiry}
+                        {b.remainingDays != null && (
+                          <span className="muted" style={{ fontSize: 11, marginLeft: 6 }}>
+                            (còn {b.remainingDays} ngày)
+                          </span>
+                        )}
+                      </span>
                     ),
                   },
+                  { header: 'Tồn thực tế', cell: (b) => `${b.onHand} thùng` },
+                  { header: 'Đã giữ (Held)', cell: (b) => `${b.held} thùng` },
+                  {
+                    header: 'Có thể cấp (Available)',
+                    cell: (b) => (
+                      <span
+                        style={{
+                          fontWeight: 600,
+                          color: b.available > 0 ? '#059669' : '#DC2626',
+                        }}
+                      >
+                        {b.available} thùng
+                      </span>
+                    ),
+                  },
+                  {
+                    header: 'Tình trạng',
+                    cell: (b) => {
+                      const tone =
+                        b.expiryStatus === 'Expired'
+                          ? 'danger'
+                          : b.expiryStatus === 'NearExpiry'
+                            ? 'warn'
+                            : 'success';
+                      const label =
+                        b.expiryStatus === 'Expired'
+                          ? 'Hết hạn'
+                          : b.expiryStatus === 'NearExpiry'
+                            ? 'Cận hạn'
+                            : 'Bình thường';
+                      return <Chip tone={tone}>{label}</Chip>;
+                    },
+                  },
                 ]}
+                rows={whData.inventory ?? []}
+                empty="Chưa có tồn kho lô hàng nào tại kho này."
               />
             </Card>
-
-            {canViewInventory && wh.inventory && wh.inventory.length > 0 && (
-              <Card title={`Tồn kho theo batch tại kho (${wh.inventory.length} batch)`} flush>
-                <SimpleTable
-                  rows={wh.inventory}
-                  columns={[
-                    {
-                      header: 'Mã batch',
-                      cell: (b) => (
-                        <a
-                          href={`/batches/${b.code}`}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            navigate(`/batches/${b.code}`);
-                          }}
-                        >
-                          <b>{b.code}</b>
-                        </a>
-                      ),
-                    },
-                    { header: 'SKU', cell: (b) => b.sku },
-                    { header: 'Sản phẩm', cell: (b) => b.productName },
-                    { header: 'HSD', cell: (b) => b.expiry },
-                    { header: 'Tồn thực tế', align: 'right', cell: (b) => `${b.onHand} thùng` },
-                    { header: 'Đã giữ', align: 'right', cell: (b) => `${b.held} thùng` },
-                    {
-                      header: 'Có thể cấp',
-                      align: 'right',
-                      cell: (b) => <b>{b.available} thùng</b>,
-                    },
-                    {
-                      header: 'Trạng thái HSD',
-                      cell: (b) =>
-                        b.expiryStatus ? (
-                          <StatusChip domain="expiry" value={b.expiryStatus} />
-                        ) : (
-                          '—'
-                        ),
-                    },
-                  ]}
-                />
-              </Card>
-            )}
-
-            <WarehouseDialog
-              open={edit}
-              warehouse={wh}
-              onClose={() => setEdit(false)}
-            />
-          </>
-        );
-      }}
+          )}
+        </>
+      )}
     </QueryState>
   );
 }

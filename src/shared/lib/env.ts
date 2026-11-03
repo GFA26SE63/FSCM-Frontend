@@ -4,4 +4,7 @@ export const env = {
   google: {
     clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '',
   },
+  vietmap: {
+    apiKey: (import.meta.env.VITE_VIETMAP_API_KEY ?? '').trim(),
+  },
 } as const;
