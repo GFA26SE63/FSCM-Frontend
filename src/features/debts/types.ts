@@ -14,6 +14,9 @@ export interface Receivable {
   adjustedAmount: number;
   confirmedAmount: number;
   outstandingAmount: number;
+  pendingRefundAmount: number;
+  refundedAmount: number;
+  refundDueAmount: number;
   status: ReceivableStatus;
   paidDate: string | null;
   confirmedByUserId: string | null;

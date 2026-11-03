@@ -14,7 +14,7 @@ export const statusLabels = {
   batchDiscount: { Active: 'Đang áp dụng', Ended: 'Hết hiệu lực' },
   expiry: { Normal: 'Bình thường', NearExpiry: 'Cận hạn', Expired: 'Hết hạn', Disposed: 'Đã tiêu hủy' },
   picking: { NotPicked: 'Chưa pick', Picking: 'Đang pick', Shipped: 'Đã xuất' },
-  complaint: { Open: 'Chờ xử lý', Resolved: 'Đã xử lý' },
+  complaint: { Open: 'Chờ xử lý', Approved: 'Đã chấp nhận', Rejected: 'Đã từ chối', Resolved: 'Đã xử lý' },
   registration: { Pending: 'Chờ duyệt', Approved: 'Đã duyệt', Rejected: 'Bị từ chối' },
   receipt: { Posted: 'Đã nhập' },
   disposal: { Disposed: 'Đã tiêu hủy' },
