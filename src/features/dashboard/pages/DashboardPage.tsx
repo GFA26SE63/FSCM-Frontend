@@ -65,17 +65,17 @@ export function DashboardPage() {
                   onClick={() => navigate('/kpi')}
                 />
                 <Stat
-                  label="Đơn chờ duyệt"
+                  label="SO đang xử lý"
                   value={d.pendingOrders}
                   color="var(--c-accent)"
-                  note="Duyệt trước 12:00 để vào đợt hôm nay"
+                  note="Allocation chạy real-time khi gửi SO"
                   onClick={() => navigate('/orders')}
                 />
                 <Stat
                   label="Đơn thiếu hàng / từ chối"
                   value={d.rejectedOrders}
                   color="var(--c-danger)"
-                  note="Kết thúc đợt, không giao một phần"
+                  note="Không giữ tồn khi allocation thất bại"
                   onClick={() => navigate('/orders')}
                 />
               </div>
