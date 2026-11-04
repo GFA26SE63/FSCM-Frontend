@@ -97,7 +97,7 @@ export interface OrderLine {
     appliedAt: string;
   } | null;
   estimatedArrivalAt: string | null;
-  /** True until the 12:00 run picks batches; the figure above is indicative, not what is charged. */
+  /** True until real-time allocation picks batches; the figure above is indicative, not what is charged. */
   finalPricePendingAllocation: boolean;
   baseUnitPrice: number;
   ordinaryPromotionDiscountAmount: number;
@@ -115,6 +115,8 @@ export interface OrderAllocationFragment {
   warehouseCode: string;
   quantity: number;
   sequence: number;
+  weightedScore: number;
+  distanceMeters: number | null;
   estimatedArrivalAt: string;
   remainingLifeHoursAtArrival: number;
   listUnitPrice: number;

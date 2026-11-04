@@ -1,7 +1,7 @@
 /** SPEC §9 – status codes (API, English) ↔ UI labels (Vietnamese, as in the prototype). */
 export const statusLabels = {
-  order: { Allocating: 'Đang phân bổ', Quoted: 'Chờ Retailer xác nhận báo giá', AllocationFailed: 'Phân bổ lỗi', OutOfStock: 'Thiếu hàng', AllocationConflict: 'Xung đột tồn', Withdrawn: 'Đã hủy', QuoteRejected: 'Báo giá bị từ chối', QuoteExpired: 'Báo giá hết hạn', PaymentPending: 'Chờ thanh toán', ConvertedToPo: 'Đã tạo PO', Picking: 'Đang soạn hàng', Issued: 'Đã xuất kho', Delivering: 'Đang giao', Delivered: 'Đã giao', Completed: 'Hoàn tất' },
-  receivable: { AwaitingDelivery: 'Chờ giao', Unpaid: 'Chưa thu', Paid: 'Đã thu đủ', Overdue: 'Quá hạn' },
+  order: { Allocating: 'Đang phân bổ', Quoted: 'Chờ Retailer xác nhận báo giá', AllocationFailed: 'Phân bổ lỗi', OutOfStock: 'Thiếu hàng', AllocationConflict: 'Xung đột tồn', Withdrawn: 'Đã hủy', QuoteRejected: 'Báo giá bị từ chối', QuoteExpired: 'Báo giá hết hạn', PaymentPending: 'Chờ thanh toán', ConvertedToPo: 'Đã tạo PO', Picking: 'Đang soạn hàng', Rejected: 'Đã từ chối', Cancelled: 'Đã hủy', Issued: 'Đã xuất kho', Delivering: 'Đang giao', Delivered: 'Đã giao', Completed: 'Hoàn tất' },
+  receivable: { AwaitingDelivery: 'Chờ giao', Unpaid: 'Chưa thu', Paid: 'Đã thu đủ', Overdue: 'Quá hạn', Cancelled: 'Đã hủy' },
   product: { Draft: 'Nháp', Published: 'Đã publish', Inactive: 'Inactive' },
   transfer: { Suggested: 'Gợi ý', InTransit: 'Đang vận chuyển', Received: 'Đã nhận', Cancelled: 'Đã hủy' },
   transferKind: { Replenishment: 'Bổ sung', NearExpiryRotation: 'Luân chuyển cận hạn' },
