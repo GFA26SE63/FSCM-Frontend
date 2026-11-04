@@ -55,7 +55,7 @@ function WorkflowLinks({ order }: { order: OrderDetail }) {
   const role = useRole();
   return (
     <div className="row-wrap">
-      {role === 'Admin' && order.allocationRunId && <Button onClick={() => navigate('/allocation')}>Duyệt đợt {order.allocationRunCode ?? ''}</Button>}
+      {(role === 'Admin' || role === 'Operator') && order.allocationRunId && <Button onClick={() => navigate('/allocation')}>Lịch sử allocation</Button>}
       {(role === 'Admin' || role === 'Operator') && order.warehouseProgress.some((x) => x.pickingListId) && <Button onClick={() => navigate('/runpicking')}>Theo dõi soạn hàng</Button>}
       {(role === 'Admin' || role === 'Operator') && order.officialAmount != null && <Button onClick={() => navigate('/debts')}>Thanh toán / công nợ</Button>}
     </div>
@@ -118,7 +118,7 @@ function OrderBody({ order }: { order: OrderDetail }) {
             />
             <div className="kv" style={{ padding: '12px 16px' }}>
               <span>Dự kiến: <b>{formatMoney(order.indicativeAmount)}</b></span>
-              <span>Chính thức: <b>{order.officialAmount == null ? 'Chưa chốt sau duyệt đợt' : formatMoney(order.officialAmount)}</b></span>
+              <span>Chính thức: <b>{order.officialAmount == null ? 'Chưa có kết quả allocation' : formatMoney(order.officialAmount)}</b></span>
             </div>
           </Card>
 
@@ -157,7 +157,7 @@ function OrderBody({ order }: { order: OrderDetail }) {
           </Card>
 
           {dialogs}
-          <AllocationTraceDialog orderId={order.id} code={order.orderCode} open={trace} onClose={() => setTrace(false)} />
+          <AllocationTraceDialog order={order} open={trace} onClose={() => setTrace(false)} />
         </>
       )}
     </OrderActions>

@@ -62,13 +62,13 @@ export function DebtsPage() {
         rowKey={(r) => r.orderId}
         columns={columns}
         searchPlaceholder="Mã đơn, retailer, Sales…"
-        filters={[{ label: 'Trạng thái', options: ['Chưa thu', 'Đã thu đủ', 'Quá hạn'], value: (r) => statusLabel('receivable', r.status) }]}
+        filters={[{ label: 'Trạng thái', options: ['Chưa thu', 'Đã thu đủ', 'Quá hạn', 'Đã hủy'], value: (r) => statusLabel('receivable', r.status) }]}
         onRowClick={(r) => navigate(`/orders/${r.orderId}`)}
         rowActionsWidth="200px"
         rowActions={(r) => (
           <>
             <Button size="sm" onClick={() => navigate(`/orders/${r.orderId}`)}>Xem đơn</Button>
-            {mayCollect && r.status !== 'Paid' && (
+            {mayCollect && (r.status === 'Unpaid' || r.status === 'Overdue') && (
               <Button
                 size="sm"
                 variant="primary"
