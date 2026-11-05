@@ -120,6 +120,10 @@ export function DataTable<T>({
   };
 
   const pages = Array.from({ length: pageCount }, (_, i) => i + 1).filter((p) => p === 1 || p === pageCount || Math.abs(p - curPage) <= 2);
+  const minimumTableWidth = columns.reduce((total, column) => {
+    const pixels = column.width?.match(/^(\d+)px$/);
+    return total + (pixels ? Number(pixels[1]) : 180);
+  }, 0) + (rowActions ? Number.parseFloat(rowActionsWidth) || 220 : 0);
 
   return (
     <>
@@ -167,7 +171,7 @@ export function DataTable<T>({
       )}
 
       <section className="card tbl-wrap" style={{ minHeight: 120 }}>
-        <table className="tbl">
+        <table className="tbl" style={{ minWidth: minimumTableWidth }}>
           <colgroup>
             {columns.map((c) => (
               <col key={c.key} style={c.width ? { width: c.width } : undefined} />

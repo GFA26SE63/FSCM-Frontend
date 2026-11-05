@@ -9,9 +9,13 @@ export interface SimpleColumn<T> {
 
 /** Small non-paged table for detail screens, trace steps, dialogs. */
 export function SimpleTable<T>({ columns, rows, empty = 'Không có dữ liệu.', compact }: { columns: SimpleColumn<T>[]; rows: T[]; empty?: string; compact?: boolean }) {
+  const minimumTableWidth = columns.reduce((total, column) => {
+    const pixels = column.width?.match(/^(\d+)px$/);
+    return total + (pixels ? Number(pixels[1]) : 160);
+  }, 0);
   return (
     <div className="tbl-wrap">
-      <table className={`tbl${compact ? ' compact' : ''}`}>
+      <table className={`tbl${compact ? ' compact' : ''}`} style={{ minWidth: minimumTableWidth }}>
         <colgroup>
           {columns.map((c, i) => (
             <col key={i} style={c.width ? { width: c.width } : undefined} />
