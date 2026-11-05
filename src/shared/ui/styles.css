@@ -88,6 +88,22 @@ h1, h2, h3 { margin: 0; }
 .btn-sm { height: 30px; padding: 0 10px; font-size: 12.5px; border-radius: 6px; }
 .btn-block { width: 100%; }
 
+/* Action Button Variants using project design tokens (var(--c-danger), var(--c-warn), var(--c-primary)) */
+.btn-delete { background: var(--c-danger); border-color: var(--c-danger); color: #fff; }
+.btn-delete:hover:not(:disabled) { background: #8f1d14; border-color: #8f1d14; color: #fff; }
+.btn-delete:focus-visible { outline: 2px solid var(--c-danger); outline-offset: 2px; }
+.btn-delete:disabled { background: var(--c-danger-soft); border-color: var(--c-danger-soft); color: var(--c-muted); opacity: .65; cursor: not-allowed; }
+
+.btn-deactivate { background: var(--c-warn); border-color: var(--c-warn); color: #fff; }
+.btn-deactivate:hover:not(:disabled) { background: #6e2e06; border-color: #6e2e06; color: #fff; }
+.btn-deactivate:focus-visible { outline: 2px solid var(--c-warn); outline-offset: 2px; }
+.btn-deactivate:disabled { background: var(--c-warn-soft); border-color: var(--c-warn-soft); color: var(--c-muted); opacity: .65; cursor: not-allowed; }
+
+.btn-reactivate { background: var(--c-primary); border-color: var(--c-primary); color: #fff; }
+.btn-reactivate:hover:not(:disabled) { background: var(--c-primary-dark); border-color: var(--c-primary-dark); color: #fff; }
+.btn-reactivate:focus-visible { outline: 2px solid var(--c-primary); outline-offset: 2px; }
+.btn-reactivate:disabled { background: #a7b8b3; border-color: #a7b8b3; color: #fff; opacity: .65; cursor: not-allowed; }
+
 /* form */
 .lbl { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--c-label); }
 .inp { height: 38px; border: 1px solid var(--c-border); border-radius: var(--radius-sm); padding: 0 10px; font-size: 13.5px; background: var(--c-surface); color: var(--c-text); width: 100%; font-weight: 400; }

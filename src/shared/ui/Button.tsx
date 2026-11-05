@@ -1,6 +1,14 @@
 import type { ButtonHTMLAttributes } from 'react';
 
-export type ButtonVariant = 'default' | 'primary' | 'danger' | 'danger-solid' | 'ghost';
+export type ButtonVariant =
+  | 'default'
+  | 'primary'
+  | 'danger'
+  | 'danger-solid'
+  | 'ghost'
+  | 'deactivate'
+  | 'reactivate'
+  | 'delete';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;

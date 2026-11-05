@@ -20,9 +20,10 @@ import {
   useManagers,
   useStaff,
   useTransferStaff,
+  useUpdateArea,
   useUpdateGroup,
 } from '../hooks';
-import type { AreaInput, GroupInput, SalesGroup } from '../types';
+import type { Area, AreaInput, GroupInput, SalesGroup } from '../types';
 
 /* -------------------------------------------------------------------------- */
 /*                               Area Dialog                                  */
@@ -30,11 +31,14 @@ import type { AreaInput, GroupInput, SalesGroup } from '../types';
 
 export function AreaDialog({
   open,
+  area,
   onClose,
 }: {
   open: boolean;
+  area?: Area | null;
   onClose: () => void;
 }) {
+  const edit = Boolean(area);
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -45,44 +49,69 @@ export function AreaDialog({
   const { data: areas = [] } = useAreas();
   const { data: managers = [] } = useManagers();
   const create = useCreateArea();
+  const update = useUpdateArea();
   const toast = useToast();
 
   useEffect(() => {
     if (open) {
-      setCode('');
-      setName('');
-      setDescription('');
-      setManagerId(managers[0]?.id ?? '');
+      if (area) {
+        setCode(area.code);
+        setName(area.name);
+        setDescription(area.description || '');
+        setManagerId(area.managerId ?? '');
+      } else {
+        setCode('');
+        setName('');
+        setDescription('');
+        setManagerId(managers[0]?.id ?? '');
+      }
       setErrors({});
       setGeneralError(null);
     }
-  }, [open, managers]);
+  }, [open, area, managers]);
 
   const validate = () => {
     const err: Record<string, string[]> = {};
     const c = code.trim().toUpperCase();
     const n = name.trim();
-    if (!c) err.code = ['Bắt buộc nhập mã khu vực.'];
-    else if (areas.some((a) => a.code.toUpperCase() === c)) {
-      err.code = ['Mã khu vực đã tồn tại.'];
+    if (!edit) {
+      if (!c) err.code = ['Bắt buộc nhập mã vùng.'];
+      else if (areas.some((a) => a.code.toUpperCase() === c)) {
+        err.code = ['Mã vùng đã tồn tại.'];
+      }
     }
-    if (!n) err.name = ['Bắt buộc nhập tên khu vực.'];
+    if (!n) err.name = ['Bắt buộc nhập tên vùng.'];
     setErrors(err);
     return Object.keys(err).length === 0;
   };
 
+  const busy = create.isPending || update.isPending;
+
   const submit = async () => {
+    if (busy) return;
     if (!validate()) return;
     setGeneralError(null);
     try {
-      const payload: AreaInput = {
-        code: code.trim().toUpperCase(),
-        name: name.trim(),
-        description: description.trim() || undefined,
-        managerId: managerId || null,
-      };
-      await create.mutateAsync(payload);
-      toast.show(`Đã tạo khu vực ${payload.name} (${payload.code}).`);
+      if (edit && area) {
+        await update.mutateAsync({
+          idOrCode: area.code,
+          data: {
+            name: name.trim(),
+            description: description.trim() || undefined,
+            managerId: managerId || null,
+          },
+        });
+        toast.show(`Đã cập nhật vùng ${name.trim()} (${area.code}).`);
+      } else {
+        const payload: AreaInput = {
+          code: code.trim().toUpperCase(),
+          name: name.trim(),
+          description: description.trim() || undefined,
+          managerId: managerId || null,
+        };
+        await create.mutateAsync(payload);
+        toast.show(`Đã tạo vùng ${payload.name} (${payload.code}).`);
+      }
       onClose();
     } catch (e) {
       const err = toApiError(e);
@@ -102,22 +131,22 @@ export function AreaDialog({
   return (
     <Modal
       open={open}
-      title="Thêm khu vực"
-      subtitle="Khu vực địa lý phụ trách thị trường"
+      title={edit ? `Sửa vùng ${area?.code}` : 'Thêm vùng'}
+      subtitle={edit ? 'Cập nhật thông tin vùng hoạt động' : 'Khai báo vùng phụ trách'}
       width={580}
       onClose={onClose}
       footer={
         <>
           <span className="muted small spacer">* Bắt buộc nhập</span>
-          <Button onClick={onClose} disabled={create.isPending}>
+          <Button onClick={onClose} disabled={busy}>
             Hủy
           </Button>
           <Button
             variant="primary"
             onClick={submit}
-            disabled={create.isPending}
+            disabled={busy}
           >
-            {create.isPending ? 'Đang tạo…' : 'Tạo khu vực'}
+            {busy ? 'Đang lưu…' : edit ? 'Lưu thay đổi' : 'Tạo vùng'}
           </Button>
         </>
       }
@@ -125,16 +154,20 @@ export function AreaDialog({
       {generalError && <Callout tone="danger">{generalError}</Callout>}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 8 }}>
-        <FormField label="Mã khu vực" required error={errors.code?.[0]} hint="Ví dụ: Q12, HM, GV, TD, CC">
-          <Input
-            invalid={!!errors.code?.[0]}
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            placeholder="Q12"
-          />
+        <FormField label="Mã vùng" required={!edit} error={errors.code?.[0]} hint={edit ? undefined : "Ví dụ: Q12, HM, GV, TD, CC"}>
+          {edit ? (
+            <div className="inp readonly">{code}</div>
+          ) : (
+            <Input
+              invalid={!!errors.code?.[0]}
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              placeholder="Q12"
+            />
+          )}
         </FormField>
 
-        <FormField label="Tên khu vực" required error={errors.name?.[0]} hint="Ví dụ: Quận 12, Hóc Môn, Gò Vấp">
+        <FormField label="Tên vùng" required error={errors.name?.[0]} hint="Ví dụ: Quận 12, Hóc Môn, Gò Vấp">
           <Input
             invalid={!!errors.name?.[0]}
             value={name}
@@ -182,7 +215,7 @@ export function GroupDialog({
   const edit = !!group;
   const { data: areas = [] } = useAreas();
   const { data: groups = [] } = useGroups();
-  const { data: staff = [] } = useStaff();
+  const { data: staff = [], isLoading: staffLoading, error: staffError } = useStaff();
   const { data: managers = [] } = useManagers();
 
   const create = useCreateGroup();
@@ -232,11 +265,66 @@ export function GroupDialog({
     );
   };
 
-  const filteredStaff = useMemo(() => {
-    if (!staffSearch.trim()) return staff;
-    const q = staffSearch.toLowerCase();
-    return staff.filter((s) => s.name.toLowerCase().includes(q));
-  }, [staff, staffSearch]);
+  interface GroupMemberItem {
+    name: string;
+    email?: string;
+    phone?: string;
+    userId?: string;
+  }
+
+  // 1. Staff currently assigned to this group (when editing)
+  // Rule 3: Keep them visible in the current group's assigned Sales list.
+  const currentGroupStaff = useMemo(() => {
+    if (!edit || !group) return [];
+    return staff.filter((s) => {
+      const matchId = group.id && s.groupId && group.id.toLowerCase() === s.groupId.toLowerCase();
+      const matchCode = group.code && s.groupCode && group.code.toUpperCase() === s.groupCode.toUpperCase();
+      const matchName = group.members && group.members.includes(s.name);
+      return matchId || matchCode || matchName;
+    });
+  }, [edit, group, staff]);
+
+  const currentGroupMembersList = useMemo<GroupMemberItem[]>(() => {
+    if (!edit || !group) return [];
+    const fromStaffNames = new Set(currentGroupStaff.map((s) => s.name));
+    const extraNames = (group.members ?? []).filter((m) => !fromStaffNames.has(m));
+    const list: GroupMemberItem[] = currentGroupStaff.map((s) => ({
+      name: s.name,
+      email: s.email,
+      phone: s.phone,
+      userId: s.userId,
+    }));
+    extraNames.forEach((name) => {
+      list.push({ name });
+    });
+    return list;
+  }, [edit, group, currentGroupStaff]);
+
+  // 2. Available unassigned Sales staff candidates
+  // Rule 1: Sales not assigned to any group -> Display in available selection list
+  // Rule 2: Sales already assigned to another group -> Do NOT display in available selection list
+  // Rule 3: Sales already assigned to current group -> Do NOT display as new assignment candidates
+  const availableStaff = useMemo(() => {
+    return staff.filter((s) => {
+      // Exclude if assigned to ANY group
+      if (s.groupId || s.groupCode) return false;
+      // Also exclude if already in current group's members
+      if (edit && group?.members && group.members.includes(s.name)) return false;
+      return true;
+    });
+  }, [staff, edit, group]);
+
+  // 3. Search filtering applies ONLY to available unassigned staff
+  // Rule 6: Previously assigned Sales must not reappear upon searching
+  const filteredAvailableStaff = useMemo(() => {
+    if (!staffSearch.trim()) return availableStaff;
+    const q = staffSearch.trim().toLowerCase();
+    return availableStaff.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        (s.email && s.email.toLowerCase().includes(q)),
+    );
+  }, [availableStaff, staffSearch]);
 
   const managerOptions = useMemo(() => {
     const base = [{ value: '', label: '— Chưa phân công —' }];
@@ -255,7 +343,7 @@ export function GroupDialog({
     }
     if (!areaCode) err.areaCode = ['Chọn khu vực.'];
     if (!selectedMembers.length) {
-      err.members = ['Vui lòng chọn ít nhất 1 nhân viên Sales cho nhóm.'];
+      err.members = ['Vui lòng chọn ít nhất 1 nhân viên cho nhóm.'];
     }
     setErrors(err);
     return Object.keys(err).length === 0;
@@ -264,23 +352,25 @@ export function GroupDialog({
   const busy = create.isPending || update.isPending;
 
   const submit = async () => {
+    if (busy) return;
     if (!validate()) return;
     setGeneralError(null);
     try {
       const selectedManagerObj = managers.find((m) => m.id === managerId);
+      const uniqueMembers = [...new Set(selectedMembers)];
       const payload: GroupInput = {
         code: code.trim().toUpperCase(),
         areaCode,
         managerId: managerId || null,
         managerName: selectedManagerObj?.name ?? undefined,
-        members: selectedMembers,
+        members: uniqueMembers,
       };
       if (edit) {
         await update.mutateAsync(payload);
-        toast.show(`Đã cập nhật nhóm Sales ${payload.code} (${selectedMembers.length} Sales).`);
+        toast.show(`Đã cập nhật nhóm bán hàng ${payload.code}.`);
       } else {
         await create.mutateAsync(payload);
-        toast.show(`Đã tạo nhóm Sales ${payload.code} (${selectedMembers.length} Sales).`);
+        toast.show(`Đã tạo nhóm bán hàng ${payload.code}.`);
       }
       onClose();
     } catch (e) {
@@ -296,8 +386,8 @@ export function GroupDialog({
   return (
     <Modal
       open={open}
-      title={edit ? `Sửa nhóm Sales ${group!.code}` : 'Thêm nhóm Sales'}
-      subtitle="Phân công khu vực & nhân sự Sales trực thuộc"
+      title={edit ? `Sửa nhóm bán hàng ${group!.code}` : 'Thêm nhóm bán hàng'}
+      subtitle="Phân công khu vực & nhân sự bán hàng trực thuộc"
       width={680}
       onClose={onClose}
       footer={
@@ -315,10 +405,25 @@ export function GroupDialog({
       }
     >
       <div className="callout" style={{ marginBottom: 12 }}>
-        Mỗi nhân viên Sales thuộc đúng một nhóm. Nếu chọn Sales đang ở nhóm khác, họ sẽ tự động được điều chuyển sang nhóm này khi bạn lưu.
+        Mỗi nhân viên bán hàng thuộc đúng một nhóm. Hệ thống chỉ hiển thị các nhân viên chưa được phân công vào nhóm nào để gán.
       </div>
 
+      {edit && group?.isActive === false && (
+        <div style={{ marginBottom: 12 }}>
+          <Callout tone="warn">
+            Nhóm bán hàng này đang tạm ngừng hoạt động. Không thể phân công thêm nhân viên mới vào nhóm đang ngừng hoạt động.
+          </Callout>
+        </div>
+      )}
+
       {generalError && <Callout tone="danger">{generalError}</Callout>}
+      {staffError && (
+        <div style={{ marginBottom: 12 }}>
+          <Callout tone="danger">
+            Không thể kiểm tra thông tin phân công nhân sự. Vui lòng thử lại sau.
+          </Callout>
+        </div>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -352,15 +457,98 @@ export function GroupDialog({
           />
         </FormField>
 
-        <div style={{ marginTop: 6 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        {/* If editing, display the currently assigned sales list */}
+        {edit && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontWeight: 600, fontSize: 13 }}>
+                Nhân viên đang thuộc nhóm{' '}
+                <span className="muted">({currentGroupMembersList.length})</span>
+              </span>
+              <span className="muted" style={{ fontSize: 12 }}>
+                Bỏ chọn để xóa khỏi nhóm
+              </span>
+            </div>
+
+            <div
+              style={{
+                maxHeight: 140,
+                overflowY: 'auto',
+                border: '1px solid #CBD5E1',
+                borderRadius: 8,
+                padding: '6px 10px',
+                background: '#FAFAFA',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+              }}
+            >
+              {currentGroupMembersList.length === 0 ? (
+                <div className="muted" style={{ padding: 10, textAlign: 'center', fontSize: 13 }}>
+                  Nhóm hiện chưa có nhân viên Sales nào.
+                </div>
+              ) : (
+                currentGroupMembersList.map((m) => {
+                  const isSelected = selectedMembers.includes(m.name);
+                  return (
+                    <div
+                      key={m.userId || m.name}
+                      onClick={() => toggleMember(m.name)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '7px 10px',
+                        borderRadius: 6,
+                        background: isSelected ? '#E6F4EA' : '#FFFFFF',
+                        border: isSelected ? '1px solid #14655B' : '1px solid #E2E8F0',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ pointerEvents: 'none' }}>
+                          <Checkbox label="" checked={isSelected} onChange={() => {}} />
+                        </div>
+                        <div>
+                          <span style={{ fontWeight: isSelected ? 600 : 400, fontSize: 13.5 }}>
+                            {m.name}
+                          </span>
+                          {m.email && (
+                            <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>
+                              {m.email}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 12 }}>
+                        {isSelected ? (
+                          <span style={{ color: '#14655B', fontWeight: 600 }}>Trong nhóm</span>
+                        ) : (
+                          <span style={{ color: '#B42318' }}>Sẽ bỏ khỏi nhóm</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Available unassigned sales selection list */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontWeight: 600, fontSize: 13 }}>
-              Phân công Sales trong nhóm <span className="muted">({selectedMembers.length} đã chọn) *</span>
+              {edit ? 'Chọn thêm nhân viên' : 'Phân công nhân viên trong nhóm'}{' '}
+              <span className="muted">
+                ({availableStaff.length} chưa phân nhóm) *
+              </span>
             </span>
             <div style={{ width: 220 }}>
               <Input
                 style={{ height: 32, fontSize: 12 }}
-                placeholder="Tìm nhân viên Sales…"
+                placeholder="Tìm nhân viên…"
                 value={staffSearch}
                 onChange={(e) => setStaffSearch(e.target.value)}
               />
@@ -368,14 +556,14 @@ export function GroupDialog({
           </div>
 
           {errors.members?.[0] && (
-            <div className="field-err" style={{ marginBottom: 6 }}>
+            <div className="field-err" style={{ marginBottom: 4 }}>
               {errors.members[0]}
             </div>
           )}
 
           <div
             style={{
-              maxHeight: 220,
+              maxHeight: edit ? 160 : 220,
               overflowY: 'auto',
               border: '1px solid #CBD5E1',
               borderRadius: 8,
@@ -386,16 +574,23 @@ export function GroupDialog({
               gap: 4,
             }}
           >
-            {filteredStaff.length === 0 ? (
+            {staffLoading ? (
               <div className="muted" style={{ padding: 12, textAlign: 'center', fontSize: 13 }}>
-                Không tìm thấy nhân viên Sales phù hợp.
+                Đang tải danh sách nhân viên…
+              </div>
+            ) : edit && group?.isActive === false ? (
+              <div className="muted" style={{ padding: 12, textAlign: 'center', fontSize: 13 }}>
+                Nhóm bán hàng đang ngừng hoạt động nên không thể phân công thêm nhân viên mới.
+              </div>
+            ) : filteredAvailableStaff.length === 0 ? (
+              <div className="muted" style={{ padding: 12, textAlign: 'center', fontSize: 13 }}>
+                {staffSearch.trim()
+                  ? `Không tìm thấy nhân viên phù hợp với từ khóa "${staffSearch.trim()}".`
+                  : 'Không có nhân viên nào chưa phân nhóm khả dụng.'}
               </div>
             ) : (
-              filteredStaff.map((s) => {
+              filteredAvailableStaff.map((s) => {
                 const isSelected = selectedMembers.includes(s.name);
-                const isCurrentGroup = s.groupCode === code;
-                const otherGroup = s.groupCode && !isCurrentGroup ? s.groupCode : null;
-
                 return (
                   <div
                     key={s.userId || s.name}
@@ -404,7 +599,7 @@ export function GroupDialog({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '8px 10px',
+                      padding: '7px 10px',
                       borderRadius: 6,
                       background: isSelected ? '#E6F4EA' : '#FFFFFF',
                       border: isSelected ? '1px solid #14655B' : '1px solid #E2E8F0',
@@ -413,23 +608,23 @@ export function GroupDialog({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <Checkbox
-                        label=""
-                        checked={isSelected}
-                        onChange={() => toggleMember(s.name)}
-                      />
-                      <span style={{ fontWeight: isSelected ? 600 : 400, fontSize: 14 }}>
-                        {s.name}
-                      </span>
-                    </div>
-
-                    <div style={{ fontSize: 12 }}>
-                      {isCurrentGroup && isSelected ? (
-                        <span style={{ color: '#14655B', fontWeight: 600 }}>Trong nhóm</span>
-                      ) : otherGroup ? (
-                        <span style={{ color: '#B45309' }}>
-                          Đang ở nhóm <b>{otherGroup}</b>
+                      <div style={{ pointerEvents: 'none' }}>
+                        <Checkbox label="" checked={isSelected} onChange={() => {}} />
+                      </div>
+                      <div>
+                        <span style={{ fontWeight: isSelected ? 600 : 400, fontSize: 13.5 }}>
+                          {s.name}
                         </span>
+                        {s.email && (
+                          <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>
+                            {s.email}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 12 }}>
+                      {isSelected ? (
+                        <span style={{ color: '#14655B', fontWeight: 600 }}>Đã chọn</span>
                       ) : (
                         <span className="muted">Chưa có nhóm</span>
                       )}
@@ -504,7 +699,7 @@ export function TransferStaffDialog({
         toGroup: destination.code,
         destinationSalesGroupId: destination.id,
       });
-      toast.show('Đã chuyển Sales ' + current.name + ' sang nhóm ' + destination.code + '.');
+      toast.show('Đã chuyển nhân viên ' + current.name + ' sang nhóm ' + destination.code + '.');
       onClose();
     } catch (failure) {
       setError(errorMessage(failure));
@@ -515,7 +710,7 @@ export function TransferStaffDialog({
 
   if (!mayAssign) return null;
   return (
-    <Modal open={open} title="Điều chuyển nhân viên Sales" width={560} onClose={close}
+    <Modal open={open} title="Điều chuyển nhân viên bán hàng" width={560} onClose={close}
       footer={<>
         <Button onClick={close} disabled={transfer.isPending}>Hủy</Button>
         <Button variant="primary" loading={transfer.isPending}
@@ -527,7 +722,7 @@ export function TransferStaffDialog({
         Điều chuyển có hiệu lực ngay.
         {user?.role === 'SalesManager' && ' Chỉ điều chuyển giữa các nhóm bạn được phân công.'}
       </Callout>
-      {loading && <p>Đang tải nhân viên và nhóm Sales…</p>}
+      {loading && <p>Đang tải thông tin nhân viên và nhóm bán hàng…</p>}
       {loadError && <Callout tone="danger">{errorMessage(loadError)}</Callout>}
       {error && <Callout tone="danger">{error}</Callout>}
       {!loading && !loadError && staff.length === 0 && <Callout tone="info">
