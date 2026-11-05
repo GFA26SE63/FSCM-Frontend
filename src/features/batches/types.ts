@@ -1,4 +1,4 @@
-export type ExpiryStatus = 'Normal' | 'NearExpiry' | 'Expired' | 'Disposed';
+export type ExpiryStatus = 'Normal' | 'Near-date' | 'NearExpiry' | 'Expired' | 'Disposed' | string;
 
 /**
  * Mapped directly from components.schemas.BatchInventoryResult in apiv1.json
@@ -112,7 +112,39 @@ export interface BatchFilters {
   search?: string;
 }
 
+/**
+ * Mapped from components.schemas.QrLabelResult in apiv1.0.1.json
+ */
+export interface QrLabelItem {
+  id: string;
+  qrCode: string;
+  qrPayload: string;
+  batchId: string;
+  batchCode: string;
+  warehouseId: string;
+  warehouseCode: string;
+  productId: string;
+  sku: string;
+  productName: string;
+  productionDate: string;
+  expirationDate: string;
+  goodsReceiptId?: string | null;
+  receiptCode?: string | null;
+  quantity: number;
+  status: string;
+  parentLabelId?: string | null;
+  parentQrCode?: string | null;
+  rootLabelId?: string | null;
+  rootQrCode?: string | null;
+  blobUrl?: string | null;
+  version: number;
+  generatedAt: string;
+  updatedAt?: string | null;
+  invalidatedAt?: string | null;
+}
+
 export interface BatchDetail extends BatchInventoryItem {
   history?: InventoryHistoryItem[];
   locks?: InventoryLockItem[];
+  qrLabels?: QrLabelItem[];
 }

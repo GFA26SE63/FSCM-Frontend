@@ -32,10 +32,12 @@ import type { Area, AreaInput, GroupInput, SalesGroup } from '../types';
 export function AreaDialog({
   open,
   area,
+  readOnly = false,
   onClose,
 }: {
   open: boolean;
   area?: Area | null;
+  readOnly?: boolean;
   onClose: () => void;
 }) {
   const edit = Boolean(area);
@@ -131,31 +133,37 @@ export function AreaDialog({
   return (
     <Modal
       open={open}
-      title={edit ? `Sửa vùng ${area?.code}` : 'Thêm vùng'}
-      subtitle={edit ? 'Cập nhật thông tin vùng hoạt động' : 'Khai báo vùng phụ trách'}
+      title={readOnly ? `Chi tiết vùng ${area?.code}` : edit ? `Sửa vùng ${area?.code}` : 'Thêm vùng'}
+      subtitle={readOnly ? 'Thông tin chi tiết vùng hoạt động' : edit ? 'Cập nhật thông tin vùng hoạt động' : 'Khai báo vùng phụ trách'}
       width={580}
       onClose={onClose}
       footer={
-        <>
-          <span className="muted small spacer">* Bắt buộc nhập</span>
-          <Button onClick={onClose} disabled={busy}>
-            Hủy
+        readOnly ? (
+          <Button variant="primary" onClick={onClose}>
+            Đóng
           </Button>
-          <Button
-            variant="primary"
-            onClick={submit}
-            disabled={busy}
-          >
-            {busy ? 'Đang lưu…' : edit ? 'Lưu thay đổi' : 'Tạo vùng'}
-          </Button>
-        </>
+        ) : (
+          <>
+            <span className="muted small spacer">* Bắt buộc nhập</span>
+            <Button onClick={onClose} disabled={busy}>
+              Hủy
+            </Button>
+            <Button
+              variant="primary"
+              onClick={submit}
+              disabled={busy}
+            >
+              {busy ? 'Đang lưu…' : edit ? 'Lưu thay đổi' : 'Tạo vùng'}
+            </Button>
+          </>
+        )
       }
     >
       {generalError && <Callout tone="danger">{generalError}</Callout>}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 8 }}>
-        <FormField label="Mã vùng" required={!edit} error={errors.code?.[0]} hint={edit ? undefined : "Ví dụ: Q12, HM, GV, TD, CC"}>
-          {edit ? (
+        <FormField label="Mã vùng" required={!edit && !readOnly} error={errors.code?.[0]} hint={edit || readOnly ? undefined : "Ví dụ: Q12, HM, GV, TD, CC"}>
+          {edit || readOnly ? (
             <div className="inp readonly">{code}</div>
           ) : (
             <Input
@@ -167,32 +175,46 @@ export function AreaDialog({
           )}
         </FormField>
 
-        <FormField label="Tên vùng" required error={errors.name?.[0]} hint="Ví dụ: Quận 12, Hóc Môn, Gò Vấp">
-          <Input
-            invalid={!!errors.name?.[0]}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Quận 12"
-          />
+        <FormField label="Tên vùng" required={!readOnly} error={errors.name?.[0]} hint={readOnly ? undefined : "Ví dụ: Quận 12, Hóc Môn, Gò Vấp"}>
+          {readOnly ? (
+            <div className="inp readonly">{name}</div>
+          ) : (
+            <Input
+              invalid={!!errors.name?.[0]}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Quận 12"
+            />
+          )}
         </FormField>
 
         <FormField label="Sales Manager phụ trách">
-          <Select
-            value={managerId}
-            options={managerOptions}
-            onChange={(e) => setManagerId(e.target.value)}
-          />
+          {readOnly ? (
+            <div className="inp readonly">
+              {managerOptions.find((m) => m.value === managerId)?.label || '— Chưa phân công —'}
+            </div>
+          ) : (
+            <Select
+              value={managerId}
+              options={managerOptions}
+              onChange={(e) => setManagerId(e.target.value)}
+            />
+          )}
         </FormField>
 
         <FormField
           label="Mô tả / Phạm vi địa lý"
-          hint="Mô tả các phường, xã hoặc đặc thù khu vực này"
+          hint={readOnly ? undefined : "Mô tả các phường, xã hoặc đặc thù khu vực này"}
         >
-          <Input
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Khu vực Quận 12 bao gồm Thới An, Tân Chánh Hiệp..."
-          />
+          {readOnly ? (
+            <div className="inp readonly">{description || '—'}</div>
+          ) : (
+            <Input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Khu vực Quận 12 bao gồm Thới An, Tân Chánh Hiệp..."
+            />
+          )}
         </FormField>
       </div>
     </Modal>

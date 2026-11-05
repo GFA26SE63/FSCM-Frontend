@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Eye } from 'lucide-react';
 import { useNavigate, useParams } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
@@ -298,6 +299,32 @@ export function GroupDetailPage() {
                   header: 'Trạng thái',
                   align: 'center',
                   cell: (r) => <StatusChip domain="active" value={r.status} />,
+                },
+                {
+                  header: 'Thao tác',
+                  align: 'center',
+                  width: '90px',
+                  cell: (r) =>
+                    mayOpenRetailers ? (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => navigate(`/retailers/${r.code}`)}
+                        title="Xem chi tiết điểm bán"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: '4px 8px',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          height: 28,
+                        }}
+                      >
+                        <Eye size={13} />
+                        <span>Xem</span>
+                      </Button>
+                    ) : null,
                 },
               ]}
             />

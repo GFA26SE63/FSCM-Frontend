@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
+import { Eye, MapPin, Pause, Pencil, Play } from 'lucide-react';
 import { useNavigate, useParams } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { statusLabels } from '@/shared/lib';
 import {
+  ActionDropdown,
   Button,
   Card,
   DataTable,
@@ -12,6 +14,7 @@ import {
   Select,
   StatusChip,
   useToast,
+  type ActionDropdownItem,
 } from '@/shared/ui';
 import { buildWarehouseMapDoc } from '../components/warehouseMap';
 import { DeactivateWarehouseModal } from '../components/DeactivateWarehouseModal';
@@ -166,7 +169,7 @@ export function RegionWarehousesPage() {
   if (regionsQuery.isLoading) {
     return (
       <div style={{ padding: 24, textAlign: 'center', color: '#64748B' }}>
-        Đang tải thông tin vùng kho…
+        Đang tải thông tin vùng hoạt động…
       </div>
     );
   }
@@ -175,11 +178,11 @@ export function RegionWarehousesPage() {
     return (
       <div style={{ padding: 24 }}>
         <EmptyState
-          title="Không tìm thấy vùng kho"
-          description={`Vùng kho có mã định danh "${regionId}" không tồn tại hoặc đã bị xóa.`}
+          title="Không tìm thấy vùng hoạt động"
+          description={`Vùng hoạt động có mã định danh "${regionId}" không tồn tại hoặc đã bị xóa.`}
           action={
             <Button variant="primary" onClick={() => navigate('/whs')}>
-              ← Quay lại danh sách vùng kho
+              ← Quay lại danh sách vùng hoạt động
             </Button>
           }
         />
@@ -191,7 +194,7 @@ export function RegionWarehousesPage() {
     <>
       <PageHeader
         back="/whs"
-        title={`Vùng kho: ${region.name}`}
+        title={`Vùng hoạt động: ${region.name}`}
         subtitle={`Mã vùng: ${region.code} · ${regionWarehouses.length} kho trực thuộc`}
         chips={
           <StatusChip
@@ -207,7 +210,7 @@ export function RegionWarehousesPage() {
                 setNetMapOpen(true);
               }}
             >
-              Bản đồ vùng kho
+              Bản đồ vùng hoạt động
             </Button>
             {isAdmin && (
               <>
@@ -334,55 +337,92 @@ export function RegionWarehousesPage() {
             text: (w) => statusLabels.active[w.status] ?? w.status,
           },
         ]}
-        rowActionsWidth="300px"
-        rowActions={(w) => (
-          <>
-            <Button size="sm" onClick={() => navigate(`/whs/${w.code}`)}>
-              Xem
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => {
+        rowActionsWidth="135px"
+        rowActionHeader="Thao tác"
+        rowActions={(w) => {
+          const dropdownItems: ActionDropdownItem[] = [
+            {
+              key: 'map',
+              label: 'Xem trên bản đồ',
+              icon: <MapPin size={14} style={{ color: '#0284C7' }} />,
+              color: '#0284C7',
+              onClick: () => {
                 setMapWarehouseFilter(w.code);
                 setNetMapOpen(true);
+              },
+              title: 'Xem kho này trên bản đồ',
+            },
+          ];
+
+          if (isAdmin) {
+            dropdownItems.push({
+              key: 'edit',
+              label: 'Chỉnh sửa',
+              icon: <Pencil size={14} style={{ color: '#1D4ED8' }} />,
+              color: '#1D4ED8',
+              onClick: () => navigate(`/whs/${w.code}/edit`),
+              title: 'Chỉnh sửa thông tin kho',
+            });
+
+            if (w.status === 'Active') {
+              dropdownItems.push({
+                key: 'deactivate',
+                label: 'Ngừng hoạt động',
+                icon: <Pause size={14} style={{ color: '#C2410C' }} />,
+                color: '#C2410C',
+                onClick: () => handleToggleWarehouseStatus(w),
+                title: 'Vô hiệu hóa kho',
+              });
+            } else {
+              dropdownItems.push({
+                key: 'reactivate',
+                label: 'Kích hoạt lại',
+                icon: <Play size={14} style={{ color: '#15803D' }} />,
+                color: '#15803D',
+                onClick: () => handleToggleWarehouseStatus(w),
+                title: 'Kích hoạt lại kho',
+              });
+            }
+          }
+
+          return (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                justifyContent: 'flex-end',
               }}
+              onClick={(e) => e.stopPropagation()}
             >
-              Bản đồ
-            </Button>
-            {isAdmin && (
-              <>
-                <Button
-                  size="sm"
-                  onClick={() => navigate(`/whs/${w.code}/edit`)}
-                >
-                  Sửa
-                </Button>
-                {w.status === 'Active' ? (
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    disabled={updateWarehouseStatus.isPending}
-                    onClick={() => handleToggleWarehouseStatus(w)}
-                  >
-                    Vô hiệu hóa
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    disabled={updateWarehouseStatus.isPending}
-                    onClick={() => handleToggleWarehouseStatus(w)}
-                  >
-                    Kích hoạt
-                  </Button>
-                )}
-              </>
-            )}
-          </>
-        )}
+              <Button
+                size="sm"
+                variant="default"
+                onClick={() => navigate(`/whs/${w.code}`)}
+                title="Xem chi tiết kho"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '4px 8px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  height: 30,
+                }}
+              >
+                <Eye size={14} />
+                <span>Xem</span>
+              </Button>
+
+              {dropdownItems.length > 0 && (
+                <ActionDropdown items={dropdownItems} />
+              )}
+            </div>
+          );
+        }}
       />
 
-      {/* Modal: Bản đồ mạng lưới kho vùng */}
+      {/* Modal: Bản đồ mạng lưới kho vùng hoạt động */}
       <Modal
         open={netMapOpen}
         title={`Bản đồ mạng lưới kho · Vùng ${region.name}`}

@@ -287,7 +287,7 @@ function WarehouseEditor({
       }
     }
     if (!form.name.trim()) nextErr.name = ['Bắt buộc nhập tên kho.'];
-    if (!form.regionId) nextErr.regionId = ['Vui lòng chọn vùng kho.'];
+    if (!form.regionId) nextErr.regionId = ['Vui lòng chọn vùng hoạt động.'];
     if (!form.address.trim()) nextErr.address = ['Bắt buộc nhập địa chỉ.'];
     if (!Number.isFinite(Number(form.minStock)) || Number(form.minStock) <= 0) {
       nextErr.minStock = ['Phải là số > 0.'];
@@ -416,12 +416,12 @@ function WarehouseEditor({
             />
           </FormField>
 
-          <FormField label="Vùng kho trực thuộc *" error={errors.regionId?.[0]}>
+          <FormField label="Vùng hoạt động trực thuộc *" error={errors.regionId?.[0]}>
             <Select
               value={form.regionId}
               onChange={(e) => set('regionId', e.target.value)}
               options={[
-                { value: '', label: 'Chọn vùng kho' },
+                { value: '', label: 'Chọn vùng hoạt động' },
                 ...regions.map((r) => ({
                   value: r.id,
                   label: `${r.name} (${r.code})`,

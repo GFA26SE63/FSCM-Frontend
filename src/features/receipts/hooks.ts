@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApiMutation } from '@/shared/hooks';
 import { receiptApi } from './api';
 
@@ -8,4 +8,12 @@ export const useReceiptLookups = () => ({
   warehouses: useQuery({ queryKey: ['receipts', 'warehouses'], queryFn: receiptApi.warehouses }),
   products: useQuery({ queryKey: ['receipts', 'products'], queryFn: receiptApi.products }),
 });
-export const useCreateReceipt = () => useApiMutation(receiptApi.create, { success: (r) => `Đã tạo phiếu nhập ${r.code} (${r.batchCount} batch) và in tem batch.` });
+export const useCreateReceipt = () => {
+  const queryClient = useQueryClient();
+  return useApiMutation(receiptApi.create, {
+    success: (r) => `Đã tạo phiếu nhập ${r.code} (${r.batchCount} batch) và in tem batch.`,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['batches'] });
+    },
+  });
+};

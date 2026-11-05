@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Eye, MapPin, Pause, Pencil, Play } from 'lucide-react';
 import { useLocation, useNavigate } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { statusLabels } from '@/shared/lib';
 import {
+  ActionDropdown,
   Button,
   DataTable,
   FormField,
@@ -14,6 +16,7 @@ import {
   Tabs,
   TextArea,
   useToast,
+  type ActionDropdownItem,
 } from '@/shared/ui';
 import { buildWarehouseMapDoc } from '../components/warehouseMap';
 import { DeactivateWarehouseModal } from '../components/DeactivateWarehouseModal';
@@ -196,7 +199,7 @@ export function WarehousesPage() {
         name: regionName.trim(),
         description: regionDesc.trim() || undefined,
       });
-      toast.show(`Đã tạo vùng kho "${regionName.trim()}" thành công.`);
+      toast.show(`Đã tạo vùng hoạt động "${regionName.trim()}" thành công.`);
       setRegionCode('');
       setRegionName('');
       setRegionDesc('');
@@ -233,7 +236,7 @@ export function WarehousesPage() {
     <>
       <PageHeader
         title="Quản lý kho"
-        subtitle="Mô hình Vùng kho → Kho thuộc vùng · Quản lý cơ sở hạ tầng lưu trữ và phân phối"
+        subtitle="Mô hình Vùng hoạt động → Kho thuộc vùng · Quản lý cơ sở hạ tầng lưu trữ và phân phối"
         actions={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <Button onClick={() => openMapWithSelection('all', 'all')}>
@@ -244,7 +247,7 @@ export function WarehousesPage() {
                 variant="primary"
                 onClick={() => setCreateModalOpen(true)}
               >
-                + Thêm vùng kho
+                + Thêm vùng hoạt động
               </Button>
             )}
           </div>
@@ -256,7 +259,7 @@ export function WarehousesPage() {
           items={[
             {
               key: 'regions',
-              label: 'Vùng kho',
+              label: 'Vùng hoạt động',
               count: sortedRegions.length,
             },
             {
@@ -272,7 +275,7 @@ export function WarehousesPage() {
 
       {activeTab === 'regions' ? (
         <DataTable
-          title="Danh sách vùng kho"
+          title="Danh sách vùng hoạt động"
           rows={sortedRegions}
           loading={regionsQuery.isLoading}
           error={regionsQuery.error}
@@ -300,7 +303,7 @@ export function WarehousesPage() {
                   variant="primary"
                   onClick={() => setCreateModalOpen(true)}
                 >
-                  + Thêm vùng kho
+                  + Thêm vùng hoạt động
                 </Button>
               )}
             </div>
@@ -315,7 +318,7 @@ export function WarehousesPage() {
             },
             {
               key: 'name',
-              header: 'Tên vùng kho',
+              header: 'Tên vùng hoạt động',
               render: (r) => (
                 <div>
                   <span style={{ fontWeight: 600, color: '#0F172A' }}>{r.name}</span>
@@ -379,25 +382,55 @@ export function WarehousesPage() {
               text: (r) => (r.isActive ? 'Hoạt động' : 'Tạm ngừng'),
             },
           ]}
-          rowActionsWidth="240px"
-          rowActions={(r) => (
-            <>
-              <Button
-                size="sm"
-                onClick={() => openMapWithSelection(r.id, 'all')}
-                title="Xem bản đồ vùng này"
+          rowActionsWidth="135px"
+          rowActionHeader="Thao tác"
+          rowActions={(r) => {
+            const dropdownItems: ActionDropdownItem[] = [
+              {
+                key: 'map',
+                label: 'Xem trên bản đồ',
+                icon: <MapPin size={14} style={{ color: '#0284C7' }} />,
+                color: '#0284C7',
+                onClick: () => openMapWithSelection(r.id, 'all'),
+                title: 'Xem bản đồ vùng này',
+              },
+            ];
+
+            return (
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  justifyContent: 'flex-end',
+                }}
+                onClick={(e) => e.stopPropagation()}
               >
-                Bản đồ
-              </Button>
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => navigate(`/whs/regions/${r.id}`)}
-              >
-                Xem danh sách kho
-              </Button>
-            </>
-          )}
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => navigate(`/whs/regions/${r.id}`)}
+                  title="Xem danh sách kho thuộc vùng"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '4px 8px',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    height: 30,
+                  }}
+                >
+                  <Eye size={14} />
+                  <span>Xem</span>
+                </Button>
+
+                {dropdownItems.length > 0 && (
+                  <ActionDropdown items={dropdownItems} />
+                )}
+              </div>
+            );
+          }}
         />
       ) : (
         <DataTable
@@ -450,7 +483,7 @@ export function WarehousesPage() {
             },
             {
               key: 'region',
-              header: 'Vùng kho',
+              header: 'Vùng hoạt động',
               width: '140px',
               render: (w) => {
                 const reg = rawRegions.find((r) => r.id === w.regionId);
@@ -512,58 +545,94 @@ export function WarehousesPage() {
               text: (w) => statusLabels.active[w.status] ?? w.status,
             },
           ]}
-          rowActionsWidth="280px"
-          rowActions={(w) => (
-            <>
-              <Button
-                size="sm"
-                onClick={() => openMapWithSelection(w.regionId || 'all', w.code)}
-                title="Xem kho này trên bản đồ"
+          rowActionsWidth="135px"
+          rowActionHeader="Thao tác"
+          rowActions={(w) => {
+            const dropdownItems: ActionDropdownItem[] = [
+              {
+                key: 'map',
+                label: 'Xem trên bản đồ',
+                icon: <MapPin size={14} style={{ color: '#0284C7' }} />,
+                color: '#0284C7',
+                onClick: () => openMapWithSelection(w.regionId || 'all', w.code),
+                title: 'Xem kho này trên bản đồ',
+              },
+            ];
+
+            if (isAdmin) {
+              dropdownItems.push({
+                key: 'edit',
+                label: 'Chỉnh sửa',
+                icon: <Pencil size={14} style={{ color: '#1D4ED8' }} />,
+                color: '#1D4ED8',
+                onClick: () => navigate(`/whs/${w.code}/edit`),
+                title: 'Chỉnh sửa thông tin kho',
+              });
+
+              if (w.status === 'Active') {
+                dropdownItems.push({
+                  key: 'deactivate',
+                  label: 'Ngừng hoạt động',
+                  icon: <Pause size={14} style={{ color: '#C2410C' }} />,
+                  color: '#C2410C',
+                  onClick: () => handleToggleWarehouseStatus(w),
+                  title: 'Vô hiệu hóa kho',
+                });
+              } else {
+                dropdownItems.push({
+                  key: 'reactivate',
+                  label: 'Kích hoạt lại',
+                  icon: <Play size={14} style={{ color: '#15803D' }} />,
+                  color: '#15803D',
+                  onClick: () => handleToggleWarehouseStatus(w),
+                  title: 'Kích hoạt lại kho',
+                });
+              }
+            }
+
+            return (
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  justifyContent: 'flex-end',
+                }}
+                onClick={(e) => e.stopPropagation()}
               >
-                Bản đồ
-              </Button>
-              <Button size="sm" onClick={() => navigate(`/whs/${w.code}`)}>
-                Xem
-              </Button>
-              {isAdmin && (
-                <>
-                  <Button
-                    size="sm"
-                    onClick={() => navigate(`/whs/${w.code}/edit`)}
-                  >
-                    Sửa
-                  </Button>
-                  {w.status === 'Active' ? (
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      disabled={updateWarehouseStatus.isPending}
-                      onClick={() => handleToggleWarehouseStatus(w)}
-                    >
-                      Vô hiệu hóa
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      disabled={updateWarehouseStatus.isPending}
-                      onClick={() => handleToggleWarehouseStatus(w)}
-                    >
-                      Kích hoạt lại
-                    </Button>
-                  )}
-                </>
-              )}
-            </>
-          )}
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => navigate(`/whs/${w.code}`)}
+                  title="Xem chi tiết kho"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '4px 8px',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    height: 30,
+                  }}
+                >
+                  <Eye size={14} />
+                  <span>Xem</span>
+                </Button>
+
+                {dropdownItems.length > 0 && (
+                  <ActionDropdown items={dropdownItems} />
+                )}
+              </div>
+            );
+          }}
         />
       )}
 
-      {/* Modal: Tạo vùng kho mới */}
+      {/* Modal: Tạo vùng hoạt động mới */}
       <Modal
         open={createModalOpen}
-        title="Tạo vùng kho mới"
-        subtitle="Vùng kho quản lý mạng lưới các kho trực thuộc trong khu vực"
+        title="Tạo vùng hoạt động mới"
+        subtitle="Vùng hoạt động quản lý mạng lưới các kho trực thuộc trong khu vực"
         width={560}
         onClose={() => setCreateModalOpen(false)}
         footer={
@@ -574,7 +643,7 @@ export function WarehousesPage() {
               disabled={createRegion.isPending}
               onClick={handleCreateRegion}
             >
-              {createRegion.isPending ? 'Đang tạo…' : 'Tạo vùng kho'}
+              {createRegion.isPending ? 'Đang tạo…' : 'Tạo vùng hoạt động'}
             </Button>
           </div>
         }
@@ -593,7 +662,7 @@ export function WarehousesPage() {
               {createError}
             </div>
           )}
-          <FormField label="Mã vùng kho *" required>
+          <FormField label="Mã vùng hoạt động *" required>
             <Input
               value={regionCode}
               onChange={(e) => setRegionCode(e.target.value)}
@@ -601,7 +670,7 @@ export function WarehousesPage() {
               autoFocus
             />
           </FormField>
-          <FormField label="Tên vùng kho *" required>
+          <FormField label="Tên vùng hoạt động *" required>
             <Input
               value={regionName}
               onChange={(e) => setRegionName(e.target.value)}
@@ -612,7 +681,7 @@ export function WarehousesPage() {
             <TextArea
               value={regionDesc}
               onChange={(e) => setRegionDesc(e.target.value)}
-              placeholder="Mô tả phạm vi hoạt động của vùng kho…"
+              placeholder="Mô tả phạm vi của vùng hoạt động…"
               rows={3}
             />
           </FormField>
@@ -644,7 +713,7 @@ export function WarehousesPage() {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <label style={{ fontSize: 13, fontWeight: 600, color: '#1E293B', whiteSpace: 'nowrap' }}>
-                Vùng kho:
+                Vùng hoạt động:
               </label>
               <Select
                 value={mapRegionFilter}
@@ -653,7 +722,7 @@ export function WarehousesPage() {
                   setMapWarehouseFilter('all');
                 }}
                 options={[
-                  { value: 'all', label: 'Tất cả vùng kho' },
+                  { value: 'all', label: 'Tất cả vùng hoạt động' },
                   ...rawRegions.map((r) => ({
                     value: r.id,
                     label: `${r.name} (${r.code})`,

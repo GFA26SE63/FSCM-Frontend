@@ -8,6 +8,7 @@ import type {
   ExpiryStatus,
   InventoryHistoryItem,
   InventoryLockItem,
+  QrLabelItem,
   ReleaseInventoryLockInput,
 } from './types';
 
@@ -42,11 +43,11 @@ function normalizeBatch(raw: Record<string, unknown>): BatchInventoryItem {
   const shelfLifeDays = Number(raw.shelfLifeDays ?? 365);
   const remainingPct = shelfLifeDays > 0 ? Math.round((remaining / shelfLifeDays) * 100) : 0;
 
-  let expiryStatus: ExpiryStatus = (raw.expiryStatus as ExpiryStatus) ?? 'Normal';
-  if (!raw.expiryStatus) {
-    if (remaining <= 0) expiryStatus = 'Expired';
-    else if (remaining <= 45) expiryStatus = 'NearExpiry';
-    else expiryStatus = 'Normal';
+  // FR-03: Use persisted backend status, do not classify unknown status as Normal or create local transitions
+  const rawStatus = raw.expiryStatus != null ? String(raw.expiryStatus).trim() : '';
+  let expiryStatus: ExpiryStatus = rawStatus;
+  if (rawStatus === 'NearDate' || rawStatus === 'Near-date') {
+    expiryStatus = 'NearExpiry';
   }
 
   return {
@@ -180,11 +181,36 @@ export const batchApi = {
       locks = [];
     }
 
+    let qrLabels: QrLabelItem[];
+    try {
+      qrLabels = await batchApi.getQrLabels(base.batchId);
+    } catch {
+      qrLabels = [];
+    }
+
     return {
       ...base,
       history,
       locks,
+      qrLabels,
     };
+  },
+
+  getQrLabels: async (batchId?: string): Promise<QrLabelItem[]> => {
+    if (!batchId) return [];
+    try {
+      const raw = await get<QrLabelItem[]>('/qr-labels', {
+        batchId: isUuid(batchId) ? batchId : undefined,
+      });
+      return Array.isArray(raw) ? raw : [];
+    } catch {
+      return [];
+    }
+  },
+
+  printBatchQr: async (batchId: string): Promise<void> => {
+    if (!batchId) return;
+    await get<void>(`/qr-labels/batches/${encodeURIComponent(batchId)}/print`);
   },
 
   getHistory: async (

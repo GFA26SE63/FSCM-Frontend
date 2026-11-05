@@ -35,6 +35,7 @@ export interface ServerPaging {
 
 interface DataTableProps<T> {
   title?: ReactNode;
+  subtitle?: ReactNode;
   columns: Column<T>[];
   rows: T[] | undefined;
   rowKey: (row: T) => string;
@@ -43,6 +44,7 @@ interface DataTableProps<T> {
   /** Toolbar buttons on the right of the title. */
   actions?: ReactNode;
   rowActions?: (row: T) => ReactNode;
+  rowActionHeader?: string;
   rowActionsWidth?: string;
   onRowClick?: (row: T) => void;
   selectedKey?: string | null;
@@ -71,6 +73,7 @@ const cellText = <T,>(c: Column<T>, row: T): string => {
  */
 export function DataTable<T>({
   title,
+  subtitle,
   columns,
   rows,
   rowKey,
@@ -78,6 +81,7 @@ export function DataTable<T>({
   error,
   actions,
   rowActions,
+  rowActionHeader = 'Thao tác',
   rowActionsWidth = '220px',
   onRowClick,
   selectedKey,
@@ -155,12 +159,19 @@ export function DataTable<T>({
       )}
 
       {(title || actions) && (
-        <div className="row" style={{ flexWrap: 'wrap' }}>
-          <div className="spacer">
-            <span className="bold" style={{ fontSize: 15 }}>
-              {title}
-            </span>{' '}
-            <span className="muted">· {total} bản ghi</span>
+        <div className="row" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
+          <div className="spacer" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div>
+              <span className="bold" style={{ fontSize: 15 }}>
+                {title}
+              </span>{' '}
+              <span className="muted" style={{ fontSize: 13 }}>· {total} bản ghi</span>
+            </div>
+            {subtitle && (
+              <span className="muted" style={{ fontSize: 12.5, lineHeight: 1.45 }}>
+                {subtitle}
+              </span>
+            )}
           </div>
           {actions}
         </div>
@@ -181,7 +192,7 @@ export function DataTable<T>({
                   {c.header}
                 </th>
               ))}
-              {rowActions && <th style={{ textAlign: 'right' }}>Action</th>}
+              {rowActions && <th style={{ textAlign: 'right' }}>{rowActionHeader}</th>}
             </tr>
           </thead>
           <tbody>

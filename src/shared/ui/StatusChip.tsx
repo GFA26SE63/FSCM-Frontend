@@ -6,7 +6,7 @@ export type Tone = 'info' | 'ok' | 'success' | 'violet' | 'danger' | 'warn' | 'n
 /** Label → tone, ported from prototype chipStyle(). Keeps one colour language across all screens. */
 const toneByLabel: [string[], Tone][] = [
   [['Chờ duyệt', 'Nháp', 'Gợi ý', 'Chờ giao', 'Đề xuất', 'Chưa thu', 'Bổ sung', 'Chưa pick'], 'info'],
-  [['Đã duyệt', 'Đã xuất kho', 'Đang chạy', 'Hoạt động', 'Bình thường', 'Đã xuất', 'Đã nhập', 'Đã xử lý', 'Đã tiêu hủy', 'Đã publish', 'Đã nhận', 'Đang áp dụng', 'Đã thu đủ', 'Hoàn tất', 'Đạt', 'A'], 'ok'],
+  [['Đã duyệt', 'Đã xuất kho', 'Đang chạy', 'Hoạt động', 'Bình thường', 'Còn hạn', 'Đã xuất', 'Đã nhập', 'Đã xử lý', 'Đã tiêu hủy', 'Đã publish', 'Đã nhận', 'Đang áp dụng', 'Đã thu đủ', 'Hoàn tất', 'Đạt', 'A'], 'ok'],
   [['Kho tổng'], 'deep'],
   [['B', 'Inactive', 'Kho vùng', 'Bỏ qua', 'Online'], 'neutral'],
   [['Đang giao', 'Đang pick', 'Đang soạn hàng', 'Đang vận chuyển', 'Luân chuyển cận hạn', 'Đang giao quà'], 'violet'],

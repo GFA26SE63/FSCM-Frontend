@@ -14,7 +14,6 @@ import {
   type Column,
 } from '@/shared/ui';
 import {
-  formatCases,
   formatMoney,
   formatShortDateTime,
   paymentLabel,

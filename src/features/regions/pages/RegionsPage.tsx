@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { ArrowRightLeft, Eye, Pause, Pencil, Play, Trash2 } from 'lucide-react';
 import { useNavigate } from '@/shared/router/compat';
 import {
+  ActionDropdown,
   Button,
   ConfirmDialog,
   DataTable,
@@ -9,6 +11,7 @@ import {
   StatusChip,
   Tabs,
   useToast,
+  type ActionDropdownItem,
   type Column,
 } from '@/shared/ui';
 import { useAuth } from '@/shared/auth/AuthContext';
@@ -43,7 +46,7 @@ export function RegionsPage() {
   const updateGroupStatusMutation = useUpdateGroupStatus();
   const deleteGroupMutation = useDeleteGroup();
 
-  const [areaDlg, setAreaDlg] = useState<{ open: boolean; area?: Area | null }>({
+  const [areaDlg, setAreaDlg] = useState<{ open: boolean; area?: Area | null; readOnly?: boolean }>({
     open: false,
     area: null,
   });
@@ -85,9 +88,9 @@ export function RegionsPage() {
       if (activeGroups.length > 0) {
         setWarningModal({
           open: true,
-          title: 'Không thể ngừng hoạt động vùng',
+          title: 'Không thể ngừng hoạt động khu vực',
           message:
-            'Vùng này vẫn còn nhóm bán hàng đang hoạt động. Vui lòng ngừng hoạt động tất cả nhóm bán hàng thuộc vùng trước khi tiếp tục.',
+            'Không thể ngừng hoạt động khu vực này vì vẫn còn nhóm Sales đang hoạt động.',
           extraContent: (
             <div
               style={{
@@ -130,7 +133,7 @@ export function RegionsPage() {
     } catch {
       setWarningModal({
         open: true,
-        title: 'Không thể ngừng hoạt động vùng',
+        title: 'Không thể ngừng hoạt động khu vực',
         message:
           'Không thể kiểm tra trạng thái các nhóm bán hàng trực thuộc. Vui lòng thử lại sau.',
       });
@@ -474,63 +477,103 @@ export function RegionsPage() {
             </div>
           }
           onRowClick={(group) => navigate(`/regions/${group.code}`)}
-          rowActionsWidth="330px"
-          rowActions={(group) => (
-            <>
-              <Button
-                size="sm"
-                onClick={() => navigate(`/regions/${group.code}`)}
+          rowActionsWidth="135px"
+          rowActionHeader="Thao tác"
+          rowActions={(group) => {
+            const dropdownItems: ActionDropdownItem[] = [];
+
+            if (manageGroups) {
+              dropdownItems.push({
+                key: 'edit',
+                label: 'Chỉnh sửa',
+                icon: <Pencil size={14} style={{ color: '#1D4ED8' }} />,
+                color: '#1D4ED8',
+                onClick: () => openGroup(group),
+                title: 'Chỉnh sửa thông tin nhóm',
+              });
+            }
+
+            if (assignTerritory) {
+              dropdownItems.push({
+                key: 'transfer',
+                label: 'Điều chuyển nhân sự',
+                icon: <ArrowRightLeft size={14} style={{ color: '#475569' }} />,
+                color: '#334155',
+                onClick: () =>
+                  setTransferDlg({
+                    open: true,
+                    staffName: group.members[0],
+                  }),
+                title: 'Điều chuyển nhân viên sang nhóm khác',
+              });
+            }
+
+            if (manageGroups) {
+              if (group.isActive !== false) {
+                dropdownItems.push({
+                  key: 'deactivate',
+                  label: 'Ngừng hoạt động',
+                  icon: <Pause size={14} style={{ color: '#C2410C' }} />,
+                  color: '#C2410C',
+                  onClick: () => setDeactivateGroupTarget(group),
+                  title: 'Ngừng hoạt động nhóm bán hàng',
+                });
+              } else {
+                dropdownItems.push({
+                  key: 'reactivate',
+                  label: 'Kích hoạt lại',
+                  icon: <Play size={14} style={{ color: '#15803D' }} />,
+                  color: '#15803D',
+                  onClick: () => handleReactivateGroupClick(group),
+                  title: 'Kích hoạt lại nhóm bán hàng',
+                });
+              }
+
+              dropdownItems.push({
+                key: 'delete',
+                label: 'Xóa',
+                icon: <Trash2 size={14} style={{ color: '#B42318' }} />,
+                color: '#B42318',
+                onClick: () => setDeleteGroupTarget(group),
+                title: 'Xóa nhóm bán hàng',
+              });
+            }
+
+            return (
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  justifyContent: 'flex-end',
+                }}
+                onClick={(e) => e.stopPropagation()}
               >
-                Xem
-              </Button>
-              {manageGroups && (
-                <Button size="sm" onClick={() => openGroup(group)}>
-                  Sửa
-                </Button>
-              )}
-              {assignTerritory && (
                 <Button
                   size="sm"
-                  onClick={() =>
-                    setTransferDlg({
-                      open: true,
-                      staffName: group.members[0],
-                    })
-                  }
+                  variant="default"
+                  onClick={() => navigate(`/regions/${group.code}`)}
+                  title="Xem chi tiết nhóm"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '4px 8px',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    height: 30,
+                  }}
                 >
-                  Điều chuyển
+                  <Eye size={14} />
+                  <span>Xem</span>
                 </Button>
-              )}
-              {manageGroups && (
-                group.isActive !== false ? (
-                  <Button
-                    size="sm"
-                    variant="deactivate"
-                    onClick={() => setDeactivateGroupTarget(group)}
-                  >
-                    Ngừng hoạt động
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={() => handleReactivateGroupClick(group)}
-                  >
-                    Kích hoạt lại
-                  </Button>
-                )
-              )}
-              {manageGroups && (
-                <Button
-                  size="sm"
-                  variant="danger"
-                  onClick={() => setDeleteGroupTarget(group)}
-                >
-                  Xóa
-                </Button>
-              )}
-            </>
-          )}
+
+                {dropdownItems.length > 0 && (
+                  <ActionDropdown items={dropdownItems} />
+                )}
+              </div>
+            );
+          }}
         />
       ) : (
         <DataTable
@@ -541,6 +584,7 @@ export function RegionsPage() {
           error={areas.error}
           rowKey={(area) => area.code}
           columns={areaColumns}
+          onRowClick={(area) => setAreaDlg({ open: true, area, readOnly: true })}
           searchPlaceholder="Mã, tên vùng, Sales Manager, mô tả…"
           filters={[
             {
@@ -553,61 +597,101 @@ export function RegionsPage() {
             manageRegions ? (
               <Button
                 variant="primary"
-                onClick={() => setAreaDlg({ open: true, area: null })}
+                onClick={() => setAreaDlg({ open: true, area: null, readOnly: false })}
               >
                 + Thêm vùng
               </Button>
             ) : undefined
           }
-          rowActionsWidth="290px"
-          rowActions={(area) => (
-            <>
-              {manageRegions && (
+          rowActionsWidth="135px"
+          rowActionHeader="Thao tác"
+          rowActions={(area) => {
+            const dropdownItems: ActionDropdownItem[] = [];
+
+            if (manageRegions) {
+              dropdownItems.push({
+                key: 'edit',
+                label: 'Chỉnh sửa',
+                icon: <Pencil size={14} style={{ color: '#1D4ED8' }} />,
+                color: '#1D4ED8',
+                onClick: () => setAreaDlg({ open: true, area, readOnly: false }),
+                title: 'Chỉnh sửa thông tin vùng',
+              });
+
+              if (area.isActive !== false) {
+                dropdownItems.push({
+                  key: 'deactivate',
+                  label: 'Ngừng hoạt động',
+                  icon: <Pause size={14} style={{ color: '#C2410C' }} />,
+                  color: '#C2410C',
+                  onClick: () => void handleDeactivateAreaClick(area),
+                  disabled: isCheckingArea,
+                  title: 'Ngừng hoạt động vùng',
+                });
+              } else {
+                dropdownItems.push({
+                  key: 'reactivate',
+                  label: 'Kích hoạt lại',
+                  icon: <Play size={14} style={{ color: '#15803D' }} />,
+                  color: '#15803D',
+                  onClick: () => setReactivateAreaTarget(area),
+                  title: 'Kích hoạt lại vùng',
+                });
+              }
+
+              dropdownItems.push({
+                key: 'delete',
+                label: 'Xóa',
+                icon: <Trash2 size={14} style={{ color: '#B42318' }} />,
+                color: '#B42318',
+                onClick: () => setDeleteAreaTarget(area),
+                title: 'Xóa vùng',
+              });
+            }
+
+            return (
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  justifyContent: 'flex-end',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
                 <Button
                   size="sm"
-                  onClick={() => setAreaDlg({ open: true, area })}
+                  variant="default"
+                  onClick={() => setAreaDlg({ open: true, area, readOnly: true })}
+                  title="Xem chi tiết vùng"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '4px 8px',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    height: 30,
+                  }}
                 >
-                  Sửa
+                  <Eye size={14} />
+                  <span>Xem</span>
                 </Button>
-              )}
-              {manageRegions && (
-                area.isActive !== false ? (
-                  <Button
-                    size="sm"
-                    variant="deactivate"
-                    disabled={isCheckingArea}
-                    onClick={() => void handleDeactivateAreaClick(area)}
-                  >
-                    Ngừng hoạt động
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={() => setReactivateAreaTarget(area)}
-                  >
-                    Kích hoạt lại
-                  </Button>
-                )
-              )}
-              {manageRegions && (
-                <Button
-                  size="sm"
-                  variant="danger"
-                  onClick={() => setDeleteAreaTarget(area)}
-                >
-                  Xóa
-                </Button>
-              )}
-            </>
-          )}
+
+                {dropdownItems.length > 0 && (
+                  <ActionDropdown items={dropdownItems} />
+                )}
+              </div>
+            );
+          }}
         />
       )}
 
-      {manageRegions && (
+      {(manageRegions || areaDlg.readOnly) && (
         <AreaDialog
           open={areaDlg.open}
           area={areaDlg.area}
+          readOnly={areaDlg.readOnly}
           onClose={() => setAreaDlg({ open: false, area: null })}
         />
       )}
