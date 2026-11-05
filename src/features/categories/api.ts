@@ -1,4 +1,4 @@
-import { get, patch, post, put } from '@/shared/api/http';
+import { del, get, patch, post, put } from '@/shared/api/http';
 import type { Category, CategoryDetail, CategoryInput, CategoryProduct } from './types';
 
 interface BackendCategory {
@@ -343,6 +343,19 @@ export const categoryApi = {
       if (found?.id) id = found.id;
     }
     await patch(`/categories/${id}/status`, { isActive });
+  },
+
+  /**
+   * DELETE /api/v1/categories/{categoryId}
+   */
+  delete: async (idOrCode: string): Promise<{ categoryId: string; deleted: boolean; inactivated: boolean }> => {
+    let id = idOrCode;
+    if (!isGuid(idOrCode)) {
+      const all = await categoryApi.list(true);
+      const found = all.find((c) => c.code.toLowerCase() === idOrCode.toLowerCase());
+      if (found?.id) id = found.id;
+    }
+    return del<{ categoryId: string; deleted: boolean; inactivated: boolean }>(`/categories/${id}`);
   },
 };
 
