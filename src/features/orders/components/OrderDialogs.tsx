@@ -1,39 +1,73 @@
-import { FormDialog } from '@/shared/ui';
-import { useCancelOrder, useRejectOrder } from '../hooks';
+import {
+  FormDialog,
+} from '@/shared/ui';
+import {
+  useWithdrawOrder,
+} from '../hooks';
+import type {
+  OrderStatus,
+} from '../types';
 
-interface ReasonDialogProps {
-  order: { id: string; orderCode: string; version: number } | null;
-  mode: 'reject' | 'cancel';
+interface WithdrawTarget {
+  id: string;
+  orderCode: string;
+  status: OrderStatus;
+  version: number;
+}
+
+interface Props {
+  order: WithdrawTarget | null;
   onClose: () => void;
 }
 
-/** Sends the canonical order GUID and optimistic version; the business code is display-only. */
-export function ReasonDialog({ order, mode, onClose }: ReasonDialogProps) {
-  const reject = useRejectOrder();
-  const cancel = useCancelOrder();
-  const isReject = mode === 'reject';
+export function WithdrawOrderDialog({
+  order,
+  onClose,
+}: Props) {
+  const withdraw =
+    useWithdrawOrder();
 
   return (
     <FormDialog
-      open={order != null}
+      open={order !== null}
       width={520}
       columns={1}
       danger
-      title={`${isReject ? 'Từ chối đơn' : 'Hủy đơn'} ${order?.orderCode ?? ''}`}
-      submitLabel={isReject ? 'Từ chối đơn' : 'Xác nhận hủy đơn'}
-      initial={{ reason: '' }}
-      fields={[{
-        key: 'reason', type: 'textarea', required: true,
-        label: isReject ? 'Lý do từ chối (bắt buộc)' : 'Lý do hủy (bắt buộc)',
-      }]}
-      note={isReject
-        ? 'Đơn bị từ chối sẽ không đi vào đợt phân bổ.'
-        : 'Việc giải phóng reservation và chặn dispatch cũ do server xử lý nguyên tử.'}
+      title={
+        `Rút yêu cầu ${order?.orderCode ?? ''}`
+      }
+      submitLabel="Xác nhận rút yêu cầu"
+      initial={{
+        reason: '',
+      }}
+      fields={[
+        {
+          key: 'reason',
+          type: 'textarea',
+          required: true,
+          label: 'Lý do rút yêu cầu',
+          validate: (value) =>
+            String(value).trim()
+              ? undefined
+              : 'Vui lòng nhập lý do.',
+        },
+      ]}
+      note="Chỉ áp dụng khi SO còn đang phân bổ. Nếu hệ thống đã chốt báo giá trong lúc thao tác, backend sẽ từ chối yêu cầu này."
       onClose={onClose}
-      onSubmit={async (v) => {
+      onSubmit={async (values) => {
         if (!order) return;
-        const command = { orderId: order.id, expectedVersion: order.version, reason: v.reason };
-        await (isReject ? reject : cancel).mutateAsync(command);
+
+        await withdraw.mutateAsync({
+          orderId: order.id,
+          status: order.status,
+          expectedVersion:
+            order.version,
+          reason:
+            String(
+              values.reason,
+            ).trim(),
+        });
+
         onClose();
       }}
     />

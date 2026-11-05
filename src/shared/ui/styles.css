@@ -156,6 +156,7 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-lay
 .num { min-width: 30px; padding: 0 6px; white-space: nowrap; height: 24px; border-radius: 6px; background: var(--c-primary); color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
 .pager { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--c-muted); }
 .pager .pages { display: inline-flex; gap: 6px; }
+.order-status-cell .chip {max-width: 100%; height: auto; min-height: 24px; white-space: normal; overflow-wrap: normal; padding: 4px 9px; line-height: 1.4; }
 
 /* filter card */
 .filter-card { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
