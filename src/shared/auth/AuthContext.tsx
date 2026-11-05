@@ -8,15 +8,21 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { ApiError, errorMessage } from '../api/errors';
+import {
+  useQueryClient,
+} from '@tanstack/react-query';
+
+import {
+  ApiError,
+  errorMessage,
+} from '../api/errors';
 import { tokenStore } from './tokenStore';
 import {
   authApi,
   type AuthenticationResult,
   type CurrentUser,
 } from './authApi';
-import { type PortalRole } from './roles';
+import type { PortalRole } from './roles';
 
 type AuthStatus =
   | 'loading'
@@ -31,14 +37,19 @@ interface AuthState {
   loginWithPassword: (
     email: string,
     password: string,
+    remember?: boolean,
   ) => Promise<CurrentUser>;
 
-  loginWithGoogle: (googleIdToken: string) => Promise<CurrentUser>;
+  loginWithGoogle: (
+    googleIdToken: string,
+    remember?: boolean,
+  ) => Promise<CurrentUser>;
 
   logout: () => void;
 }
 
-const AuthContext = createContext<AuthState | null>(null);
+const AuthContext =
+  createContext<AuthState | null>(null);
 
 export function AuthProvider({
   children,
@@ -47,10 +58,16 @@ export function AuthProvider({
 }) {
   const queryClient = useQueryClient();
 
-  const [status, setStatus] = useState<AuthStatus>(
-    tokenStore.get() ? 'loading' : 'anonymous',
-  );
-  const [user, setUser] = useState<CurrentUser | null>(null);
+  const [status, setStatus] =
+    useState<AuthStatus>(() =>
+      tokenStore.hasSession()
+        ? 'loading'
+        : 'anonymous',
+    );
+
+  const [user, setUser] =
+    useState<CurrentUser | null>(null);
+
   const [sessionMessage, setSessionMessage] =
     useState<string | null>(null);
 
@@ -60,30 +77,38 @@ export function AuthProvider({
   const clearSession = useCallback(
     (message: string | null = null) => {
       version.current += 1;
+
       tokenStore.clear();
+      queryClient.clear();
+
       setUser(null);
       setStatus('anonymous');
       setSessionMessage(message);
-      queryClient.clear();
     },
     [queryClient],
   );
 
   const logout = useCallback(() => {
-    const refreshToken = tokenStore.getRefreshToken();
+    const refreshToken =
+      tokenStore.getRefreshToken();
 
     clearSession();
 
+    const logoutVersion = version.current;
+
     if (refreshToken) {
-      void authApi.logout(refreshToken).catch(() => {
-        // Phiên trên FE đã được xóa.
-        // Chỉ hiển thị nếu chưa bắt đầu một phiên khác.
-        if (!tokenStore.get()) {
-          setSessionMessage(
-            'Đã thoát trên trình duyệt này. Không kết nối được máy chủ để thu hồi phiên.',
-          );
-        }
-      });
+      void authApi
+        .logout(refreshToken)
+        .catch(() => {
+          if (
+            version.current ===
+            logoutVersion
+          ) {
+            setSessionMessage(
+              'Đã đăng xuất trên trình duyệt. Không thể kết nối máy chủ để thu hồi phiên.',
+            );
+          }
+        });
     }
   }, [clearSession]);
 
@@ -97,23 +122,29 @@ export function AuthProvider({
       );
     });
 
-    if (tokenStore.get()) {
+    if (tokenStore.hasSession()) {
+      // Shared HTTP tự refresh trước /me nếu
+      // access token đã hoặc sắp hết hạn.
       void authApi.me().then(
         (currentUser) => {
           if (
             cancelled ||
-            version.current !== currentVersion
+            version.current !==
+              currentVersion
           ) {
             return;
           }
 
           setUser(currentUser);
           setStatus('authenticated');
+          setSessionMessage(null);
         },
+
         (error: unknown) => {
           if (
             cancelled ||
-            version.current !== currentVersion
+            version.current !==
+              currentVersion
           ) {
             return;
           }
@@ -131,7 +162,9 @@ export function AuthProvider({
 
   const authenticate = useCallback(
     async (
-      acquireSession: () => Promise<AuthenticationResult>,
+      acquireSession:
+        () => Promise<AuthenticationResult>,
+      remember: boolean,
     ): Promise<CurrentUser> => {
       if (loginBusy.current) {
         throw new ApiError(
@@ -141,17 +174,28 @@ export function AuthProvider({
       }
 
       loginBusy.current = true;
-      const currentVersion = ++version.current;
+
+      const currentVersion =
+        ++version.current;
 
       setSessionMessage(null);
       tokenStore.clear();
-      setUser(null);
       queryClient.clear();
+      setUser(null);
+      setStatus('anonymous');
 
       try {
-        const session = await acquireSession();
+        const session =
+          await acquireSession();
 
-        if (version.current !== currentVersion) {
+        if (
+          version.current !==
+          currentVersion
+        ) {
+          void authApi
+            .logout(session.refreshToken)
+            .catch(() => undefined);
+
           throw new ApiError(
             409,
             'Yêu cầu đăng nhập không còn hiệu lực',
@@ -159,25 +203,30 @@ export function AuthProvider({
         }
 
         tokenStore.set(
-          session.accessToken,
-          session.refreshToken,
+          {
+            accessToken:
+              session.accessToken,
+            accessTokenExpiresAt:
+              session.accessTokenExpiresAt,
+            refreshToken:
+              session.refreshToken,
+            refreshTokenExpiresAt:
+              session.refreshTokenExpiresAt,
+          },
+          remember,
         );
 
         const currentUser = session.user;
-
-        if (version.current !== currentVersion) {
-          throw new ApiError(
-            409,
-            'Phiên đăng nhập đã thay đổi',
-          );
-        }
 
         setUser(currentUser);
         setStatus('authenticated');
 
         return currentUser;
       } catch (error) {
-        if (version.current === currentVersion) {
+        if (
+          version.current ===
+          currentVersion
+        ) {
           clearSession();
         }
 
@@ -193,18 +242,31 @@ export function AuthProvider({
     async (
       email: string,
       password: string,
-    ): Promise<CurrentUser> => {
-      return authenticate(() =>
-        authApi.loginLocal(email, password),
-      );
-    },
+      remember = false,
+    ): Promise<CurrentUser> =>
+      authenticate(
+        () =>
+          authApi.loginLocal(
+            email,
+            password,
+          ),
+        remember,
+      ),
     [authenticate],
   );
 
   const loginWithGoogle = useCallback(
-    async (googleIdToken: string): Promise<CurrentUser> => {
-      return authenticate(() => authApi.exchangeGoogle(googleIdToken));
-    },
+    async (
+      googleIdToken: string,
+      remember = false,
+    ): Promise<CurrentUser> =>
+      authenticate(
+        () =>
+          authApi.exchangeGoogle(
+            googleIdToken,
+          ),
+        remember,
+      ),
     [authenticate],
   );
 
