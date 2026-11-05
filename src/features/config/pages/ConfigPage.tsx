@@ -117,7 +117,7 @@ export function ConfigPage() {
         <QueryState query={transit}>{(t) => <TransitTableSection current={t} />}</QueryState>
       </Card>
 
-      <Card title="Lịch ngày chạy đợt: giờ chốt và các mốc nhắc duyệt">
+      <Card title="Cấu hình ETA sau allocation real-time">
         <QueryState query={schedule}>{(s) => <RunScheduleSection current={s} />}</QueryState>
       </Card>
 
