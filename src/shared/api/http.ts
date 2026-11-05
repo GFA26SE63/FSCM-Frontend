@@ -49,7 +49,23 @@ export const del = <T = void>(url: string) => http.delete<T>(url).then((r) => r.
  * that looked wrong. That failure has now been found three separate times; it costs one line to
  * stop finding it again.
  */
-export const getAll = <T>(url: string, params?: object) =>
-  http
-    .get<{ items: T[] } | T[]>(url, { params: { size: 500, ...params } })
-    .then((r) => (Array.isArray(r.data) ? r.data : (r.data?.items ?? [])));
+export const getAll = async <T>(url: string, params?: object): Promise<T[]> => {
+  const items: T[] = [];
+  for (let page = 1; ; page += 1) {
+    const response = await http.get<
+      { items: T[]; totalCount?: number; pageSize?: number; size?: number } | T[]
+    >(url, { params: { ...params, page, pageSize: 100, size: 100 } });
+    if (Array.isArray(response.data)) return response.data;
+    const batch = response.data?.items ?? [];
+    items.push(...batch);
+    const totalCount = response.data?.totalCount;
+    if (
+      batch.length === 0 ||
+      (totalCount !== undefined
+        ? items.length >= totalCount
+        : batch.length < (response.data.pageSize ?? response.data.size ?? 100))
+    ) {
+      return items;
+    }
+  }
+};
