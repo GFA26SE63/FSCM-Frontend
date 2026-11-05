@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Eye } from 'lucide-react';
 import { useNavigate, useParams } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { formatMoney } from '@/shared/lib';
@@ -139,7 +140,7 @@ export function WarehouseDetailPage() {
           <PageHeader
             back={whData.regionId ? `/whs/regions/${whData.regionId}` : '/whs'}
             title={`${whData.code} · ${whData.name}`}
-            subtitle={region ? `Vùng kho: ${region.name} (${region.code})` : undefined}
+            subtitle={region ? `Vùng hoạt động: ${region.name} (${region.code})` : undefined}
             chips={<StatusChip domain="active" value={whData.status} />}
             actions={
               isAdmin ? (
@@ -174,7 +175,7 @@ export function WarehouseDetailPage() {
                 { label: 'Mã kho', value: whData.code },
                 { label: 'Tên kho', value: whData.name },
                 {
-                  label: 'Vùng kho',
+                  label: 'Vùng hoạt động',
                   value: region ? (
                     <span
                       style={{ cursor: 'pointer', color: '#059669', fontWeight: 600 }}
@@ -320,6 +321,30 @@ export function WarehouseDetailPage() {
                             : 'Bình thường';
                       return <Chip tone={tone}>{label}</Chip>;
                     },
+                  },
+                  {
+                    header: 'Thao tác',
+                    width: '90px',
+                    cell: (b) => (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => navigate(`/batches/${b.id || b.code}`)}
+                        title="Xem chi tiết lô hàng"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: '4px 8px',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          height: 28,
+                        }}
+                      >
+                        <Eye size={13} />
+                        <span>Xem</span>
+                      </Button>
+                    ),
                   },
                 ]}
                 rows={whData.inventory ?? []}

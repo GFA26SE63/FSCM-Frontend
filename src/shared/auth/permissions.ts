@@ -43,6 +43,9 @@ export const ACTION_ROLES = {
     'WarehouseKeeper',
     'Operator',
   ],
+  'inventory.unlock': [
+    'Admin',
+  ],
   'inventory.viewHistory': [
     'Admin',
     'WarehouseKeeper',

@@ -16,3 +16,4 @@ export { QueryState } from './QueryState';
 export { FormDialog, type FormFieldDef, type FormValues } from './FormDialog';
 export { ConfirmDialog } from './ConfirmDialog';
 export { Callout, type CalloutTone } from './Callout';
+export { ActionDropdown, type ActionDropdownItem } from './ActionDropdown';

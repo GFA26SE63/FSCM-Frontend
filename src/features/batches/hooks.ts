@@ -37,6 +37,21 @@ export const useBatchLocks = (params?: {
     queryFn: () => batchApi.getLocks(params),
   });
 
+export const useBatchQrLabels = (batchId?: string) =>
+  useQuery({
+    queryKey: ['qr-labels', 'batch', batchId],
+    queryFn: () => batchApi.getQrLabels(batchId),
+    enabled: !!batchId,
+  });
+
+export const usePrintBatchQr = () =>
+  useApiMutation(
+    (batchId: string) => batchApi.printBatchQr(batchId),
+    {
+      permission: 'inventory.lock',
+    },
+  );
+
 export const useCreateInventoryLock = () => {
   const queryClient = useQueryClient();
   return useApiMutation(
@@ -62,7 +77,7 @@ export const useReleaseInventoryLock = () => {
       input: ReleaseInventoryLockInput;
     }) => batchApi.releaseLock(lockId, input),
     {
-      permission: 'inventory.lock',
+      permission: 'inventory.unlock',
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['batches'] });
         queryClient.invalidateQueries({ queryKey: ['inventory-locks'] });

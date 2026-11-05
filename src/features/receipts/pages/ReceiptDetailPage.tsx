@@ -1,4 +1,4 @@
-import { useParams } from '@/shared/router/compat';
+import { Link, useParams } from '@/shared/router/compat';
 import { Card, Fields, PageHeader, QueryState, SimpleTable, StatusChip } from '@/shared/ui';
 import { formatCases, formatDate, formatDateTime } from '@/shared/lib';
 import { useReceipt } from '../hooks';
@@ -26,7 +26,14 @@ export function ReceiptDetailPage() {
               columns={[
                 { header: 'SKU', width: '90px', cell: (l) => l.sku },
                 { header: 'Sản phẩm', cell: (l) => l.productName },
-                { header: 'Batch', cell: (l) => l.batchCode },
+                {
+                  header: 'Batch',
+                  cell: (l) => (
+                    <Link to={`/batches/${encodeURIComponent(l.batchCode)}`} style={{ fontWeight: 600 }}>
+                      {l.batchCode}
+                    </Link>
+                  ),
+                },
                 { header: 'HSD', cell: (l) => formatDate(l.expiry) },
                 { header: 'Lô NSX', cell: (l) => l.lot || '—' },
                 { header: 'Số lượng', align: 'right', cell: (l) => formatCases(l.qty) },
