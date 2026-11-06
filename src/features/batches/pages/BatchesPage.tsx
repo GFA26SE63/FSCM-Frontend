@@ -83,10 +83,6 @@ export function BatchesPage() {
     toast.show('Đã xuất danh sách lô hàng ra file Excel.');
   };
 
-  const handleDisposalNotice = () => {
-    toast.show('Chức năng này hiện chưa sử dụng được.');
-  };
-
   const columns: Column<BatchInventoryItem>[] = [
     {
       key: 'wh',
@@ -308,7 +304,10 @@ export function BatchesPage() {
               label: 'Lập phiếu hủy',
               icon: <Trash2 size={14} style={{ color: '#B42318' }} />,
               color: '#B42318',
-              onClick: handleDisposalNotice,
+              onClick: () =>
+                navigate(
+                  `/disposal/new?batchId=${encodeURIComponent(b.batchId)}&batchCode=${encodeURIComponent(b.batchCode)}&warehouseId=${encodeURIComponent(b.warehouseId)}&warehouseCode=${encodeURIComponent(b.warehouseCode)}`,
+                ),
               title: 'Lập phiếu xuất hủy hàng',
             });
           }

@@ -7,6 +7,7 @@ interface ConfirmDialogProps {
   title: ReactNode;
   message?: ReactNode;
   confirmLabel?: string;
+  cancelLabel?: string;
   danger?: boolean;
   confirmVariant?: ButtonVariant;
   onClose: () => void;
@@ -18,6 +19,7 @@ export function ConfirmDialog({
   title,
   message,
   confirmLabel = 'Xác nhận',
+  cancelLabel = 'Hủy',
   danger,
   confirmVariant,
   onClose,
@@ -33,7 +35,7 @@ export function ConfirmDialog({
       width={460}
       footer={
         <>
-          <Button onClick={onClose}>Hủy</Button>
+          <Button onClick={onClose}>{cancelLabel}</Button>
           <Button
             variant={variant}
             loading={busy}

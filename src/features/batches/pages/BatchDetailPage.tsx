@@ -51,10 +51,6 @@ export function BatchDetailPage() {
     }
   };
 
-  const handleDisposalNotice = () => {
-    toast.show('Chức năng này hiện chưa sử dụng được.');
-  };
-
   return (
     <QueryState query={query}>
       {(b) => {
@@ -144,7 +140,11 @@ export function BatchDetailPage() {
                     <button
                       type="button"
                       className="btn btn-danger-solid"
-                      onClick={handleDisposalNotice}
+                      onClick={() =>
+                        navigate(
+                          `/disposal/new?batchId=${encodeURIComponent(b.batchId)}&batchCode=${encodeURIComponent(b.batchCode)}&warehouseId=${encodeURIComponent(b.warehouseId)}&warehouseCode=${encodeURIComponent(b.warehouseCode)}`,
+                        )
+                      }
                     >
                       Lập phiếu hủy
                     </button>

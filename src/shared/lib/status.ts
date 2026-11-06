@@ -17,7 +17,11 @@ export const statusLabels = {
   complaint: { Open: 'Chờ xử lý', Approved: 'Đã chấp nhận', Rejected: 'Đã từ chối', Resolved: 'Đã xử lý' },
   registration: { Pending: 'Chờ duyệt', Approved: 'Đã duyệt', Rejected: 'Bị từ chối' },
   receipt: { Posted: 'Đã nhập' },
-  disposal: { Disposed: 'Đã tiêu hủy' },
+  disposal: {
+    Pending: 'Chờ duyệt',
+    Disposed: 'Đã tiêu hủy',
+    Rejected: 'Bị từ chối',
+  },
   kpi: { Achieved: 'Đạt', NotAchieved: 'Chưa đạt' },
   channel: { Online: 'Online', Offline: 'Offline' },
   warehouseType: { Central: 'Kho tổng', Regional: 'Kho vùng' },

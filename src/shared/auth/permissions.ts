@@ -29,6 +29,9 @@ export const ACTION_ROLES = {
   'receipts.create': ['Admin', 'WarehouseKeeper'],
   'receipts.approve': ['Admin', 'WarehouseKeeper'],
 
+  'disposal.create': ['Admin', 'WarehouseKeeper'],
+  'disposal.approve': ['Admin'],
+
   'picking.scan': ['WarehouseKeeper'],
   'picking.complete': ['WarehouseKeeper'],
   'picking.viewPrice': ['Admin', 'Operator'],
