@@ -8,7 +8,6 @@ import type {
   ExpiryStatus,
   InventoryHistoryItem,
   InventoryLockItem,
-  QrLabelItem,
   ReleaseInventoryLockInput,
 } from './types';
 
@@ -181,36 +180,11 @@ export const batchApi = {
       locks = [];
     }
 
-    let qrLabels: QrLabelItem[];
-    try {
-      qrLabels = await batchApi.getQrLabels(base.batchId);
-    } catch {
-      qrLabels = [];
-    }
-
     return {
       ...base,
       history,
       locks,
-      qrLabels,
     };
-  },
-
-  getQrLabels: async (batchId?: string): Promise<QrLabelItem[]> => {
-    if (!batchId) return [];
-    try {
-      const raw = await get<QrLabelItem[]>('/qr-labels', {
-        batchId: isUuid(batchId) ? batchId : undefined,
-      });
-      return Array.isArray(raw) ? raw : [];
-    } catch {
-      return [];
-    }
-  },
-
-  printBatchQr: async (batchId: string): Promise<void> => {
-    if (!batchId) return;
-    await get<void>(`/qr-labels/batches/${encodeURIComponent(batchId)}/print`);
   },
 
   getHistory: async (
