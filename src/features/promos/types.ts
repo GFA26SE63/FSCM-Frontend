@@ -1,15 +1,10 @@
-/**
- * Promotions as the server models them: one promotion carries one minimum quantity and one discount
- * percentage, and names what it applies to.
- *
- * The portal used to offer a different percentage per SKU inside one programme. The server has no
- * such shape, so that form could never have been saved. Several percentages now mean several
- * promotions, which is also what the pricing rule assumes: a line takes the single best promotion,
- * never a sum.
- */
 export type PromoStatus = 'Running' | 'Paused' | 'Ended';
 
+export interface PromoProductRule { productId: string; minimumQuantity: number; discountPercent: number }
+
 export interface PromoSummary {
+  campaignMode?: "PerSku" | "ProductGroup";
+  productRules?: PromoProductRule[];
   id: string;
   code: string;
   name: string;
@@ -32,6 +27,9 @@ export interface PromoDetail extends PromoSummary {
 }
 
 export interface PromoInput {
+  campaignMode?: "PerSku" | "ProductGroup";
+  productRules?: PromoProductRule[];
+  activateOnSave?: boolean;
   name: string;
   minimumQuantity: number;
   discountPercent: number;
