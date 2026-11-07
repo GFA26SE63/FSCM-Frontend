@@ -1,5 +1,5 @@
 import { useParams } from '@/shared/router/compat';
-import { Button, Card, Fields, PageHeader, QueryState, StatusChip } from '@/shared/ui';
+import { Button, Callout, Card, Fields, PageHeader, QueryState, StatusChip } from '@/shared/ui';
 import { formatDate, formatPercent } from '@/shared/lib';
 import { useActivatePromo, usePausePromo, usePromo, usePromoLookups } from '../hooks';
 import { promoStatus } from '../status';
@@ -34,6 +34,7 @@ export function PromoDetailPage() {
                 </>
               }
             />
+            {!p.isActive && status !== 'Ended' && <Callout tone="info">Chương trình đã được lưu và đang tạm dừng. Chọn “Kích hoạt lại” để áp dụng cho đơn mới.</Callout>}
             <Card title="Mức giảm">
               <Fields items={[
                 { label: 'Mua tối thiểu', value: `${p.minimumQuantity} thùng` },

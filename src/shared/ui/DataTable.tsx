@@ -3,6 +3,8 @@ import { Button } from './Button';
 import { Input, Select } from './FormField';
 import { EmptyState } from './EmptyState';
 import { errorMessage } from '../api/errors';
+import { SearchSelect } from './SearchSelect';
+import type { SelectOption } from './FormField';
 
 export interface Column<T> {
   key: string;
@@ -18,7 +20,8 @@ export interface Column<T> {
 
 export interface FilterDef<T> {
   label: string;
-  options: string[];
+  options: (string | SelectOption)[];
+  searchable?: boolean;
   value: (row: T) => string;
   /** Initial selection (default "Tất cả"). */
   initial?: string;
@@ -147,7 +150,8 @@ export function DataTable<T>({
             {filters.map((f) => (
               <label className="lbl" key={f.label}>
                 {f.label}
-                <Select value={fv[f.label] ?? ALL} options={[ALL, ...f.options]} onChange={(e) => setFv((s) => ({ ...s, [f.label]: e.target.value }))} />
+                {f.searchable ? <SearchSelect value={fv[f.label] ?? ALL} options={[ALL, ...f.options]} onChange={(v) => setFv((s) => ({ ...s, [f.label]: v || ALL }))} />
+                  : <Select value={fv[f.label] ?? ALL} options={[ALL, ...f.options]} onChange={(e) => setFv((s) => ({ ...s, [f.label]: e.target.value }))} />}
               </label>
             ))}
             {filterExtra}

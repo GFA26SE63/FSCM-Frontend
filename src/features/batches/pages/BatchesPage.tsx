@@ -86,6 +86,11 @@ export function BatchesPage() {
   const handleDisposalNotice = () => {
     toast.show('Chức năng này hiện chưa sử dụng được.');
   };
+  const productOptions = useMemo(() => {
+    const labels = new Map<string, string>();
+    rows.forEach((r) => r.sku && labels.set(r.sku, `${r.sku} · ${r.productName}`));
+    return Array.from(labels, ([value, label]) => ({ value, label }));
+  }, [rows]);
 
   const columns: Column<BatchInventoryItem>[] = [
     {
@@ -238,12 +243,18 @@ export function BatchesPage() {
         error={query.error}
         rowKey={(b) => b.batchId || b.batchCode}
         columns={columns}
-        searchPlaceholder="Mã lô hàng, SKU…"
+        searchPlaceholder="Mã lô hàng, SKU, tên sản phẩm…"
         filters={[
           {
             label: 'Kho',
             options: warehouseOptions,
             value: (b) => b.warehouseName,
+          },
+          {
+            label: 'Sản phẩm (SKU)',
+            searchable: true,
+            options: productOptions,
+            value: (b) => b.sku,
           },
           {
             label: 'Trạng thái',

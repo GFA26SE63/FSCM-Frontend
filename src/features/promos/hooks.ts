@@ -9,6 +9,6 @@ export const usePromoLookups = () => ({
   categories: useQuery({ queryKey: ['promos', 'categories'], queryFn: promoApi.categories }),
   retailers: useQuery({ queryKey: ['promos', 'retailers'], queryFn: promoApi.retailers }),
 });
-export const useCreatePromo = () => useApiMutation(promoApi.create, { success: (p) => `Đã tạo chương trình khuyến mãi ${p.code}.` });
+export const useCreatePromo = () => useApiMutation(promoApi.create, { success: (p) => `Đã lưu ${p.code}. Kích hoạt chương trình khi sẵn sàng áp dụng.` });
 export const usePausePromo = () => useApiMutation(promoApi.pause, { success: (p) => `Đã tạm dừng ${p.code}. Đơn mới tính giá không còn khuyến mãi này.` });
 export const useActivatePromo = () => useApiMutation(promoApi.activate, { success: (p) => `Đã kích hoạt lại ${p.code}.` });

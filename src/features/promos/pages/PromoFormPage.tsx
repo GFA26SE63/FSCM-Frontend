@@ -3,6 +3,7 @@ import { useNavigate } from '@/shared/router/compat';
 import { Button, Callout, Card, Checkbox, FormField, Input, PageHeader } from '@/shared/ui';
 import { addDays, toIsoDate } from '@/shared/lib';
 import { useCreatePromo, usePromoLookups } from '../hooks';
+import { errorMessage } from '@/shared/api/errors';
 
 /**
  * "Tạo khuyến mãi": one minimum quantity and one percentage, applied to the SKUs, categories and
@@ -26,6 +27,9 @@ export function PromoFormPage() {
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [retailerIds, setRetailerIds] = useState<string[]>([]);
   const [tried, setTried] = useState(false);
+  const [productSearch, setProductSearch] = useState('');
+  const [retailerSearch, setRetailerSearch] = useState('');
+  const matches = (text: string, query: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').toLowerCase().includes(query.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').toLowerCase());
 
   const prods = (products.data ?? []).filter((p) => p.status === 'Published');
   const errors: Record<string, string> = {};
@@ -45,6 +49,7 @@ export function PromoFormPage() {
   const submit = async () => {
     setTried(true);
     if (bad) return;
+    try {
     const p = await create.mutateAsync({
       name,
       minimumQuantity: Number(minQty),
@@ -56,6 +61,7 @@ export function PromoFormPage() {
       retailerIds,
     });
     navigate(`/promos/${p.id}`);
+    } catch { /* Mutation displays the server error and keeps the form for correction. */ }
   };
 
   return (
@@ -89,8 +95,13 @@ export function PromoFormPage() {
       </Card>
 
       <Card title="Áp dụng cho SKU">
+        <FormField label={`Tìm sản phẩm · đã chọn ${productIds.length}`}>
+          <Input value={productSearch} onChange={(e) => setProductSearch(e.target.value)} placeholder="Nhập mã SKU hoặc tên sản phẩm…" />
+        </FormField>
+        {products.isLoading && <p>Đang tải sản phẩm…</p>}
+        {products.error && <Callout tone="danger">{errorMessage(products.error)}</Callout>}
         <div className="row-wrap">
-          {prods.map((p) => (
+          {prods.filter((p) => matches(`${p.sku} ${p.name}`, productSearch)).map((p) => (
             <Checkbox
               key={p.id}
               label={`${p.sku} · ${p.name}`}
@@ -99,6 +110,7 @@ export function PromoFormPage() {
             />
           ))}
         </div>
+        {!products.isLoading && !products.error && !prods.some((p) => matches(`${p.sku} ${p.name}`, productSearch)) && <p>Không tìm thấy sản phẩm.</p>}
       </Card>
 
       <Card title="Hoặc cả nhóm hàng">
@@ -121,9 +133,10 @@ export function PromoFormPage() {
       <Card title="Khách hàng áp dụng">
         <div className="stack-sm">
           <span className="muted small">Không chọn retailer nào = áp dụng cho tất cả.</span>
+          <FormField label={`Tìm cửa hàng · đã chọn ${retailerIds.length}`}><Input value={retailerSearch} onChange={(e) => setRetailerSearch(e.target.value)} placeholder="Mã hoặc tên cửa hàng…" /></FormField>
           <div className="row-wrap">
             {(retailers.data ?? [])
-              .filter((r) => r.status === 'Active')
+              .filter((r) => r.status === 'Active' && matches(`${r.code} ${r.name}`, retailerSearch))
               .map((r) => (
                 <Checkbox
                   key={r.id}
@@ -140,6 +153,7 @@ export function PromoFormPage() {
         <Button onClick={() => navigate('/promos')}>Hủy</Button>
         <Button variant="primary" loading={create.isPending} onClick={submit}>Tạo khuyến mãi</Button>
       </div>
+      {create.error && <Callout tone="danger">{errorMessage(create.error)}</Callout>}
     </>
   );
 }

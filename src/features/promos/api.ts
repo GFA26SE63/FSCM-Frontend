@@ -10,13 +10,13 @@ import type { CategoryOption, ProductOption, PromoDetail, PromoInput, PromoSumma
  * with no error at all.
  */
 export const promoApi = {
-  list: () => get<PromoSummary[]>('/promotions'),
+  list: () => get<PromoSummary[]>('/promotions', { includeInactive: true }),
   get: (id: string) => get<PromoDetail>(`/promotions/${id}`),
   create: (input: PromoInput) => post<PromoDetail>('/promotions', input),
   /** The server calls it deactivate; the screen says "tạm dừng", which is what it means. */
   pause: (id: string) => post<PromoDetail>(`/promotions/${id}/deactivate`),
   activate: (id: string) => post<PromoDetail>(`/promotions/${id}/activate`),
   products: () => getAll<ProductOption>('/products'),
-  categories: () => get<CategoryOption[]>('/categories'),
+  categories: () => get<CategoryOption[]>('/categories', { includeInactive: true }),
   retailers: () => getAll<RetailerOption>('/retailers'),
 };
