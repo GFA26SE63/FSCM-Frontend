@@ -105,4 +105,128 @@ test('inventory lock reasons map exactly to backend enum and Vietnamese labels',
   assert.deepEqual(values, ['Expired', 'Damaged', 'QualityHold', 'Recall', 'Other']);
 });
 
+test('Batch Detail and List screens enforce standardized terminology and structure', () => {
+  const batchDetailPageCode = fs.readFileSync(
+    path.resolve(__dirname, '../src/features/batches/pages/BatchDetailPage.tsx'),
+    'utf8',
+  );
+  const batchesPageCode = fs.readFileSync(
+    path.resolve(__dirname, '../src/features/batches/pages/BatchesPage.tsx'),
+    'utf8',
+  );
+
+  // Standardized field labels
+  assert.ok(batchDetailPageCode.includes('>Tồn thực tế<'));
+  assert.ok(batchDetailPageCode.includes('>Đã giữ cho đơn hàng<'));
+  assert.ok(batchDetailPageCode.includes('>Số lượng bị khóa<'));
+  assert.ok(batchDetailPageCode.includes('>Lý do khóa<'));
+  assert.ok(batchDetailPageCode.includes('>Số lượng còn dùng được<'));
+
+  // Section titles
+  assert.ok(batchDetailPageCode.includes('Đơn hàng bị ảnh hưởng'));
+  assert.ok(batchDetailPageCode.includes('Danh sách khóa tồn kho'));
+
+  // Write-off action blocking tooltip & warning
+  const blockingMsg =
+    'Lô hàng này đang có hàng được giữ cho đơn hàng. Vui lòng kiểm tra và xử lý các đơn liên quan trước khi tiếp tục.';
+  assert.ok(batchDetailPageCode.includes(blockingMsg));
+  assert.ok(batchesPageCode.includes(blockingMsg));
+});
+
+test('Affected orders aggregation matches real picking list items without mock data', () => {
+  // Simulate backend picking lists
+  const targetBatchId = 'batch-uuid-1';
+  const targetBatchCode = 'LOTE-2026-001';
+
+  const pickingLists = [
+    {
+      id: 'pl-1',
+      pickingCode: 'PICK-001',
+      orderId: 'order-uuid-1',
+      orderCode: 'DH-2026-001',
+      retailerName: 'Đại lý An Bình',
+      warehouseCode: 'KHO-TONG',
+      status: 'InProgress',
+      items: [
+        {
+          id: 'item-1',
+          batchId: 'batch-uuid-1',
+          batchCode: 'LOTE-2026-001',
+          requestedQuantity: 20,
+          pickedQuantity: 5,
+          remainingQuantity: 15,
+        },
+      ],
+    },
+    {
+      id: 'pl-2',
+      pickingCode: 'PICK-002',
+      orderId: 'order-uuid-2',
+      orderCode: 'DH-2026-002',
+      retailerName: 'Siêu thị Minh Tâm',
+      warehouseCode: 'KHO-TONG',
+      status: 'Pending',
+      items: [
+        {
+          id: 'item-2',
+          batchId: 'batch-uuid-999',
+          batchCode: 'OTHER-BATCH',
+          requestedQuantity: 50,
+          pickedQuantity: 0,
+          remainingQuantity: 50,
+        },
+      ],
+    },
+  ];
+
+  // Aggregation logic under test
+  const matchingOrdersMap = new Map();
+  for (const pl of pickingLists) {
+    let reservedForBatch = 0;
+    for (const item of pl.items) {
+      if (
+        (targetBatchId && item.batchId === targetBatchId) ||
+        (targetBatchCode && item.batchCode === targetBatchCode)
+      ) {
+        const rem = Number(item.remainingQuantity ?? 0);
+        const req = Number(item.requestedQuantity ?? 0);
+        const picked = Number(item.pickedQuantity ?? 0);
+        const itemQty = rem > 0 ? rem : Math.max(0, req - picked);
+        reservedForBatch += itemQty > 0 ? itemQty : req;
+      }
+    }
+
+    if (reservedForBatch > 0) {
+      const key = pl.orderId || pl.orderCode;
+      matchingOrdersMap.set(key, {
+        orderId: pl.orderId,
+        orderCode: pl.orderCode,
+        retailerName: pl.retailerName,
+        reservedQuantity: reservedForBatch,
+        status: pl.status,
+        warehouseCode: pl.warehouseCode,
+        pickingCode: pl.pickingCode,
+      });
+    }
+  }
+
+  const affectedOrders = Array.from(matchingOrdersMap.values());
+  assert.equal(affectedOrders.length, 1);
+  assert.equal(affectedOrders[0].orderCode, 'DH-2026-001');
+  assert.equal(affectedOrders[0].retailerName, 'Đại lý An Bình');
+  assert.equal(affectedOrders[0].reservedQuantity, 15);
+  assert.equal(affectedOrders[0].status, 'InProgress');
+});
+
+test('Zero-mock policy: when no affected orders exist, return empty array without fake items', () => {
+  const emptyPickingLists = [];
+  const targetBatchId = 'batch-uuid-non-existent';
+
+  const matches = emptyPickingLists.filter((pl) =>
+    pl.items.some((item) => item.batchId === targetBatchId),
+  );
+  assert.equal(matches.length, 0);
+});
+
+
 

@@ -268,3 +268,25 @@ test('Confirmation Dialog & Error Handling', () => {
   assert.ok(formCode.includes('submitError'));
   assert.ok(formCode.includes('<Callout tone="danger">'));
 });
+
+test('Write-off handles Reserved stock conflicts: blocks fully-reserved, preserves partial-reserved', () => {
+  const formCode = fs.readFileSync(path.resolve(__dirname, '../src/features/disposal/pages/DisposalFormPage.tsx'), 'utf8');
+
+  // Exact warning when batch has fully-reserved inventory
+  const blockingWarning =
+    'Lô hàng này đang có hàng được giữ cho đơn hàng. Vui lòng kiểm tra và xử lý các đơn liên quan trước khi tiếp tục.';
+  assert.ok(formCode.includes(blockingWarning));
+
+  // Partial reservation warning callout
+  assert.ok(formCode.includes('Hệ thống sẽ chỉ xuất hủy phần tồn kho chưa giữ'));
+  assert.ok(formCode.includes('giữ nguyên số lượng đã phân bổ cho các đơn hàng của khách'));
+
+  // Confirm dialog shows preserved reserved stock
+  assert.ok(formCode.includes('Đã giữ cho đơn (giữ nguyên):'));
+  assert.ok(formCode.includes('Số lượng thực xuất hủy:'));
+  assert.ok(formCode.includes('đang giữ cho đơn hàng sẽ không bị hủy và được giữ nguyên trên hệ thống'));
+
+  // Submission is blocked if any picked batch is blocked by reservation
+  assert.ok(formCode.includes('disabled={picked.length === 0 || blockedPickedCount > 0}'));
+});
+

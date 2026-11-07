@@ -27,13 +27,11 @@ export function ActionDropdown({ items, triggerTitle = 'Thao tác khác' }: Acti
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  const availableItems = items.filter((item) => !item.disabled);
-
   const updatePosition = () => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     const right = window.innerWidth - rect.right;
-    const menuHeight = availableItems.length * 36 + 12;
+    const menuHeight = items.length * 36 + 12;
     const spaceBelow = window.innerHeight - rect.bottom;
     const openUp = spaceBelow < menuHeight && rect.top > menuHeight;
     const top = openUp ? rect.top - menuHeight - 4 : rect.bottom + 4;
@@ -89,7 +87,7 @@ export function ActionDropdown({ items, triggerTitle = 'Thao tác khác' }: Acti
     };
   }, [open]);
 
-  if (availableItems.length === 0) {
+  if (items.length === 0) {
     return null;
   }
 
@@ -144,14 +142,16 @@ export function ActionDropdown({ items, triggerTitle = 'Thao tác khác' }: Acti
               animation: 'fadeIn 0.12s ease-out',
             }}
           >
-            {availableItems.map((item) => (
+            {items.map((item) => (
               <button
                 key={item.key}
                 type="button"
                 role="menuitem"
                 title={item.title}
+                disabled={item.disabled}
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (item.disabled) return;
                   setOpen(false);
                   item.onClick();
                 }}
@@ -166,14 +166,17 @@ export function ActionDropdown({ items, triggerTitle = 'Thao tác khác' }: Acti
                   borderRadius: 6,
                   fontSize: 12.5,
                   fontWeight: 600,
-                  cursor: 'pointer',
-                  color: item.color || 'var(--c-text)',
+                  cursor: item.disabled ? 'not-allowed' : 'pointer',
+                  opacity: item.disabled ? 0.45 : 1,
+                  color: item.disabled ? 'var(--c-muted)' : (item.color || 'var(--c-text)'),
                   textAlign: 'left',
                   transition: 'background 0.12s, color 0.12s',
                   userSelect: 'none',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--c-surface-2)';
+                  if (!item.disabled) {
+                    e.currentTarget.style.background = 'var(--c-surface-2)';
+                  }
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = 'transparent';

@@ -177,8 +177,13 @@ export function DisposalFormPage() {
 
   const selQty = pickedRows.reduce((sum, r) => sum + r.eligibleQuantity, 0);
   const selVal = pickedRows.reduce((sum, r) => sum + r.value, 0);
-
-  const blockedPickedCount = pickedRows.filter((r) => r.isBlockedByReservation).length;
+  const totalOnHandInPicked = pickedRows.reduce((sum, r) => sum + r.onHandQuantity, 0);
+  const totalReservedInPicked = pickedRows.reduce((sum, r) => sum + r.reservedQuantity, 0);
+  const partiallyReservedRows = pickedRows.filter(
+    (r) => r.reservedQuantity > 0 && !r.isBlockedByReservation,
+  );
+  const blockedPickedRows = pickedRows.filter((r) => r.isBlockedByReservation);
+  const blockedPickedCount = blockedPickedRows.length;
   const hasErrors = picked.length === 0 || blockedPickedCount > 0;
 
   const selectedWarehouseLabel = useMemo(() => {
@@ -206,7 +211,14 @@ export function DisposalFormPage() {
   const handleOpenConfirm = () => {
     setTried(true);
     setSubmitError(null);
-    if (hasErrors) return;
+    if (hasErrors) {
+      if (blockedPickedCount > 0) {
+        toast.show(
+          'Lô hàng này đang có hàng được giữ cho đơn hàng. Vui lòng kiểm tra và xử lý các đơn liên quan trước khi tiếp tục.',
+        );
+      }
+      return;
+    }
     setConfirmOpen(true);
   };
 
@@ -484,9 +496,19 @@ export function DisposalFormPage() {
           </QueryState>
         </Card>
 
-        {tried && blockedPickedCount > 0 && (
+        {blockedPickedCount > 0 && (
           <Callout tone="danger">
-            Có lô hàng đang giữ hàng cho đơn hàng của khách. Vui lòng bỏ chọn hoặc xử lý đơn hàng trước khi xuất hủy để tránh âm kho.
+            Lô hàng này đang có hàng được giữ cho đơn hàng. Vui lòng kiểm tra và xử lý các đơn liên quan trước khi tiếp tục.
+          </Callout>
+        )}
+
+        {partiallyReservedRows.length > 0 && (
+          <Callout tone="warn">
+            Có {partiallyReservedRows.length} lô hàng đang có hàng được giữ cho đơn hàng (
+            {partiallyReservedRows
+              .map((r) => `${r.batchCode}: giữ ${formatCases(r.reservedQuantity)}`)
+              .join(', ')}
+            ). Hệ thống sẽ chỉ xuất hủy phần tồn kho chưa giữ ({formatCases(selQty)}) và giữ nguyên số lượng đã phân bổ cho các đơn hàng của khách.
           </Callout>
         )}
 
@@ -506,7 +528,7 @@ export function DisposalFormPage() {
           <Button
             variant="primary"
             style={{ background: '#B42318', borderColor: '#B42318' }}
-            disabled={picked.length === 0}
+            disabled={picked.length === 0 || blockedPickedCount > 0}
             loading={createMutation.isPending}
             onClick={handleOpenConfirm}
           >
@@ -535,7 +557,7 @@ export function DisposalFormPage() {
                 padding: '12px 16px',
                 borderRadius: 6,
                 display: 'grid',
-                gridTemplateColumns: '140px 1fr',
+                gridTemplateColumns: '170px 1fr',
                 gap: '8px 12px',
               }}
             >
@@ -545,8 +567,25 @@ export function DisposalFormPage() {
               <span style={{ color: 'var(--c-text-muted)' }}>Số lô đã chọn:</span>
               <span style={{ fontWeight: 600 }}>{picked.length} lô</span>
 
-              <span style={{ color: 'var(--c-text-muted)' }}>Tổng số lượng:</span>
-              <span style={{ fontWeight: 600, color: '#B42318' }}>{formatCases(selQty)}</span>
+              {totalReservedInPicked > 0 ? (
+                <>
+                  <span style={{ color: 'var(--c-text-muted)' }}>Tồn thực tế đã chọn:</span>
+                  <span style={{ fontWeight: 600 }}>{formatCases(totalOnHandInPicked)}</span>
+
+                  <span style={{ color: 'var(--c-text-muted)' }}>Đã giữ cho đơn (giữ nguyên):</span>
+                  <span style={{ fontWeight: 600, color: '#C2410C' }}>
+                    {formatCases(totalReservedInPicked)}
+                  </span>
+
+                  <span style={{ color: 'var(--c-text-muted)' }}>Số lượng thực xuất hủy:</span>
+                  <span style={{ fontWeight: 600, color: '#B42318' }}>{formatCases(selQty)}</span>
+                </>
+              ) : (
+                <>
+                  <span style={{ color: 'var(--c-text-muted)' }}>Tổng số lượng:</span>
+                  <span style={{ fontWeight: 600, color: '#B42318' }}>{formatCases(selQty)}</span>
+                </>
+              )}
 
               <span style={{ color: 'var(--c-text-muted)' }}>Tổng giá trị:</span>
               <span style={{ fontWeight: 600 }}>{formatMoney(selVal)}</span>
@@ -557,6 +596,21 @@ export function DisposalFormPage() {
               <span style={{ color: 'var(--c-text-muted)' }}>Hình thức xử lý:</span>
               <span>{method}</span>
             </div>
+
+            {totalReservedInPicked > 0 && (
+              <div
+                style={{
+                  fontSize: 12.5,
+                  color: '#8A3B09',
+                  background: '#FEF3E2',
+                  padding: '8px 12px',
+                  borderRadius: 6,
+                  lineHeight: 1.5,
+                }}
+              >
+                Lưu ý: Toàn bộ {formatCases(totalReservedInPicked)} đang giữ cho đơn hàng sẽ không bị hủy và được giữ nguyên trên hệ thống.
+              </div>
+            )}
           </div>
         }
       />

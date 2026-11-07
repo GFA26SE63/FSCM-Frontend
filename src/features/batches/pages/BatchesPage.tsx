@@ -156,22 +156,41 @@ export function BatchesPage() {
     {
       key: 'locked',
       header: 'Bị khóa',
-      width: '90px',
+      width: '110px',
       align: 'right',
       render: (b) => {
         const lock = activeLockByBatch.get(b.batchId) || activeLockByBatch.get(b.batchCode);
         return b.lockedQuantity > 0 ? (
-          <span
-            style={{ color: '#B42318', fontWeight: 600 }}
-            title={lock?.reason ? `Lý do: ${formatLockReason(lock.reason)}` : undefined}
-          >
-            {b.lockedQuantity.toLocaleString('vi-VN')}
-          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+            <span
+              style={{ color: '#B42318', fontWeight: 600 }}
+              title={lock?.reason ? `Lý do: ${formatLockReason(lock.reason)}` : undefined}
+            >
+              {b.lockedQuantity.toLocaleString('vi-VN')}
+            </span>
+            {lock?.reason && (
+              <span
+                style={{
+                  fontSize: 11,
+                  color: 'var(--c-text-muted)',
+                  whiteSpace: 'nowrap',
+                }}
+                title={`Lý do: ${formatLockReason(lock.reason)}`}
+              >
+                {formatLockReason(lock.reason)}
+              </span>
+            )}
+          </div>
         ) : (
           <span>0</span>
         );
       },
-      text: (b) => String(b.lockedQuantity),
+      text: (b) => {
+        const lock = activeLockByBatch.get(b.batchId) || activeLockByBatch.get(b.batchCode);
+        return b.lockedQuantity > 0
+          ? `${b.lockedQuantity} (${formatLockReason(lock?.reason)})`
+          : '0';
+      },
     },
     {
       key: 'available',
@@ -299,16 +318,32 @@ export function BatchesPage() {
 
           // 3. Lập phiếu hủy (Red, if expired or locked)
           if (canLockThis && (b.expiryStatus === 'Expired' || b.lockedQuantity > 0)) {
+            const isBlockedByReservation = b.onHandQuantity - b.reservedQuantity <= 0;
             dropdownItems.push({
               key: 'dispose',
               label: 'Lập phiếu hủy',
-              icon: <Trash2 size={14} style={{ color: '#B42318' }} />,
-              color: '#B42318',
-              onClick: () =>
+              icon: (
+                <Trash2
+                  size={14}
+                  style={{ color: isBlockedByReservation ? 'var(--c-muted)' : '#B42318' }}
+                />
+              ),
+              color: isBlockedByReservation ? 'var(--c-muted)' : '#B42318',
+              disabled: isBlockedByReservation,
+              onClick: () => {
+                if (isBlockedByReservation) {
+                  toast.show(
+                    'Lô hàng này đang có hàng được giữ cho đơn hàng. Vui lòng kiểm tra và xử lý các đơn liên quan trước khi tiếp tục.',
+                  );
+                  return;
+                }
                 navigate(
                   `/disposal/new?batchId=${encodeURIComponent(b.batchId)}&batchCode=${encodeURIComponent(b.batchCode)}&warehouseId=${encodeURIComponent(b.warehouseId)}&warehouseCode=${encodeURIComponent(b.warehouseCode)}`,
-                ),
-              title: 'Lập phiếu xuất hủy hàng',
+                );
+              },
+              title: isBlockedByReservation
+                ? 'Lô hàng này đang có hàng được giữ cho đơn hàng. Vui lòng kiểm tra và xử lý các đơn liên quan trước khi tiếp tục.'
+                : 'Lập phiếu xuất hủy hàng',
             });
           }
 

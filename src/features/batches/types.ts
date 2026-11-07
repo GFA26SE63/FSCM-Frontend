@@ -143,8 +143,19 @@ export interface QrLabelItem {
   invalidatedAt?: string | null;
 }
 
+export interface AffectedOrderItem {
+  orderId: string;
+  orderCode: string;
+  retailerName: string;
+  reservedQuantity: number;
+  status: string;
+  warehouseCode?: string;
+  pickingCode?: string;
+}
+
 export interface BatchDetail extends BatchInventoryItem {
   history?: InventoryHistoryItem[];
   locks?: InventoryLockItem[];
   qrLabels?: QrLabelItem[];
+  affectedOrders?: AffectedOrderItem[];
 }

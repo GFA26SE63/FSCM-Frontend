@@ -37,6 +37,17 @@ export const useBatchLocks = (params?: {
     queryFn: () => batchApi.getLocks(params),
   });
 
+export const useBatchAffectedOrders = (
+  batchId?: string,
+  batchCode?: string,
+  warehouseId?: string,
+) =>
+  useQuery({
+    queryKey: ['batches', 'affected-orders', batchId, batchCode, warehouseId],
+    queryFn: () => batchApi.getAffectedOrders(batchId, batchCode, warehouseId),
+    enabled: Boolean(batchId || batchCode),
+  });
+
 export const useBatchQrLabels = (batchId?: string) =>
   useQuery({
     queryKey: ['qr-labels', 'batch', batchId],
@@ -61,6 +72,7 @@ export const useCreateInventoryLock = () => {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['batches'] });
         queryClient.invalidateQueries({ queryKey: ['inventory-locks'] });
+        queryClient.invalidateQueries({ queryKey: ['inventory'] });
       },
     },
   );
@@ -81,6 +93,7 @@ export const useReleaseInventoryLock = () => {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['batches'] });
         queryClient.invalidateQueries({ queryKey: ['inventory-locks'] });
+        queryClient.invalidateQueries({ queryKey: ['inventory'] });
       },
     },
   );

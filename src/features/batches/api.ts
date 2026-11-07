@@ -1,6 +1,9 @@
 import { get, post } from '@/shared/api/http';
 import { daysBetween } from '@/shared/lib/dates';
+import type { PickingList } from '@/features/runpicking/types';
+import type { OrderSummary } from '@/features/orders/types';
 import type {
+  AffectedOrderItem,
   BatchDetail,
   BatchFilters,
   BatchInventoryItem,
@@ -253,4 +256,101 @@ export const batchApi = {
       `/inventory-locks/${encodeURIComponent(lockId)}/release`,
       input,
     ),
+
+  getAffectedOrders: async (
+    batchId?: string,
+    batchCode?: string,
+    warehouseId?: string,
+  ): Promise<AffectedOrderItem[]> => {
+    if (!batchId && !batchCode) return [];
+
+    try {
+      // 1. Fetch real picking lists from backend
+      const rawLists = await get<PickingList[]>('/picking-lists', {
+        warehouseId: isUuid(warehouseId) ? warehouseId : undefined,
+      }).catch(() => [] as PickingList[]);
+
+      const pickingLists = Array.isArray(rawLists) ? rawLists : [];
+      const ordersMap = new Map<string, AffectedOrderItem>();
+
+      for (const pl of pickingLists) {
+        if (!pl.items || !Array.isArray(pl.items)) continue;
+
+        let reservedForBatch = 0;
+        for (const item of pl.items) {
+          const matchId =
+            Boolean(batchId) &&
+            Boolean(item.batchId) &&
+            item.batchId.toLowerCase() === batchId!.toLowerCase();
+          const matchCode =
+            Boolean(batchCode) &&
+            Boolean(item.batchCode) &&
+            item.batchCode.toLowerCase() === batchCode!.toLowerCase();
+
+          if (matchId || matchCode) {
+            const rem = Number(item.remainingQuantity ?? 0);
+            const req = Number(item.requestedQuantity ?? 0);
+            const picked = Number(item.pickedQuantity ?? 0);
+            const itemQty = rem > 0 ? rem : Math.max(0, req - picked);
+            reservedForBatch += itemQty > 0 ? itemQty : req;
+          }
+        }
+
+        if (reservedForBatch > 0) {
+          const key = pl.orderId || pl.orderCode;
+          if (key) {
+            const existing = ordersMap.get(key);
+            if (existing) {
+              existing.reservedQuantity += reservedForBatch;
+            } else {
+              ordersMap.set(key, {
+                orderId: pl.orderId,
+                orderCode: pl.orderCode,
+                retailerName: pl.retailerName || '',
+                reservedQuantity: reservedForBatch,
+                status: pl.status || 'Picking',
+                warehouseCode: pl.warehouseCode,
+                pickingCode: pl.pickingCode,
+              });
+            }
+          }
+        }
+      }
+
+      const results = Array.from(ordersMap.values());
+
+      // If we have results, enrich retailerName and order status from real /orders if needed
+      if (results.length > 0 && results.some((r) => !r.retailerName)) {
+        try {
+          const rawOrders = await get<{ items: OrderSummary[] }>('/orders', { pageSize: 100 });
+          const orderSummaries = Array.isArray(rawOrders?.items) ? rawOrders.items : [];
+          const orderLookup = new Map<string, OrderSummary>();
+          orderSummaries.forEach((o) => {
+            if (o.id) orderLookup.set(o.id.toLowerCase(), o);
+            if (o.orderCode) orderLookup.set(o.orderCode.toLowerCase(), o);
+          });
+
+          results.forEach((item) => {
+            const matchedOrder =
+              (item.orderId && orderLookup.get(item.orderId.toLowerCase())) ||
+              (item.orderCode && orderLookup.get(item.orderCode.toLowerCase()));
+            if (matchedOrder) {
+              if (!item.retailerName && matchedOrder.retailerName) {
+                item.retailerName = matchedOrder.retailerName;
+              }
+              if (matchedOrder.status) {
+                item.status = matchedOrder.status;
+              }
+            }
+          });
+        } catch {
+          // Keep existing retailer names or fallback
+        }
+      }
+
+      return results;
+    } catch {
+      return [];
+    }
+  },
 };

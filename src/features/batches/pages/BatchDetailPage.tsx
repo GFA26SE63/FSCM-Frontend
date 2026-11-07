@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Eye } from 'lucide-react';
 import { Link, useNavigate, useParams } from '@/shared/router/compat';
 import {
   Chip,
@@ -6,10 +7,15 @@ import {
   useToast,
 } from '@/shared/ui';
 import { formatDate, formatDateTime } from '@/shared/lib';
-import { formatLockReason } from '@/shared/lib/status';
+import { formatLockReason, statusLabel } from '@/shared/lib/status';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
-import { useBatch, useBatchLocks, usePrintBatchQr } from '../hooks';
+import {
+  useBatch,
+  useBatchAffectedOrders,
+  useBatchLocks,
+  usePrintBatchQr,
+} from '../hooks';
 import {
   LockBatchDialog,
   ReleaseBatchLockDialog,
@@ -40,6 +46,12 @@ export function BatchDetailPage() {
     batchId: batch?.batchId,
   });
 
+  const { data: affectedOrders = [], isLoading: loadingOrders } = useBatchAffectedOrders(
+    batch?.batchId,
+    batch?.batchCode,
+    batch?.warehouseId,
+  );
+
   const activeLock = locks.find((l) => l.status === 'Active');
 
   const handlePrintQr = async (batchId: string) => {
@@ -63,8 +75,9 @@ export function BatchDetailPage() {
         const isLocked = b.lockedQuantity > 0 || !!activeLock;
         const isExpired = b.expiryStatus === 'Expired';
         const isNear = b.expiryStatus === 'NearExpiry' || b.expiryStatus === 'Near-date';
+        const isBlockedByReservation = b.onHandQuantity - b.reservedQuantity <= 0;
 
-        const statusLabel = isLocked
+        const batchStatusLabel = isLocked
           ? 'Có hàng khóa'
           : isExpired
             ? 'Hết hạn'
@@ -111,7 +124,7 @@ export function BatchDetailPage() {
                   Lô hàng {b.batchCode}
                 </span>
                 <span className="chip" style={statusStyle}>
-                  {statusLabel}
+                  {batchStatusLabel}
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -126,39 +139,55 @@ export function BatchDetailPage() {
                   </button>
                 )}
 
-                {isLocked ? (
-                  <>
-                    {canUnlock && activeLock && (
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={() => setReleaseTarget(activeLock)}
-                      >
-                        Mở khóa
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="btn btn-danger-solid"
-                      onClick={() =>
-                        navigate(
-                          `/disposal/new?batchId=${encodeURIComponent(b.batchId)}&batchCode=${encodeURIComponent(b.batchCode)}&warehouseId=${encodeURIComponent(b.warehouseId)}&warehouseCode=${encodeURIComponent(b.warehouseCode)}`,
-                        )
+                {canUnlock && activeLock && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => setReleaseTarget(activeLock)}
+                  >
+                    Mở khóa
+                  </button>
+                )}
+
+                {canLockThisBatch && (isLocked || isExpired) && (
+                  <button
+                    type="button"
+                    className="btn btn-danger-solid"
+                    disabled={isBlockedByReservation}
+                    title={
+                      isBlockedByReservation
+                        ? 'Lô hàng này đang có hàng được giữ cho đơn hàng. Vui lòng kiểm tra và xử lý các đơn liên quan trước khi tiếp tục.'
+                        : 'Lập phiếu xuất hủy hàng'
+                    }
+                    onClick={() => {
+                      if (isBlockedByReservation) {
+                        toast.show(
+                          'Lô hàng này đang có hàng được giữ cho đơn hàng. Vui lòng kiểm tra và xử lý các đơn liên quan trước khi tiếp tục.',
+                        );
+                        return;
                       }
-                    >
-                      Lập phiếu hủy
-                    </button>
-                  </>
-                ) : (
-                  canLockThisBatch && (
-                    <button
-                      type="button"
-                      className="btn btn-danger-solid"
-                      onClick={() => setLockOpen(true)}
-                    >
-                      Khóa hàng hỏng / hết hạn
-                    </button>
-                  )
+                      navigate(
+                        `/disposal/new?batchId=${encodeURIComponent(b.batchId)}&batchCode=${encodeURIComponent(b.batchCode)}&warehouseId=${encodeURIComponent(b.warehouseId)}&warehouseCode=${encodeURIComponent(b.warehouseCode)}`,
+                      );
+                    }}
+                    style={
+                      isBlockedByReservation
+                        ? { opacity: 0.5, cursor: 'not-allowed' }
+                        : undefined
+                    }
+                  >
+                    Lập phiếu hủy
+                  </button>
+                )}
+
+                {canLockThisBatch && !isLocked && (
+                  <button
+                    type="button"
+                    className="btn btn-danger-solid"
+                    onClick={() => setLockOpen(true)}
+                  >
+                    Khóa hàng hỏng / hết hạn
+                  </button>
                 )}
               </div>
             </div>
@@ -197,24 +226,34 @@ export function BatchDetailPage() {
                   <span className="fval">{b.onHandQuantity.toLocaleString('vi-VN')} thùng</span>
                 </div>
                 <div className="fv">
-                  <span className="fl">Đã giữ cho đơn</span>
+                  <span className="fl">Đã giữ cho đơn hàng</span>
                   <span className="fval">{b.reservedQuantity.toLocaleString('vi-VN')} thùng</span>
                 </div>
                 <div className="fv">
-                  <span className="fl">Bị khóa</span>
+                  <span className="fl">Số lượng bị khóa</span>
                   <span className="fval">
-                    {isLocked
-                      ? `${b.lockedQuantity.toLocaleString('vi-VN')} thùng · ${formatLockReason(activeLock?.reason)}`
+                    {b.lockedQuantity > 0
+                      ? `${b.lockedQuantity.toLocaleString('vi-VN')} thùng`
                       : '0'}
                   </span>
                 </div>
                 <div className="fv">
-                  <span className="fl">Có thể cấp</span>
+                  <span className="fl">Lý do khóa</span>
+                  <span className="fval">
+                    {activeLock?.reason
+                      ? formatLockReason(activeLock.reason)
+                      : locks.length > 0 && locks[0].reason
+                        ? formatLockReason(locks[0].reason)
+                        : 'Không có'}
+                  </span>
+                </div>
+                <div className="fv">
+                  <span className="fl">Số lượng còn dùng được</span>
                   <span className="fval">
                     {(isExpired ? 0 : b.availableQuantity).toLocaleString('vi-VN')} thùng
                   </span>
                 </div>
-                <div className="fv" style={{ gridColumn: 'span 2' }}>
+                <div className="fv">
                   <span className="fl">Chính sách giảm giá hạn sử dụng</span>
                   <span className="fval">
                     {discountRuleText}
@@ -237,18 +276,59 @@ export function BatchDetailPage() {
                 }}
               >
                 <h2 className="sec" style={{ color: '#8A3B09' }}>
-                  Hàng bị khóa: {formatLockReason(activeLock?.reason)}
+                  Hàng bị khóa: {formatLockReason(activeLock?.reason || locks[0]?.reason)}
                 </h2>
                 <span style={{ fontSize: 13.5, lineHeight: 1.55 }}>
                   {activeLock?.note ? `${activeLock.note}. ` : ''}Số lượng bị khóa sẽ không được cấp phát cho đơn hàng mới.
-                  {b.hasLockRequiringResolution && (
-                    <> Lượng khóa ảnh hưởng đến số lượng đã giữ cho đơn hàng. Vui lòng kiểm tra và xử lý các đơn hàng liên quan trước khi xuất hủy.</>
-                  )}
                 </span>
               </section>
             )}
 
-            {/* Table 1: Đơn hàng đang giữ lô hàng này */}
+            {/* Warning block if all stock is reserved */}
+            {isBlockedByReservation && b.reservedQuantity > 0 && (
+              <section
+                className="card"
+                style={{
+                  padding: 16,
+                  background: '#FDECEA',
+                  borderColor: '#F87171',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                }}
+              >
+                <h2 className="sec" style={{ color: '#B42318' }}>
+                  Không thể lập phiếu hủy: Toàn bộ tồn kho đang được giữ cho đơn hàng
+                </h2>
+                <span style={{ fontSize: 13.5, lineHeight: 1.55 }}>
+                  Lô hàng này đang có {b.reservedQuantity.toLocaleString('vi-VN')} thùng được giữ cho đơn hàng. Vui lòng kiểm tra và xử lý các đơn liên quan trước khi tiếp tục.
+                </span>
+              </section>
+            )}
+
+            {/* Warning block if lock conflicts with reservation */}
+            {b.hasLockRequiringResolution && (
+              <section
+                className="card"
+                style={{
+                  padding: 16,
+                  background: '#FFF8E6',
+                  borderColor: '#F0D590',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                }}
+              >
+                <h2 className="sec" style={{ color: '#8A3B09' }}>
+                  Cần xử lý đơn hàng trước khi hủy
+                </h2>
+                <span style={{ fontSize: 13.5, lineHeight: 1.55 }}>
+                  Lượng tồn bị khóa đang chồng lấn lên số lượng đã giữ cho đơn hàng xuất kho. Vui lòng kiểm tra và xử lý các đơn hàng trước khi thực hiện thao tác tiếp theo.
+                </span>
+              </section>
+            )}
+
+            {/* Table 1: Đơn hàng bị ảnh hưởng */}
             <section
               className="card"
               style={{
@@ -259,26 +339,209 @@ export function BatchDetailPage() {
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 className="sec">Đơn hàng đang giữ lô hàng này</h2>
+                <h2 className="sec">Đơn hàng bị ảnh hưởng</h2>
+              </div>
+
+              {affectedOrders.length > 0 && (
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: '#8A3B09',
+                    background: '#FEF3E2',
+                    padding: '8px 12px',
+                    borderRadius: 6,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Lô hàng này đang có hàng được giữ cho các đơn hàng sau. Vui lòng kiểm tra và xử lý các đơn liên quan trước khi tiếp tục. Hệ thống không tự ý hủy hay thay đổi phần hàng đã phân bổ.
+                </div>
+              )}
+
+              <div className="tbl-wrap">
+                <table className="tbl">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '150px' }}>Mã đơn hàng</th>
+                      <th style={{ width: '220px' }}>Khách hàng</th>
+                      <th style={{ width: '120px' }}>Kho</th>
+                      <th style={{ width: '140px', textAlign: 'right' }}>Số lượng giữ</th>
+                      <th style={{ width: '160px' }}>Trạng thái</th>
+                      <th style={{ width: '130px', textAlign: 'right' }}>Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingOrders ? (
+                      <tr>
+                        <td colSpan={6} className="muted" style={{ textAlign: 'center', padding: '20px 12px' }}>
+                          Đang kiểm tra các đơn hàng liên quan…
+                        </td>
+                      </tr>
+                    ) : affectedOrders.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="muted" style={{ textAlign: 'center', padding: '20px 12px' }}>
+                          {b.reservedQuantity === 0
+                            ? 'Không có đơn hàng nào đang giữ lô hàng này.'
+                            : `Đang có ${b.reservedQuantity.toLocaleString('vi-VN')} thùng được giữ cho các đơn hàng xuất kho theo tính toán tồn kho của hệ thống. Thông tin chi tiết các đơn hàng đang được cập nhật.`}
+                        </td>
+                      </tr>
+                    ) : (
+                      affectedOrders.map((o) => (
+                        <tr key={o.orderId || o.orderCode}>
+                          <td>
+                            <Link
+                              to={`/orders/${encodeURIComponent(o.orderId || o.orderCode)}`}
+                              style={{ fontWeight: 600, color: 'var(--c-primary)' }}
+                            >
+                              {o.orderCode}
+                            </Link>
+                          </td>
+                          <td>{o.retailerName || '—'}</td>
+                          <td>{o.warehouseCode || b.warehouseCode}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                            {o.reservedQuantity.toLocaleString('vi-VN')} thùng
+                          </td>
+                          <td>
+                            <span
+                              className="chip"
+                              style={{
+                                background: '#E8EEFD',
+                                color: '#1D4ED8',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {statusLabel('order', o.status)}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <button
+                              type="button"
+                              className="btn btn-sm"
+                              onClick={() =>
+                                navigate(`/orders/${encodeURIComponent(o.orderId || o.orderCode)}`)
+                              }
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                padding: '2px 8px',
+                                fontSize: 12,
+                              }}
+                            >
+                              <Eye size={12} />
+                              <span>Xem đơn hàng</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {/* Table: Danh sách khóa tồn kho */}
+            <section
+              className="card"
+              style={{
+                padding: 16,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 className="sec">Danh sách khóa tồn kho</h2>
+                {canLockThisBatch && b.availableQuantity > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-danger-outline"
+                    onClick={() => setLockOpen(true)}
+                  >
+                    + Khóa thêm tồn kho
+                  </button>
+                )}
               </div>
               <div className="tbl-wrap">
                 <table className="tbl">
                   <thead>
                     <tr>
-                      <th style={{ width: '150px' }}>Đơn hàng</th>
-                      <th style={{ width: '250px' }}>Phần giao</th>
-                      <th style={{ width: '150px', textAlign: 'right' }}>Số lượng giữ</th>
-                      <th style={{ width: '150px' }}>Trạng thái</th>
+                      <th style={{ width: '160px' }}>Thời điểm khóa</th>
+                      <th style={{ width: '130px', textAlign: 'right' }}>Số lượng bị khóa</th>
+                      <th style={{ width: '180px' }}>Lý do khóa</th>
+                      <th style={{ width: '140px' }}>Trạng thái</th>
+                      <th style={{ width: '150px' }}>Người thực hiện</th>
+                      <th>Ghi chú</th>
+                      {canUnlock && <th style={{ width: '110px', textAlign: 'right' }}>Thao tác</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td colSpan={4} className="muted" style={{ textAlign: 'center', padding: '20px 12px' }}>
-                        {b.reservedQuantity === 0
-                          ? 'Không có đơn hàng nào đang giữ lô hàng này.'
-                          : `Đang có ${b.reservedQuantity.toLocaleString('vi-VN')} thùng được giữ cho các đơn hàng xuất kho.`}
-                      </td>
-                    </tr>
+                    {locks.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={canUnlock ? 7 : 6}
+                          className="muted"
+                          style={{ textAlign: 'center', padding: '20px 12px' }}
+                        >
+                          Lô hàng này chưa từng bị khóa tồn kho.
+                        </td>
+                      </tr>
+                    ) : (
+                      locks.map((lock) => {
+                        const isActive = lock.status === 'Active';
+                        return (
+                          <tr key={lock.id}>
+                            <td>{formatDateTime(lock.createdAt)}</td>
+                            <td
+                              style={{
+                                textAlign: 'right',
+                                fontWeight: 600,
+                                color: isActive ? '#B42318' : undefined,
+                              }}
+                            >
+                              {lock.lockedQuantity.toLocaleString('vi-VN')} thùng
+                            </td>
+                            <td>
+                              <span style={{ fontWeight: 500 }}>
+                                {formatLockReason(lock.reason)}
+                              </span>
+                            </td>
+                            <td>
+                              <span
+                                className="chip"
+                                style={
+                                  isActive
+                                    ? { background: '#FDECEA', color: '#B42318' }
+                                    : { background: '#E5F4EA', color: '#15703A' }
+                                }
+                              >
+                                {isActive ? 'Đang khóa' : 'Đã mở khóa'}
+                              </span>
+                            </td>
+                            <td>{lock.lockedByUserId || 'Hệ thống'}</td>
+                            <td>{lock.note || '—'}</td>
+                            {canUnlock && (
+                              <td style={{ textAlign: 'right' }}>
+                                {isActive && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm"
+                                    onClick={() => setReleaseTarget(lock)}
+                                    style={{
+                                      padding: '2px 8px',
+                                      fontSize: 12,
+                                      color: '#15803D',
+                                      borderColor: '#15803D',
+                                    }}
+                                  >
+                                    Mở khóa
+                                  </button>
+                                )}
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
