@@ -10,7 +10,10 @@ const promo = { id: 'km1', code: 'KM-005', name: 'Demo đã lưu', minimumQuanti
 async function setup(page: Page) {
   let currentPromo = { ...promo };
   let published: unknown;
-  await page.addInitScript(() => sessionStorage.setItem('fscm.portal.token', 'test-token'));
+  await page.addInitScript(() => sessionStorage.setItem('fscm.portal.session.v1', JSON.stringify({
+    id: 'test-session', remember: false, accessToken: 'test-token', accessTokenExpiresAt: '2099-01-01T00:00:00Z',
+    refreshToken: 'test-refresh', refreshTokenExpiresAt: '2099-01-01T00:00:00Z',
+  })));
   await page.route('**/api/v1/**', async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname.replace('/api/v1', '');
