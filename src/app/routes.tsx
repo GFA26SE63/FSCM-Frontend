@@ -101,9 +101,9 @@ export const APP_ROUTES: AppRoute[] = [
   { key: 'config', label: 'Cấu hình hệ thống', roles: [A], list: page(config, 'ConfigPage') },
 
   /* Routes preserved for direct navigation / backward compatibility, not shown in prototype prod sidebar */
+  { key: 'fleet', label: 'Xe & tài xế', roles: [A, OP], list: page(fleet, 'FleetPage'), sub: [{ path: ':kind/:id', element: page(fleet, 'FleetDetailPage') }] },
   { key: 'whtransfer', label: 'Điều chuyển kho', roles: [A, WK], hidden: true, list: page(whtransfer, 'TransfersPage'), sub: [{ path: ':code', element: page(whtransfer, 'TransferDetailPage') }] },
   { key: 'rotation', label: 'Luân chuyển cận hạn', roles: [A], hidden: true, list: page(rotation, 'RotationPage'), sub: [{ path: ':id', element: page(rotation, 'RotationDetailPage') }] },
-  { key: 'fleet', label: 'Xe & người giao', roles: [A, OP], hidden: true, list: page(fleet, 'FleetPage'), sub: [{ path: ':id', element: page(fleet, 'FleetDetailPage') }] },
 ];
 
 /** First screen after login (Admin/Operator → orders, Warehouse Keeper → the run's picking sheets, Sales Manager → regions). */
