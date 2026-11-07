@@ -115,7 +115,7 @@ export function AllocationTraceDialog({ order, open, onClose }: {
               columns={[
                 { header: 'Lượt', align: 'right', cell: (item) => item.sequence },
                 { header: 'Kho / batch', cell: (item) => `${item.warehouseCode} / ${item.batchCode}` },
-                { header: 'Weighted score', align: 'right', cell: (item) => formatNumber(item.weightedScore) },
+                { header: 'Weighted score', align: 'right', cell: (item) => item.weightedScore.toFixed(3) },
                 { header: 'Lượng cấp', align: 'right', cell: (item) => formatNumber(item.quantity) },
                 { header: 'Giá sau KM số lượng', align: 'right', cell: (item) => formatMoney(item.baseUnitPrice) },
                 { header: 'Giảm HSD / đơn vị', align: 'right', cell: (item) => `−${formatMoney(item.shelfLifeDiscountPerUnit)}` },
