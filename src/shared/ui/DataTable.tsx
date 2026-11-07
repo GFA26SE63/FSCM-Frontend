@@ -5,6 +5,7 @@ import { EmptyState } from './EmptyState';
 import { errorMessage } from '../api/errors';
 import { SearchSelect } from './SearchSelect';
 import type { SelectOption } from './FormField';
+import { minimumTableWidth } from './tableLayout';
 
 export interface Column<T> {
   key: string;
@@ -182,7 +183,7 @@ export function DataTable<T>({
       )}
 
       <section className="card tbl-wrap" style={{ minHeight: 120 }}>
-        <table className="tbl">
+        <table className="tbl" style={{ minWidth: minimumTableWidth(columns, rowActions ? rowActionsWidth : undefined) }}>
           <colgroup>
             {columns.map((c) => (
               <col key={c.key} style={c.width ? { width: c.width } : undefined} />
