@@ -96,7 +96,7 @@ export const APP_ROUTES: AppRoute[] = [
     { path: ':code', element: page(warehouses, 'WarehouseDetailPage') },
   ] },
   { key: 'users', label: 'Người dùng', roles: [A], list: page(users, 'UsersPage'), sub: [{ path: ':id', element: page(users, 'UserDetailPage') }] },
-  { key: 'kpi', label: 'KPI Sales', roles: [A, SM], list: page(kpi, 'KpiPage'), sub: [{ path: ':name', element: page(kpi, 'KpiDetailPage') }] },
+  { key: 'kpi', label: 'Xếp hạng kinh doanh', roles: [A, OP, SM], list: page(kpi, 'KpiPage'), sub: [{ path: 'sales/:salesUserId/:groupId', element: page(kpi, 'KpiDetailPage') }] },
   { key: 'complaints', label: 'Khiếu nại', roles: [A, OP], badge: 'complaints', list: page(complaints, 'ComplaintsPage'), sub: [{ path: ':code', element: page(complaints, 'ComplaintDetailPage') }] },
   { key: 'config', label: 'Cấu hình hệ thống', roles: [A], list: page(config, 'ConfigPage') },
 
