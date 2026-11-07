@@ -35,6 +35,7 @@ export function ProductsPage() {
     {
       key: 'name',
       header: 'Tên sản phẩm',
+      width: '260px',
     },
     {
       key: 'categoryName',
