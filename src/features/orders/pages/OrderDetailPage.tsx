@@ -108,6 +108,7 @@ function PriceBreakdown({
         columns={[
           {
             header: 'Kho / batch',
+            width: '240px',
             cell: (item) => (
               <>
                 {item.warehouseCode}
@@ -545,7 +546,7 @@ function OrderBody({
                   cell: (line) => (
                     <>
                       −{formatMoney(
-                        line.discountAmount,
+                        line.ordinaryPromotionDiscountAmount,
                       )}
                       <br />
                       <span className="muted small">
