@@ -28,7 +28,7 @@ async function setup(page: Page) {
       // Reproduce the server default that hides drafts and paused campaigns.
       body = url.searchParams.get('includeInactive') === 'true' || currentPromo.isActive ? [currentPromo] : [];
     } else if (path === '/promotions' && method === 'POST') {
-      currentPromo = { ...currentPromo, ...route.request().postDataJSON(), isActive: false }; body = currentPromo;
+      currentPromo = { ...currentPromo, ...route.request().postDataJSON(), isActive: route.request().postDataJSON().activateOnSave === true }; body = currentPromo;
     } else if (path === '/promotions/km1/activate') { currentPromo.isActive = true; body = currentPromo; }
     else if (path === '/promotions/km1/deactivate') { currentPromo.isActive = false; body = currentPromo; }
     else if (path === '/promotions/km1') body = currentPromo;
@@ -55,8 +55,9 @@ test('create promotion searches code/name, keeps selection across searches and s
   await setup(page);
   await page.goto('/promos/new');
   await page.getByLabel('Tên chương trình').fill('Demo mới lưu');
-  await page.getByLabel('Mua tối thiểu (thùng)').fill('10');
-  await page.getByLabel('% giảm').fill('8');
+  await page.getByLabel('Loại chương trình').selectOption('ProductGroup');
+  await page.getByLabel('Tổng số lượng tối thiểu của nhóm').fill('10');
+  await page.getByLabel('% giảm chung').fill('8');
   const search = page.getByPlaceholder('Nhập mã SKU hoặc tên sản phẩm…');
   await search.fill('sua tuoi');
   await page.getByLabel('SKU001 · Sữa tươi 1 lít').check();
@@ -64,12 +65,34 @@ test('create promotion searches code/name, keeps selection across searches and s
   await expect(page.getByLabel('SKU002 · Sữa chua uống 180 ml')).toBeVisible();
   await search.fill('');
   await expect(page.getByLabel('SKU001 · Sữa tươi 1 lít')).toBeChecked();
-  await page.getByRole('button', { name: 'Tạo khuyến mãi', exact: true }).click();
+  await page.getByRole('button', { name: 'Lưu nháp', exact: true }).click();
   await expect(page).toHaveURL(/\/promos\/km1$/);
   await expect(page.getByText(/Chương trình đã được lưu/)).toBeVisible();
   await page.goto('/promos');
   await expect(page.getByText('Demo mới lưu', { exact: true })).toBeVisible();
   await page.screenshot({ path: 'test-results/promotions-paused.png', fullPage: true });
+});
+
+test('prototype type 1 saves distinct SKU thresholds and can activate immediately', async ({ page }) => {
+  await setup(page);
+  await page.goto('/promos/new');
+  await page.getByLabel('Tên chương trình').fill('Điều kiện từng SKU');
+  await page.getByLabel('Sản phẩm 1').fill('SKU001');
+  await page.getByLabel('Sản phẩm 1').press('Enter');
+  await page.getByLabel('Số lượng tối thiểu SKU 1').fill('50');
+  await page.getByLabel('% giảm SKU 1').fill('5');
+  await page.getByRole('button', { name: '+ Thêm sản phẩm', exact: true }).click();
+  await page.getByLabel('Sản phẩm 2').fill('SKU002');
+  await page.getByLabel('Sản phẩm 2').press('Enter');
+  await page.getByLabel('Số lượng tối thiểu SKU 2').fill('30');
+  await page.getByLabel('% giảm SKU 2').fill('7');
+  await page.getByRole('button', { name: 'Lưu và kích hoạt', exact: true }).click();
+  await expect(page).toHaveURL(/\/promos\/km1$/);
+  await expect(page.getByText('Loại 1 · Điều kiện từng SKU', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Tạm dừng', exact: true })).toBeVisible();
+  await expect(page.getByText('50', { exact: true })).toBeVisible();
+  await expect(page.getByText('30', { exact: true })).toBeVisible();
+  await page.screenshot({ path: 'test-results/prototype-promotion-detail.png', fullPage: true });
 });
 
 test('receiving product picker searches unaccented name or code and supports keyboard selection', async ({ page }) => {
