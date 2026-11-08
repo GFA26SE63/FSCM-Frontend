@@ -11,6 +11,8 @@
     "test:auth": "node --test tests/auth.test.cjs",
     "test:rbac": "node --test tests/rbac.test.cjs",
     "test:batches": "node --test tests/batches.test.cjs",
+    "test:receipts": "node --test tests/receipts.test.cjs",
+    "test:regions": "node --test tests/regions-dropdown.test.cjs",
     "test:actions": "node --test tests/action-standardization.test.cjs",
     "preview": "vite preview",
     "test:e2e": "playwright test",
