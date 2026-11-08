@@ -42,4 +42,8 @@ export interface PromoInput {
 
 export interface ProductOption { id: string; sku: string; name: string; status: string }
 export interface CategoryOption { id: string; code: string; name: string }
-export interface RetailerOption { id: string; code: string; name: string; status: string }
+export interface RetailerOption {
+  id: string; code: string; name: string; status: string;
+  contactName?: string; phone?: string; address?: string;
+  salesGroupCode?: string; creditTermDays?: number;
+}

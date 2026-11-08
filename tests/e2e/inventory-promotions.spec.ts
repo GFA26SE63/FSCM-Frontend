@@ -22,7 +22,11 @@ async function setup(page: Page) {
     if (path === '/auth/me') body = { id: 'admin', email: 'demo@example.test', fullName: 'Demo Admin', role: 'Admin' };
     else if (path === '/products') body = { items: products, totalCount: 2 };
     else if (path === '/categories') body = [{ id: 'cat1', code: 'CAT-01', name: 'Sữa' }];
-    else if (path === '/retailers') body = { items: [], totalCount: 0 };
+    else if (path === '/retailers') body = { items: [
+      { id: 'r1', code: 'RT001', name: 'Cửa hàng An Phú', status: 'Active', contactName: 'Nguyễn An', phone: '0901234567', address: '12 Nguyễn Huệ', salesGroupCode: 'SG01', creditTermDays: 14 },
+      { id: 'r2', code: 'RT002', name: 'Siêu thị Bình Minh', status: 'Active', contactName: 'Trần Bình', phone: '0909876543', address: '25 Lê Lợi', salesGroupCode: 'SG02', creditTermDays: 0 },
+      { id: 'r3', code: 'LOCKED', name: 'Cửa hàng ngừng hoạt động', status: 'Inactive' },
+    ], totalCount: 3 };
     else if (path === '/warehouses') body = [{ id: 'wh1', code: 'WH-TD', name: 'Kho Thủ Đức', status: 'Active' }];
     else if (path === '/promotions' && method === 'GET') {
       // Reproduce the server default that hides drafts and paused campaigns.
@@ -93,6 +97,38 @@ test('prototype type 1 saves distinct SKU thresholds and can activate immediatel
   await expect(page.getByText('50', { exact: true })).toBeVisible();
   await expect(page.getByText('30', { exact: true })).toBeVisible();
   await page.screenshot({ path: 'test-results/prototype-promotion-detail.png', fullPage: true });
+});
+
+test('retailer table shows contact details, keeps added stores across searches and submits only those selected', async ({ page }) => {
+  await setup(page);
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await page.goto('/promos/new');
+  await page.getByLabel('Tên chương trình').fill('Ưu đãi cửa hàng');
+  await page.getByLabel('Sản phẩm 1').fill('SKU001');
+  await page.getByLabel('Sản phẩm 1').press('Enter');
+  await page.getByLabel('Số lượng tối thiểu SKU 1').fill('10');
+  await page.getByLabel('% giảm SKU 1').fill('5');
+  const search = page.getByPlaceholder('Tìm mã, tên, số điện thoại hoặc địa chỉ cửa hàng…');
+  await search.fill('0901234567');
+  const anPhu = page.getByRole('row').filter({ hasText: 'RT001' });
+  await expect(anPhu).toContainText('Nguyễn An');
+  await expect(anPhu).toContainText('12 Nguyễn Huệ');
+  await expect(anPhu).toContainText('14 ngày');
+  await anPhu.getByRole('button', { name: 'Thêm', exact: true }).click();
+  await search.fill('Bình Minh');
+  await expect(page.getByRole('row').filter({ hasText: 'RT001' })).toHaveCount(1);
+  await expect(anPhu.getByRole('button', { name: 'Bỏ chọn' })).toBeVisible();
+  await page.getByRole('row').filter({ hasText: 'RT002' }).getByRole('button', { name: 'Thêm', exact: true }).click();
+  await anPhu.getByRole('button', { name: 'Bỏ chọn' }).click();
+  await expect(page.getByText('Cửa hàng đã thêm · 1', { exact: true })).toBeVisible();
+  await expect(page.getByText('Cửa hàng ngừng hoạt động', { exact: true })).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: 'test-results/promotion-retailer-picker-1024.png', fullPage: true });
+  const save = page.waitForRequest((r) => r.method() === 'POST' && r.url().endsWith('/promotions'));
+  await page.getByRole('button', { name: 'Lưu nháp', exact: true }).click();
+  expect((await save).postDataJSON().retailerIds).toEqual(['r2']);
+  await expect(page.locator('.page-title')).toHaveText('Ưu đãi cửa hàng');
+  await expect(page.getByText('Siêu thị Bình Minh (RT002)', { exact: true })).toBeVisible();
 });
 
 test('receiving product picker searches unaccented name or code and supports keyboard selection', async ({ page }) => {

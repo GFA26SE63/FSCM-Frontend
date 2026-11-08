@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
-import { Button, Callout, Card, Checkbox, FormField, Input, PageHeader, SearchSelect, Select } from '@/shared/ui';
+import { Button, Callout, Card, Checkbox, DataTable, FormField, Input, PageHeader, SearchSelect, Select, type Column } from '@/shared/ui';
 import { addDays, toIsoDate } from '@/shared/lib';
 import { errorMessage } from '@/shared/api/errors';
 import { useCreatePromo, usePromoLookups } from '../hooks';
+import type { RetailerOption } from '../types';
 
 const matches = (text: string, query: string) => {
   const clean = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').toLowerCase();
@@ -27,9 +28,16 @@ export function PromoFormPage() {
   const [productIds, setProductIds] = useState<string[]>([]);
   const [retailerIds, setRetailerIds] = useState<string[]>([]);
   const [productSearch, setProductSearch] = useState('');
-  const [retailerSearch, setRetailerSearch] = useState('');
   const [tried, setTried] = useState(false);
   const prods = (products.data ?? []).filter((p) => p.status === 'Published');
+  const retailerColumns: Column<RetailerOption>[] = [
+    { key: 'code', header: 'Mã cửa hàng', width: '150px' },
+    { key: 'name', header: 'Tên cửa hàng', width: '230px' },
+    { key: 'contact', header: 'Liên hệ', width: '200px', text: (r) => `${r.contactName || '—'} · ${r.phone || '—'}` },
+    { key: 'address', header: 'Địa chỉ', width: '260px', text: (r) => r.address || '—' },
+    { key: 'salesGroupCode', header: 'Nhóm Sales', width: '130px', text: (r) => r.salesGroupCode || '—' },
+    { key: 'creditTermDays', header: 'Hạn công nợ', width: '130px', text: (r) => r.creditTermDays == null ? '—' : r.creditTermDays > 0 ? `${r.creditTermDays} ngày` : 'Trả trước' },
+  ];
   const validQty = (v: string) => Number(v) > 0 && Number.isInteger(Number(v));
   const validPct = (v: string) => Number(v) >= 1 && Number(v) <= 100;
   const invalidRows = rows.some((r) => !r.productId || !validQty(r.minimumQuantity) || !validPct(r.discountPercent)) || new Set(rows.map((r) => r.productId)).size !== rows.length;
@@ -79,9 +87,19 @@ export function PromoFormPage() {
     {products.error && <Callout tone="danger">{errorMessage(products.error)}</Callout>}
     <Card title="Khách hàng được hưởng ưu đãi">
       <p className="muted small">Không chọn cửa hàng nào là áp dụng cho tất cả cửa hàng đủ điều kiện. Đơn đã chốt không tự thay đổi khi kích hoạt khuyến mãi.</p>
-      <FormField label={`Tìm cửa hàng · đã chọn ${retailerIds.length}`}><Input value={retailerSearch} onChange={(e) => setRetailerSearch(e.target.value)} placeholder="Mã hoặc tên cửa hàng…" /></FormField>
-      <div className="row-wrap">{(retailers.data ?? []).filter((r) => r.status === 'Active' && matches(`${r.code} ${r.name}`, retailerSearch)).map((r) => <Checkbox key={r.id} label={`${r.code} · ${r.name}`} checked={retailerIds.includes(r.id)} onChange={(on) => toggle(retailerIds, setRetailerIds, r.id, on)} />)}</div>
-      {retailers.error && <Callout tone="danger">{errorMessage(retailers.error)}</Callout>}
+      <div className="promo-retailer-picker">
+      <DataTable title={`Cửa hàng đã thêm · ${retailerIds.length}`}
+        columns={retailerColumns} rows={(retailers.data ?? []).filter((r) => retailerIds.includes(r.id))}
+        rowKey={(r) => r.id} searchable={false} pageSize={5}
+        emptyText="Chưa thêm cửa hàng: áp dụng cho tất cả cửa hàng đủ điều kiện."
+        rowActionsWidth="100px" rowActions={(r) => <Button size="sm" onClick={() => setRetailerIds((ids) => ids.filter((id) => id !== r.id))}>Bỏ chọn</Button>} />
+      <DataTable title="Thêm cửa hàng được hưởng ưu đãi"
+        columns={retailerColumns} rows={retailers.data?.filter((r) => r.status === 'Active' && !retailerIds.includes(r.id))}
+        loading={retailers.isLoading} error={retailers.error} rowKey={(r) => r.id} pageSize={5}
+        searchPlaceholder="Tìm mã, tên, số điện thoại hoặc địa chỉ cửa hàng…"
+        emptyText="Không còn cửa hàng phù hợp để thêm."
+        rowActionsWidth="100px" rowActions={(r) => <Button size="sm" onClick={() => setRetailerIds((ids) => ids.includes(r.id) ? ids : [...ids, r.id])}>Thêm</Button>} />
+      </div>
     </Card>
     <Callout>Nhập phần trăm được giảm: giảm 10% thì nhập 10. “Mua 10 giảm tiền tương đương 1” tương đương giảm 10%, không phải 90%.</Callout>
     {tried && invalid && <Callout tone="danger">Nhập tên từ 3 ký tự, ngày hợp lệ và đầy đủ sản phẩm, số thùng nguyên dương, % giảm từ 1–100. Không chọn trùng SKU.</Callout>}

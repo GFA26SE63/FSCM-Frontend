@@ -24,7 +24,7 @@ export function PromoDetailPage() {
           <>
             <PageHeader
               back="/promos"
-              title={`${p.code} · ${p.name}`}
+              title={p.name}
               subtitle={`${p.campaignMode === "PerSku" ? "Loại 1 · Điều kiện riêng từng SKU" : "Loại 2 · Cộng số lượng trong nhóm"} · ${formatInstantDate(p.startAt)} – ${formatInstantDate(p.endAt)}`}
               chips={<StatusChip domain="promotion" value={status} />}
               actions={
