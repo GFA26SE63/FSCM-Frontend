@@ -10,7 +10,7 @@ export const statusLabels = {
   vehicle: { Active: 'Hoạt động', Maintenance: 'Bảo trì' },
   driver: { Active: 'Hoạt động', OnLeave: 'Tạm nghỉ' },
   active: { Active: 'Hoạt động', Inactive: 'Inactive', Locked: 'Đã khóa', Paused: 'Tạm ngừng' },
-  promotion: { Running: 'Đang chạy', Paused: 'Tạm dừng', Ended: 'Hết hiệu lực' },
+  promotion: { Scheduled: 'Chưa đến thời gian áp dụng', Running: 'Đang chạy', Paused: 'Tạm dừng', Ended: 'Hết hiệu lực' },
   batchDiscount: { Active: 'Đang áp dụng', Ended: 'Hết hiệu lực' },
   expiry: { Normal: 'Còn hạn', 'Near-date': 'Cận hạn', NearExpiry: 'Cận hạn', Expired: 'Hết hạn', Disposed: 'Đã tiêu hủy' },
   picking: { NotPicked: 'Chưa pick', Picking: 'Đang pick', Shipped: 'Đã xuất' },
