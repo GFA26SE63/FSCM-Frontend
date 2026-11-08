@@ -96,14 +96,14 @@ export const APP_ROUTES: AppRoute[] = [
     { path: ':code', element: page(warehouses, 'WarehouseDetailPage') },
   ] },
   { key: 'users', label: 'Người dùng', roles: [A], list: page(users, 'UsersPage'), sub: [{ path: ':id', element: page(users, 'UserDetailPage') }] },
-  { key: 'kpi', label: 'KPI Sales', roles: [A, SM], list: page(kpi, 'KpiPage'), sub: [{ path: ':name', element: page(kpi, 'KpiDetailPage') }] },
+  { key: 'kpi', label: 'Xếp hạng kinh doanh', roles: [A, OP, SM], list: page(kpi, 'KpiPage'), sub: [{ path: 'sales/:salesUserId/:groupId', element: page(kpi, 'KpiDetailPage') }] },
   { key: 'complaints', label: 'Khiếu nại', roles: [A, OP], badge: 'complaints', list: page(complaints, 'ComplaintsPage'), sub: [{ path: ':code', element: page(complaints, 'ComplaintDetailPage') }] },
   { key: 'config', label: 'Cấu hình hệ thống', roles: [A], list: page(config, 'ConfigPage') },
 
   /* Routes preserved for direct navigation / backward compatibility, not shown in prototype prod sidebar */
+  { key: 'fleet', label: 'Xe & tài xế', roles: [A, OP], list: page(fleet, 'FleetPage'), sub: [{ path: ':kind/:id', element: page(fleet, 'FleetDetailPage') }] },
   { key: 'whtransfer', label: 'Điều chuyển kho', roles: [A, WK], hidden: true, list: page(whtransfer, 'TransfersPage'), sub: [{ path: ':code', element: page(whtransfer, 'TransferDetailPage') }] },
   { key: 'rotation', label: 'Luân chuyển cận hạn', roles: [A], hidden: true, list: page(rotation, 'RotationPage'), sub: [{ path: ':id', element: page(rotation, 'RotationDetailPage') }] },
-  { key: 'fleet', label: 'Xe & người giao', roles: [A, OP], hidden: true, list: page(fleet, 'FleetPage'), sub: [{ path: ':id', element: page(fleet, 'FleetDetailPage') }] },
 ];
 
 /** First screen after login (Admin/Operator → orders, Warehouse Keeper → the run's picking sheets, Sales Manager → regions). */

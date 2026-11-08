@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from '@/shared/router/compat';
 import {
-  Chip,
+  //Chip,
   QueryState,
   useToast,
 } from '@/shared/ui';
@@ -9,7 +9,8 @@ import { formatDate, formatDateTime } from '@/shared/lib';
 import { formatLockReason } from '@/shared/lib/status';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
-import { useBatch, useBatchLocks, usePrintBatchQr } from '../hooks';
+import { useBatch, useBatchLocks } from '../hooks';
+import { QrLabelsPanel } from '@/features/qr-labels';
 import {
   LockBatchDialog,
   ReleaseBatchLockDialog,
@@ -33,23 +34,12 @@ export function BatchDetailPage() {
   const [lockOpen, setLockOpen] = useState(false);
   const [releaseTarget, setReleaseTarget] = useState<InventoryLockItem | null>(null);
 
-  const printQrMutation = usePrintBatchQr();
-
   const batch = query.data;
   const { data: locks = [] } = useBatchLocks({
     batchId: batch?.batchId,
   });
 
   const activeLock = locks.find((l) => l.status === 'Active');
-
-  const handlePrintQr = async (batchId: string) => {
-    try {
-      await printQrMutation.mutateAsync(batchId);
-      toast.show('Đã in lại nhãn QR của lô hàng.');
-    } catch {
-      toast.show('Không thể in nhãn QR vào lúc này. Vui lòng thử lại sau.');
-    }
-  };
 
   const handleDisposalNotice = () => {
     toast.show('Chức năng này hiện chưa sử dụng được.');
@@ -119,16 +109,6 @@ export function BatchDetailPage() {
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                {b.batchId && (
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => handlePrintQr(b.batchId)}
-                    disabled={printQrMutation.isPending}
-                  >
-                    {printQrMutation.isPending ? 'Đang in…' : 'In lại QR'}
-                  </button>
-                )}
 
                 {isLocked ? (
                   <>
@@ -386,72 +366,12 @@ export function BatchDetailPage() {
             </section>
 
             {/* Table 3: Danh sách nhãn QR */}
-            <section
-              className="card"
-              style={{
-                padding: 16,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 10,
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 className="sec">Danh sách tem nhãn QR</h2>
-              </div>
-              <div className="tbl-wrap">
-                <table className="tbl" style={{ minWidth: 970 }}>
-                  <thead>
-                    <tr>
-                      <th style={{ width: '180px' }}>Mã tem QR</th>
-                      <th style={{ width: '130px', textAlign: 'right' }}>Số lượng</th>
-                      <th style={{ width: '140px' }}>Trạng thái</th>
-                      <th style={{ width: '180px' }}>Phiếu nhập gốc</th>
-                      <th style={{ width: '180px' }}>Tem cha / Tem gốc</th>
-                      <th>Thời điểm tạo</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(b.qrLabels ?? []).length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="muted" style={{ textAlign: 'center', padding: '20px 12px' }}>
-                          Chưa có tem nhãn QR nào được phát hành cho lô hàng này.
-                        </td>
-                      </tr>
-                    ) : (
-                      b.qrLabels!.map((l) => (
-                        <tr key={l.qrCode}>
-                          <td style={{ fontFamily: 'monospace', fontWeight: 700 }}>{l.qrCode}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                            {l.quantity.toLocaleString('vi-VN')} thùng
-                          </td>
-                          <td>
-                            <Chip tone={l.status === 'Active' || l.status === 'Valid' ? 'ok' : 'neutral'}>
-                              {l.status === 'Active' || l.status === 'Valid' ? 'Có hiệu lực' : l.status}
-                            </Chip>
-                          </td>
-                          <td>
-                            {l.receiptCode ? (
-                              <Link
-                                to={`/receipts/${encodeURIComponent(l.receiptCode)}`}
-                                style={{ fontWeight: 600 }}
-                              >
-                                {l.receiptCode}
-                              </Link>
-                            ) : (
-                              '—'
-                            )}
-                          </td>
-                          <td style={{ fontFamily: 'monospace' }}>
-                            {l.parentQrCode || l.rootQrCode || '— (Tem gốc)'}
-                          </td>
-                          <td>{formatDateTime(l.generatedAt)}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+            {b.batchId && (
+              <QrLabelsPanel
+                batchId={b.batchId}
+                batchCode={b.batchCode}
+              />
+            )}
 
             {/* Lock and Unlock Modals */}
             {canLock && (
