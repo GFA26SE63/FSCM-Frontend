@@ -16,7 +16,7 @@ export const statusLabels = {
   picking: { NotPicked: 'Chưa pick', Picking: 'Đang pick', Shipped: 'Đã xuất' },
   complaint: { Open: 'Chờ xử lý', Approved: 'Đã chấp nhận', Rejected: 'Đã từ chối', Resolved: 'Đã xử lý' },
   registration: { Pending: 'Chờ duyệt', Approved: 'Đã duyệt', Rejected: 'Bị từ chối' },
-  receipt: { Posted: 'Đã nhập' },
+  receipt: { Pending: 'Chờ duyệt', Received: 'Đã nhập kho', Posted: 'Đã nhập kho' },
   disposal: { Disposed: 'Đã tiêu hủy' },
   kpi: { Achieved: 'Đạt', NotAchieved: 'Chưa đạt' },
   channel: { Online: 'Online', Offline: 'Offline' },

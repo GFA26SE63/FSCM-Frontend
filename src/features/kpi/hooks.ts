@@ -73,6 +73,59 @@ export function useReportGroups() {
   });
 }
 
+export function useSalesStaff(salesGroupId?: string) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: [
+      'rankings',
+      'sales-staff',
+      user?.id,
+      user?.role,
+      user?.scope,
+      salesGroupId,
+    ],
+    queryFn: () => {
+      if (!user) throw new Error('Bạn cần đăng nhập.');
+      return kpiApi.salesStaff(user, salesGroupId);
+    },
+    enabled: canReadRankings(user),
+    retry: false,
+    gcTime: 0,
+  });
+}
+
+export function useSalesKpi(
+  filters: ReportFilters,
+  enabled = true,
+) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: [
+      'rankings',
+      'kpi',
+      user?.id,
+      user?.role,
+      user?.scope,
+      filters.fromDate,
+      filters.toDate,
+      filters.salesGroupId,
+      filters.salesUserId,
+    ],
+    queryFn: () => {
+      if (!user) throw new Error('Bạn cần đăng nhập.');
+      return kpiApi.kpi(filters, user);
+    },
+    enabled:
+      enabled &&
+      canReadRankings(user) &&
+      !validateReportFilters(filters),
+    retry: false,
+    gcTime: 0,
+  });
+}
+
 export function useSalesRanking(
   filters: ReportFilters,
   enabled = true,
