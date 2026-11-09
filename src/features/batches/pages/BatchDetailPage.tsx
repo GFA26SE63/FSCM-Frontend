@@ -242,7 +242,7 @@ export function BatchDetailPage() {
                 <h2 className="sec">Đơn hàng đang giữ lô hàng này</h2>
               </div>
               <div className="tbl-wrap">
-                <table className="tbl">
+                <table className="tbl" style={{ minWidth: 700 }}>
                   <thead>
                     <tr>
                       <th style={{ width: '150px' }}>Đơn hàng</th>
@@ -278,7 +278,7 @@ export function BatchDetailPage() {
                 <h2 className="sec">Lịch sử nhập – xuất – khóa</h2>
               </div>
               <div className="tbl-wrap">
-                <table className="tbl">
+                <table className="tbl" style={{ minWidth: 760 }}>
                   <thead>
                     <tr>
                       <th style={{ width: '160px' }}>Thời điểm</th>

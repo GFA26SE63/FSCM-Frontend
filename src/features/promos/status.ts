@@ -5,7 +5,8 @@ import type { PromoSummary } from './types';
  * together. Keeping it derived means a promotion cannot be shown as running past its end date
  * merely because nobody switched it off.
  */
-export const promoStatus = (p: Pick<PromoSummary, 'isActive' | 'endAt'>): 'Running' | 'Paused' | 'Ended' => {
+export const promoStatus = (p: Pick<PromoSummary, 'isActive' | 'startAt' | 'endAt'>): 'Running' | 'Scheduled' | 'Paused' | 'Ended' => {
   if (new Date(p.endAt).getTime() < Date.now()) return 'Ended';
-  return p.isActive ? 'Running' : 'Paused';
+  if (!p.isActive) return 'Paused';
+  return new Date(p.startAt).getTime() > Date.now() ? 'Scheduled' : 'Running';
 };

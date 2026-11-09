@@ -551,7 +551,7 @@ function OrderBody({
                       <br />
                       <span className="muted small">
                         {line.ordinaryPromotion
-                          ?.code ??
+                          ?.name ??
                           'Không có'}
                       </span>
                     </>
