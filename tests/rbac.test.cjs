@@ -177,7 +177,15 @@ test('revoked manager scope errors propagate instead of becoming an empty succes
 test('REST and GraphQL distinguish forbidden operations from expired sessions', async () => {
   let unauthorized = 0;
   let rejectResponse;
-  const tokenStore = { get: () => 'test-token', onUnauthorized: () => { unauthorized += 1; } };
+  const tokenStore = {
+    get: () => 'test-token',
+
+    getSession: () => null,
+
+    onUnauthorized: () => {
+      unauthorized += 1;
+    },
+  };
   source('shared/api/http.ts', {
     axios: { __esModule: true, default: { create: () => ({
       interceptors: {

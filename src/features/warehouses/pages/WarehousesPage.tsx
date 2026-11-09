@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from '@/shared/router/compat';
+import { useEffect, useMemo, useState } from 'react';
+import { Eye, MapPin, Pause, Pencil, Play } from 'lucide-react';
+import { useLocation, useNavigate } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { statusLabels } from '@/shared/lib';
 import {
+  ActionDropdown,
   Button,
   DataTable,
   FormField,
@@ -14,13 +16,14 @@ import {
   Tabs,
   TextArea,
   useToast,
+  type ActionDropdownItem,
 } from '@/shared/ui';
 import { buildWarehouseMapDoc } from '../components/warehouseMap';
+import { DeactivateWarehouseModal } from '../components/DeactivateWarehouseModal';
 import {
   useCreateRegion,
   useRegions,
   useRetailerMapPoints,
-  useUpdateRegionStatus,
   useUpdateWarehouseStatus,
   useWarehouses,
 } from '../hooks';
@@ -32,7 +35,21 @@ export function WarehousesPage() {
   const navigate = useNavigate();
   const toast = useToast();
 
-  const [activeTab, setActiveTab] = useState<'regions' | 'all-whs'>('regions');
+  const location = useLocation();
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const tabParam = searchParams.get('tab');
+
+  const [activeTab, setActiveTab] = useState<'regions' | 'all-whs'>(() => {
+    return tabParam === 'warehouses' || tabParam === 'all-whs' ? 'all-whs' : 'regions';
+  });
+
+  useEffect(() => {
+    if (tabParam === 'warehouses' || tabParam === 'all-whs') {
+      setActiveTab('all-whs');
+    } else if (tabParam === 'regions') {
+      setActiveTab('regions');
+    }
+  }, [tabParam]);
   const [regionSortOrder, setRegionSortOrder] = useState<SortOrder>('desc');
   const [whSortOrder, setWhSortOrder] = useState<SortOrder>('desc');
 
@@ -45,13 +62,14 @@ export function WarehousesPage() {
 
   // Network map modal state
   const [netMapOpen, setNetMapOpen] = useState(false);
+  const [mapRegionFilter, setMapRegionFilter] = useState<string>('all');
+  const [mapWarehouseFilter, setMapWarehouseFilter] = useState<string>('all');
 
   // Queries & Mutations
   const regionsQuery = useRegions();
   const warehousesQuery = useWarehouses();
   const { data: retailers = [] } = useRetailerMapPoints(netMapOpen);
   const createRegion = useCreateRegion();
-  const updateRegionStatus = useUpdateRegionStatus();
   const updateWarehouseStatus = useUpdateWarehouseStatus();
 
   const allWarehouses = useMemo(() => warehousesQuery.data ?? [], [warehousesQuery.data]);
@@ -86,21 +104,39 @@ export function WarehousesPage() {
     });
   }, [allWarehouses, whSortOrder]);
 
-  const refWh = useMemo(
-    () => allWarehouses.find((w) => w.code === 'WH-TA') ?? allWarehouses[0],
-    [allWarehouses],
-  );
+  // Available warehouse options for map filter
+  const mapWarehouseOptions = useMemo(() => {
+    if (mapRegionFilter === 'all') return allWarehouses;
+    return allWarehouses.filter((w) => w.regionId === mapRegionFilter);
+  }, [allWarehouses, mapRegionFilter]);
+
+  const refWh = useMemo(() => {
+    if (mapWarehouseFilter !== 'all') {
+      const matched = allWarehouses.find((w) => w.code === mapWarehouseFilter && w.lat);
+      if (matched) return matched;
+    }
+    if (mapRegionFilter !== 'all') {
+      const matchedInRegion = allWarehouses.find((w) => w.regionId === mapRegionFilter && w.lat);
+      if (matchedInRegion) return matchedInRegion;
+    }
+    return allWarehouses.find((w) => w.code === 'WH-TA') ?? allWarehouses[0];
+  }, [allWarehouses, mapRegionFilter, mapWarehouseFilter]);
 
   const netMapDoc = useMemo(() => {
     if (!netMapOpen) return '';
     const points: MapPoint[] = [
-      ...allWarehouses.map((w) => ({
-        lat: w.lat || 10.87,
-        lng: w.lng || 106.65,
-        kind: 'wh' as const,
-        label: `${w.code} · ${w.name}`,
-        sub: w.address,
-      })),
+      ...allWarehouses.map((w) => {
+        const reg = rawRegions.find((r) => r.id === w.regionId);
+        return {
+          lat: w.lat || 10.87,
+          lng: w.lng || 106.65,
+          kind: 'wh' as const,
+          label: `${w.code} · ${w.name}`,
+          sub: w.address,
+          regionId: w.regionId,
+          regionName: reg?.name,
+        };
+      }),
       ...retailers.map((r) => ({
         lat: r.lat || 10.87,
         lng: r.lng || 106.65,
@@ -114,32 +150,38 @@ export function WarehousesPage() {
       points,
       radiusKm: 20,
       zoom: 11,
+      selectedRegionId: mapRegionFilter === 'all' ? null : mapRegionFilter,
+      selectedWarehouseCode: mapWarehouseFilter === 'all' ? null : mapWarehouseFilter,
     });
-  }, [netMapOpen, allWarehouses, retailers, refWh]);
+  }, [netMapOpen, allWarehouses, retailers, refWh, rawRegions, mapRegionFilter, mapWarehouseFilter]);
 
-  const handleToggleRegionStatus = async (r: WarehouseRegion) => {
+  const [deactivatingWarehouse, setDeactivatingWarehouse] = useState<Warehouse | null>(null);
+
+  const handleConfirmDeactivate = async (reason: string) => {
+    if (!deactivatingWarehouse) return;
     try {
-      const nextActive = !r.isActive;
-      await updateRegionStatus.mutateAsync({ id: r.id, isActive: nextActive });
+      await updateWarehouseStatus.mutateAsync({
+        code: deactivatingWarehouse.code,
+        isActive: false,
+      });
       toast.show(
-        nextActive
-          ? `Đã kích hoạt lại vùng ${r.name}.`
-          : `Đã tạm ngừng vùng ${r.name}.`,
+        `Đã vô hiệu hóa kho ${deactivatingWarehouse.code}. Lý do: ${reason}`,
       );
     } catch (e) {
       toast.error(e);
+    } finally {
+      setDeactivatingWarehouse(null);
     }
   };
 
   const handleToggleWarehouseStatus = async (w: Warehouse) => {
+    if (w.status === 'Active') {
+      setDeactivatingWarehouse(w);
+      return;
+    }
     try {
-      const nextActive = w.status !== 'Active';
-      await updateWarehouseStatus.mutateAsync({ code: w.code, isActive: nextActive });
-      toast.show(
-        nextActive
-          ? `Đã kích hoạt lại kho ${w.code}.`
-          : `Đã vô hiệu hóa kho ${w.code}. Kho không còn được chọn khi phân bổ đơn mới.`,
-      );
+      await updateWarehouseStatus.mutateAsync({ code: w.code, isActive: true });
+      toast.show(`Đã kích hoạt lại kho ${w.code}.`);
     } catch (e) {
       toast.error(e);
     }
@@ -157,7 +199,7 @@ export function WarehousesPage() {
         name: regionName.trim(),
         description: regionDesc.trim() || undefined,
       });
-      toast.show(`Đã tạo vùng kho "${regionName.trim()}" thành công.`);
+      toast.show(`Đã tạo vùng hoạt động "${regionName.trim()}" thành công.`);
       setRegionCode('');
       setRegionName('');
       setRegionDesc('');
@@ -184,14 +226,20 @@ export function WarehousesPage() {
     }
   };
 
+  const openMapWithSelection = (regionId = 'all', whCode = 'all') => {
+    setMapRegionFilter(regionId);
+    setMapWarehouseFilter(whCode);
+    setNetMapOpen(true);
+  };
+
   return (
     <>
       <PageHeader
         title="Quản lý kho"
-        subtitle="Mô hình Vùng kho → Kho thuộc vùng · Quản lý cơ sở hạ tầng lưu trữ và phân phối"
+        subtitle="Mô hình Vùng hoạt động → Kho thuộc vùng · Quản lý cơ sở hạ tầng lưu trữ và phân phối"
         actions={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Button onClick={() => setNetMapOpen(true)}>
+            <Button onClick={() => openMapWithSelection('all', 'all')}>
               Bản đồ mạng lưới kho
             </Button>
             {isAdmin && (
@@ -199,7 +247,7 @@ export function WarehousesPage() {
                 variant="primary"
                 onClick={() => setCreateModalOpen(true)}
               >
-                + Thêm vùng kho
+                + Thêm vùng hoạt động
               </Button>
             )}
           </div>
@@ -211,12 +259,12 @@ export function WarehousesPage() {
           items={[
             {
               key: 'regions',
-              label: 'Vùng kho',
+              label: 'Vùng hoạt động',
               count: sortedRegions.length,
             },
             {
               key: 'all-whs',
-              label: 'Tất cả kho',
+              label: 'Danh sách kho',
               count: sortedWarehouses.length,
             },
           ]}
@@ -227,7 +275,7 @@ export function WarehousesPage() {
 
       {activeTab === 'regions' ? (
         <DataTable
-          title="Danh sách vùng kho"
+          title="Danh sách vùng hoạt động"
           rows={sortedRegions}
           loading={regionsQuery.isLoading}
           error={regionsQuery.error}
@@ -255,7 +303,7 @@ export function WarehousesPage() {
                   variant="primary"
                   onClick={() => setCreateModalOpen(true)}
                 >
-                  + Thêm vùng kho
+                  + Thêm vùng hoạt động
                 </Button>
               )}
             </div>
@@ -270,7 +318,7 @@ export function WarehousesPage() {
             },
             {
               key: 'name',
-              header: 'Tên vùng kho',
+              header: 'Tên vùng hoạt động',
               render: (r) => (
                 <div>
                   <span style={{ fontWeight: 600, color: '#0F172A' }}>{r.name}</span>
@@ -334,43 +382,59 @@ export function WarehousesPage() {
               text: (r) => (r.isActive ? 'Hoạt động' : 'Tạm ngừng'),
             },
           ]}
-          rowActionsWidth="240px"
-          rowActions={(r) => (
-            <>
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => navigate(`/whs/regions/${r.id}`)}
+          rowActionsWidth="135px"
+          rowActionHeader="Thao tác"
+          rowActions={(r) => {
+            const dropdownItems: ActionDropdownItem[] = [
+              {
+                key: 'map',
+                label: 'Xem trên bản đồ',
+                icon: <MapPin size={14} style={{ color: '#0284C7' }} />,
+                color: '#0284C7',
+                onClick: () => openMapWithSelection(r.id, 'all'),
+                title: 'Xem bản đồ vùng này',
+              },
+            ];
+
+            return (
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  justifyContent: 'flex-end',
+                }}
+                onClick={(e) => e.stopPropagation()}
               >
-                Xem danh sách kho
-              </Button>
-              {isAdmin && (
-                r.isActive ? (
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    disabled={updateRegionStatus.isPending}
-                    onClick={() => handleToggleRegionStatus(r)}
-                  >
-                    Tạm ngừng
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="default"
-                    disabled={updateRegionStatus.isPending}
-                    onClick={() => handleToggleRegionStatus(r)}
-                  >
-                    Kích hoạt
-                  </Button>
-                )
-              )}
-            </>
-          )}
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => navigate(`/whs/regions/${r.id}`)}
+                  title="Xem danh sách kho thuộc vùng"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '4px 8px',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    height: 30,
+                  }}
+                >
+                  <Eye size={14} />
+                  <span>Xem</span>
+                </Button>
+
+                {dropdownItems.length > 0 && (
+                  <ActionDropdown items={dropdownItems} />
+                )}
+              </div>
+            );
+          }}
         />
       ) : (
         <DataTable
-          title="Tất cả kho"
+          title="Danh sách kho"
           rows={sortedWarehouses}
           loading={warehousesQuery.isLoading}
           error={warehousesQuery.error}
@@ -419,7 +483,7 @@ export function WarehousesPage() {
             },
             {
               key: 'region',
-              header: 'Vùng kho',
+              header: 'Vùng hoạt động',
               width: '140px',
               render: (w) => {
                 const reg = rawRegions.find((r) => r.id === w.regionId);
@@ -481,51 +545,94 @@ export function WarehousesPage() {
               text: (w) => statusLabels.active[w.status] ?? w.status,
             },
           ]}
-          rowActionsWidth="240px"
-          rowActions={(w) => (
-            <>
-              <Button size="sm" onClick={() => navigate(`/whs/${w.code}`)}>
-                Xem
-              </Button>
-              {isAdmin && (
-                <>
-                  <Button
-                    size="sm"
-                    onClick={() => navigate(`/whs/${w.code}/edit`)}
-                  >
-                    Sửa
-                  </Button>
-                  {w.status === 'Active' ? (
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      disabled={updateWarehouseStatus.isPending}
-                      onClick={() => handleToggleWarehouseStatus(w)}
-                    >
-                      Vô hiệu hóa
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      disabled={updateWarehouseStatus.isPending}
-                      onClick={() => handleToggleWarehouseStatus(w)}
-                    >
-                      Kích hoạt lại
-                    </Button>
-                  )}
-                </>
-              )}
-            </>
-          )}
+          rowActionsWidth="135px"
+          rowActionHeader="Thao tác"
+          rowActions={(w) => {
+            const dropdownItems: ActionDropdownItem[] = [
+              {
+                key: 'map',
+                label: 'Xem trên bản đồ',
+                icon: <MapPin size={14} style={{ color: '#0284C7' }} />,
+                color: '#0284C7',
+                onClick: () => openMapWithSelection(w.regionId || 'all', w.code),
+                title: 'Xem kho này trên bản đồ',
+              },
+            ];
+
+            if (isAdmin) {
+              dropdownItems.push({
+                key: 'edit',
+                label: 'Chỉnh sửa',
+                icon: <Pencil size={14} style={{ color: '#1D4ED8' }} />,
+                color: '#1D4ED8',
+                onClick: () => navigate(`/whs/${w.code}/edit`),
+                title: 'Chỉnh sửa thông tin kho',
+              });
+
+              if (w.status === 'Active') {
+                dropdownItems.push({
+                  key: 'deactivate',
+                  label: 'Ngừng hoạt động',
+                  icon: <Pause size={14} style={{ color: '#C2410C' }} />,
+                  color: '#C2410C',
+                  onClick: () => handleToggleWarehouseStatus(w),
+                  title: 'Vô hiệu hóa kho',
+                });
+              } else {
+                dropdownItems.push({
+                  key: 'reactivate',
+                  label: 'Kích hoạt lại',
+                  icon: <Play size={14} style={{ color: '#15803D' }} />,
+                  color: '#15803D',
+                  onClick: () => handleToggleWarehouseStatus(w),
+                  title: 'Kích hoạt lại kho',
+                });
+              }
+            }
+
+            return (
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  justifyContent: 'flex-end',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => navigate(`/whs/${w.code}`)}
+                  title="Xem chi tiết kho"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '4px 8px',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    height: 30,
+                  }}
+                >
+                  <Eye size={14} />
+                  <span>Xem</span>
+                </Button>
+
+                {dropdownItems.length > 0 && (
+                  <ActionDropdown items={dropdownItems} />
+                )}
+              </div>
+            );
+          }}
         />
       )}
 
-      {/* Modal: Tạo vùng kho mới */}
+      {/* Modal: Tạo vùng hoạt động mới */}
       <Modal
         open={createModalOpen}
-        title="Tạo vùng kho mới"
-        subtitle="Vùng kho quản lý mạng lưới các kho trực thuộc trong khu vực"
+        title="Tạo vùng hoạt động mới"
+        subtitle="Vùng hoạt động quản lý mạng lưới các kho trực thuộc trong khu vực"
         width={560}
         onClose={() => setCreateModalOpen(false)}
         footer={
@@ -536,7 +643,7 @@ export function WarehousesPage() {
               disabled={createRegion.isPending}
               onClick={handleCreateRegion}
             >
-              {createRegion.isPending ? 'Đang tạo…' : 'Tạo vùng kho'}
+              {createRegion.isPending ? 'Đang tạo…' : 'Tạo vùng hoạt động'}
             </Button>
           </div>
         }
@@ -555,7 +662,7 @@ export function WarehousesPage() {
               {createError}
             </div>
           )}
-          <FormField label="Mã vùng kho *" required>
+          <FormField label="Mã vùng hoạt động *" required>
             <Input
               value={regionCode}
               onChange={(e) => setRegionCode(e.target.value)}
@@ -563,7 +670,7 @@ export function WarehousesPage() {
               autoFocus
             />
           </FormField>
-          <FormField label="Tên vùng kho *" required>
+          <FormField label="Tên vùng hoạt động *" required>
             <Input
               value={regionName}
               onChange={(e) => setRegionName(e.target.value)}
@@ -574,7 +681,7 @@ export function WarehousesPage() {
             <TextArea
               value={regionDesc}
               onChange={(e) => setRegionDesc(e.target.value)}
-              placeholder="Mô tả phạm vi hoạt động của vùng kho…"
+              placeholder="Mô tả phạm vi của vùng hoạt động…"
               rows={3}
             />
           </FormField>
@@ -584,23 +691,87 @@ export function WarehousesPage() {
       {/* Modal: Bản đồ mạng lưới kho */}
       <Modal
         open={netMapOpen}
-        title="Bản đồ mạng lưới kho & điểm bán"
-        subtitle={`${allWarehouses.length} kho · ${retailers.length} retailer · vòng tròn = bán kính phục vụ 20 km tính từ ${refWh?.name ?? 'Kho Thới An'}`}
-        width={1100}
+        title="Bản đồ mạng lưới kho"
+        subtitle="Vòng tròn = bán kính phục vụ 20 km quanh từng kho"
+        width={1120}
         onClose={() => setNetMapOpen(false)}
         footer={<Button onClick={() => setNetMapOpen(false)}>Đóng</Button>}
       >
-        <iframe
-          title="Bản đồ mạng lưới kho"
-          srcDoc={netMapDoc}
-          style={{
-            width: '100%',
-            height: 640,
-            border: '1px solid #E2E5E0',
-            borderRadius: 8,
-          }}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {/* Controls Bar */}
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 16,
+              alignItems: 'center',
+              padding: '10px 14px',
+              background: '#F8FAFC',
+              borderRadius: 8,
+              border: '1px solid #E2E8F0',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#1E293B', whiteSpace: 'nowrap' }}>
+                Vùng hoạt động:
+              </label>
+              <Select
+                value={mapRegionFilter}
+                onChange={(e) => {
+                  setMapRegionFilter(e.target.value);
+                  setMapWarehouseFilter('all');
+                }}
+                options={[
+                  { value: 'all', label: 'Tất cả vùng hoạt động' },
+                  ...rawRegions.map((r) => ({
+                    value: r.id,
+                    label: `${r.name} (${r.code})`,
+                  })),
+                ]}
+                style={{ minWidth: 220 }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#1E293B', whiteSpace: 'nowrap' }}>
+                Kho:
+              </label>
+              <Select
+                value={mapWarehouseFilter}
+                onChange={(e) => setMapWarehouseFilter(e.target.value)}
+                options={[
+                  { value: 'all', label: mapRegionFilter === 'all' ? 'Tất cả kho' : 'Tất cả kho trong vùng' },
+                  ...mapWarehouseOptions.map((w) => ({
+                    value: w.code,
+                    label: `${w.code} · ${w.name}`,
+                  })),
+                ]}
+                style={{ minWidth: 240 }}
+              />
+            </div>
+          </div>
+
+          <iframe
+            title="Bản đồ mạng lưới kho"
+            srcDoc={netMapDoc}
+            style={{
+              width: '100%',
+              height: 600,
+              border: '1px solid #E2E8F0',
+              borderRadius: 8,
+            }}
+          />
+        </div>
       </Modal>
+
+      {/* Modal: Xác nhận vô hiệu hóa kho */}
+      <DeactivateWarehouseModal
+        warehouse={deactivatingWarehouse}
+        open={Boolean(deactivatingWarehouse)}
+        onClose={() => setDeactivatingWarehouse(null)}
+        onConfirm={handleConfirmDeactivate}
+        loading={updateWarehouseStatus.isPending}
+      />
     </>
   );
 }

@@ -1,6 +1,6 @@
 import { useParams } from '@/shared/router/compat';
-import { Button, Card, Fields, PageHeader, QueryState, StatusChip } from '@/shared/ui';
-import { formatDate, formatPercent } from '@/shared/lib';
+import { Button, Callout, Card, Fields, PageHeader, QueryState, SimpleTable, StatusChip } from '@/shared/ui';
+import { formatInstantDate, formatPercent } from '@/shared/lib';
 import { useActivatePromo, usePausePromo, usePromo, usePromoLookups } from '../hooks';
 import { promoStatus } from '../status';
 
@@ -24,23 +24,28 @@ export function PromoDetailPage() {
           <>
             <PageHeader
               back="/promos"
-              title={`${p.code} · ${p.name}`}
-              subtitle={`Giảm ${formatPercent(p.discountPercent, 1)} khi mua từ ${p.minimumQuantity} thùng · ${formatDate(p.startAt)} – ${formatDate(p.endAt)}`}
+              title={p.name}
+              subtitle={`${p.campaignMode === "PerSku" ? "Loại 1 · Điều kiện riêng từng SKU" : "Loại 2 · Cộng số lượng trong nhóm"} · ${formatInstantDate(p.startAt)} – ${formatInstantDate(p.endAt)}`}
               chips={<StatusChip domain="promotion" value={status} />}
               actions={
                 <>
-                  {status === 'Running' && <Button variant="danger" loading={pause.isPending} onClick={() => pause.mutate(p.id)}>Tạm dừng</Button>}
+                  {(status === 'Running' || status === 'Scheduled') && <Button variant="danger" loading={pause.isPending} onClick={() => pause.mutate(p.id)}>Tạm dừng</Button>}
                   {status === 'Paused' && <Button variant="primary" loading={activate.isPending} onClick={() => activate.mutate(p.id)}>Kích hoạt lại</Button>}
                 </>
               }
             />
-            <Card title="Mức giảm">
+            {!p.isActive && status !== 'Ended' && <Callout tone="info">Chương trình đã được lưu và đang tạm dừng. Chọn “Kích hoạt lại” để áp dụng cho đơn mới.</Callout>}
+            {p.campaignMode === 'PerSku' ? <Card title="Loại 1 · Điều kiện từng SKU"><SimpleTable rows={p.productRules ?? []} columns={[
+              { header: 'SKU / sản phẩm', cell: (r) => namesOf(products.data, [r.productId], (x) => `${x.sku} · ${x.name}`) },
+              { header: 'Tối thiểu (thùng)', align: 'right', cell: (r) => r.minimumQuantity },
+              { header: '% giảm', align: 'right', cell: (r) => formatPercent(r.discountPercent, 2) },
+            ]} /></Card> : <Card title="Loại 2 · Điều kiện chung của nhóm">
               <Fields items={[
-                { label: 'Mua tối thiểu', value: `${p.minimumQuantity} thùng` },
+                { label: 'Tổng số lượng tối thiểu của nhóm', value: `${p.minimumQuantity} thùng` },
                 { label: '% giảm', value: formatPercent(p.discountPercent, 1) },
-                { label: 'Loại', value: p.promotionType },
+                { label: 'Loại', value: 'Loại 2 · Theo nhóm sản phẩm' },
               ]} />
-            </Card>
+            </Card>}
             <Card title="Đối tượng áp dụng">
               <Fields items={[
                 { label: 'SKU', value: namesOf(products.data, p.productIds, (x) => `${x.sku} · ${x.name}`) ?? '—' },

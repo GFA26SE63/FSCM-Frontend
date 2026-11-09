@@ -1,18 +1,15 @@
+import { ShelfLifeDialog } from '../components/ShelfLifeDialog';
+import { usePromoLookups } from '@/features/promos/hooks';
 import { useState } from 'react';
-import { Button, Card, FormDialog, PageHeader, SimpleTable, Tabs } from '@/shared/ui';
+import { Button, Card, PageHeader, SimpleTable, Tabs } from '@/shared/ui';
 import { formatDate, formatNumber } from '@/shared/lib';
-import { usePublishShelfLife, useShelfLifeCurrent, useShelfLifeHistory } from '../hooks';
+import { useShelfLifeCurrent, useShelfLifeHistory } from '../hooks';
 import type { ShelfLifeTable, ShelfLifeTier } from '../types';
-
-const defaultTiers = JSON.stringify([
-  { scope: 'Category', productCategoryId: '', minRemainingPercent: 0, maxRemainingPercent: 20, discountType: 'Percent', discountValue: 20 },
-  { scope: 'Category', productCategoryId: '', minRemainingPercent: 20, maxRemainingPercent: 40, discountType: 'Percent', discountValue: 10 },
-], null, 2);
 
 export function BatchPromoPage() {
   const current = useShelfLifeCurrent();
   const history = useShelfLifeHistory();
-  const publish = usePublishShelfLife();
+
   const [tab, setTab] = useState<'current' | 'history'>('current');
   const [edit, setEdit] = useState(false);
   const table = current.data;
@@ -21,23 +18,7 @@ export function BatchPromoPage() {
       <PageHeader title="Giảm giá theo HSD" subtitle="Bảng giảm theo khoảng % HSD còn lại, áp dụng theo SKU hoặc Category sau khi batch đã được chọn." actions={<Button variant="primary" onClick={() => setEdit(true)}>Publish phiên bản mới</Button>} />
       <Tabs value={tab} onChange={setTab} items={[{ key: 'current', label: 'Đang áp dụng', count: table?.tiers.length }, { key: 'history', label: 'Lịch sử phiên bản', count: history.data?.length }]} />
       {tab === 'current' ? <TableCard table={table} loading={current.isLoading} /> : <History tables={history.data ?? []} loading={history.isLoading} />}
-      {edit && <FormDialog
-        open width={760} title="Publish bảng giảm theo HSD" submitLabel="Publish"
-        initial={{ effectiveFrom: new Date().toISOString().slice(0, 10), note: '', tiersJson: defaultTiers }}
-        fields={[
-          { key: 'effectiveFrom', label: 'Hiệu lực từ', type: 'date', required: true },
-          { key: 'note', label: 'Ghi chú', type: 'textarea', span: 2 },
-          { key: 'tiersJson', label: 'Các bậc giảm (JSON)', type: 'textarea', required: true, span: 2, hint: 'Mỗi bậc gồm scope, productId hoặc productCategoryId, minRemainingPercent, maxRemainingPercent, discountType (Percent/FixedPerUnit), discountValue.' },
-        ]}
-        onClose={() => setEdit(false)}
-        onSubmit={async (v) => {
-          let tiers: ShelfLifeTier[];
-          try { tiers = JSON.parse(String(v.tiersJson)) as ShelfLifeTier[]; } catch { throw new Error('Các bậc giảm phải là JSON hợp lệ.'); }
-          if (!Array.isArray(tiers) || !tiers.length) throw new Error('Phải có ít nhất một bậc giảm.');
-          await publish.mutateAsync({ effectiveFrom: new Date(`${v.effectiveFrom}T00:00:00Z`).toISOString(), note: v.note || undefined, tiers });
-          setEdit(false);
-        }}
-      />}
+      {edit && <ShelfLifeDialog initial={table?.tiers ?? []} onClose={() => setEdit(false)} />}
     </>
   );
 }
@@ -53,8 +34,9 @@ function History({ tables, loading }: { tables: ShelfLifeTable[]; loading: boole
 }
 
 function TierTable({ tiers }: { tiers: ShelfLifeTier[] }) {
+  const { products, categories } = usePromoLookups();
   return <SimpleTable rows={tiers} columns={[
-    { header: 'Phạm vi', cell: (x) => x.scope === 'Sku' ? `SKU ${x.productId ?? '—'}` : `Category ${x.productCategoryId ?? '—'}` },
+    { header: 'Phạm vi', cell: (x) => x.scope === 'Sku' ? (products.data?.find((p) => p.id === x.productId) ? `${products.data.find((p) => p.id === x.productId)!.sku} · ${products.data.find((p) => p.id === x.productId)!.name}` : 'Sản phẩm đang tải…') : (categories.data?.find((c) => c.id === x.productCategoryId)?.name ?? 'Nhóm hàng đang tải…') },
     { header: 'HSD còn lại', cell: (x) => `${x.minRemainingPercent}% – < ${x.maxRemainingPercent}%` },
     { header: 'Kiểu giảm', cell: (x) => x.discountType === 'Percent' ? 'Phần trăm' : 'Tiền / đơn vị' },
     { header: 'Mức giảm', align: 'right', cell: (x) => x.discountType === 'Percent' ? `${formatNumber(x.discountValue)}%` : formatNumber(x.discountValue) },

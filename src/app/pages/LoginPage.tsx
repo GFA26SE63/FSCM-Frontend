@@ -1,16 +1,35 @@
 import { matchPath } from 'react-router-dom';
-import { useRef, useState } from 'react';
-import { GoogleLogin } from '@react-oauth/google';
-import { Eye, EyeOff } from 'lucide-react';
+import {
+  useRef,
+  useState,
+} from 'react';
+import {
+  GoogleLogin,
+} from '@react-oauth/google';
+import {
+  Eye,
+  EyeOff,
+} from 'lucide-react';
+
 import {
   Navigate,
   useLocation,
 } from '@/shared/router/compat';
-import { useAuth } from '@/shared/auth/AuthContext';
-import { authApi } from '@/shared/auth/authApi';
-import { type PortalRole } from '@/shared/auth/roles';
-import { errorMessage } from '@/shared/api/errors';
-import { env } from '@/shared/lib/env';
+import {
+  useAuth,
+} from '@/shared/auth/AuthContext';
+import {
+  authApi,
+} from '@/shared/auth/authApi';
+import type {
+  PortalRole,
+} from '@/shared/auth/roles';
+import {
+  errorMessage,
+} from '@/shared/api/errors';
+import {
+  env,
+} from '@/shared/lib/env';
 import {
   Button,
   Checkbox,
@@ -18,11 +37,17 @@ import {
   Input,
   Modal,
 } from '@/shared/ui';
-import { APP_ROUTES, HOME_BY_ROLE } from '../routes';
+import {
+  APP_ROUTES,
+  HOME_BY_ROLE,
+} from '../routes';
 
-type LoginMethod = 'password' | 'google';
+type LoginMethod =
+  | 'password'
+  | 'google';
 
-const rememberedEmailKey = 'fscm.remembered-login-email';
+const rememberedEmailKey =
+  'fscm.remembered-login-email';
 
 function getReturnPath(
   state: unknown,
@@ -48,26 +73,31 @@ function getReturnPath(
     return null;
   }
 
-  // Hiện RequireAuth chỉ lưu pathname.
-  // Chỉ nhận URL khớp một route thật trong ứng dụng.
-  const route = APP_ROUTES.find((item) => {
-    const patterns = [
-      `/${item.key}`,
-      ...(item.sub ?? []).map(
-        (sub) => `/${item.key}/${sub.path}`,
-      ),
-    ];
+  const route = APP_ROUTES.find(
+    (item) => {
+      const patterns = [
+        `/${item.key}`,
+        ...(item.sub ?? []).map(
+          (sub) =>
+            `/${item.key}/${sub.path}`,
+        ),
+      ];
 
-    return patterns.some(
-      (pattern) => matchPath(path, {
-        path: pattern,
-        exact: true,
-        strict: false,
-      }) !== null,
-    );
-  });
+      return patterns.some(
+        (pattern) =>
+          matchPath(path, {
+            path: pattern,
+            exact: true,
+            strict: false,
+          }) !== null,
+      );
+    },
+  );
 
-  if (!route || !route.roles.includes(role)) {
+  if (
+    !route ||
+    !route.roles.includes(role)
+  ) {
     return null;
   }
 
@@ -86,28 +116,46 @@ export function LoginPage() {
   const location = useLocation();
   const submitting = useRef(false);
 
-  const [email, setEmail] = useState(() =>
-    window.localStorage.getItem(rememberedEmailKey) ?? '',
+  const [email, setEmail] = useState(
+    () =>
+      localStorage.getItem(
+        rememberedEmailKey,
+      ) ?? '',
   );
 
-  const [password, setPassword] = useState('');
+  const [password, setPassword] =
+    useState('');
 
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] =
+    useState(false);
 
-  const [rememberLogin, setRememberLogin] = useState(() =>
-    Boolean(window.localStorage.getItem(rememberedEmailKey)),
-  );
-
-  const [forgotOpen, setForgotOpen] = useState(false);
-  const [resetEmail, setResetEmail] = useState('');
-  const [resetBusy, setResetBusy] = useState(false);
-  const [resetMessage, setResetMessage] = useState<string | null>(null);
-  const [resetError, setResetError] = useState<string | null>(null);
+  const [
+    rememberLogin,
+    setRememberLogin,
+  ] = useState(false);
 
   const [busy, setBusy] =
     useState<LoginMethod | null>(null);
 
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] =
+    useState<string | null>(null);
+
+  const [forgotOpen, setForgotOpen] =
+    useState(false);
+
+  const [resetEmail, setResetEmail] =
+    useState('');
+
+  const [resetBusy, setResetBusy] =
+    useState(false);
+
+  const [resetMessage, setResetMessage] =
+    useState<string | null>(null);
+
+  const [resetError, setResetError] =
+    useState<string | null>(null);
+
+  const isBusy = busy !== null;
 
   if (status === 'loading') {
     return (
@@ -117,21 +165,31 @@ export function LoginPage() {
     );
   }
 
-  if (status === 'authenticated' && user) {
+  if (
+    status === 'authenticated' &&
+    user
+  ) {
     const destination =
-      getReturnPath(location.state, user.role) ??
-      HOME_BY_ROLE[user.role];
+      getReturnPath(
+        location.state,
+        user.role,
+      ) ?? HOME_BY_ROLE[user.role];
 
-    return <Navigate to={destination} replace />;
+    return (
+      <Navigate
+        to={destination}
+        replace
+      />
+    );
   }
 
   const submitPassword = async () => {
     if (submitting.current) return;
 
-    if (
-      !email.trim() || !password
-    ) {
-      setError('Vui lòng nhập email và mật khẩu.');
+    if (!email.trim() || !password) {
+      setError(
+        'Vui lòng nhập email và mật khẩu.',
+      );
       return;
     }
 
@@ -140,12 +198,24 @@ export function LoginPage() {
     setError(null);
 
     try {
-      await loginWithPassword(email.trim(), password);
+      await loginWithPassword(
+        email.trim(),
+        password,
+        rememberLogin,
+      );
+
       if (rememberLogin) {
-        window.localStorage.setItem(rememberedEmailKey, email.trim());
+        localStorage.setItem(
+          rememberedEmailKey,
+          email.trim(),
+        );
       } else {
-        window.localStorage.removeItem(rememberedEmailKey);
+        localStorage.removeItem(
+          rememberedEmailKey,
+        );
       }
+
+      setPassword('');
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -154,16 +224,26 @@ export function LoginPage() {
     }
   };
 
-  const isBusy = busy !== null;
-
-  const submitGoogle = async (googleIdToken: string) => {
+  const submitGoogle = async (
+    googleIdToken: string,
+  ) => {
     if (submitting.current) return;
+
     submitting.current = true;
     setBusy('google');
     setError(null);
 
     try {
-      await loginWithGoogle(googleIdToken);
+      await loginWithGoogle(
+        googleIdToken,
+        rememberLogin,
+      );
+
+      if (!rememberLogin) {
+        localStorage.removeItem(
+          rememberedEmailKey,
+        );
+      }
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -179,24 +259,36 @@ export function LoginPage() {
     setForgotOpen(true);
   };
 
-  const requestPasswordReset = async () => {
-    if (!resetEmail.trim() || resetBusy) return;
+  const requestPasswordReset =
+    async () => {
+      if (
+        !resetEmail.trim() ||
+        resetBusy
+      ) {
+        return;
+      }
 
-    setResetBusy(true);
-    setResetMessage(null);
-    setResetError(null);
+      setResetBusy(true);
+      setResetMessage(null);
+      setResetError(null);
 
-    try {
-      await authApi.requestPasswordReset(resetEmail);
-      setResetMessage(
-        'Nếu tài khoản tồn tại, hướng dẫn đặt lại mật khẩu đã được tạo.',
-      );
-    } catch (cause) {
-      setResetError(errorMessage(cause));
-    } finally {
-      setResetBusy(false);
-    }
-  };
+      try {
+        await authApi
+          .requestPasswordReset(
+            resetEmail,
+          );
+
+        setResetMessage(
+          'Nếu tài khoản tồn tại, hướng dẫn đặt lại mật khẩu đã được tạo.',
+        );
+      } catch (cause) {
+        setResetError(
+          errorMessage(cause),
+        );
+      } finally {
+        setResetBusy(false);
+      }
+    };
 
   return (
     <div className="login-wrap">
@@ -217,18 +309,25 @@ export function LoginPage() {
           </div>
 
           <p className="muted">
-            Đăng nhập để tiếp tục.
+            Đăng nhập bằng tài khoản FSCM
+            hoặc Google.
           </p>
         </div>
 
         {sessionMessage && (
-          <div className="callout" role="status">
+          <div
+            className="callout"
+            role="status"
+          >
             {sessionMessage}
           </div>
         )}
 
         {error && (
-          <div className="callout" role="alert">
+          <div
+            className="callout callout-danger"
+            role="alert"
+          >
             {error}
           </div>
         )}
@@ -243,7 +342,9 @@ export function LoginPage() {
             autoComplete="username"
             placeholder="Nhập email tài khoản FSCM"
             onChange={(event) =>
-              setEmail(event.target.value)
+              setEmail(
+                event.target.value,
+              )
             }
           />
         </FormField>
@@ -251,7 +352,11 @@ export function LoginPage() {
         <FormField label="Mật khẩu">
           <div className="password-input">
             <Input
-              type={showPassword ? 'text' : 'password'}
+              type={
+                showPassword
+                  ? 'text'
+                  : 'password'
+              }
               name="password"
               value={password}
               required
@@ -259,18 +364,30 @@ export function LoginPage() {
               autoComplete="current-password"
               placeholder="Nhập mật khẩu"
               onChange={(event) =>
-                setPassword(event.target.value)
+                setPassword(
+                  event.target.value,
+                )
               }
             />
+
             <button
               type="button"
               className="password-toggle"
               aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
               aria-pressed={showPassword}
               disabled={isBusy}
-              onClick={() => setShowPassword((visible) => !visible)}
+              onClick={() =>
+                setShowPassword(
+                  (visible) =>
+                    !visible,
+                )
+              }
             >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              {showPassword ? (
+                <EyeOff size={18} />
+              ) : (
+                <Eye size={18} />
+              )}
             </button>
           </div>
         </FormField>
@@ -281,17 +398,25 @@ export function LoginPage() {
             checked={rememberLogin}
             disabled={isBusy}
             onChange={(checked) => {
-              setRememberLogin(checked);
+              setRememberLogin(
+                checked,
+              );
+
               if (!checked) {
-                window.localStorage.removeItem(rememberedEmailKey);
+                localStorage.removeItem(
+                  rememberedEmailKey,
+                );
               }
             }}
           />
+
           <button
             type="button"
             className="link-btn"
             disabled={isBusy}
-            onClick={openForgotPassword}
+            onClick={
+              openForgotPassword
+            }
           >
             Quên mật khẩu?
           </button>
@@ -301,47 +426,63 @@ export function LoginPage() {
           type="submit"
           variant="primary"
           block
-          loading={busy === 'password'}
+          loading={
+            busy === 'password'
+          }
           disabled={isBusy}
         >
           Đăng nhập
         </Button>
 
-        <>
-            <div className="oauth-divider">
-              <span>hoặc</span>
-            </div>
+        <div className="oauth-divider">
+          <span>hoặc</span>
+        </div>
 
-            {env.google.clientId && !isBusy && (
-              <div className="google-login-button">
-                <GoogleLogin
-                  text="signin_with"
-                  width="368"
-                  onSuccess={(response) => {
-                    if (response.credential) {
-                      void submitGoogle(response.credential);
-                    } else {
-                      setError('Google không trả về ID token. Hãy thử lại.');
-                    }
-                  }}
-                  onError={() =>
-                    setError('Đăng nhập Google thất bại. Hãy thử lại.')
+        {env.google.clientId &&
+          !isBusy && (
+            <div className="google-login-button">
+              <GoogleLogin
+                text="signin_with"
+                width="368"
+                onSuccess={(
+                  response,
+                ) => {
+                  if (
+                    response.credential
+                  ) {
+                    void submitGoogle(
+                      response.credential,
+                    );
+                  } else {
+                    setError(
+                      'Google không trả về ID token. Hãy thử lại.',
+                    );
                   }
-                />
-              </div>
-            )}
+                }}
+                onError={() =>
+                  setError(
+                    'Đăng nhập Google thất bại. Hãy thử lại.',
+                  )
+                }
+              />
+            </div>
+          )}
 
-            {busy === 'google' && (
-              <p className="muted small">Đang đăng nhập bằng Google…</p>
-            )}
+        {busy === 'google' && (
+          <p
+            className="muted small"
+            role="status"
+          >
+            Đang đăng nhập bằng Google…
+          </p>
+        )}
 
-            {!env.google.clientId && (
-              <p className="muted small">
-                Đăng nhập Google chưa sẵn sàng.
-                Bạn vẫn có thể dùng tài khoản FSCM.
-              </p>
-            )}
-        </>
+        {!env.google.clientId && (
+          <p className="muted small">
+            Đăng nhập Google chưa sẵn sàng.
+            Bạn vẫn có thể dùng tài khoản FSCM.
+          </p>
+        )}
       </form>
 
       <Modal
@@ -349,17 +490,32 @@ export function LoginPage() {
         title="Quên mật khẩu"
         subtitle="Nhập email tài khoản FSCM để nhận hướng dẫn đặt lại mật khẩu."
         width={440}
-        onClose={() => !resetBusy && setForgotOpen(false)}
+        onClose={() => {
+          if (!resetBusy) {
+            setForgotOpen(false);
+          }
+        }}
         footer={
           <>
-            <Button disabled={resetBusy} onClick={() => setForgotOpen(false)}>
+            <Button
+              disabled={resetBusy}
+              onClick={() =>
+                setForgotOpen(false)
+              }
+            >
               Hủy
             </Button>
+
             <Button
               variant="primary"
               loading={resetBusy}
-              disabled={!resetEmail.trim()}
-              onClick={() => void requestPasswordReset()}
+              disabled={
+                !resetEmail.trim() ||
+                resetBusy
+              }
+              onClick={() =>
+                void requestPasswordReset()
+              }
             >
               Gửi yêu cầu
             </Button>
@@ -367,7 +523,10 @@ export function LoginPage() {
         }
       >
         {resetMessage ? (
-          <div className="callout callout-ok" role="status">
+          <div
+            className="callout callout-ok"
+            role="status"
+          >
             {resetMessage}
           </div>
         ) : (
@@ -381,9 +540,16 @@ export function LoginPage() {
               disabled={resetBusy}
               autoFocus
               placeholder="Nhập email tài khoản FSCM"
-              onChange={(event) => setResetEmail(event.target.value)}
+              onChange={(event) =>
+                setResetEmail(
+                  event.target.value,
+                )
+              }
               onKeyDown={(event) => {
-                if (event.key === 'Enter') {
+                if (
+                  event.key ===
+                  'Enter'
+                ) {
                   event.preventDefault();
                   void requestPasswordReset();
                 }
@@ -391,8 +557,12 @@ export function LoginPage() {
             />
           </FormField>
         )}
+
         {resetError && (
-          <div className="callout callout-danger" role="alert">
+          <div
+            className="callout callout-danger"
+            role="alert"
+          >
             {resetError}
           </div>
         )}

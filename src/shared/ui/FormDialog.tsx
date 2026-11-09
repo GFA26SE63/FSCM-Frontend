@@ -3,6 +3,7 @@ import { Modal } from './Modal';
 import { Button } from './Button';
 import { Checkbox, FormField, Input, Select, TextArea, type SelectOption } from './FormField';
 import { toApiError } from '../api/errors';
+import { SearchSelect } from './SearchSelect';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type FormValues = Record<string, any>;
@@ -10,7 +11,7 @@ export type FormValues = Record<string, any>;
 export interface FormFieldDef {
   key: string;
   label: string;
-  type?: 'text' | 'number' | 'date' | 'datetime-local' | 'select' | 'textarea' | 'check' | 'chips' | 'info';
+  type?: 'text' | 'number' | 'date' | 'datetime-local' | 'select' | 'search' | 'textarea' | 'check' | 'chips' | 'info';
   required?: boolean;
   placeholder?: string;
   hint?: ReactNode;
@@ -162,7 +163,9 @@ export function FormDialog({ open, title, subtitle, fields, initial, submitLabel
           }
           return (
             <FormField key={f.key} label={f.label} required={f.required} error={err} hint={f.hint} span={span}>
-              {type === 'select' ? (
+              {type === 'search' ? (
+                <SearchSelect value={values[f.key] ?? ''} options={f.options ?? []} invalid={!!err} disabled={f.readOnly} placeholder={f.placeholder} onChange={(v) => set(f.key, v)} />
+              ) : type === 'select' ? (
                 <Select value={values[f.key] ?? ''} options={f.options ?? []} invalid={!!err} disabled={f.readOnly} onChange={(e) => set(f.key, e.target.value)} />
               ) : type === 'textarea' ? (
                 <TextArea value={values[f.key] ?? ''} placeholder={f.placeholder} invalid={!!err} readOnly={f.readOnly} onChange={(e) => set(f.key, e.target.value)} />

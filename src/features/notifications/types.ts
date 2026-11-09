@@ -1,18 +1,22 @@
 export interface AppNotification {
   id: string;
+  type: string;
   title: string;
-  body: string;
+  message: string;
   createdAt: string;
-  read: boolean;
-  link: string | null;
+  isRead: boolean;
+  readAt: string | null;
+  relatedEntityType: string | null;
+  relatedEntityId: string | null;
+  deepLink: string | null;
 }
 
-/** Counters shown as orange badges in the sidebar menu (optional endpoint – menu works without it). */
-export interface MenuBadges {
-  orders: number;
-  debts: number;
-  retailers: number;
-  redeem: number;
-  complaints: number;
-  disposal: number;
+export interface NotificationBadge {
+  unreadCount: number;
+  hasUnread: boolean;
+}
+
+export interface MarkAllNotificationsReadResult {
+  updatedCount: number;
+  readAt: string;
 }

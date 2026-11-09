@@ -1,8 +1,15 @@
 import axios from 'axios';
+
 import { get } from '../api/http';
-import { ApiError, toApiError } from '../api/errors';
+import {
+  ApiError,
+  toApiError,
+} from '../api/errors';
 import { env } from '../lib/env';
-import { isPortalRole, type PortalRole } from './roles';
+import {
+  isPortalRole,
+  type PortalRole,
+} from './roles';
 
 export interface IdentityScope {
   warehouseIds: string[];
@@ -33,7 +40,6 @@ export interface CurrentUser {
   scope?: IdentityScope;
   scopeLabels?: IdentityScopeLabels;
 
-  // Normalize the API response for the current UI.
   warehouseCode?: string | null;
   areaCodes?: string[];
 }
@@ -57,7 +63,10 @@ interface BackendAuthenticationResult {
 }
 
 export interface AuthenticationResult
-  extends Omit<BackendAuthenticationResult, 'user'> {
+  extends Omit<
+    BackendAuthenticationResult,
+    'user'
+  > {
   user: CurrentUser;
 }
 
@@ -66,6 +75,8 @@ export interface PasswordResetRequestResult {
   resetToken?: string | null;
 }
 
+// Client riêng cho login/logout.
+// Không gắn interceptor refresh vào các request này.
 const identityHttp = axios.create({
   baseURL: `${env.apiBaseUrl}/api/v1/auth`,
   timeout: 20_000,
@@ -75,7 +86,9 @@ const identityHttp = axios.create({
   },
 });
 
-function mapCurrentUser(user: BackendCurrentUser): CurrentUser {
+function mapCurrentUser(
+  user: BackendCurrentUser,
+): CurrentUser {
   if (!user || !isPortalRole(user.role)) {
     throw new ApiError(
       403,
@@ -84,21 +97,45 @@ function mapCurrentUser(user: BackendCurrentUser): CurrentUser {
     );
   }
 
-  const warehouseCode =
-    user.scopeLabels?.warehouses?.[0]?.code ?? null;
-  const areaCodes =
-    user.scopeLabels?.regions?.map((region) => region.code) ?? [];
-
   return {
     id: String(user.id),
     name: user.fullName,
     email: user.email,
     role: user.role,
-    mustChangePassword: Boolean(user.mustChangePassword),
+    mustChangePassword: Boolean(
+      user.mustChangePassword,
+    ),
     scope: user.scope,
     scopeLabels: user.scopeLabels,
-    warehouseCode,
-    areaCodes,
+    warehouseCode:
+      user.scopeLabels?.warehouses?.[0]?.code ??
+      null,
+    areaCodes:
+      user.scopeLabels?.regions?.map(
+        (region) => region.code,
+      ) ?? [],
+  };
+}
+
+function mapAuthenticationResult(
+  result: BackendAuthenticationResult,
+): AuthenticationResult {
+  if (
+    !result.accessToken ||
+    !result.accessTokenExpiresAt ||
+    !result.refreshToken ||
+    !result.refreshTokenExpiresAt
+  ) {
+    throw new ApiError(
+      502,
+      'Phản hồi đăng nhập không hợp lệ',
+      'Backend không trả đủ token và thời hạn phiên.',
+    );
+  }
+
+  return {
+    ...result,
+    user: mapCurrentUser(result.user),
   };
 }
 
@@ -108,81 +145,67 @@ export const authApi = {
     password: string,
   ): Promise<AuthenticationResult> {
     try {
-      const response = await identityHttp.post<BackendAuthenticationResult>(
-        '/login',
-        {
-          email: email.trim(),
-          password,
-        },
-      );
-
-      if (
-        !response.data.accessToken ||
-        !response.data.refreshToken
-      ) {
-        throw new ApiError(
-          502,
-          'Phản hồi đăng nhập không hợp lệ',
-          'Backend không trả đủ thông tin phiên.',
+      const response =
+        await identityHttp.post<BackendAuthenticationResult>(
+          '/login',
+          {
+            email: email.trim(),
+            password,
+          },
         );
-      }
 
-      return {
-        ...response.data,
-        user: mapCurrentUser(response.data.user),
-      };
+      return mapAuthenticationResult(
+        response.data,
+      );
     } catch (error) {
       throw toApiError(error);
     }
-  },
-
-  async me(): Promise<CurrentUser> {
-    const user = await get<BackendCurrentUser>('/auth/me');
-    return mapCurrentUser(user);
   },
 
   async exchangeGoogle(
     googleIdToken: string,
   ): Promise<AuthenticationResult> {
     try {
-      const response = await identityHttp.post<BackendAuthenticationResult>(
-        '/google/exchange',
-        undefined,
-        {
-          headers: {
-            Authorization: `Bearer ${googleIdToken}`,
+      const response =
+        await identityHttp.post<BackendAuthenticationResult>(
+          '/google/exchange',
+          undefined,
+          {
+            headers: {
+              Authorization:
+                `Bearer ${googleIdToken}`,
+            },
           },
-        },
-      );
-
-      if (
-        !response.data.accessToken ||
-        !response.data.refreshToken
-      ) {
-        throw new ApiError(
-          502,
-          'Phản hồi đăng nhập không hợp lệ',
-          'Backend không trả đủ thông tin phiên.',
         );
-      }
 
-      return {
-        ...response.data,
-        user: mapCurrentUser(response.data.user),
-      };
+      return mapAuthenticationResult(
+        response.data,
+      );
     } catch (error) {
       throw toApiError(error);
     }
+  },
+
+  async me(): Promise<CurrentUser> {
+    const user =
+      await get<BackendCurrentUser>(
+        '/auth/me',
+      );
+
+    return mapCurrentUser(user);
   },
 
   async requestPasswordReset(
     email: string,
   ): Promise<PasswordResetRequestResult> {
     try {
-      const response = await identityHttp.post<PasswordResetRequestResult>(
-        '/password-reset/request',
-        { email: email.trim() },
-      );
+      const response =
+        await identityHttp.post<PasswordResetRequestResult>(
+          '/password-reset/request',
+          {
+            email: email.trim(),
+          },
+        );
 
       return response.data;
     } catch (error) {
@@ -190,9 +213,14 @@ export const authApi = {
     }
   },
 
-  async logout(refreshToken: string): Promise<void> {
+  async logout(
+    refreshToken: string,
+  ): Promise<void> {
     try {
-      await identityHttp.post('/logout', { refreshToken });
+      await identityHttp.post(
+        '/logout',
+        { refreshToken },
+      );
     } catch (error) {
       throw toApiError(error);
     }

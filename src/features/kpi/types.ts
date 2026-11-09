@@ -1,7 +1,54 @@
-export interface KpiRow {
-  name: string; group: string; before: number; after: number; orders: number; stores: number; newStores: number; target: number;
-  rank: number; promoPct: number; achievedPct: number; result: 'Achieved' | 'NotAchieved'; gapToNext: number;
+export type RankingTab = 'sales' | 'products';
+export type ProductCriterion = 'Quantity' | 'Revenue';
+
+export interface ReportFilters {
+  fromDate: string;
+  toDate: string;
+  salesGroupId: string;
+  criterion: ProductCriterion;
 }
-export interface KpiResponse { period: string; items: KpiRow[] }
-export interface ProductRank { rank: number; sku: string; productName: string; qty: number; revenueAfterPromo: number }
-export interface ProductRankResponse { period: string; items: ProductRank[] }
+
+export interface SalesGroupOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface SalesRankingEntry {
+  rank: number;
+  salesUserId: string;
+  salesUserName: string;
+  salesGroupId: string;
+  salesGroupCode: string;
+  salesGroupName: string;
+  regionId: string;
+  orderCount: number;
+  recognizedRevenue: number;
+}
+
+export interface SalesRankingResponse {
+  fromDate: string;
+  toDate: string;
+  scope: string;
+  entries: SalesRankingEntry[];
+}
+
+export interface ProductRankingEntry {
+  rank: number;
+  productId: string;
+  sku: string;
+  productName: string;
+  normalizedSoldQuantity: number;
+  quantityUnit: string;
+  adjustedNetRevenue: number;
+}
+
+export interface ProductRankingResponse {
+  fromDate: string;
+  toDate: string;
+  criterion: ProductCriterion;
+  scope: string;
+  quantityUnit: string;
+  recognitionRule: string;
+  entries: ProductRankingEntry[];
+}
