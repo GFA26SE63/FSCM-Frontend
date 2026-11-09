@@ -1,20 +1,16 @@
 import { useState } from 'react';
-import { useParams } from '@/shared/router/compat';
+import { Link, useNavigate, useParams } from '@/shared/router/compat';
 import {
-  Button,
-  Callout,
-  Card,
-  Chip,
-  Fields,
-  PageHeader,
+  //Chip,
   QueryState,
-  SimpleTable,
-  StatusChip,
+  useToast,
 } from '@/shared/ui';
-import { formatCases, formatDate, formatDateTime } from '@/shared/lib';
+import { formatDate, formatDateTime } from '@/shared/lib';
+import { formatLockReason } from '@/shared/lib/status';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
 import { useBatch, useBatchLocks } from '../hooks';
+import { QrLabelsPanel } from '@/features/qr-labels';
 import {
   LockBatchDialog,
   ReleaseBatchLockDialog,
@@ -23,11 +19,17 @@ import type { InventoryLockItem } from '../types';
 
 export function BatchDetailPage() {
   const { code = '' } = useParams();
+  const navigate = useNavigate();
   const query = useBatch(code);
   const { user } = useAuth();
+  const toast = useToast();
 
   const canLock = can(user, 'inventory.lock');
-  const canViewHistory = can(user, 'inventory.viewHistory');
+  const canUnlock = can(user, 'inventory.unlock');
+
+  const isKeeper = user?.role === 'WarehouseKeeper';
+  const assignedWhIds = user?.scope?.warehouseIds ?? [];
+  const assignedWhCode = user?.warehouseCode;
 
   const [lockOpen, setLockOpen] = useState(false);
   const [releaseTarget, setReleaseTarget] = useState<InventoryLockItem | null>(null);
@@ -37,316 +39,358 @@ export function BatchDetailPage() {
     batchId: batch?.batchId,
   });
 
+  const activeLock = locks.find((l) => l.status === 'Active');
+
+  const handleDisposalNotice = () => {
+    toast.show('Chức năng này hiện chưa sử dụng được.');
+  };
+
   return (
     <QueryState query={query}>
-      {(b) => (
-        <>
-          <PageHeader
-            back="/batches"
-            title={`Lô hàng (Batch) · ${b.batchCode}`}
-            subtitle={`${b.sku} · ${b.productName} · Kho: ${b.warehouseName}`}
-            chips={
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <StatusChip domain="expiry" value={b.expiryStatus} />
-                {b.lockedQuantity > 0 && (
-                  <Chip tone="danger">Bị khóa {b.lockedQuantity} thùng</Chip>
+      {(b) => {
+        const canLockThisBatch =
+          canLock &&
+          (!isKeeper ||
+            (b.warehouseId && assignedWhIds.includes(b.warehouseId)) ||
+            (b.warehouseCode && b.warehouseCode === assignedWhCode));
+
+        const isLocked = b.lockedQuantity > 0 || !!activeLock;
+        const isExpired = b.expiryStatus === 'Expired';
+        const isNear = b.expiryStatus === 'NearExpiry' || b.expiryStatus === 'Near-date';
+
+        const statusLabel = isLocked
+          ? 'Có hàng khóa'
+          : isExpired
+            ? 'Hết hạn'
+            : isNear
+              ? 'Cận hạn'
+              : 'Còn hạn';
+
+        const statusStyle = isLocked
+          ? { background: '#FDECEA', color: '#B42318' }
+          : isExpired
+            ? { background: '#FDECEA', color: '#B42318' }
+            : isNear
+              ? { background: '#FEF3E2', color: '#8A3B09' }
+              : { background: '#E5F4EA', color: '#15703A' };
+
+        const discountRuleText =
+          b.discountPct != null
+            ? `Giảm ${b.discountPct}% (${b.discountCode || 'Chính sách cận hạn'})`
+            : 'Không áp dụng giảm giá';
+
+        return (
+          <div
+            className="vscroll"
+            style={{
+              flex: 1,
+              minHeight: 0,
+              overflow: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+            }}
+          >
+            {/* Top Bar matching Prototype Generic Detail */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => navigate('/batches')}
+              >
+                ← Quay lại
+              </button>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontWeight: 700, fontSize: 18 }}>
+                  Lô hàng {b.batchCode}
+                </span>
+                <span className="chip" style={statusStyle}>
+                  {statusLabel}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+
+                {isLocked ? (
+                  <>
+                    {canUnlock && activeLock && (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => setReleaseTarget(activeLock)}
+                      >
+                        Mở khóa
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-danger-solid"
+                      onClick={handleDisposalNotice}
+                    >
+                      Lập phiếu hủy
+                    </button>
+                  </>
+                ) : (
+                  canLockThisBatch && (
+                    <button
+                      type="button"
+                      className="btn btn-danger-solid"
+                      onClick={() => setLockOpen(true)}
+                    >
+                      Khóa hàng hỏng / hết hạn
+                    </button>
+                  )
                 )}
               </div>
-            }
-            actions={
-              canLock && b.availableQuantity > 0 ? (
-                <Button
-                  variant="primary"
-                  onClick={() => setLockOpen(true)}
-                  style={{ background: '#C53030', borderColor: '#C53030' }}
-                >
-                  Khóa tồn kho
-                </Button>
-              ) : undefined
-            }
-          />
+            </div>
 
-          {b.discountPct != null && (
-            <Callout tone="info">
-              Đang áp dụng chương trình giảm giá cận hạn {b.discountPct}% ({b.discountCode}) đến{' '}
-              {formatDate(b.discountUntil)}.
-            </Callout>
-          )}
-
-          <Card title="Chi tiết số lượng & Hạn sử dụng">
-            <Fields
-              cols={3}
-              items={[
-                { label: 'Kho lưu trữ', value: b.warehouseName },
-                { label: 'Hạn sử dụng (HSD)', value: formatDate(b.expirationDate) },
-                {
-                  label: 'Thời gian HSD còn lại',
-                  value:
-                    b.expiryStatus === 'Disposed'
-                      ? 'Đã tiêu hủy'
-                      : `${b.remainingDays} ngày (${b.remainingPct}% / ${b.shelfLifeDays} ngày)`,
-                },
-                {
-                  label: 'Tồn thực tế (Physical on-hand)',
-                  value: (
-                    <span style={{ fontWeight: 600, color: '#2D3748' }}>
-                      {formatCases(b.onHandQuantity)}
-                    </span>
-                  ),
-                },
-                {
-                  label: 'Đang giữ (Reserved)',
-                  value: (
-                    <span
-                      style={{
-                        fontWeight: b.reservedQuantity > 0 ? 600 : 400,
-                        color: b.reservedQuantity > 0 ? '#3182CE' : undefined,
-                      }}
-                    >
-                      {formatCases(b.reservedQuantity)}
-                    </span>
-                  ),
-                },
-                {
-                  label: 'Bị khóa (Locked)',
-                  value: (
-                    <span
-                      style={{
-                        fontWeight: b.lockedQuantity > 0 ? 700 : 400,
-                        color: b.lockedQuantity > 0 ? '#E53E3E' : undefined,
-                      }}
-                    >
-                      {formatCases(b.lockedQuantity)}
-                    </span>
-                  ),
-                },
-                {
-                  label: 'Lượng có thể cấp (Sellable / Khả dụng)',
-                  value: (
-                    <span
-                      style={{
-                        fontSize: 16,
-                        fontWeight: 800,
-                        color: b.availableQuantity > 0 ? '#22543D' : '#A0AEC0',
-                        background: b.availableQuantity > 0 ? '#F0FFF4' : undefined,
-                        padding: '2px 8px',
-                        borderRadius: 4,
-                        border: b.availableQuantity > 0 ? '1px solid #9AE6B4' : undefined,
-                      }}
-                    >
-                      {formatCases(b.availableQuantity)}
-                    </span>
-                  ),
-                },
-                { label: 'Trạng thái tồn', value: b.stockStatus },
-                {
-                  label: 'Cập nhật lần cuối',
-                  value: formatDateTime(b.updatedAt),
-                },
-              ]}
-            />
-          </Card>
-
-          {/* F100 Active Locks Section */}
-          <Card
-            title={`Lệnh khóa tồn kho ${locks.length > 0 ? `(${locks.length})` : ''
-              }`}
-            flush
-          >
-            {locks.length === 0 ? (
-              <div style={{ padding: '20px 24px', color: '#718096', fontSize: 13.5 }}>
-                Không có lệnh khóa tồn kho nào cho lô này. Toàn bộ lượng tồn khả dụng đều sẵn sàng xuất bán.
+            {/* Fields Card - 2-column grid matching prototype */}
+            <section className="card" style={{ padding: '20px 24px' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                  columnGap: 64,
+                  rowGap: 14,
+                }}
+              >
+                <div className="fv">
+                  <span className="fl">Mã lô hàng</span>
+                  <span className="fval">{b.batchCode}</span>
+                </div>
+                <div className="fv">
+                  <span className="fl">Sản phẩm</span>
+                  <span className="fval">{b.sku} · {b.productName}</span>
+                </div>
+                <div className="fv">
+                  <span className="fl">Kho lưu trữ</span>
+                  <span className="fval">{b.warehouseName}</span>
+                </div>
+                <div className="fv">
+                  <span className="fl">Hạn sử dụng</span>
+                  <span className="fval">
+                    {formatDate(b.expirationDate)} · còn {(b.remainingDays ?? 0) > 0 ? b.remainingDays : 0} ngày (
+                    {(b.remainingDays ?? 0) > 0 ? (b.remainingPct ?? 0) : 0}% tổng hạn dùng)
+                  </span>
+                </div>
+                <div className="fv">
+                  <span className="fl">Tồn thực tế</span>
+                  <span className="fval">{b.onHandQuantity.toLocaleString('vi-VN')} thùng</span>
+                </div>
+                <div className="fv">
+                  <span className="fl">Đã giữ cho đơn</span>
+                  <span className="fval">{b.reservedQuantity.toLocaleString('vi-VN')} thùng</span>
+                </div>
+                <div className="fv">
+                  <span className="fl">Bị khóa</span>
+                  <span className="fval">
+                    {isLocked
+                      ? `${b.lockedQuantity.toLocaleString('vi-VN')} thùng · ${formatLockReason(activeLock?.reason)}`
+                      : '0'}
+                  </span>
+                </div>
+                <div className="fv">
+                  <span className="fl">Có thể cấp</span>
+                  <span className="fval">
+                    {(isExpired ? 0 : b.availableQuantity).toLocaleString('vi-VN')} thùng
+                  </span>
+                </div>
+                <div className="fv" style={{ gridColumn: 'span 2' }}>
+                  <span className="fl">Chính sách giảm giá hạn sử dụng</span>
+                  <span className="fval">
+                    {discountRuleText}
+                  </span>
+                </div>
               </div>
-            ) : (
-              <SimpleTable
-                rows={locks}
-                columns={[
-                  {
-                    header: 'Số lượng khóa',
-                    align: 'right',
-                    cell: (l) => (
-                      <span style={{ fontWeight: 700, color: '#E53E3E' }}>
-                        {l.lockedQuantity.toLocaleString('vi-VN')} thùng
-                      </span>
-                    ),
-                  },
-                  {
-                    header: 'Trạng thái',
-                    cell: (l) => (
-                      <Chip tone={l.status === 'Active' ? 'danger' : 'ok'}>
-                        {l.status === 'Active' ? 'Đang khóa' : 'Đã mở khóa'}
-                      </Chip>
-                    ),
-                  },
-                  {
-                    header: 'Lý do khóa',
-                    cell: (l) => (
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{l.reason}</div>
-                        {l.requiresResolution && l.status === 'Active' && (
-                          <span style={{ color: '#C53030', fontSize: 11.5 }}>
-                            ⚠️ Yêu cầu kiểm tra & xử lý
-                          </span>
-                        )}
-                      </div>
-                    ),
-                  },
-                  {
-                    header: 'Ghi chú',
-                    cell: (l) => l.note || '—',
-                  },
-                  {
-                    header: 'Thời gian lập',
-                    cell: (l) => formatDateTime(l.createdAt),
-                  },
-                  {
-                    header: 'Thao tác',
-                    align: 'center',
-                    cell: (l) =>
-                      l.status === 'Active' && canLock ? (
-                        <Button
-                          size="sm"
-                          variant="primary"
-                          onClick={() => setReleaseTarget(l)}
-                        >
-                          Mở khóa
-                        </Button>
-                      ) : l.releasedAt ? (
-                        <span className="muted small">
-                          Đã mở {formatDateTime(l.releasedAt)}
-                        </span>
-                      ) : (
-                        '—'
-                      ),
-                  },
-                ]}
+            </section>
+
+            {/* Warning block if locked */}
+            {isLocked && (
+              <section
+                className="card"
+                style={{
+                  padding: 16,
+                  background: '#FFF8E6',
+                  borderColor: '#F0D590',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                }}
+              >
+                <h2 className="sec" style={{ color: '#8A3B09' }}>
+                  Hàng bị khóa: {formatLockReason(activeLock?.reason)}
+                </h2>
+                <span style={{ fontSize: 13.5, lineHeight: 1.55 }}>
+                  {activeLock?.note ? `${activeLock.note}. ` : ''}Số lượng bị khóa sẽ không được cấp phát cho đơn hàng mới.
+                  {b.hasLockRequiringResolution && (
+                    <> Lượng khóa ảnh hưởng đến số lượng đã giữ cho đơn hàng. Vui lòng kiểm tra và xử lý các đơn hàng liên quan trước khi xuất hủy.</>
+                  )}
+                </span>
+              </section>
+            )}
+
+            {/* Table 1: Đơn hàng đang giữ lô hàng này */}
+            <section
+              className="card"
+              style={{
+                padding: 16,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 className="sec">Đơn hàng đang giữ lô hàng này</h2>
+              </div>
+              <div className="tbl-wrap">
+                <table className="tbl" style={{ minWidth: 700 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ width: '150px' }}>Đơn hàng</th>
+                      <th style={{ width: '250px' }}>Phần giao</th>
+                      <th style={{ width: '150px', textAlign: 'right' }}>Số lượng giữ</th>
+                      <th style={{ width: '150px' }}>Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td colSpan={4} className="muted" style={{ textAlign: 'center', padding: '20px 12px' }}>
+                        {b.reservedQuantity === 0
+                          ? 'Không có đơn hàng nào đang giữ lô hàng này.'
+                          : `Đang có ${b.reservedQuantity.toLocaleString('vi-VN')} thùng được giữ cho các đơn hàng xuất kho.`}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {/* Table 2: Lịch sử nhập – xuất – khóa */}
+            <section
+              className="card"
+              style={{
+                padding: 16,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 className="sec">Lịch sử nhập – xuất – khóa</h2>
+              </div>
+              <div className="tbl-wrap">
+                <table className="tbl" style={{ minWidth: 760 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ width: '160px' }}>Thời điểm</th>
+                      <th style={{ width: '130px' }}>Loại giao dịch</th>
+                      <th style={{ width: '180px' }}>Chứng từ</th>
+                      <th style={{ width: '130px', textAlign: 'right' }}>Số lượng</th>
+                      <th>Người thực hiện</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(b.history ?? []).length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="muted" style={{ textAlign: 'center', padding: '20px 12px' }}>
+                          Chưa có ghi nhận giao dịch nhập / xuất nào cho lô hàng này.
+                        </td>
+                      </tr>
+                    ) : (
+                      b.history!.map((h, i) => {
+                        const typeName =
+                          h.transactionType === 'Receipt' || h.transactionType === 'GoodsReceipt'
+                            ? 'Nhập kho'
+                            : h.transactionType === 'Issue' || h.transactionType === 'Shipment'
+                              ? 'Xuất kho'
+                              : h.transactionType === 'Lock'
+                                ? 'Khóa hàng'
+                                : h.transactionType === 'Release'
+                                  ? 'Mở khóa'
+                                  : h.transactionType === 'Disposal'
+                                    ? 'Xuất hủy'
+                                    : h.transactionType;
+
+                        const qtyDelta =
+                          h.onHandDelta !== 0
+                            ? (h.onHandDelta > 0 ? `+${h.onHandDelta}` : `${h.onHandDelta}`)
+                            : h.reservedDelta !== 0
+                              ? (h.reservedDelta > 0 ? `+${h.reservedDelta}` : `${h.reservedDelta}`)
+                              : '—';
+
+                        return (
+                          <tr key={h.id || i}>
+                            <td>{formatDateTime(h.occurredAt)}</td>
+                            <td>
+                              <span
+                                className="chip"
+                                style={
+                                  typeName === 'Nhập kho'
+                                    ? { background: '#E5F4EA', color: '#15703A' }
+                                    : typeName === 'Xuất kho'
+                                      ? { background: '#E8EEFD', color: '#1D4ED8' }
+                                      : typeName === 'Khóa hàng'
+                                        ? { background: '#FDECEA', color: '#B42318' }
+                                        : typeName === 'Mở khóa'
+                                          ? { background: '#FEF3E2', color: '#8A3B09' }
+                                          : { background: '#ECEEF1', color: '#374151' }
+                                }
+                              >
+                                {typeName}
+                              </span>
+                            </td>
+                            <td>
+                              {h.referenceCode ? (
+                                h.referenceCode.startsWith('PN-') ? (
+                                  <Link
+                                    to={`/receipts/${encodeURIComponent(h.referenceCode)}`}
+                                    style={{ fontWeight: 600 }}
+                                  >
+                                    {h.referenceCode}
+                                  </Link>
+                                ) : (
+                                  <span style={{ fontWeight: 600 }}>{h.referenceCode}</span>
+                                )
+                              ) : (
+                                '—'
+                              )}
+                            </td>
+                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{qtyDelta}</td>
+                            <td>{h.createdByUserId || 'Hệ thống'}</td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {/* Table 3: Danh sách nhãn QR */}
+            {b.batchId && (
+              <QrLabelsPanel
+                batchId={b.batchId}
+                batchCode={b.batchCode}
               />
             )}
-          </Card>
 
-          {/* Lịch sử biến động tồn kho */}
-          {canViewHistory ? (
-            <Card
-              title="Lịch sử biến động tồn kho (Nhập / Xuất / Khóa / Mở khóa / Hủy)"
-              flush
-            >
-              {(b.history ?? []).length === 0 ? (
-                <div style={{ padding: '20px 24px', color: '#718096', fontSize: 13.5 }}>
-                  Chưa có ghi nhận giao dịch nhập / xuất nào cho lô này.
-                </div>
-              ) : (
-                <SimpleTable
-                  rows={b.history ?? []}
-                  columns={[
-                    {
-                      header: 'Thời gian',
-                      cell: (h) => formatDateTime(h.occurredAt),
-                    },
-                    {
-                      header: 'Loại giao dịch',
-                      cell: (h) => {
-                        const typeMap: Record<string, { label: string; tone: 'ok' | 'info' | 'danger' | 'warn' | 'neutral' | 'violet' }> = {
-                          Receipt: { label: 'Nhập kho', tone: 'ok' },
-                          Issue: { label: 'Xuất kho', tone: 'info' },
-                          Shipment: { label: 'Giao hàng', tone: 'info' },
-                          Reservation: { label: 'Tạm giữ', tone: 'info' },
-                          Lock: { label: 'Khóa tồn', tone: 'danger' },
-                          Release: { label: 'Mở khóa', tone: 'warn' },
-                          Disposal: { label: 'Tiêu hủy', tone: 'danger' },
-                          Transfer: { label: 'Điều chuyển', tone: 'violet' },
-                        };
-                        const conf = typeMap[h.transactionType] || { label: h.transactionType, tone: 'neutral' };
-                        return <Chip tone={conf.tone}>{conf.label}</Chip>;
-                      },
-                    },
-                    {
-                      header: 'Chứng từ / Mã tham chiếu',
-                      cell: (h) => (
-                        <span style={{ fontWeight: 600 }}>{h.referenceCode}</span>
-                      ),
-                    },
-                    {
-                      header: 'Thay đổi tồn thực tế',
-                      align: 'right',
-                      cell: (h) => (
-                        <span
-                          style={{
-                            fontWeight: 600,
-                            color:
-                              h.onHandDelta > 0
-                                ? '#2F855A'
-                                : h.onHandDelta < 0
-                                  ? '#C53030'
-                                  : '#718096',
-                          }}
-                        >
-                          {h.onHandDelta !== 0
-                            ? (h.onHandDelta > 0 ? '+' : '') + h.onHandDelta
-                            : '—'}
-                        </span>
-                      ),
-                    },
-                    {
-                      header: 'Thay đổi đã giữ',
-                      align: 'right',
-                      cell: (h) => (
-                        <span
-                          style={{
-                            fontWeight: 600,
-                            color:
-                              h.reservedDelta > 0
-                                ? '#2B6CB0'
-                                : h.reservedDelta < 0
-                                  ? '#C53030'
-                                  : '#718096',
-                          }}
-                        >
-                          {h.reservedDelta !== 0
-                            ? (h.reservedDelta > 0 ? '+' : '') + h.reservedDelta
-                            : '—'}
-                        </span>
-                      ),
-                    },
-                    {
-                      header: 'Có thể cấp sau GD',
-                      align: 'right',
-                      cell: (h) => (
-                        <span style={{ fontWeight: 700, color: '#276749' }}>
-                          {h.availableAfter}
-                        </span>
-                      ),
-                    },
-                    {
-                      header: 'Ghi chú',
-                      cell: (h) => h.note || '—',
-                    },
-                  ]}
-                />
-              )}
-            </Card>
-          ) : (
-            <Callout tone="info">
-              Tài khoản của bạn không có quyền xem lịch sử biến động chi tiết của lô hàng.
-            </Callout>
-          )}
-
-          {/* F100 Modals */}
-          {canLock && (
-            <>
+            {/* Lock and Unlock Modals */}
+            {canLock && (
               <LockBatchDialog
                 open={lockOpen}
                 batch={b}
                 onClose={() => setLockOpen(false)}
               />
+            )}
+            {canUnlock && (
               <ReleaseBatchLockDialog
                 open={releaseTarget !== null}
                 lock={releaseTarget}
                 onClose={() => setReleaseTarget(null)}
               />
-            </>
-          )}
-        </>
-      )}
+            )}
+          </div>
+        );
+      }}
     </QueryState>
   );
 }

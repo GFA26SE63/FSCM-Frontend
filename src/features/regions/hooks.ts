@@ -4,7 +4,7 @@ import { useAuth } from '@/shared/auth/AuthContext';
 import { ApiError } from '@/shared/api/errors';
 import { regionApi } from './api';
 import { loadManagerTerritory, requireManagedGroup, type ManagerTerritory } from './managerTerritory';
-import type { TransferInput } from './types';
+import type { AreaInput, TransferInput } from './types';
 
 function useTerritoryReader<T>(
   key: readonly unknown[],
@@ -82,3 +82,29 @@ export function useTransferStaff() {
     return regionApi.transfer(input);
   }, { permission: 'territory.assign' });
 }
+export const useUpdateArea = () =>
+  useApiMutation(
+    ({ idOrCode, data }: { idOrCode: string; data: Partial<AreaInput> }) =>
+      regionApi.updateArea(idOrCode, data),
+    { permission: 'regions.manage' },
+  );
+
+export const useUpdateAreaStatus = () =>
+  useApiMutation(
+    ({ idOrCode, isActive }: { idOrCode: string; isActive: boolean }) =>
+      regionApi.updateAreaStatus(idOrCode, isActive),
+    { permission: 'regions.manage' },
+  );
+
+export const useDeleteArea = () =>
+  useApiMutation(regionApi.deleteArea, { permission: 'regions.manage' });
+
+export const useUpdateGroupStatus = () =>
+  useApiMutation(
+    ({ idOrCode, isActive }: { idOrCode: string; isActive: boolean }) =>
+      regionApi.updateGroupStatus(idOrCode, isActive),
+    { permission: 'salesGroups.manage' },
+  );
+
+export const useDeleteGroup = () =>
+  useApiMutation(regionApi.deleteGroup, { permission: 'salesGroups.manage' });

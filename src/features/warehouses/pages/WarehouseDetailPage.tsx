@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { Eye } from 'lucide-react';
 import { useNavigate, useParams } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { formatMoney } from '@/shared/lib';
@@ -15,6 +16,7 @@ import {
   useToast,
 } from '@/shared/ui';
 import { buildWarehouseMapDoc } from '../components/warehouseMap';
+import { DeactivateWarehouseModal } from '../components/DeactivateWarehouseModal';
 import {
   useRegions,
   useRetailerMapPoints,
@@ -41,6 +43,8 @@ export function WarehouseDetailPage() {
   const updateStatus = useUpdateWarehouseStatus();
   const toast = useToast();
   const navigate = useNavigate();
+
+  const [deactivateModalOpen, setDeactivateModalOpen] = useState(false);
 
   const region = useMemo(() => {
     if (!wh?.regionId) return null;
@@ -102,17 +106,26 @@ export function WarehouseDetailPage() {
     });
   }, [wh, allWarehouses, retailers]);
 
-  const handleToggleStatus = async (codeTarget: string, curStatus: 'Active' | 'Paused') => {
+  const handleConfirmDeactivate = async (reason: string) => {
+    if (!wh) return;
     try {
-      const nextActive = curStatus !== 'Active';
-      await updateStatus.mutateAsync({ code: codeTarget, isActive: nextActive });
-      if (!nextActive) {
-        toast.show(
-          `Đã vô hiệu hóa kho ${codeTarget}. Kho không còn được chọn khi phân bổ đơn mới.`,
-        );
-      } else {
-        toast.show(`Đã kích hoạt lại kho ${codeTarget}.`);
-      }
+      await updateStatus.mutateAsync({ code: wh.code, isActive: false });
+      toast.show(`Đã vô hiệu hóa kho ${wh.code}. Lý do: ${reason}`);
+    } catch (e) {
+      toast.error(e);
+    } finally {
+      setDeactivateModalOpen(false);
+    }
+  };
+
+  const handleToggleStatus = async (codeTarget: string, curStatus: 'Active' | 'Paused') => {
+    if (curStatus === 'Active') {
+      setDeactivateModalOpen(true);
+      return;
+    }
+    try {
+      await updateStatus.mutateAsync({ code: codeTarget, isActive: true });
+      toast.show(`Đã kích hoạt lại kho ${codeTarget}.`);
     } catch (e) {
       toast.error(e);
     }
@@ -127,7 +140,7 @@ export function WarehouseDetailPage() {
           <PageHeader
             back={whData.regionId ? `/whs/regions/${whData.regionId}` : '/whs'}
             title={`${whData.code} · ${whData.name}`}
-            subtitle={region ? `Vùng kho: ${region.name} (${region.code})` : undefined}
+            subtitle={region ? `Vùng hoạt động: ${region.name} (${region.code})` : undefined}
             chips={<StatusChip domain="active" value={whData.status} />}
             actions={
               isAdmin ? (
@@ -162,7 +175,7 @@ export function WarehouseDetailPage() {
                 { label: 'Mã kho', value: whData.code },
                 { label: 'Tên kho', value: whData.name },
                 {
-                  label: 'Vùng kho',
+                  label: 'Vùng hoạt động',
                   value: region ? (
                     <span
                       style={{ cursor: 'pointer', color: '#059669', fontWeight: 600 }}
@@ -309,12 +322,45 @@ export function WarehouseDetailPage() {
                       return <Chip tone={tone}>{label}</Chip>;
                     },
                   },
+                  {
+                    header: 'Thao tác',
+                    width: '90px',
+                    cell: (b) => (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => navigate(`/batches/${b.id || b.code}`)}
+                        title="Xem chi tiết lô hàng"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: '4px 8px',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          height: 28,
+                        }}
+                      >
+                        <Eye size={13} />
+                        <span>Xem</span>
+                      </Button>
+                    ),
+                  },
                 ]}
                 rows={whData.inventory ?? []}
                 empty="Chưa có tồn kho lô hàng nào tại kho này."
               />
             </Card>
           )}
+
+          {/* Modal: Xác nhận vô hiệu hóa kho */}
+          <DeactivateWarehouseModal
+            warehouse={whData}
+            open={deactivateModalOpen}
+            onClose={() => setDeactivateModalOpen(false)}
+            onConfirm={handleConfirmDeactivate}
+            loading={updateStatus.isPending}
+          />
         </>
       )}
     </QueryState>

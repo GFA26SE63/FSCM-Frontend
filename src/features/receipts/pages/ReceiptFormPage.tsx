@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
-import { Button, Callout, Card, FormField, Input, PageHeader, Select } from '@/shared/ui';
+import { Button, Callout, Card, FormField, Input, PageHeader, Select, SearchSelect } from '@/shared/ui';
 import { IdFormat } from '@/shared/lib';
 import { useCreateReceipt, useReceiptLookups } from '../hooks';
 
@@ -45,7 +45,7 @@ export function ReceiptFormPage() {
           {rows.map((r, i) => (
             <div key={i} className="form-grid" style={{ gridTemplateColumns: '2fr 1.2fr 0.8fr 0.7fr 1fr auto', alignItems: 'end' }}>
               <FormField label="SKU" error={tried ? rowErr(r) : null}>
-                <Select value={r.sku} placeholder="— Chọn SKU —" onChange={(e) => update(i, { sku: e.target.value })} options={prods.map((p) => ({ value: p.sku, label: `${p.sku} · ${p.name}` }))} />
+                <SearchSelect value={r.sku} onChange={(sku) => update(i, { sku })} options={prods.map((p) => ({ value: p.sku, label: `${p.sku} · ${p.name}` }))} />
               </FormField>
               <FormField label="Hạn sử dụng"><Input type="date" value={r.expiry} onChange={(e) => update(i, { expiry: e.target.value })} /></FormField>
               <FormField label="Số thùng"><Input inputMode="numeric" value={r.qty} onChange={(e) => update(i, { qty: e.target.value })} /></FormField>

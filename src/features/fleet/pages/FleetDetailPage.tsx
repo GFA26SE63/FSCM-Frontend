@@ -1,56 +1,187 @@
 import { useState } from 'react';
+
 import { useParams } from '@/shared/router/compat';
-import { Button, Card, Fields, PageHeader, QueryState, SimpleTable, StatusChip } from '@/shared/ui';
-import { formatDateTime } from '@/shared/lib';
-import { useDriver, useVehicle } from '../hooks';
-import { DriverDialog, VehicleDialog } from '../components/FleetDialogs';
-import type { Trip } from '../types';
+import { useAuth } from '@/shared/auth/AuthContext';
+import { can } from '@/shared/auth/permissions';
+import { errorMessage } from '@/shared/api/errors';
+import {
+  Button,
+  Callout,
+  Card,
+  Fields,
+  PageHeader,
+  QueryState,
+} from '@/shared/ui';
 
-const TripsCard = ({ trips }: { trips: Trip[] }) => (
-  <Card title="Chuyến giao gần đây" flush>
-    <SimpleTable
-      rows={trips}
-      empty="Chưa có chuyến giao."
-      columns={[
-        { header: 'Đơn hàng', cell: (t) => t.orderCode },
-        { header: 'Retailer', cell: (t) => t.retailerName },
-        { header: 'Xuất phát', cell: (t) => formatDateTime(t.departedAt) },
-        { header: 'Xe', cell: (t) => t.plate },
-        { header: 'Người giao', cell: (t) => t.driverName },
-        { header: 'Trạng thái đơn', cell: (t) => <StatusChip domain="order" value={t.status} /> },
-      ]}
-    />
-  </Card>
-);
+import {
+  useDriver,
+  useFleetWarehouses,
+  useVehicle,
+} from '../hooks';
+import {
+  activeText,
+  warehouseText,
+  type FleetStatusTarget,
+} from '../types';
+import { DriverDialog } from '../components/DriverDialog';
+import { VehicleDialog } from '../components/VehicleDialog';
+import { FleetStatusDialog } from '../components/FleetStatusDialog';
 
-/** Route /fleet/:id – id is a vehicle plate, or a driver code (NG-xxx). */
 export function FleetDetailPage() {
-  const { id = '' } = useParams();
-  const isDriver = id.startsWith('NG-');
-  const vehicle = useVehicle(id, !isDriver);
-  const driver = useDriver(id, isDriver);
+  const { kind = '', id = '' } = useParams();
+  const { user } = useAuth();
+
+  if (!can(user, 'fleet.manage')) {
+    return <Callout tone="danger">Bạn không có quyền truy cập.</Callout>;
+  }
+
+  if (!id || !['vehicles', 'drivers'].includes(kind)) {
+    return <Callout tone="danger">Đường dẫn xe hoặc tài xế không hợp lệ.</Callout>;
+  }
+
+  return (
+    <FleetDetail
+      key={`${user?.id}:${kind}:${id}`}
+      kind={kind}
+      id={id}
+    />
+  );
+}
+
+function FleetDetail({ kind, id }: { kind: string; id: string }) {
+  const vehicle = useVehicle(id, kind === 'vehicles');
+  const driver = useDriver(id, kind === 'drivers');
+  const warehouses = useFleetWarehouses();
+
   const [edit, setEdit] = useState(false);
-  if (isDriver)
+  const [statusTarget, setStatusTarget] =
+    useState<FleetStatusTarget | null>(null);
+
+  const warehouseWarning = warehouses.error ? (
+    <Callout tone="danger">
+      Không tải được tên kho: {errorMessage(warehouses.error)}.{' '}
+      <Button size="sm" onClick={() => void warehouses.refetch()}>
+        Thử lại
+      </Button>
+    </Callout>
+  ) : null;
+
+  if (kind === 'drivers') {
     return (
       <QueryState query={driver}>
-        {(d) => (
+        {(item) => (
           <>
-            <PageHeader back="/fleet" title={`${d.code} · ${d.name}`} chips={<StatusChip domain="driver" value={d.status} />} actions={<Button onClick={() => setEdit(true)}>Sửa</Button>} />
-            <Card title="Thông tin"><Fields cols={3} items={[{ label: 'Mã', value: d.code }, { label: 'Họ tên', value: d.name }, { label: 'Số điện thoại', value: d.phone }, { label: 'Hạng bằng', value: d.licenseClass }]} /></Card>
-            <TripsCard trips={d.recentTrips} />
-            <DriverDialog open={edit} driver={d} onClose={() => setEdit(false)} />
+            <PageHeader
+              back="/fleet"
+              title={`${item.code} · ${item.fullName}`}
+              chips={<span className="chip">{activeText(item.isActive)}</span>}
+              actions={
+                <>
+                  <Button onClick={() => void driver.refetch()}>Tải lại</Button>
+                  <Button onClick={() => setEdit(true)}>Sửa</Button>
+                  <Button
+                    onClick={() => setStatusTarget({ kind: 'driver', item })}
+                  >
+                    {item.isActive ? 'Ngừng hoạt động' : 'Kích hoạt'}
+                  </Button>
+                </>
+              }
+            />
+
+            {warehouseWarning}
+
+            <Card title="Thông tin tài xế">
+              <Fields
+                cols={2}
+                items={[
+                  { label: 'Mã tài xế', value: item.code },
+                  { label: 'Họ tên', value: item.fullName },
+                  { label: 'Điện thoại', value: item.phone },
+                  { label: 'Số GPLX', value: item.licenseNumber },
+                  {
+                    label: 'Kho quản lý',
+                    value: warehouseText(warehouses.data, item.warehouseId),
+                  },
+                  { label: 'Trạng thái', value: activeText(item.isActive) },
+                ]}
+              />
+            </Card>
+
+            {edit && (
+              <DriverDialog
+                driver={item}
+                onClose={() => setEdit(false)}
+              />
+            )}
+
+            {statusTarget && (
+              <FleetStatusDialog
+                target={statusTarget}
+                onClose={() => setStatusTarget(null)}
+              />
+            )}
           </>
         )}
       </QueryState>
     );
+  }
+
   return (
     <QueryState query={vehicle}>
-      {(v) => (
+      {(item) => (
         <>
-          <PageHeader back="/fleet" title={`Xe ${v.plate}`} subtitle={v.type} chips={<StatusChip domain="vehicle" value={v.status} />} actions={<Button onClick={() => setEdit(true)}>Sửa</Button>} />
-          <Card title="Thông tin"><Fields cols={3} items={[{ label: 'Biển số', value: v.plate }, { label: 'Loại xe', value: v.type }, { label: 'Tải trọng', value: `${v.capacity} thùng` }, { label: 'Kho quản lý', value: v.warehouseName }]} /></Card>
-          <TripsCard trips={v.recentTrips} />
-          <VehicleDialog open={edit} vehicle={v} onClose={() => setEdit(false)} />
+          <PageHeader
+            back="/fleet"
+            title={`Xe ${item.plateNumber}`}
+            subtitle={item.vehicleType}
+            chips={<span className="chip">{activeText(item.isActive)}</span>}
+            actions={
+              <>
+                <Button onClick={() => void vehicle.refetch()}>Tải lại</Button>
+                <Button onClick={() => setEdit(true)}>Sửa</Button>
+                <Button
+                  onClick={() => setStatusTarget({ kind: 'vehicle', item })}
+                >
+                  {item.isActive ? 'Ngừng hoạt động' : 'Kích hoạt'}
+                </Button>
+              </>
+            }
+          />
+
+          {warehouseWarning}
+
+          <Card title="Thông tin xe">
+            <Fields
+              cols={2}
+              items={[
+                { label: 'Biển số', value: item.plateNumber },
+                { label: 'Loại xe', value: item.vehicleType },
+                {
+                  label: 'Sức chứa',
+                  value: `${item.capacity.toLocaleString('vi-VN')} thùng`,
+                },
+                {
+                  label: 'Kho quản lý',
+                  value: warehouseText(warehouses.data, item.warehouseId),
+                },
+                { label: 'Trạng thái', value: activeText(item.isActive) },
+              ]}
+            />
+          </Card>
+
+          {edit && (
+            <VehicleDialog
+              vehicle={item}
+              onClose={() => setEdit(false)}
+            />
+          )}
+
+          {statusTarget && (
+            <FleetStatusDialog
+              target={statusTarget}
+              onClose={() => setStatusTarget(null)}
+            />
+          )}
         </>
       )}
     </QueryState>

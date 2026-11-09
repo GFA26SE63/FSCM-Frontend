@@ -88,6 +88,22 @@ h1, h2, h3 { margin: 0; }
 .btn-sm { height: 30px; padding: 0 10px; font-size: 12.5px; border-radius: 6px; }
 .btn-block { width: 100%; }
 
+/* Action Button Variants using project design tokens (var(--c-danger), var(--c-warn), var(--c-primary)) */
+.btn-delete { background: var(--c-danger); border-color: var(--c-danger); color: #fff; }
+.btn-delete:hover:not(:disabled) { background: #8f1d14; border-color: #8f1d14; color: #fff; }
+.btn-delete:focus-visible { outline: 2px solid var(--c-danger); outline-offset: 2px; }
+.btn-delete:disabled { background: var(--c-danger-soft); border-color: var(--c-danger-soft); color: var(--c-muted); opacity: .65; cursor: not-allowed; }
+
+.btn-deactivate { background: var(--c-warn); border-color: var(--c-warn); color: #fff; }
+.btn-deactivate:hover:not(:disabled) { background: #6e2e06; border-color: #6e2e06; color: #fff; }
+.btn-deactivate:focus-visible { outline: 2px solid var(--c-warn); outline-offset: 2px; }
+.btn-deactivate:disabled { background: var(--c-warn-soft); border-color: var(--c-warn-soft); color: var(--c-muted); opacity: .65; cursor: not-allowed; }
+
+.btn-reactivate { background: var(--c-primary); border-color: var(--c-primary); color: #fff; }
+.btn-reactivate:hover:not(:disabled) { background: var(--c-primary-dark); border-color: var(--c-primary-dark); color: #fff; }
+.btn-reactivate:focus-visible { outline: 2px solid var(--c-primary); outline-offset: 2px; }
+.btn-reactivate:disabled { background: #a7b8b3; border-color: #a7b8b3; color: #fff; opacity: .65; cursor: not-allowed; }
+
 /* form */
 .lbl { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--c-label); }
 .inp { height: 38px; border: 1px solid var(--c-border); border-radius: var(--radius-sm); padding: 0 10px; font-size: 13.5px; background: var(--c-surface); color: var(--c-text); width: 100%; font-weight: 400; }
@@ -139,7 +155,7 @@ textarea.inp { height: auto; min-height: 88px; padding: 10px; resize: vertical; 
 .fval { font-size: 14px; padding: 4px 0 6px; border-bottom: 1.5px solid var(--c-text); min-height: 30px; overflow-wrap: anywhere; }
 
 /* tables */
-.tbl-wrap { overflow: auto; }
+.tbl-wrap { min-width: 0; max-width: 100%; overflow: auto; }
 table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .tbl th, .th { position: sticky; top: 0; z-index: 1; padding: 10px 12px; font-size: 12px; font-weight: 700; color: #2e3532; text-align: left; background: var(--c-th); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.35; }
 .tbl td, .td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid var(--c-row); vertical-align: middle; overflow-wrap: anywhere; min-width: 0; }
@@ -147,6 +163,7 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-lay
 .tbl tbody tr:hover td { background: #f8faf7; }
 .tbl tr.selected td { background: #eef6f3; }
 .tbl .actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.tbl td .chip { max-width: 100%; height: auto; min-height: 24px; white-space: normal; overflow-wrap: normal; line-height: 1.4; }
 .tbl.compact td { padding: 8px 12px; }
 .tbl.auto { table-layout: auto; }
 .vscroll { overflow-y: auto; }
@@ -156,6 +173,7 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-lay
 .num { min-width: 30px; padding: 0 6px; white-space: nowrap; height: 24px; border-radius: 6px; background: var(--c-primary); color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
 .pager { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--c-muted); }
 .pager .pages { display: inline-flex; gap: 6px; }
+.order-status-cell .chip {max-width: 100%; height: auto; min-height: 24px; white-space: normal; overflow-wrap: normal; padding: 4px 9px; line-height: 1.4; }
 
 /* filter card */
 .filter-card { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
@@ -224,3 +242,5 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-lay
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading { display: flex; align-items: center; gap: 10px; padding: 24px; color: var(--c-muted); }
 .chart-box { position: relative; height: 260px; }
+.promo-retailer-picker .tbl tr > :last-child { position: sticky; right: 0; background: var(--c-card, #fff); box-shadow: -1px 0 0 var(--c-border, #e0e5e2); }
+.promo-retailer-picker .tbl thead tr > :last-child { z-index: 3; background: var(--c-th); }

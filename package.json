@@ -10,6 +10,8 @@
     "test:products": "node --test tests/products.test.cjs",
     "test:auth": "node --test tests/auth.test.cjs",
     "test:rbac": "node --test tests/rbac.test.cjs",
+    "test:batches": "node --test tests/batches.test.cjs",
+    "test:actions": "node --test tests/action-standardization.test.cjs",
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
