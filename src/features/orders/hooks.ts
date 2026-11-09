@@ -23,5 +23,7 @@ export const useApproveOrder = () => useApiMutation(orderApi.approve, { success:
 export const useRejectOrder = () => useApiMutation(orderApi.reject, { success: (o) => `Đã từ chối ${o.code}, trả hàng tạm giữ và báo Sales, retailer.` });
 export const useCancelOrder = () => useApiMutation(orderApi.cancel, { success: (o) => `Đã hủy ${o.code}, trả lại hàng tạm giữ và báo Sales, retailer.` });
 export const useDispatchOrder = () =>
-  useApiMutation(orderApi.dispatch, { success: (o) => `Đã chuyển ${o.code} sang Đang giao và báo retailer: ${o.delivery?.driverName} (${o.delivery?.driverPhone}), xe ${o.delivery?.plate}.` });
+  useApiMutation(orderApi.dispatch, { success: (o) => `Đã cập nhật người giao và xe cho ${o.code}.` });
 export const useConfirmReceipt = () => useApiMutation(orderApi.confirmReceipt, { success: (o) => `Mô phỏng retailer quét QR: ${o.code} đã giao.` });
+
+export const useOrderShipments = (orderId?: string) => useQuery({ queryKey: ['orders', 'shipments', orderId], queryFn: () => orderApi.shipments(orderId!), enabled: !!orderId });

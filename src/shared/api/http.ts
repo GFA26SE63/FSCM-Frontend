@@ -38,6 +38,15 @@ export const post = <T = void>(url: string, body?: unknown) => http.post<T>(url,
 export const put = <T = void>(url: string, body?: unknown) => http.put<T>(url, body).then((r) => r.data);
 export const del = <T = void>(url: string) => http.delete<T>(url).then((r) => r.data);
 
-/** GET a paged collection and return every item (list screens page/filter on the client with DataTable). */
+/**
+ * GET a collection and return its rows.
+ *
+ * The backend intentionally uses both plain arrays for small reference data and
+ * `{ items: [...] }` for paged resources.  Keeping that transport distinction out
+ * of feature screens prevents a successful 200 response from being rendered as
+ * an empty table.
+ */
 export const getAll = <T>(url: string, params?: object) =>
-  http.get<{ items: T[] }>(url, { params: { size: 500, ...params } }).then((r) => r.data.items);
+  http
+    .get<T[] | { items: T[] }>(url, { params: { pageSize: 100, size: 100, ...params } })
+    .then((r) => (Array.isArray(r.data) ? r.data : r.data.items ?? []));

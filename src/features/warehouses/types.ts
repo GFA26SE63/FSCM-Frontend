@@ -1,4 +1,5 @@
 export interface Warehouse {
+  id?: string;
   code: string; name: string; address: string; lat: number; lng: number; type: 'Central' | 'Regional'; keeperName: string | null;
   capacityPallets: number; status: 'Active' | 'Paused'; batchCount: number;
 }

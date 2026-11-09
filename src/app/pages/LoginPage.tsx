@@ -20,8 +20,8 @@ export function LoginPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const [role, setRole] = useState<PortalRole>('Admin');
-  const [email, setEmail] = useState(DEMO_ACCOUNTS.Admin.email);
-  const [password, setPassword] = useState('12345678');
+  const [email, setEmail] = useState(env.useMock ? DEMO_ACCOUNTS.Admin.email : 'admin@fscm.local');
+  const [password, setPassword] = useState(env.useMock ? '12345678' : '');
   const [busy, setBusy] = useState(false);
 
   if (status === 'authenticated' && user) return <Navigate to={HOME_BY_ROLE[user.role]} replace />;
@@ -48,7 +48,7 @@ export function LoginPage() {
         className="card login-card"
         onSubmit={(e) => {
           e.preventDefault();
-          void submit(() => (env.useMock ? login(email, password, role) : loginWithMicrosoft()));
+          void submit(() => login(email, password, env.useMock ? role : undefined));
         }}
       >
         <div className="row" style={{ gap: 12 }}>
@@ -88,24 +88,32 @@ export function LoginPage() {
           </>
         ) : (
           <>
-            <p className="note">Microsoft hoặc Google chỉ xác thực danh tính. Sau đăng nhập, hệ thống sử dụng JWT do FSCM phát hành cho toàn bộ API nghiệp vụ.</p>
-            <Button variant="primary" type="submit" loading={busy} style={{ height: 42 }} disabled={!externalAuthConfig.microsoftConfigured}>
-              Đăng nhập bằng Microsoft
+            <p className="note">Đăng nhập tài khoản backend để chạy và duyệt allocation trên dữ liệu PostgreSQL thật.</p>
+            <FormField label="Email">
+              <Input value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" />
+            </FormField>
+            <FormField label="Mật khẩu">
+              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+            </FormField>
+            <Button variant="primary" type="submit" loading={busy} style={{ height: 42 }}>
+              Đăng nhập backend
             </Button>
-            <div className="oauth-divider"><span>hoặc</span></div>
+            {externalAuthConfig.microsoftConfigured && (
+              <Button type="button" disabled={busy} onClick={() => void submit(loginWithMicrosoft)}>
+                Đăng nhập bằng Microsoft
+              </Button>
+            )}
             {externalAuthConfig.googleConfigured ? (
-              <GoogleSignInButton
-                clientId={env.google.clientId}
-                disabled={busy}
-                onCredential={(credential) => void submit(() => loginWithGoogle(credential))}
-                onError={toast.error}
-              />
-            ) : (
-              <Button type="button" disabled>Google chưa được cấu hình</Button>
-            )}
-            {(!externalAuthConfig.microsoftConfigured || !externalAuthConfig.googleConfigured) && (
-              <p className="note">Cấu hình client ID còn thiếu trong biến môi trường triển khai.</p>
-            )}
+              <>
+                <div className="oauth-divider"><span>hoặc</span></div>
+                <GoogleSignInButton
+                  clientId={env.google.clientId}
+                  disabled={busy}
+                  onCredential={(credential) => void submit(() => loginWithGoogle(credential))}
+                  onError={toast.error}
+                />
+              </>
+            ) : null}
           </>
         )}
       </form>

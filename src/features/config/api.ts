@@ -1,9 +1,35 @@
-import { get, post, put } from '@/shared/api/http';
+import { get, getAll, post, put } from '@/shared/api/http';
 import type { ConfigDraft, PublishTransitTablePayload, RunSchedule, RunSchedulePayload, SystemSettings, TransitTable } from './types';
 
+interface ConfigurationRow { key: string; value: unknown }
+const numberValue = (rows: ConfigurationRow[], key: string, fallback: number) => {
+  const value = rows.find((row) => row.key === key)?.value;
+  return typeof value === 'number' ? value : Number(value ?? fallback);
+};
+
 export const configApi = {
-  settings: () => get<SystemSettings>('/settings'),
-  saveSettings: (s: SystemSettings) => put<SystemSettings>('/settings', s),
+  settings: async (): Promise<SystemSettings> => {
+    const rows = await getAll<ConfigurationRow>('/configurations');
+    const raw = rows.find((row) => row.key === 'allocation.weights')?.value as Partial<Record<'expiry' | 'distance' | 'coverage', number>> | undefined;
+    const allocation = { wE: raw?.expiry ?? 0.5, wD: raw?.distance ?? 0.3, wQ: raw?.coverage ?? 0.2 };
+    const radiusKm = numberValue(rows, 'allocation.service_radius_meters', 20000) / 1000;
+    return {
+      allocation,
+      dmaxRetailerKm: radiusKm,
+      dmaxWarehouseKm: radiusKm,
+      rotation: { ...allocation, velocityDays: 30, minQty: 1, roundTo: 1 },
+      minRegionalStock: 0,
+      batchDiscountTiers: [{ maxRemainingPct: 30, discountPct: 20 }, { maxRemainingPct: 50, discountPct: 10 }],
+      loyaltyPointRateVnd: 1000,
+    };
+  },
+  saveSettings: async (s: SystemSettings) => {
+    await Promise.all([
+      put('/configurations/allocation.weights', { value: { expiry: s.allocation.wE, distance: s.allocation.wD, coverage: s.allocation.wQ } }),
+      put('/configurations/allocation.service_radius_meters', { value: Math.round(s.dmaxRetailerKm * 1000) }),
+    ]);
+    return s;
+  },
   save: async (d: ConfigDraft) => { await configApi.saveSettings(d.settings); },
 };
 
@@ -20,5 +46,5 @@ export const runScheduleApi = {
   current: () => get<RunSchedule>('/eta/schedule'),
   /** One document: the cutoff, the deadline and the reminders are validated against each other. */
   publish: (payload: RunSchedulePayload) =>
-    put<unknown>('/business-configurations/eta.schedule', { value: payload }),
+    put<unknown>('/configurations/eta.schedule', { value: payload }),
 };

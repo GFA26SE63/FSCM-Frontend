@@ -1,6 +1,6 @@
 import { db } from '../fixtures';
 import type { DbOrder } from '../fixtures/types';
-import { daysBetween } from '../../../lib/dates';
+import { addDays, daysBetween } from '../../../lib/dates';
 import { DISPATCH_DATE, MOCK_TODAY } from '../engines/clock';
 import { priceLines } from '../engines/pricing';
 import { traceAllocation, type TraceResult } from '../engines/allocation';
@@ -9,10 +9,52 @@ import { mockGuid, product, retailer, warehouseName, areaName } from './common';
 
 export const mlorOf = (retailerCode: string, sku: string) => db.retailerMlor[retailerCode]?.[sku] ?? product(sku).defaultMlor;
 
-export function traceOf(o: DbOrder): TraceResult {
+function traceWithHeld(o: DbOrder, heldBefore: Record<string, number>): TraceResult {
   return traceAllocation({
-    lines: o.lines, heldBefore: o.heldBefore, batches: db.batches, warehouses: db.warehouses, products: db.products, distances: db.retailerDist[o.retailerCode] ?? {},
+    lines: o.lines, heldBefore, batches: db.batches, warehouses: db.warehouses, products: db.products, distances: db.retailerDist[o.retailerCode] ?? {},
     mlorOf: (sku) => mlorOf(o.retailerCode, sku), bands: db.transit.bands, settings: db.settings, today: MOCK_TODAY, dispatchDate: DISPATCH_DATE,
+  });
+}
+
+export function traceOf(o: DbOrder): TraceResult {
+  return traceWithHeld(o, o.heldBefore);
+}
+
+interface SharedPoolOrder {
+  order: DbOrder;
+  trace: TraceResult;
+}
+
+/**
+ * Portal-only demo snapshot of the real daily rule:
+ * - server-received order, then order code;
+ * - one shared inventory pool for the whole run;
+ * - commit an order's tentative draws only when every line is fulfilled;
+ * - otherwise roll the whole order back before the next order is evaluated.
+ *
+ * The fixture contains an old rejected row for 27/09. It is included only in the 28/09 demo run
+ * so the screen can demonstrate the auditable Short outcome that replaced the old auto-rejection.
+ */
+function sharedPoolOrders(businessDate: string): SharedPoolOrder[] {
+  const cutoff = `${businessDate}T00:00`;
+  const previousDate = addDays(businessDate, -1);
+  const orders = db.orders
+    .filter((o) =>
+      !o.archived
+      && o.createdAt < cutoff
+      && (o.status === 'Pending' || (o.status === 'Rejected' && o.createdAt.slice(0, 10) === previousDate)))
+    .slice()
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.code.localeCompare(b.code));
+
+  const held: Record<string, number> = {};
+  return orders.map((order) => {
+    const trace = traceWithHeld(order, held);
+    if (trace.ok) {
+      trace.lines.forEach((line) => line.allocations.forEach((allocation) => {
+        held[allocation.batchCode] = (held[allocation.batchCode] ?? 0) + allocation.qty;
+      }));
+    }
+    return { order, trace };
   });
 }
 
@@ -234,17 +276,21 @@ export function allocationTraceOf(o: DbOrder) {
 }
 
 /**
- * Composes one 12:00 run for a business date out of the mock orders, so the approval screen has
- * something to render. The real run snapshots a shared pool at the cutoff; this reuses each order's
- * own trace, which is close enough to show the shape and never claims to be the engine.
+ * Composes the 00:00 demo run from eligible orders and the shared-pool snapshot above.
+ * This browser engine mirrors the allocation rules for a rehearsable Portal demo; the backend
+ * remains the authoritative engine outside mock mode.
  */
 export function allocationRunOf(businessDate: string) {
-  const orders = db.orders
-    .filter((o) => !o.archived)
-    .slice()
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.code.localeCompare(b.code));
+  const snapshot = sharedPoolOrders(businessDate);
+  const orders = snapshot.map((row) => row.order);
 
   const runId = mockGuid(`run-${businessDate}`);
+  const decision = planDecisions.get(mockGuid(`ver-${businessDate}`));
+  const runStatus = closedRunIds.has(runId)
+    ? 'Closed'
+    : decision?.status === 'Approved'
+      ? 'Approved'
+      : 'AwaitingApproval';
   const lineId = (code: string, sku: string) => mockGuid(`${code}-${sku}-run`);
 
   return {
@@ -252,8 +298,8 @@ export function allocationRunOf(businessDate: string) {
       id: runId,
       runCode: `PB-${businessDate.replace(/-/g, '')}-01`,
       businessDate,
-      cutoffAt: `${businessDate}T12:00:00+07:00`,
-      status: 'AwaitingApproval',
+      cutoffAt: `${businessDate}T00:00:00+07:00`,
+      status: runStatus,
       settings: {
         shelfLifeWeight: db.settings.allocation.wE,
         distanceWeight: db.settings.allocation.wD,
@@ -264,12 +310,11 @@ export function allocationRunOf(businessDate: string) {
       etaScheduleVersion: 1,
       orderCount: orders.length,
       failureReason: null,
-      startedAt: `${businessDate}T12:00:00+07:00`,
-      snapshotCompletedAt: `${businessDate}T12:00:05+07:00`,
-      completedAt: `${businessDate}T12:01:00+07:00`,
+      startedAt: `${businessDate}T00:00:00+07:00`,
+      snapshotCompletedAt: `${businessDate}T00:00:05+07:00`,
+      completedAt: `${businessDate}T00:01:00+07:00`,
       version: 1,
-      orders: orders.map((o, index) => {
-        const trace = traceOf(o);
+      orders: snapshot.map(({ order: o, trace }, index) => {
         return {
           id: mockGuid(`${o.code}-run`),
           salesOrderId: mockGuid(o.code),
@@ -295,7 +340,7 @@ export function allocationRunOf(businessDate: string) {
             effectiveMlorRatio: l.m,
             mlorSource: db.retailerMlor[o.retailerCode]?.[l.sku] != null ? 'RetailerProduct' : 'ProductDefault',
             baseNetUnitPrice: product(l.sku).basePrice,
-            allocatedQuantity: l.allocated,
+            allocatedQuantity: trace.ok ? l.allocated : 0,
           })),
         };
       }),
@@ -312,6 +357,7 @@ export function allocationRunOf(businessDate: string) {
  * the mock keeps it in memory so approving once is visible until the page is reloaded.
  */
 const planDecisions = new Map<string, { status: string; approvedAt: string | null; reason: string | null }>();
+const closedRunIds = new Set<string>();
 
 export function decidePlanVersion(versionId: string, status: string, reason: string | null, now: string) {
   planDecisions.set(versionId, { status, approvedAt: status === 'Approved' ? now : null, reason });
@@ -330,6 +376,13 @@ function businessDateOfRun(runId: string): string | null {
   return null;
 }
 
+export function closeAllocationRun(runId: string) {
+  const businessDate = businessDateOfRun(runId);
+  if (businessDate == null) return null;
+  closedRunIds.add(runId);
+  return allocationRunOf(businessDate).run;
+}
+
 /** Plan version ids are hashed from the business date too, so the same bounded scan finds the run. */
 export function findRunOfVersion(versionId: string): string {
   const start = new Date(`${MOCK_TODAY}T00:00:00Z`).getTime();
@@ -343,14 +396,14 @@ export function findRunOfVersion(versionId: string): string {
 export function planVersionsOf(runId: string) {
   const businessDate = businessDateOfRun(runId);
   if (businessDate == null) return [];
-  const { run, orders, lineId } = allocationRunOf(businessDate);
+  const { run, lineId } = allocationRunOf(businessDate);
+  const snapshot = sharedPoolOrders(businessDate);
   const tiers = [...db.settings.batchDiscountTiers].sort((a, b) => a.maxRemainingPct - b.maxRemainingPct);
   const allocations: unknown[] = [];
   const prices: unknown[] = [];
   let total = 0;
 
-  orders.forEach((o) => {
-    const trace = traceOf(o);
+  snapshot.forEach(({ order: o, trace }) => {
     if (!trace.ok) return;
     trace.lines.forEach((l) => {
       const base = product(l.sku).basePrice;
@@ -403,7 +456,7 @@ export function planVersionsOf(runId: string) {
       runCode: run.runCode,
       versionNumber: 1,
       status: decision?.status ?? 'AwaitingApproval',
-      pricedAt: `${businessDate}T12:00:30+07:00`,
+      pricedAt: `${businessDate}T00:00:30+07:00`,
       fulfilledOrderCount: run.orders.filter((o) => o.status === 'Fulfilled').length,
       shortOrderCount: run.orders.filter((o) => o.status === 'Short').length,
       totalFinalAmount: total,

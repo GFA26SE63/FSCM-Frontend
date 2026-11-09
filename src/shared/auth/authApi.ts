@@ -21,6 +21,14 @@ interface BackendCurrentUser {
   role: PortalRole;
 }
 
+interface BackendAuthenticationResult {
+  accessToken: string;
+  accessTokenExpiresAt: string;
+  refreshToken: string;
+  refreshTokenExpiresAt: string;
+  user: BackendCurrentUser;
+}
+
 const mapBackendUser = (user: BackendCurrentUser): CurrentUser => ({
   id: user.id,
   email: user.email,
@@ -36,6 +44,11 @@ export const authApi = {
   /** Exchanges a short-lived provider ID token for the JWT issued by FSCM. */
   externalLogin: (provider: ExternalIdentityProvider, idToken: string) =>
     post<{ accessToken: string; refreshToken?: string }>('/auth/external-login', { provider, idToken }),
+  /** Local development/demo login supported by the FSCM backend. */
+  localLogin: async (email: string, password: string) => {
+    const result = await post<BackendAuthenticationResult>('/auth/login', { email, password });
+    return { ...result, user: mapBackendUser(result.user) };
+  },
   /** Mock-only endpoint that stands in for the Entra token flow (see mock/handlers/identity.ts). */
   mockToken: (body: { email: string; password: string; role?: PortalRole }) => post<{ accessToken: string }>('/auth/mock-token', body),
 };

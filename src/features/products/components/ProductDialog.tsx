@@ -17,8 +17,9 @@ export function ProductDialog({ open, product, onClose }: { open: boolean; produ
       title={edit ? `Sửa bản nháp ${product!.sku}` : 'Thêm sản phẩm (bản nháp)'}
       submitLabel={edit ? 'Lưu nháp' : 'Tạo bản nháp'}
       note="Sản phẩm mới ở trạng thái Nháp; sau khi Publish, thông tin bị khóa và retailer mới thấy sản phẩm."
-      initial={product ? { ...product } : { name: '', categoryCode: cats.data[0]?.code ?? '', packSpec: '', basePrice: '', unitCost: '', shelfLifeDays: '', nearExpiryDays: '', defaultMlor: '0.5' }}
+      initial={product ? { ...product } : { sku: '', name: '', categoryCode: cats.data[0]?.code ?? '', packSpec: '', basePrice: '', unitCost: '', shelfLifeDays: '', nearExpiryDays: '', defaultMlor: '0.5' }}
       fields={[
+        { key: 'sku', label: 'Mã SKU', required: true, readOnly: edit, placeholder: 'SKU006' },
         { key: 'name', label: 'Tên sản phẩm', required: true, span: 2 },
         { key: 'categoryCode', label: 'Danh mục', type: 'select', required: true, options: cats.data.filter((c) => c.status === 'Active').map((c) => ({ value: c.code, label: c.name })) },
         { key: 'packSpec', label: 'Quy cách đóng gói', required: true, span: 2, placeholder: 'Thùng 24 hộp × 180 ml' },
@@ -30,7 +31,7 @@ export function ProductDialog({ open, product, onClose }: { open: boolean; produ
       ]}
       onClose={onClose}
       onSubmit={async (v) => {
-        const input = { name: v.name, categoryCode: v.categoryCode, packSpec: v.packSpec, basePrice: Number(v.basePrice), unitCost: Number(v.unitCost) || 0, shelfLifeDays: Number(v.shelfLifeDays), nearExpiryDays: Number(v.nearExpiryDays), defaultMlor: Number(v.defaultMlor) };
+        const input = { sku: v.sku, name: v.name, categoryCode: v.categoryCode, packSpec: v.packSpec, basePrice: Number(v.basePrice), unitCost: Number(v.unitCost) || 0, shelfLifeDays: Number(v.shelfLifeDays), nearExpiryDays: Number(v.nearExpiryDays), defaultMlor: Number(v.defaultMlor) };
         await (edit ? update.mutateAsync({ ...input, sku: product!.sku }) : create.mutateAsync(input));
         onClose();
       }}

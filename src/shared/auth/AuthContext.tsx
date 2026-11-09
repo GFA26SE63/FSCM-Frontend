@@ -50,10 +50,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(
     async (email: string, password: string, role?: PortalRole) => {
-      const { accessToken } = await authApi.mockToken({ email, password, role });
-      tokenStore.set(accessToken);
+      let u: CurrentUser;
+      if (env.useMock) {
+        const session = await authApi.mockToken({ email, password, role });
+        tokenStore.set(session.accessToken);
+        u = await authApi.me();
+      } else {
+        const session = await authApi.localLogin(email, password);
+        tokenStore.set(session.accessToken);
+        u = session.user;
+      }
       qc.clear();
-      const u = await authApi.me();
       setUser(u);
       setStatus('authenticated');
       return u;

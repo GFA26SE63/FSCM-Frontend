@@ -52,6 +52,8 @@ interface DataTableProps<T> {
   filters?: FilterDef<T>[];
   /** Extra controls placed in the filter grid (e.g. date inputs). */
   filterExtra?: ReactNode;
+  /** Resets externally controlled fields rendered through filterExtra. */
+  onClearExtra?: () => void;
   pageSize?: number;
   /** When set, paging/search are delegated to the server (?page=&size=&search=). Filters still apply client-side. */
   server?: ServerPaging;
@@ -63,6 +65,11 @@ const ALL = 'Tất cả';
 const cellText = <T,>(c: Column<T>, row: T): string => {
   const v = c.text ? c.text(row) : (row as Record<string, unknown>)[c.key];
   return v == null ? '' : String(v);
+};
+
+const pixels = (width: string | undefined, fallback: number) => {
+  const match = width?.match(/^(\d+)px$/);
+  return match ? Number(match[1]) : fallback;
 };
 
 /**
@@ -85,6 +92,7 @@ export function DataTable<T>({
   searchable = true,
   filters = [],
   filterExtra,
+  onClearExtra,
   pageSize = 10,
   server,
   emptyText = 'Không có bản ghi phù hợp bộ lọc.',
@@ -117,9 +125,15 @@ export function DataTable<T>({
     setSearch('');
     server?.onSearchChange('');
     setFv(Object.fromEntries(filters.map((f) => [f.label, ALL])));
+    onClearExtra?.();
   };
 
   const pages = Array.from({ length: pageCount }, (_, i) => i + 1).filter((p) => p === 1 || p === pageCount || Math.abs(p - curPage) <= 2);
+  // Fixed-layout tables otherwise squeeze every declared column into the viewport. Long names and
+  // identifiers then wrap one character per line. Preserve readable column widths and scroll the
+  // table horizontally when the screen is narrower than the data.
+  const minimumTableWidth = columns.reduce((sum, column) => sum + pixels(column.width, 170), 0) +
+    (rowActions ? pixels(rowActionsWidth, 180) : 0);
 
   return (
     <>
@@ -167,7 +181,7 @@ export function DataTable<T>({
       )}
 
       <section className="card tbl-wrap" style={{ minHeight: 120 }}>
-        <table className="tbl">
+        <table className="tbl" style={{ minWidth: minimumTableWidth }}>
           <colgroup>
             {columns.map((c) => (
               <col key={c.key} style={c.width ? { width: c.width } : undefined} />

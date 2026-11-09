@@ -1,66 +1,90 @@
 import { useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
 import { Button, Callout, Card, FormField, Input, PageHeader, Select } from '@/shared/ui';
-import { IdFormat } from '@/shared/lib';
 import { useCreateReceipt, useReceiptLookups } from '../hooks';
 
-interface Row { sku: string; expiry: string; qty: string; labels: string; lot: string }
-const blank = (sku = ''): Row => ({ sku, expiry: '', qty: '', labels: '1', lot: '' });
+interface Row {
+  productId: string;
+  productionDate: string;
+  expirationDate: string;
+  quantity: string;
+  sourceLotCode: string;
+}
 
-/** "Tạo phiếu nhập": warehouse + rows (SKU, HSD, thùng, số tem). Batch code is previewed with IdFormat.batch. */
+const blank = (): Row => ({ productId: '', productionDate: '', expirationDate: '', quantity: '', sourceLotCode: '' });
+
+/** Warehouse Keeper selects a published product; the Portal submits backend IDs, never a typed SKU. */
 export function ReceiptFormPage() {
   const navigate = useNavigate();
   const { warehouses, products } = useReceiptLookups();
   const create = useCreateReceipt();
-  const [warehouseCode, setWarehouse] = useState('');
-  const [note, setNote] = useState('');
+  const [warehouseId, setWarehouseId] = useState('');
   const [rows, setRows] = useState<Row[]>([blank()]);
   const [tried, setTried] = useState(false);
 
-  const whs = (warehouses.data ?? []).filter((w) => w.status === 'Active');
-  const prods = (products.data ?? []).filter((p) => p.status === 'Published');
-  const wh = warehouseCode || whs[0]?.code || '';
-  const update = (i: number, patch: Partial<Row>) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
-  const rowErr = (r: Row) => (!r.sku ? 'Chọn SKU' : !r.expiry ? 'Nhập HSD' : !(Number(r.qty) > 0) ? 'Số thùng phải > 0' : null);
-  const invalid = rows.some(rowErr);
+  const whs = (warehouses.data ?? []).filter((warehouse) => warehouse.isActive);
+  const prods = (products.data ?? []).filter((product) => product.status === 'Published');
+  const selectedWarehouseId = warehouseId || whs[0]?.id || '';
+  const update = (index: number, patch: Partial<Row>) =>
+    setRows((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row));
+  const rowError = (row: Row) =>
+    !row.productId ? 'Chọn sản phẩm'
+      : !row.productionDate ? 'Nhập ngày sản xuất'
+        : !row.expirationDate ? 'Nhập hạn sử dụng'
+          : row.expirationDate <= row.productionDate ? 'HSD phải sau ngày sản xuất'
+            : !(Number(row.quantity) > 0) ? 'Số lượng phải lớn hơn 0'
+              : null;
+  const invalid = rows.some(rowError);
 
   const submit = async () => {
     setTried(true);
-    if (invalid || !wh) return;
-    const r = await create.mutateAsync({ warehouseCode: wh, note, lines: rows.map((x) => ({ sku: x.sku, expiry: x.expiry, qty: Number(x.qty), labels: Number(x.labels) || 1, lot: x.lot })) });
-    navigate(`/receipts/${r.code}`);
+    if (invalid || !selectedWarehouseId) return;
+    const receipt = await create.mutateAsync({
+      warehouseId: selectedWarehouseId,
+      operationKey: crypto.randomUUID(),
+      lines: rows.map((row) => ({
+        productId: row.productId,
+        sourceLotCode: row.sourceLotCode.trim() || null,
+        quantity: Number(row.quantity),
+        productionDate: row.productionDate,
+        expirationDate: row.expirationDate,
+      })),
+    });
+    navigate(`/receipts/${receipt.id}`);
   };
 
   return (
     <>
-      <PageHeader back="/receipts" title="Tạo phiếu nhập kho" subtitle="Mỗi dòng sinh một batch; trùng kho-SKU-HSD thì cộng vào batch hiện có." />
+      <PageHeader back="/receipts" title="Tạo phiếu nhập kho" subtitle="Chọn sản phẩm từ danh mục. Tạo phiếu chưa tăng tồn; duyệt phiếu mới sinh/ghép batch và cộng tồn kho." />
       <Card title="Thông tin phiếu">
-        <div className="form-grid cols-2">
-          <FormField label="Kho nhận" required><Select value={wh} onChange={(e) => setWarehouse(e.target.value)} options={whs.map((w) => ({ value: w.code, label: `${w.code} · ${w.name}` }))} /></FormField>
-          <FormField label="Ghi chú"><Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ví dụ: Nhập lô NSX tháng 9" /></FormField>
-        </div>
+        <FormField label="Kho nhận" required>
+          <Select value={selectedWarehouseId} onChange={(event) => setWarehouseId(event.target.value)} options={whs.map((warehouse) => ({ value: warehouse.id, label: `${warehouse.code} · ${warehouse.name}` }))} />
+        </FormField>
       </Card>
-      <Card title="Dòng hàng nhập" actions={<Button size="sm" onClick={() => setRows((r) => [...r, blank()])}>+ Thêm dòng</Button>}>
+      <Card title="Dòng hàng nhập" actions={<Button size="sm" onClick={() => setRows((current) => [...current, blank()])}>+ Thêm dòng</Button>}>
         <div className="stack-sm">
-          {rows.map((r, i) => (
-            <div key={i} className="form-grid" style={{ gridTemplateColumns: '2fr 1.2fr 0.8fr 0.7fr 1fr auto', alignItems: 'end' }}>
-              <FormField label="SKU" error={tried ? rowErr(r) : null}>
-                <Select value={r.sku} placeholder="— Chọn SKU —" onChange={(e) => update(i, { sku: e.target.value })} options={prods.map((p) => ({ value: p.sku, label: `${p.sku} · ${p.name}` }))} />
-              </FormField>
-              <FormField label="Hạn sử dụng"><Input type="date" value={r.expiry} onChange={(e) => update(i, { expiry: e.target.value })} /></FormField>
-              <FormField label="Số thùng"><Input inputMode="numeric" value={r.qty} onChange={(e) => update(i, { qty: e.target.value })} /></FormField>
-              <FormField label="Số tem"><Input inputMode="numeric" value={r.labels} onChange={(e) => update(i, { labels: e.target.value })} /></FormField>
-              <FormField label="Lô NSX"><Input value={r.lot} onChange={(e) => update(i, { lot: e.target.value })} /></FormField>
-              <Button size="sm" variant="danger" disabled={rows.length === 1} onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}>Xóa</Button>
-              {r.sku && r.expiry && <span className="muted small" style={{ gridColumn: '1 / -1' }}>Batch: <b>{IdFormat.batch(wh, r.sku, r.expiry)}</b></span>}
-            </div>
-          ))}
+          {rows.map((row, index) => {
+            const product = prods.find((item) => item.id === row.productId);
+            return (
+              <div key={index} className="form-grid" style={{ gridTemplateColumns: '2fr 1.1fr 1.1fr 0.8fr 1.2fr auto', alignItems: 'end' }}>
+                <FormField label="Sản phẩm / SKU" error={tried ? rowError(row) : null}>
+                  <Select value={row.productId} placeholder="— Chọn sản phẩm —" onChange={(event) => update(index, { productId: event.target.value })} options={prods.map((item) => ({ value: item.id, label: `${item.sku} · ${item.name}` }))} />
+                </FormField>
+                <FormField label="Ngày sản xuất"><Input type="date" value={row.productionDate} onChange={(event) => update(index, { productionDate: event.target.value })} /></FormField>
+                <FormField label="Hạn sử dụng"><Input type="date" value={row.expirationDate} onChange={(event) => update(index, { expirationDate: event.target.value })} /></FormField>
+                <FormField label="Số lượng"><Input inputMode="decimal" value={row.quantity} onChange={(event) => update(index, { quantity: event.target.value })} /></FormField>
+                <FormField label="Mã lô nhà sản xuất"><Input value={row.sourceLotCode} onChange={(event) => update(index, { sourceLotCode: event.target.value })} /></FormField>
+                <Button size="sm" variant="danger" disabled={rows.length === 1} onClick={() => setRows((current) => current.filter((_, rowIndex) => rowIndex !== index))}>Xóa</Button>
+                {product && <span className="muted small" style={{ gridColumn: '1 / -1' }}>Đã chọn: <b>{product.sku} · {product.name}</b>. Mã batch được hệ thống sinh khi duyệt phiếu.</span>}
+              </div>
+            );
+          })}
         </div>
       </Card>
-      {tried && invalid && <Callout tone="danger">Vui lòng hoàn tất các dòng hàng còn thiếu thông tin.</Callout>}
+      {tried && (invalid || !selectedWarehouseId) && <Callout tone="danger">Vui lòng hoàn tất các dòng hàng còn thiếu hoặc chưa hợp lệ.</Callout>}
       <div className="row" style={{ justifyContent: 'flex-end' }}>
         <Button onClick={() => navigate('/receipts')}>Hủy</Button>
-        <Button variant="primary" loading={create.isPending} onClick={submit}>Tạo phiếu nhập</Button>
+        <Button variant="primary" loading={create.isPending} onClick={submit}>Tạo phiếu chờ duyệt</Button>
       </div>
     </>
   );

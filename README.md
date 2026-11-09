@@ -13,7 +13,22 @@ npm run build               # tsc -b && vite build → dist/ (deploy Vercel)
 
 Đăng nhập mock: chọn vai trò, email demo (vd. `khoa.pm@fscm.local` – Admin), mật khẩu bất kỳ ≥ 6 ký tự. Sidebar có ô "Xem với vai trò (demo)" để đổi vai trò nhanh.
 
-Nối backend thật: `VITE_USE_MOCK=false`, cấu hình `VITE_API_BASE_URL`, `VITE_ENTRA_*` và `VITE_GOOGLE_CLIENT_ID`; backend cần đổi ID token tại `POST /api/v1/auth/external-login` thành JWT FSCM.
+### Demo allocation trên Portal với backend thật
+
+1. Chuẩn bị database phát triển riêng và chạy seed của Backend. Seed tạo một đơn đủ hàng và một đơn
+   thiếu hàng ở trạng thái `PendingAllocation`, với thời điểm nhận trước mốc chốt.
+2. Chạy Backend bằng profile `http` tại `http://localhost:5246`.
+3. Đặt `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=http://localhost:5246` trong `.env`, rồi chạy Portal.
+4. Đăng nhập tài khoản Admin của Backend, mở `/allocation` và bấm **Chạy allocation**.
+5. Xem thứ tự ưu tiên, đơn đủ/thiếu, batch, điểm weighted và giá sau giảm HSD; bấm **Duyệt phương án**
+   để giữ tồn và chuẩn bị gửi báo giá. Chưa phát hành phiếu soạn ở bước này.
+
+Không chạy seed vào database dùng chung nếu chưa được người quản lý database cho phép. Muốn luyện UI
+không cần backend thì đổi lại `VITE_USE_MOCK=true`; mock dùng cùng quy tắc shared-pool nhưng không phải
+bằng chứng chạy API/DB thật.
+
+Portal hỗ trợ đăng nhập email/password qua `POST /api/v1/auth/login` cho môi trường phát triển. Entra
+dùng endpoint `POST /api/v1/auth/entra/exchange`; Google sign-in chưa được Backend hỗ trợ.
 
 ## Kiến trúc và cấu trúc thư mục
 
@@ -85,7 +100,8 @@ Feature ↔ menu: dashboard · orders (chi tiết + **Giải thích phân bổ B
 
 ## Phiếu soạn theo đợt (runpicking)
 
-Phiếu soạn phát hành sau khi phương án được duyệt **và** giữ tồn thành công. Màn này đọc
+Phiếu soạn chỉ phát hành sau khi phương án được duyệt, báo giá được chấp nhận, thanh toán/công nợ hợp
+lệ và SO đã trở thành PO. Màn này đọc
 `GET /allocation-runs/{runId}/picking-lists`. Hai điều **không được** làm khi sửa nó:
 
 - **Không gộp batch.** Hai batch của cùng một SKU phải là **hai dòng lấy gom**. Batch là thứ mà
@@ -116,12 +132,12 @@ thành cấu hình riêng cho portal, vì hai lịch chính là cách hai giờ 
   vì được gõ trong portal.
 
 Server trả mốc đã **quy ra thời điểm thật** cho một ngày nghiệp vụ; portal không tự suy giờ Việt Nam
-từ chuỗi `"12:00"`.
+từ chuỗi `"00:00"`.
 Feature ↔ menu: dashboard · orders (chi tiết + **Giải thích phân bổ B1–B4** đọc từ trace thật của đợt + chi phí giao ước tính) · debts (công nợ một phần, thu một lần) · picking · receipts · whtransfer · **rotation (Luân chuyển cận hạn: đề xuất, bảng điểm từng kho ứng viên, duyệt / sửa SL / bỏ qua)** · **fleet (Xe & người giao)** · batches · batchpromo · disposal · promos · retailers · loyalty · gifts · redeem · regions · categories · products (nháp / publish / inactive / clone) · warehouses · users (không tạo Admin) · kpi · complaints · config (trọng số phân bổ, trọng số luân chuyển, Dmax, **bảng vận chuyển dùng chung**, tỷ lệ điểm).
 
 ## Giải thích phân bổ (orders)
 
-Cửa sổ "Giải thích phân bổ" đọc trace mà đợt 12:00 ghi lại, qua
+Cửa sổ "Giải thích phân bổ" đọc trace mà đợt 00:00 ghi lại, qua
 `GET /allocation-runs/orders/{salesOrderId}/trace`. Vài điều dễ làm sai khi sửa màn này:
 
 - **Hạn dùng tính bằng giờ, không phải ngày.** Đợt so sánh bằng giờ là có chủ đích: tới sáng hôm

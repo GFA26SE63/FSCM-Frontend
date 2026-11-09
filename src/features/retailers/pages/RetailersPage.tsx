@@ -1,11 +1,8 @@
-import { useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
 import { Button, DataTable, PageHeader, StatusChip, type Column } from '@/shared/ui';
 import { statusLabels } from '@/shared/lib';
-import { useAuth } from '@/shared/auth/AuthContext';
 import { useRetailerRows } from '../hooks';
 import { RegistrationActions } from '../components/RegistrationActions';
-import { RetailerFormDialog } from '../components/RetailerFormDialog';
 import type { RetailerRow } from '../types';
 
 const statusText = (r: RetailerRow) => (r.statusDomain === 'active' ? statusLabels.active[r.status as 'Active' | 'Locked'] : statusLabels.registration[r.status as 'Pending' | 'Rejected']);
@@ -13,9 +10,7 @@ const statusText = (r: RetailerRow) => (r.statusDomain === 'active' ? statusLabe
 /** "Retailer" – master list plus Sales registrations (KB-xxxx) waiting for approval. */
 export function RetailersPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const query = useRetailerRows();
-  const [creating, setCreating] = useState(false);
   const columns: Column<RetailerRow>[] = [
     { key: 'code', header: 'Mã', width: '110px', render: (r) => <span className="bold">{r.code}</span> },
     { key: 'name', header: 'Tên điểm bán', text: (r) => r.name },
@@ -42,7 +37,6 @@ export function RetailersPage() {
           { label: 'Khu vực', options: [...new Set((query.data ?? []).map((r) => r.areaName))], value: (r) => r.areaName },
           { label: 'Nhóm tiềm năng', options: ['A', 'B', 'C'], value: (r) => r.potentialClass },
         ]}
-        actions={user?.role === 'Admin' ? <Button variant="primary" onClick={() => setCreating(true)}>+ Tạo retailer</Button> : undefined}
         onRowClick={(r) => navigate(`/retailers/${r.code}`)}
         rowActionsWidth="230px"
         rowActions={(r) => (
@@ -52,7 +46,6 @@ export function RetailersPage() {
           </>
         )}
       />
-      <RetailerFormDialog open={creating} onClose={() => setCreating(false)} />
     </>
   );
 }

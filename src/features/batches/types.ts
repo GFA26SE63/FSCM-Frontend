@@ -1,5 +1,6 @@
 export type ExpiryStatus = 'Normal' | 'NearExpiry' | 'Expired' | 'Disposed';
 export interface Batch {
+  id?: string;
   code: string; warehouseCode: string; warehouseName: string; sku: string; productName: string; expiry: string;
   onHand: number; held: number; available: number; shelfLifeDays: number; remainingDays: number; remainingPct: number;
   expiryStatus: ExpiryStatus; discountPct: number | null; discountUntil: string | null; discountCode: string | null;

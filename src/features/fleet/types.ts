@@ -1,6 +1,6 @@
 export type Availability = 'Active' | 'Maintenance';
-export interface Vehicle { plate: string; type: string; capacity: number; warehouseCode: string; warehouseName: string; status: 'Active' | 'Maintenance' }
-export interface Driver { code: string; name: string; phone: string; licenseClass: string; status: 'Active' | 'OnLeave' }
+export interface Vehicle { id?: string; plate: string; type: string; capacity: number; warehouseCode: string; warehouseName: string; status: 'Active' | 'Maintenance' }
+export interface Driver { id?: string; code: string; name: string; phone: string; licenseClass: string; status: 'Active' | 'OnLeave' }
 export interface Trip { orderCode: string; retailerName: string; departedAt: string; plate: string; driverName: string; status: string }
 export interface VehicleDetail extends Vehicle { recentTrips: Trip[] }
 export interface DriverDetail extends Driver { recentTrips: Trip[] }

@@ -58,6 +58,23 @@ export interface AllocationRun {
   orders: RunOrder[];
 }
 
+export interface AllocationRunSummary {
+  id: string;
+  runCode: string;
+  businessDate: string;
+  cutoffAt: string;
+  status: RunStatus;
+  orderCount: number;
+  startedAt: string;
+  completedAt: string | null;
+  version: number;
+  planVersionNumber: number | null;
+  planStatus: PlanVersionStatus | null;
+  fulfilledOrderCount: number;
+  shortOrderCount: number;
+  totalFinalAmount: number;
+}
+
 /** One allocated part: which batch, when it arrives, how much life it has left then. */
 export interface PlanAllocation {
   allocationRunLineId: string;

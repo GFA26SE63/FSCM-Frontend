@@ -247,5 +247,7 @@ export interface OrderPrice {
   lines: OrderPriceLine[];
 }
 
-export interface DispatchVehicle { plate: string; type: string; capacity: number; status: 'Active' | 'Maintenance' }
-export interface DispatchDriver { code: string; name: string; phone: string; status: 'Active' | 'OnLeave' }
+export interface DispatchVehicle { warehouseId?: string; plate: string; type: string; capacity: number; status: 'Active' | 'Maintenance' }
+export interface DispatchDriver { warehouseId?: string; code: string; name: string; phone: string; status: 'Active' | 'OnLeave' }
+
+export interface DispatchShipment { id: string; warehouseId: string; warehouseCode: string; warehouseName: string; shipmentCode: string; status: string; version: number; totalQuantity: number; }

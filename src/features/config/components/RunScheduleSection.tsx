@@ -51,28 +51,33 @@ export function RunScheduleSection({ current }: { current: RunSchedule }) {
     Object.fromEntries(ORDER.map((key) => [key, toInput(byKey(key)?.localTime ?? '')])) as Record<Key, string>;
 
   const [draft, setDraft] = useState<Record<Key, string>>(initial);
+  const [intervalHours, setIntervalHours] = useState(current.allocationIntervalHours || 3);
   const publish = usePublishRunSchedule();
-  useEffect(() => setDraft(initial()), [current]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    setDraft(initial());
+    setIntervalHours(current.allocationIntervalHours || 3);
+  }, [current]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const at = (key: Key) => minutes(draft[key]);
   const errors: string[] = [];
   if (ORDER.some((key) => Number.isNaN(at(key)))) {
     errors.push('Mọi mốc phải là giờ hợp lệ dạng HH:mm.');
   } else {
-    if (at('plan_approval_deadline') <= at('allocation_run')) {
+    const forward = (from: number, to: number) => (to - from + 1440) % 1440;
+    if (forward(at('allocation_run'), at('plan_approval_deadline')) === 0) {
       errors.push('Hạn duyệt phương án phải sau giờ chốt.');
     }
-    if (at('sales_submission_advice') >= at('allocation_run')) {
+    if (forward(at('sales_submission_advice'), at('allocation_run')) === 0) {
       errors.push('Khuyến nghị gửi đơn phải trước giờ chốt.');
     }
-    if (at('order_review_reminder') >= at('allocation_run')) {
+    if (forward(at('order_review_reminder'), at('allocation_run')) === 0) {
       errors.push('Nhắc duyệt đơn phải trước giờ chốt.');
     }
-    if (
-      at('plan_approval_reminder') <= at('allocation_run') ||
-      at('plan_approval_reminder') >= at('plan_approval_deadline')
-    ) {
+    if (forward(at('allocation_run'), at('plan_approval_reminder')) >= forward(at('allocation_run'), at('plan_approval_deadline'))) {
       errors.push('Nhắc duyệt phương án phải nằm giữa giờ chốt và hạn duyệt.');
+    }
+    if (!Number.isInteger(intervalHours) || intervalHours < 1 || intervalHours > 24 || 24 % intervalHours !== 0) {
+      errors.push('Chu kỳ phải là ước số nguyên của 24 giờ (ví dụ: 1, 2, 3, 4, 6, 8, 12).');
     }
   }
 
@@ -82,6 +87,8 @@ export function RunScheduleSection({ current }: { current: RunSchedule }) {
       salesSubmissionAdviceLocalTime: draft.sales_submission_advice,
       orderReviewReminderLocalTime: draft.order_review_reminder,
       allocationRunLocalTime: draft.allocation_run,
+      allocationIntervalHours: intervalHours,
+      planApprovalMinutes: (at('plan_approval_deadline') - at('allocation_run') + 1440) % 1440,
       planApprovalReminderLocalTime: draft.plan_approval_reminder,
       planApprovalDeadlineLocalTime: draft.plan_approval_deadline,
       preparationMinutes: current.preparationMinutes,
@@ -92,12 +99,15 @@ export function RunScheduleSection({ current }: { current: RunSchedule }) {
   return (
     <div className="stack">
       <Callout tone="info">
-        Giờ chốt ở đây là mốc duy nhất: đợt chạy theo nó và ETA báo cho khách cũng tính từ nó. Đổi giờ có hiệu
-        lực từ ngày hôm sau. <strong>Quá hạn duyệt, hệ thống không tự duyệt phương án</strong> — quyết định muộn
+        Hệ thống chạy lặp lại mỗi <strong>{intervalHours} giờ</strong>, bắt đầu từ giờ chốt gốc. ETA báo cho khách cũng tính từ mốc chạy kế tiếp. Đổi lịch có hiệu
+        lực từ lần chạy sau. <strong>Quá hạn duyệt, hệ thống không tự duyệt phương án</strong> — quyết định muộn
         vẫn phải do người duyệt, và ETA của phương án đó cần được kiểm lại.
       </Callout>
 
       <div className="form-grid cols-2">
+        <FormField label="Chu kỳ chạy allocation (giờ)" hint="Chọn 3 để chạy tại 00:00, 03:00, 06:00… mỗi ngày.">
+          <Input type="number" min={1} max={24} value={intervalHours} onChange={(e) => setIntervalHours(Number(e.target.value))} />
+        </FormField>
         {ORDER.map((key) => (
           <FormField key={key} label={FIELD_LABEL[key]} hint={FIELD_HINT[key]}>
             <Input type="time" value={draft[key]} onChange={(e) => setDraft((s) => ({ ...s, [key]: e.target.value }))} />
@@ -135,7 +145,7 @@ export function RunScheduleSection({ current }: { current: RunSchedule }) {
           Lưu lịch chạy đợt
         </Button>
         <span style={{ fontSize: 12.5, opacity: 0.75 }}>
-          Bản {current.scheduleVersion} · múi giờ {current.timeZone}
+          Bản {current.scheduleVersion} · mỗi {current.allocationIntervalHours || 3} giờ · múi giờ {current.timeZone}
         </span>
       </div>
     </div>
