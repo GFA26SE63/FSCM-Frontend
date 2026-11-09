@@ -1,4 +1,5 @@
 export interface Retailer {
+  id?: string;
   code: string; name: string; address: string; phone: string; contact: string; areaCode: string; areaName: string; groupCode: string;
   lat: number; lng: number; status: 'Active' | 'Locked'; source: string; kind: string; size: 'S' | 'M' | 'L'; areaM2: number; fridges: number;
   forecastRevenue: number; monthlyCapacity: number; orderFrequency: string; potentialClass: 'A' | 'B' | 'C'; creditTermDays: 0 | 7 | 14 | 30;

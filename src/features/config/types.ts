@@ -67,6 +67,7 @@ export interface RunSchedule {
   businessDate: string;
   timeZone: string;
   scheduleVersion: number;
+  allocationIntervalHours: number;
   milestones: ScheduleMilestone[];
   preparationMinutes: number;
   bufferMinutes: number;
@@ -79,6 +80,8 @@ export interface RunSchedulePayload {
   salesSubmissionAdviceLocalTime: string;
   orderReviewReminderLocalTime: string;
   allocationRunLocalTime: string;
+  allocationIntervalHours: number;
+  planApprovalMinutes: number;
   planApprovalReminderLocalTime: string;
   planApprovalDeadlineLocalTime: string;
   preparationMinutes: number;

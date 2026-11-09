@@ -30,8 +30,8 @@ export function OrderActions({ children }: Props) {
       {(status === 'Approved' || status === 'Picking') && (
         <Button size={size} variant="danger" onClick={() => setReason({ code, mode: 'cancel' })}>Hủy đơn</Button>
       )}
-      {status === 'Shipped' && (
-        <Button size={size} variant="primary" onClick={() => setDispatchCode(code)}>Cập nhật Đang giao</Button>
+      {(['Approved', 'Picking', 'Shipped', 'Issued', 'Delivering'] as string[]).includes(status) && (
+        <Button size={size} variant="primary" onClick={() => setDispatchCode(code)}>Gán xe / người giao</Button>
       )}
     </>
   );

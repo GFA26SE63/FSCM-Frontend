@@ -28,10 +28,7 @@ function SettingsForm({ settings }: { settings: SystemSettings }) {
 
   const errors: string[] = [];
   if (Math.abs(sum(d.alloc) - 1) > 0.001) errors.push('Tổng trọng số phân bổ phải bằng 1.');
-  if (Math.abs(sum(d.rot) - 1) > 0.001) errors.push('Tổng trọng số luân chuyển phải bằng 1.');
-  if (!num(d.dRetailer) || !num(d.dWh)) errors.push('Dmax phải là số.');
-  else if (Number(d.dRetailer) > Number(d.dWh)) errors.push('Dmax_retailer không được lớn hơn Dmax_kho.');
-  if (![d.velocityDays, d.minQty, d.roundTo, d.minRegional, d.loyalty].every(num)) errors.push('Các tham số luân chuyển / loyalty phải là số.');
+  if (!num(d.dRetailer)) errors.push('Bán kính phục vụ phải là số.');
 
   const submit = () =>
     save.mutate({
@@ -55,22 +52,9 @@ function SettingsForm({ settings }: { settings: SystemSettings }) {
         <WeightsEditor value={d.alloc} onChange={(v) => set('alloc', v)} />
       </Card>
 
-      <Card title="Phạm vi phục vụ (Dmax)">
-        <div className="form-grid cols-2">
+      <Card title="Phạm vi phục vụ">
+        <div className="form-grid">
           <FormField label="Dmax_retailer – kho phục vụ retailer (km)" hint="Mặc định 20. Kho xa hơn bị loại ở B2a."><Input inputMode="numeric" value={d.dRetailer} onChange={(e) => set('dRetailer', e.target.value)} /></FormField>
-          <FormField label="Dmax_kho – điều chuyển giữa các kho (km)" hint="Mặc định 40. Kho đích xa hơn bị loại khi luân chuyển cận hạn."><Input inputMode="numeric" value={d.dWh} onChange={(e) => set('dWh', e.target.value)} /></FormField>
-        </div>
-      </Card>
-
-      <Card title="Trọng số luân chuyển cận hạn: S = wE·fE + wD·fD + wQ·fQ">
-        <div className="stack">
-          <WeightsEditor value={d.rot} onChange={(v) => set('rot', v)} />
-          <div className="form-grid">
-            <FormField label="Số ngày tính tốc độ bán (v)"><Input inputMode="numeric" value={d.velocityDays} onChange={(e) => set('velocityDays', e.target.value)} /></FormField>
-            <FormField label="Số lượng tối thiểu mỗi lượt (thùng)"><Input inputMode="numeric" value={d.minQty} onChange={(e) => set('minQty', e.target.value)} /></FormField>
-            <FormField label="Làm tròn xuống bội số của (thùng)"><Input inputMode="numeric" value={d.roundTo} onChange={(e) => set('roundTo', e.target.value)} /></FormField>
-            <FormField label="Tồn tối thiểu kho vùng (thùng)"><Input inputMode="numeric" value={d.minRegional} onChange={(e) => set('minRegional', e.target.value)} /></FormField>
-          </div>
         </div>
       </Card>
 
@@ -110,7 +94,7 @@ export function ConfigPage() {
     <>
       <PageHeader
         title="Cấu hình hệ thống"
-        subtitle="Bảng vận chuyển dùng chung, trọng số phân bổ / luân chuyển, phạm vi phục vụ và quy đổi điểm loyalty."
+        subtitle="Bảng vận chuyển dùng chung, lịch chạy 3 giờ, trọng số phân bổ, phạm vi phục vụ và chính sách giá."
       />
 
       <Card title="Bảng vận chuyển dùng chung (khoảng km → thời gian, chi phí)">

@@ -37,7 +37,7 @@ function OrderBody({ o }: { o: OrderDetail }) {
                 <Button onClick={() => setTrace(true)}>Giải thích phân bổ (B1–B4)</Button>
                 {buttons(o.code, o.status, 'md')}
                 {env.useMock && o.status === 'Delivering' && (
-                  <Button loading={receipt.isPending} onClick={() => receipt.mutate(o.code)}>Giả lập quét QR nhận hàng</Button>
+                  <Button loading={receipt.isPending} onClick={() => { const input = window.prompt("Nhập các mã tem QR đã nhận, cách nhau bằng dấu phẩy"); if (input?.trim()) receipt.mutate({ code: o.code, qrCodes: input.split(/[\s,;]+/).filter(Boolean) }); }}>Giả lập quét QR nhận hàng</Button>
                 )}
               </div>
             }

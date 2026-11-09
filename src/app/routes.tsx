@@ -26,15 +26,11 @@ const SM: PortalRole = 'SalesManager';
 const orders = () => import('@/features/orders');
 const allocation = () => import('@/features/allocation');
 const debts = () => import('@/features/debts');
-const picking = () => import('@/features/picking');
 const runpicking = () => import('@/features/runpicking');
 const receipts = () => import('@/features/receipts');
-const whtransfer = () => import('@/features/whtransfer');
-const rotation = () => import('@/features/rotation');
 const fleet = () => import('@/features/fleet');
 const batches = () => import('@/features/batches');
 const batchpromo = () => import('@/features/batchpromo');
-const disposal = () => import('@/features/disposal');
 const promos = () => import('@/features/promos');
 const retailers = () => import('@/features/retailers');
 const loyalty = () => import('@/features/loyalty');
@@ -56,24 +52,20 @@ const dashboard = () => import('@/features/dashboard');
 export const APP_ROUTES: AppRoute[] = [
   { key: 'dashboard', label: 'Dashboard', roles: [A], list: page(dashboard, 'DashboardPage') },
   { key: 'orders', label: 'Đơn hàng', roles: [A, OP], badge: 'orders', list: page(orders, 'OrdersPage'), sub: [{ path: ':code', element: page(orders, 'OrderDetailPage') }] },
-  { key: 'allocation', label: 'Duyệt phương án đợt', roles: [A], list: page(allocation, 'AllocationRunPage') },
+  {
+    key: 'allocation', label: 'Các đợt allocation', roles: [A], list: page(allocation, 'AllocationRunPage'),
+    sub: [{ path: ':id', element: page(allocation, 'AllocationRunDetailPage') }],
+  },
   { key: 'debts', label: 'Công nợ', roles: [A, OP], badge: 'debts', list: page(debts, 'DebtsPage') },
   { key: 'runpicking', label: 'Phiếu soạn theo đợt', roles: [A, OP, WK], list: page(runpicking, 'RunPickingPage') },
-  { key: 'picking', label: 'Picking list', roles: [A, WK], list: page(picking, 'PickingListPage'), sub: [{ path: ':code', element: page(picking, 'PickingDetailPage') }] },
   {
     key: 'receipts', label: 'Nhập kho', roles: [A, WK], list: page(receipts, 'ReceiptsPage'),
     sub: [{ path: 'new', element: page(receipts, 'ReceiptFormPage') }, { path: ':code', element: page(receipts, 'ReceiptDetailPage') }],
   },
-  { key: 'whtransfer', label: 'Điều chuyển kho', roles: [A, WK], list: page(whtransfer, 'TransfersPage'), sub: [{ path: ':code', element: page(whtransfer, 'TransferDetailPage') }] },
-  { key: 'rotation', label: 'Luân chuyển cận hạn', roles: [A], list: page(rotation, 'RotationPage'), sub: [{ path: ':id', element: page(rotation, 'RotationDetailPage') }] },
   { key: 'fleet', label: 'Xe & người giao', roles: [A, OP], list: page(fleet, 'FleetPage'), sub: [{ path: ':id', element: page(fleet, 'FleetDetailPage') }] },
   { key: 'batches', label: 'Quản lý batch', roles: [A, WK, OP], list: page(batches, 'BatchesPage'), sub: [{ path: ':code', element: page(batches, 'BatchDetailPage') }] },
   { key: 'inventory-locks', label: 'Khóa hàng', roles: [A, OP, WK], list: page(inventorylocks, 'InventoryLocksPage') },
   { key: 'batchpromo', label: 'Giảm giá theo HSD', roles: [A], list: page(batchpromo, 'BatchPromoPage'), sub: [{ path: 'scan', element: page(batchpromo, 'BatchPromoScanPage') }] },
-  {
-    key: 'disposal', label: 'Hủy hàng hết hạn', roles: [A, WK], badge: 'disposal', list: page(disposal, 'DisposalPage'),
-    sub: [{ path: 'new', element: page(disposal, 'DisposalFormPage') }, { path: ':code', element: page(disposal, 'DisposalDetailPage') }],
-  },
   {
     key: 'promos', label: 'Khuyến mãi', roles: [A], list: page(promos, 'PromosPage'),
     sub: [{ path: 'new', element: page(promos, 'PromoFormPage') }, { path: ':id', element: page(promos, 'PromoDetailPage') }],
@@ -94,4 +86,4 @@ export const APP_ROUTES: AppRoute[] = [
 ];
 
 /** First screen after login (prototype: Admin/Operator → orders, Warehouse Keeper → picking, Sales Manager → regions). */
-export const HOME_BY_ROLE: Record<PortalRole, string> = { Admin: '/orders', Operator: '/orders', WarehouseKeeper: '/picking', SalesManager: '/regions' };
+export const HOME_BY_ROLE: Record<PortalRole, string> = { Admin: '/orders', Operator: '/orders', WarehouseKeeper: '/runpicking', SalesManager: '/regions' };

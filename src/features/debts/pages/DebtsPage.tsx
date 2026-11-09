@@ -17,7 +17,18 @@ export function DebtsPage() {
   const columns: Column<Receivable>[] = [
     { key: 'orderCode', header: 'Mã đơn', width: '104px', render: (r) => <span className="bold">{r.orderCode}</span> },
     { key: 'retailer', header: 'Retailer', text: (r) => `${r.retailerName} ${r.retailerCode}`, render: (r) => (<><div className="strong">{r.retailerName}</div><div className="muted small">{r.retailerCode}</div></>) },
-    { key: 'sales', header: 'Sales ID', width: '130px', text: (r) => r.salesUserId },
+    {
+      key: 'sales', header: 'Sales phụ trách', width: '180px',
+      text: (r) => `${r.salesUserName} ${r.salesUserId}`,
+      render: (r) => (
+        <div title={r.salesUserId} style={{ minWidth: 0 }}>
+          <div className="strong">{r.salesUserName || 'Chưa xác định'}</div>
+          <div className="muted small" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {r.salesUserId.slice(0, 8)}…
+          </div>
+        </div>
+      ),
+    },
     { key: 'term', header: 'Kỳ hạn', width: '80px', text: (r) => `${r.creditTermDays} ngày` },
     { key: 'delivered', header: 'Ngày giao', width: '100px', text: (r) => r.deliveredDate ? formatDate(r.deliveredDate) : '—' },
     { key: 'due', header: 'Hạn thanh toán', width: '120px', text: (r) => r.dueDate ? formatDate(r.dueDate) : '—' },

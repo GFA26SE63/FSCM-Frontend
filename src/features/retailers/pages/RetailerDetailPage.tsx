@@ -4,7 +4,6 @@ import { Button, Callout, Card, Fields, Input, PageHeader, QueryState, SimpleTab
 import { formatDate, formatMoney, formatNumber } from '@/shared/lib';
 import { useRegistration, useRetailer, useRetailerLoyalty, useRetailerMlor, useRetailerReceivables, useSaveMlor } from '../hooks';
 import { RegistrationActions } from '../components/RegistrationActions';
-import { RetailerFormDialog } from '../components/RetailerFormDialog';
 import type { Retailer } from '../types';
 
 function MlorTab({ code }: { code: string }) {
@@ -63,10 +62,9 @@ function DebtTab({ code }: { code: string }) {
 
 function RetailerView({ r }: { r: Retailer }) {
   const [tab, setTab] = useState<'info' | 'mlor' | 'debt'>('info');
-  const [edit, setEdit] = useState(false);
   return (
     <>
-      <PageHeader back="/retailers" title={`${r.code} · ${r.name}`} subtitle={r.address} chips={<StatusChip domain="active" value={r.status} />} actions={<Button onClick={() => setEdit(true)}>Sửa</Button>} />
+      <PageHeader back="/retailers" title={`${r.code} · ${r.name}`} subtitle={r.address} chips={<StatusChip domain="active" value={r.status} />} />
       <Tabs value={tab} onChange={setTab} items={[{ key: 'info', label: 'Thông tin' }, { key: 'mlor', label: 'MLOR' }, { key: 'debt', label: 'Công nợ & điểm' }]} />
       {tab === 'info' && (
         <Card>
@@ -81,7 +79,6 @@ function RetailerView({ r }: { r: Retailer }) {
       )}
       {tab === 'mlor' && <MlorTab code={r.code} />}
       {tab === 'debt' && <DebtTab code={r.code} />}
-      <RetailerFormDialog open={edit} retailer={r} onClose={() => setEdit(false)} />
     </>
   );
 }

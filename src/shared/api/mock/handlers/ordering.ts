@@ -2,7 +2,7 @@ import { db } from '../fixtures';
 import type { DbOrder } from '../fixtures/types';
 import { MockRouter, businessRule, conflict, notFound, paginate, validation } from '../router';
 import { actor, actorLabel, nextSeq, order, orderById, requireRole, retailer } from './common';
-import { allocationRunOf, allocationTraceOf, decidePlanVersion, findRunOfVersion, planVersionsOf, orderDetail, orderSummary, pickingLists, pricingOf, traceOf } from './orderView';
+import { allocationRunOf, allocationTraceOf, closeAllocationRun, decidePlanVersion, findRunOfVersion, planVersionsOf, orderDetail, orderSummary, pickingLists, pricingOf, traceOf } from './orderView';
 import { MOCK_TODAY, stamp } from '../engines/clock';
 import { addDays } from '../../../lib/dates';
 
@@ -50,8 +50,39 @@ export function registerOrdering(r: MockRouter) {
   });
   r.get('/orders/:code', ({ params }) => orderDetail(order(params.code)));
 
+  r.post('/allocation-runs', ({ body }) => {
+    const cutoffAt = String((body as { cutoffAt?: string } | undefined)?.cutoffAt ?? '');
+    const businessDate = /^\d{4}-\d{2}-\d{2}/.test(cutoffAt) ? cutoffAt.slice(0, 10) : MOCK_TODAY;
+    return allocationRunOf(businessDate).run;
+  });
+  r.get('/allocation-runs', ({ query }) => {
+    const { run } = allocationRunOf(MOCK_TODAY);
+    const version = planVersionsOf(run.id)[0];
+    if ((query.fromDate && run.businessDate < query.fromDate) || (query.toDate && run.businessDate > query.toDate)) return [];
+    return [{
+      id: run.id,
+      runCode: run.runCode,
+      businessDate: run.businessDate,
+      cutoffAt: run.cutoffAt,
+      status: run.status,
+      orderCount: run.orderCount,
+      startedAt: run.startedAt,
+      completedAt: run.completedAt,
+      version: run.version,
+      planVersionNumber: version?.versionNumber ?? null,
+      planStatus: version?.status ?? null,
+      fulfilledOrderCount: version?.fulfilledOrderCount ?? 0,
+      shortOrderCount: version?.shortOrderCount ?? 0,
+      totalFinalAmount: version?.totalFinalAmount ?? 0,
+    }];
+  });
   r.get('/allocation-runs/by-date/:date', ({ params }) => allocationRunOf(params.date).run);
   r.get('/allocation-runs/:runId/plan-versions', ({ params }) => planVersionsOf(params.runId));
+  r.get('/allocation-runs/:runId', ({ params }) => {
+    const run = allocationRunOf(MOCK_TODAY).run;
+    if (run.id !== params.runId) throw notFound(`Đợt ${params.runId}`);
+    return run;
+  });
 
   r.post('/allocation-runs/plan-versions/:versionId/approve', (req) => {
     requireRole(req, ['Admin']);
@@ -71,6 +102,13 @@ export function registerOrdering(r: MockRouter) {
     if (current.status !== 'AwaitingApproval') throw conflict(`Phương án đang ${current.status}, không yêu cầu tính lại được.`);
     decidePlanVersion(current.id, 'RecalculationRequested', reason, stamp());
     return planVersionsOf(findRunOfVersion(req.params.versionId))[0];
+  });
+
+  r.post('/allocation-runs/:runId/close', (req) => {
+    requireRole(req, ['Admin']);
+    const current = planVersionsOf(req.params.runId)[0];
+    if (!current || current.status !== 'Approved') throw conflict('Chỉ đóng được đợt đã duyệt.');
+    return closeAllocationRun(req.params.runId) ?? (() => { throw notFound(`Đợt ${req.params.runId}`); })();
   });
 
   r.get('/allocation-runs/orders/:id/trace', ({ params }) => allocationTraceOf(orderById(params.id)));

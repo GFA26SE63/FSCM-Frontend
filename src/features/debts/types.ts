@@ -7,6 +7,7 @@ export interface Receivable {
   retailerCode: string;
   retailerName: string;
   salesUserId: string;
+  salesUserName: string;
   creditTermDays: number;
   deliveredDate: string | null;
   dueDate: string | null;
