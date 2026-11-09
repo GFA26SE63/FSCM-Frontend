@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test": "node --test tests/*.test.cjs",
+    "test:kpi": "node --test tests/kpi.test.cjs",
     "test:products": "node --test tests/products.test.cjs",
     "test:auth": "node --test tests/auth.test.cjs",
     "test:rbac": "node --test tests/rbac.test.cjs",

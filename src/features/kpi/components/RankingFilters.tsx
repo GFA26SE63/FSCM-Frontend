@@ -8,9 +8,10 @@ import {
   Select,
 } from '@/shared/ui';
 
-import { useReportGroups } from '../hooks';
-import { vietnamToday } from '../filters';
+import { useReportGroups, useSalesStaff } from '../hooks';
+import { getPeriodDates, vietnamToday } from '../filters';
 import type {
+  PeriodType,
   ProductCriterion,
   ReportFilters,
 } from '../types';
@@ -18,6 +19,7 @@ import type {
 interface Props {
   value: ReportFilters;
   productMode: boolean;
+  showSalesStaff?: boolean;
   error?: string;
   onChange: (patch: Partial<ReportFilters>) => void;
 }
@@ -25,27 +27,58 @@ interface Props {
 export function RankingFilters({
   value,
   productMode,
+  showSalesStaff = false,
   error,
   onChange,
 }: Props) {
   const groups = useReportGroups();
+  const staff = useSalesStaff(value.salesGroupId);
 
-  const options = (groups.data ?? []).map((item) => ({
+  const groupOptions = (groups.data ?? []).map((item) => ({
     value: item.id,
     label: [item.code, item.name].filter(Boolean).join(' · '),
   }));
 
   // Giữ rõ giá trị từ URL nếu danh sách chưa tải hoặc quyền đã đổi.
-  // Report API sẽ kiểm tra quyền, không tự thay bằng nhóm khác.
   if (
     value.salesGroupId &&
-    !options.some((item) => item.value === value.salesGroupId)
+    !groupOptions.some((item) => item.value === value.salesGroupId)
   ) {
-    options.push({
+    groupOptions.push({
       value: value.salesGroupId,
       label: `Nhóm đã chọn: ${value.salesGroupId}`,
     });
   }
+
+  const staffOptions = (staff.data ?? []).map((item) => ({
+    value: item.id,
+    label: [item.fullName, item.email].filter(Boolean).join(' · '),
+  }));
+
+  if (
+    value.salesUserId &&
+    !staffOptions.some((item) => item.value === value.salesUserId)
+  ) {
+    staffOptions.push({
+      value: value.salesUserId,
+      label: `Nhân viên đã chọn: ${value.salesUserId}`,
+    });
+  }
+
+  const currentPeriod: PeriodType = value.periodType || 'custom';
+
+  const handlePeriodChange = (newPeriod: PeriodType) => {
+    if (newPeriod === 'custom') {
+      onChange({ periodType: 'custom' });
+    } else {
+      const dates = getPeriodDates(newPeriod);
+      onChange({
+        periodType: newPeriod,
+        fromDate: dates.fromDate,
+        toDate: dates.toDate,
+      });
+    }
+  };
 
   return (
     <Card title="Bộ lọc báo cáo">
@@ -56,13 +89,29 @@ export function RankingFilters({
           gap: 16,
         }}
       >
+        <FormField label="Kỳ báo cáo">
+          <Select
+            value={currentPeriod}
+            options={[
+              { value: 'month', label: 'Tháng này' },
+              { value: 'lastMonth', label: 'Tháng trước' },
+              { value: 'quarter', label: 'Quý này' },
+              { value: 'year', label: 'Năm nay' },
+              { value: 'custom', label: 'Tùy chỉnh khoảng ngày' },
+            ]}
+            onChange={(event) =>
+              handlePeriodChange(event.target.value as PeriodType)
+            }
+          />
+        </FormField>
+
         <FormField label="Từ ngày" required>
           <Input
             type="date"
             value={value.fromDate}
             max={vietnamToday()}
             onChange={(event) =>
-              onChange({ fromDate: event.target.value })
+              onChange({ fromDate: event.target.value, periodType: 'custom' })
             }
           />
         </FormField>
@@ -72,7 +121,7 @@ export function RankingFilters({
             type="date"
             value={value.toDate}
             onChange={(event) =>
-              onChange({ toDate: event.target.value })
+              onChange({ toDate: event.target.value, periodType: 'custom' })
             }
           />
         </FormField>
@@ -83,13 +132,33 @@ export function RankingFilters({
             disabled={groups.isPending}
             options={[
               { value: '', label: 'Tất cả nhóm trong phạm vi được phép' },
-              ...options,
+              ...groupOptions,
             ]}
             onChange={(event) =>
-              onChange({ salesGroupId: event.target.value })
+              onChange({
+                salesGroupId: event.target.value,
+                // Reset nhân viên khi chọn nhóm khác để tránh ID không thuộc nhóm
+                salesUserId: '',
+              })
             }
           />
         </FormField>
+
+        {showSalesStaff && !productMode && (
+          <FormField label="Nhân viên Sales">
+            <Select
+              value={value.salesUserId || ''}
+              disabled={staff.isPending}
+              options={[
+                { value: '', label: 'Tất cả nhân viên Sales' },
+                ...staffOptions,
+              ]}
+              onChange={(event) =>
+                onChange({ salesUserId: event.target.value })
+              }
+            />
+          </FormField>
+        )}
 
         {productMode && (
           <FormField label="Xếp hạng theo">
@@ -117,6 +186,18 @@ export function RankingFilters({
           <Button
             size="sm"
             onClick={() => void groups.refetch()}
+          >
+            Thử lại
+          </Button>
+        </Callout>
+      )}
+
+      {showSalesStaff && !productMode && staff.error && (
+        <Callout tone="danger">
+          Không tải được danh sách nhân viên Sales: {errorMessage(staff.error)}.{' '}
+          <Button
+            size="sm"
+            onClick={() => void staff.refetch()}
           >
             Thử lại
           </Button>

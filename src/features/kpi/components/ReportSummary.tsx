@@ -14,6 +14,8 @@ interface Props {
   criterion?: ProductCriterion;
   quantityUnit?: string;
   recognitionRule?: string;
+  configurationVersion?: string;
+  configurationEffectiveFrom?: string;
 }
 
 export function ReportSummary({
@@ -23,6 +25,8 @@ export function ReportSummary({
   criterion,
   quantityUnit,
   recognitionRule,
+  configurationVersion,
+  configurationEffectiveFrom,
 }: Props) {
   return (
     <Card title="Thông tin báo cáo">
@@ -46,13 +50,25 @@ export function ReportSummary({
                 value: quantityUnitText(quantityUnit),
               }]
             : []),
+          ...(configurationVersion
+            ? [{
+                label: 'Phiên bản cấu hình',
+                value: configurationVersion,
+              }]
+            : []),
+          ...(configurationEffectiveFrom
+            ? [{
+                label: 'Hiệu lực cấu hình từ',
+                value: formatDate(configurationEffectiveFrom),
+              }]
+            : []),
         ]}
       />
 
       {recognitionRule && (
         <details style={{ marginTop: 12 }}>
           <summary>Quy tắc ghi nhận do backend trả về</summary>
-          <p style={{ overflowWrap: 'anywhere' }}>
+          <p style={{ overflowWrap: 'anywhere', marginTop: 8, color: 'var(--text-secondary)' }}>
             {recognitionRule}
           </p>
         </details>

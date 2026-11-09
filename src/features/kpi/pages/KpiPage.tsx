@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { useAuth } from '@/shared/auth/AuthContext';
+import { useNavigate } from '@/shared/router/compat';
 import {
   Button,
   Callout,
@@ -7,16 +9,22 @@ import {
   Tabs,
 } from '@/shared/ui';
 
-import { canReadRankings } from '../api';
+import { canManageKpi, canReadRankings } from '../api';
 import {
   useProductRanking,
   useRankingFilters,
+  useSalesKpi,
   useSalesRanking,
 } from '../hooks';
 import { RankingFilters } from '../components/RankingFilters';
 import { ReportSummary } from '../components/ReportSummary';
+import { SalesKpiTable } from '../components/SalesKpiTable';
 import { SalesRankingTable } from '../components/SalesRankingTable';
 import { ProductRankingTable } from '../components/ProductRankingTable';
+import { KpiOrderBreakdownDialog } from '../components/KpiOrderBreakdownDialog';
+import { KpiConfigDialog } from '../components/KpiConfigDialog';
+import { reportSearch } from '../filters';
+import type { SalesKpiEntry } from '../types';
 
 export function KpiPage() {
   const { user } = useAuth();
@@ -31,7 +39,7 @@ export function KpiPage() {
   if (!canReadRankings(user)) {
     return (
       <Callout tone="danger">
-        Bạn không có quyền xem báo cáo xếp hạng.
+        Bạn không có quyền xem báo cáo KPI và xếp hạng kinh doanh.
       </Callout>
     );
   }
@@ -40,6 +48,8 @@ export function KpiPage() {
 }
 
 function RankingPageContent() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const {
     filters,
     tab,
@@ -48,29 +58,44 @@ function RankingPageContent() {
     validationError,
   } = useRankingFilters();
 
+  const [selectedEntry, setSelectedEntry] = useState<SalesKpiEntry | null>(null);
+  const [configOpen, setConfigOpen] = useState<boolean>(false);
+
+  const kpi = useSalesKpi(filters, tab === 'kpi');
   const sales = useSalesRanking(filters, tab === 'sales');
   const products = useProductRanking(filters, tab === 'products');
 
-  const activeQuery = tab === 'sales' ? sales : products;
+  const activeQuery = tab === 'kpi' ? kpi : tab === 'sales' ? sales : products;
+  const canConfig = canManageKpi(user);
 
   return (
     <>
       <PageHeader
-        title="Xếp hạng kinh doanh"
-        subtitle="Số liệu và thứ hạng được tính bởi backend."
+        title="Quản lý KPI & Xếp hạng kinh doanh"
+        subtitle="Theo dõi chỉ tiêu, tiến độ hoàn thành và đơn hàng ghi nhận từ backend."
         actions={
-          <Button
-            disabled={Boolean(validationError) || activeQuery.isFetching}
-            onClick={() => void activeQuery.refetch()}
-          >
-            {activeQuery.isFetching ? 'Đang tải…' : 'Tải lại'}
-          </Button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {canConfig && (
+              <Button
+                onClick={() => setConfigOpen(true)}
+              >
+                Cấu hình trọng số KPI
+              </Button>
+            )}
+            <Button
+              disabled={Boolean(validationError) || activeQuery.isFetching}
+              onClick={() => void activeQuery.refetch()}
+            >
+              {activeQuery.isFetching ? 'Đang tải…' : 'Tải lại'}
+            </Button>
+          </div>
         }
       />
 
       <RankingFilters
         value={filters}
         productMode={tab === 'products'}
+        showSalesStaff={tab === 'kpi'}
         error={validationError}
         onChange={updateFilters}
       />
@@ -79,13 +104,52 @@ function RankingPageContent() {
         value={tab}
         onChange={setTab}
         items={[
+          { key: 'kpi', label: 'Chỉ tiêu KPI Sales' },
           { key: 'sales', label: 'Xếp hạng Sales' },
           { key: 'products', label: 'Sản phẩm bán chạy' },
         ]}
       />
 
       {!validationError && (
-        tab === 'sales' ? (
+        tab === 'kpi' ? (
+          <QueryState query={kpi}>
+            {(report) => (
+              <>
+                <ReportSummary
+                  fromDate={report.fromDate}
+                  toDate={report.toDate}
+                  scope={report.scope}
+                  recognitionRule={report.recognitionRule}
+                  configurationVersion={String(report.configurationVersion)}
+                  configurationEffectiveFrom={report.configurationEffectiveFrom}
+                />
+
+                <SalesKpiTable
+                  rows={report.entries}
+                  filters={filters}
+                  onOpenOrders={(entry) => setSelectedEntry(entry)}
+                  onOpenDetail={(entry) =>
+                    navigate(
+                      `/kpi/sales/${entry.salesUserId}/${entry.salesGroupId}${reportSearch(
+                        filters,
+                        'kpi',
+                      )}`,
+                    )
+                  }
+                />
+
+                <KpiOrderBreakdownDialog
+                  open={Boolean(selectedEntry)}
+                  entry={selectedEntry}
+                  fromDate={report.fromDate}
+                  toDate={report.toDate}
+                  recognitionRule={report.recognitionRule}
+                  onClose={() => setSelectedEntry(null)}
+                />
+              </>
+            )}
+          </QueryState>
+        ) : tab === 'sales' ? (
           <QueryState query={sales}>
             {(report) => (
               <>
@@ -123,6 +187,16 @@ function RankingPageContent() {
             )}
           </QueryState>
         )
+      )}
+
+      {canConfig && (
+        <KpiConfigDialog
+          open={configOpen}
+          onClose={() => setConfigOpen(false)}
+          onSaved={() => {
+            void kpi.refetch();
+          }}
+        />
       )}
     </>
   );
