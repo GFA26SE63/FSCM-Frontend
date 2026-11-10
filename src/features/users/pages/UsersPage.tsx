@@ -53,14 +53,6 @@ export function UsersPage() {
       text: (user) => roleLabel[user.role],
     },
     {
-      key: 'provider',
-      header: 'Đăng nhập ban đầu',
-      text: (user) =>
-        user.identityProvider === 'Google'
-          ? 'Google'
-          : 'Email / mật khẩu',
-    },
-    {
       key: 'active',
       header: 'Trạng thái',
       text: (user) =>

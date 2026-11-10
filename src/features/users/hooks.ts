@@ -16,6 +16,13 @@ export const useUser = (id: string) =>
     enabled: !!id,
   });
 
+export const useUserAudit = (id: string, after: string | null, enabled: boolean) =>
+  useQuery({
+    queryKey: ['users', 'audit', id, after],
+    queryFn: () => userApi.audit(id, after),
+    enabled: enabled && !!id,
+  });
+
 export const useSetUserStatus = () =>
   useApiMutation(userApi.setStatus, {
     permission: 'users.manage',
