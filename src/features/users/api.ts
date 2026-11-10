@@ -1,5 +1,6 @@
 import { ApiError } from '@/shared/api/errors';
 import { get, http, post, put } from '@/shared/api/http';
+import { graphql } from '@/shared/api/graphql';
 import type {
   CreatedUser,
   CreateUserInput,
@@ -13,10 +14,29 @@ import type {
   UserFilters,
   UserPage,
   UserRole,
+  UserAuditPage,
 } from './types';
 import { assertCreatableRole } from './userPolicy';
 
 const scopePageSize = 20;
+
+// Only request history metadata. Raw old/new JSON can contain contact details
+// or authentication data and must not enter the table or its query cache.
+const userAuditQuery = `
+  query UserAuditHistory($userId: UUID!, $after: String) {
+    entities {
+      auditLogs(
+        first: 20
+        after: $after
+        where: { entityName: { eq: "UserAccount" }, entityId: { eq: $userId } }
+        order: [{ createdAt: DESC }, { id: DESC }]
+      ) {
+        nodes { id userAccountId action reason createdAt }
+        pageInfo { endCursor hasNextPage }
+      }
+    }
+  }
+`;
 
 interface RetailerOptionsPage {
   items: ScopeOption[];
@@ -97,6 +117,19 @@ export const userApi = {
 
   get: (id: string): Promise<UserDetail> =>
     get<UserDetail>(`/users/${encodeURIComponent(id)}`),
+
+  audit: async (userId: string, after: string | null): Promise<UserAuditPage> => {
+    const data = await graphql<{ entities: { auditLogs: UserAuditPage } }>(
+      userAuditQuery, { userId, after },
+    );
+    const page = data.entities?.auditLogs;
+    if (!page || !Array.isArray(page.nodes) || !page.pageInfo ||
+        typeof page.pageInfo.hasNextPage !== 'boolean' ||
+        (page.pageInfo.hasNextPage && !page.pageInfo.endCursor)) {
+      throw new ApiError(502, 'Phản hồi lịch sử tài khoản không hợp lệ.');
+    }
+    return page;
+  },
 
   async create(
     input: CreateUserInput,
