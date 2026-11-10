@@ -73,7 +73,8 @@ export function ProductDetailPage() {
               <Callout tone="neutral">
                 Thông tin sản phẩm đã khóa.
                 Dùng “Tạo bản mới” để tạo một
-                bản nháp thay thế. Giá và
+                bản nháp độc lập, hoặc “Tạo bản thay thế”
+                để thay SKU nguồn khi công bố. Giá và
                 thông tin không được sửa sau khi
                 đăng bán.
               </Callout>
