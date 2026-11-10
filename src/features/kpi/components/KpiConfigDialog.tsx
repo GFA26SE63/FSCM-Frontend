@@ -93,7 +93,7 @@ export function KpiConfigDialog({ open, onClose, onSaved }: Props) {
       onSaved();
       onClose();
     } catch (err) {
-      setError(errorMessage(err) || 'Không thể lưu cấu hình KPI do API backend chưa hỗ trợ.');
+      setError(errorMessage(err) || 'Không thể lưu cấu hình mục tiêu và trọng số KPI. Vui lòng thử lại sau.');
     } finally {
       setSubmitting(false);
     }

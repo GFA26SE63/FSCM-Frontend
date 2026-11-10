@@ -35,7 +35,7 @@ export function ReportSummary({
         items={[
           { label: 'Từ ngày', value: formatDate(fromDate) },
           { label: 'Đến ngày', value: formatDate(toDate) },
-          { label: 'Phạm vi BE áp dụng', value: scopeText(scope) },
+          { label: 'Phạm vi áp dụng', value: scopeText(scope) },
           ...(criterion
             ? [{
                 label: 'Tiêu chí',
@@ -67,7 +67,7 @@ export function ReportSummary({
 
       {recognitionRule && (
         <details style={{ marginTop: 12 }}>
-          <summary>Quy tắc ghi nhận do backend trả về</summary>
+          <summary>Quy tắc tính doanh thu ghi nhận</summary>
           <p style={{ overflowWrap: 'anywhere', marginTop: 8, color: 'var(--text-secondary)' }}>
             {recognitionRule}
           </p>
