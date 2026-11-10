@@ -237,7 +237,7 @@ function ShipmentOperations({ orderId }: { orderId: string }) {
   );
 }
 
-function ShipmentActionRow({
+export function ShipmentActionRow({
   shipment,
   mayDispatch,
   drivers,
@@ -249,9 +249,11 @@ function ShipmentActionRow({
   vehicles: DeliveryVehicle[];
 }) {
   const warehouseDrivers = drivers.filter((item) => item.isActive && item.warehouseId === shipment.warehouseId);
-  const warehouseVehicles = vehicles.filter((item) => item.isActive && item.warehouseId === shipment.warehouseId);
+  const warehouseVehicles = vehicles.filter((item) => item.isActive && item.warehouseId === shipment.warehouseId && item.capacity >= shipment.totalQuantity);
   const [driverId, setDriverId] = useState(warehouseDrivers[0]?.id ?? '');
   const [vehicleId, setVehicleId] = useState(warehouseVehicles[0]?.id ?? '');
+  const selectedDriver = warehouseDrivers.find((item) => item.id === driverId);
+  const selectedVehicle = warehouseVehicles.find((item) => item.id === vehicleId);
   const issue = useApiMutation(shipmentsApi.issue, { success: 'Đã xác nhận shipment rời kho; tồn thực tế đã được trừ.' });
   const assign = useApiMutation(shipmentsApi.assign, { success: 'Đã gán tài xế và xe.' });
   const dispatch = useApiMutation(shipmentsApi.dispatch, { success: 'Shipment đã bắt đầu giao; tem đã chuyển InTransit.' });
@@ -290,16 +292,19 @@ function ShipmentActionRow({
             value={vehicleId}
             onChange={(event) => setVehicleId(event.target.value)}
             placeholder="Chọn xe"
-            options={warehouseVehicles.map((item) => ({ value: item.id, label: item.plateNumber }))}
+            options={warehouseVehicles.map((item) => ({ value: item.id, label: `${item.plateNumber} · ${formatNumber(item.capacity)} thùng` }))}
           />
           <Button
             size="sm"
             loading={assign.isPending}
-            disabled={!driverId || !vehicleId}
-            onClick={() => assign.mutate({ shipment, driverId, vehicleId })}
+            disabled={!selectedDriver || !selectedVehicle}
+            onClick={() => {
+              if (selectedDriver && selectedVehicle) assign.mutate({ shipment, driverId: selectedDriver.id, vehicleId: selectedVehicle.id });
+            }}
           >
             Gán xe & tài xế
           </Button>
+          {warehouseVehicles.length === 0 && <span className="muted small">Kho chưa có xe đang hoạt động đủ tải cho {formatNumber(shipment.totalQuantity)} thùng.</span>}
         </div>
       )}
 

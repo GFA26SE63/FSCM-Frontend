@@ -50,6 +50,7 @@ export interface Shipment {
   shipmentCode: string;
   status: ShipmentPartStatus;
   version: number;
+  totalQuantity: number;
   driverId: string | null;
   driverName: string | null;
   vehicleId: string | null;
@@ -69,5 +70,6 @@ export interface DeliveryVehicle {
   warehouseId: string;
   plateNumber: string;
   vehicleType: string;
+  capacity: number;
   isActive: boolean;
 }
