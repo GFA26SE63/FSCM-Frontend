@@ -25,6 +25,9 @@ export const ACTION_ROLES = {
   // Portal chỉ có Operator trong các role được collect.
   'payments.collect': ['Operator'],
   'payments.adjust': ['Admin', 'Operator'],
+  // F101: create refund records and submit transfer proof; only Admin verifies it.
+  'refunds.manage': ['Admin', 'Operator'],
+  'refunds.verify': ['Admin'],
 
   'receipts.create': ['Admin', 'WarehouseKeeper'],
   'receipts.approve': ['Admin', 'WarehouseKeeper'],

@@ -30,6 +30,7 @@ import {
   paymentLabel,
   statusLabel,
 } from '@/shared/lib';
+import { ShipmentAssignmentPanel } from '@/features/shipments';
 import { useOrder } from '../hooks';
 import {
   AllocationTraceDialog,
@@ -739,6 +740,12 @@ function OrderBody({
               ]}
             />
           </Card>
+
+          {order.warehouseProgress.some((item) => item.shipmentId) && (
+            <Card title="Giao hàng theo kho">
+              <ShipmentAssignmentPanel orderId={order.id} />
+            </Card>
+          )}
 
           <Card title="Nghiệp vụ liên quan">
             <WorkflowLinks
