@@ -17,6 +17,7 @@
     "test:receipts": "node --test tests/receipts.test.cjs",
     "test:regions": "node --test tests/regions-dropdown.test.cjs",
     "test:actions": "node --test tests/action-standardization.test.cjs",
+    "test:retailer-credit": "node --test tests/retailer-credit.test.cjs",
     "preview": "vite preview",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",

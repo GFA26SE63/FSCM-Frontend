@@ -199,7 +199,7 @@ export function ReceiptsPage() {
                 <div>Tổng số lượng: <b>{formatCases(approveTarget.totalQty)}</b></div>
               </div>
               <p style={{ margin: 0, fontSize: 13, color: 'var(--c-text-muted, #666)' }}>
-                Khi duyệt phiếu, hệ thống backend sẽ chính thức ghi nhận số lượng vào <b>tồn kho vật lý (Physical)</b> và khởi tạo hoặc gộp các lô hàng (Batch) tương ứng.
+                Khi duyệt phiếu, hệ thống sẽ chính thức ghi nhận số lượng vào <b>tồn kho thực tế</b> và khởi tạo hoặc cập nhật các lô hàng tương ứng.
               </p>
             </div>
           }

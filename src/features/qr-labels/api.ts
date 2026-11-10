@@ -45,7 +45,7 @@ async function loadHtml(path: string): Promise<string> {
     throw new ApiError(
       502,
       'Bản in không hợp lệ',
-      'Backend không trả về tài liệu HTML để in tem.',
+      'Hệ thống không tìm thấy mẫu in tem phù hợp.',
     );
   }
 

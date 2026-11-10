@@ -148,9 +148,21 @@ export interface DeliverySnapshot {
   departedAt: string;
 }
 
+export interface OrderPaymentSummaryResult {
+  method: string | null;
+  status: string | null;
+  amount: number;
+  adjustedAmount: number;
+  confirmedAmount: number;
+  outstandingAmount: number;
+  dueDate: string | null;
+  isOverdue: boolean;
+}
+
 export interface OrderDetail extends OrderSummary {
   reviewedByUserId: string | null;
   creditTermDays: number;
+  payment?: OrderPaymentSummaryResult | null;
   deliveryAddress: string;
   requestedDeliveryDate: string | null;
   note: string | null;

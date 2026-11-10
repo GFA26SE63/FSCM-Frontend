@@ -275,7 +275,7 @@ export function ReceiptDetailPage() {
             {isPending && (
               <div style={{ marginTop: 12 }}>
                 <Callout tone="info">
-                  Phiếu nhập đang ở trạng thái <b>Chờ duyệt</b>. Tồn kho vật lý chưa được ghi nhận và chưa tạo mã batch. Khi được phê duyệt bởi người có thẩm quyền, hệ thống backend sẽ tự động tạo hoặc gộp lô hàng và tăng số lượng tồn kho vật lý tương ứng.
+                  Phiếu nhập đang ở trạng thái <b>Chờ duyệt</b>. Số lượng chưa được ghi nhận vào kho và chưa khởi tạo mã lô hàng. Khi được phê duyệt bởi người có thẩm quyền, hệ thống sẽ tự động cập nhật số lượng vào tồn kho thực tế và quản lý theo lô hàng tương ứng.
                 </Callout>
               </div>
             )}
@@ -284,11 +284,11 @@ export function ReceiptDetailPage() {
               <div style={{ marginTop: 12 }}>
                 {batchLines.length === lines.length && lines.length > 0 ? (
                   <Callout tone="ok">
-                    Phiếu nhập đã được phê duyệt và ghi sổ tồn kho vật lý thành công. Tất cả các lô hàng (batch) đã được tạo hoặc gộp trên hệ thống với mã định danh thực tế.
+                    Phiếu nhập đã được phê duyệt và ghi sổ tồn kho thành công. Tất cả các lô hàng đã được cập nhật trên hệ thống với mã định danh thực tế.
                   </Callout>
                 ) : (
                   <Callout tone="warn">
-                    Phiếu đã duyệt nhưng một số dòng hàng chưa được backend xác nhận mã batch. Vui lòng làm mới trang hoặc kiểm tra lại tồn kho.
+                    Phiếu đã duyệt nhưng một số dòng hàng đang chờ hệ thống cập nhật mã lô hàng. Vui lòng làm mới trang hoặc kiểm tra lại thông tin tồn kho.
                   </Callout>
                 )}
               </div>
@@ -307,7 +307,7 @@ export function ReceiptDetailPage() {
                     }}
                   >
                     <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text)' }}>
-                      Chọn batch xem tem:
+                      Chọn lô hàng xem tem:
                     </span>
                     {batchLines.map((b) => (
                       <button
@@ -357,7 +357,7 @@ export function ReceiptDetailPage() {
                     <div>Tổng số lượng: <b>{formatCases(totalQuantity)}</b></div>
                   </div>
                   <p style={{ margin: 0, fontSize: 13, color: 'var(--c-text-muted, #666)' }}>
-                    Khi duyệt phiếu, hệ thống backend sẽ chính thức ghi nhận số lượng vào <b>tồn kho vật lý (Physical)</b> và khởi tạo hoặc gộp các lô hàng (Batch) tương ứng.
+                    Khi duyệt phiếu, hệ thống sẽ chính thức ghi nhận số lượng vào <b>tồn kho thực tế</b> và khởi tạo hoặc cập nhật các lô hàng tương ứng.
                   </p>
                 </div>
               }
