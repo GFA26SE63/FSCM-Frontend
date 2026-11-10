@@ -117,6 +117,25 @@ test('validateReportFilters validates date presence, chronology, future dates an
     /tương lai/i,
   );
 
+  // Future toDate beyond today
+  assert.match(
+    filters.validateReportFilters({
+      ...validFilters,
+      fromDate: '2026-01-01',
+      toDate: '2099-01-31',
+    }) || '',
+    /ngày kết thúc không được trong tương lai/i,
+  );
+
+  // Invalid salesGroupId format
+  assert.match(
+    filters.validateReportFilters({
+      ...validFilters,
+      salesGroupId: 'invalid--group--uuid',
+    }) || '',
+    /mã nhóm sales không hợp lệ/i,
+  );
+
   // Valid salesUserId UUID
   assert.equal(
     filters.validateReportFilters({
@@ -132,7 +151,7 @@ test('validateReportFilters validates date presence, chronology, future dates an
       ...validFilters,
       salesUserId: 'not--a--uuid',
     }) || '',
-    /sales user id không hợp lệ/i,
+    /mã nhân viên sales không hợp lệ/i,
   );
 });
 
@@ -187,6 +206,16 @@ test('readReportFilters and reportSearch maintain filter state in query string',
   assert.equal(parsed.periodType, 'month');
 
   assert.equal(filters.readRankingTab(qs), 'kpi');
+
+  // Empty query string defaults cleanly to 'month' preset, avoiding false custom trigger
+  const emptyParsed = filters.readReportFilters('');
+  assert.equal(emptyParsed.periodType, 'month');
+
+  // URL with explicit custom dates but no periodType param correctly resolves to 'custom'
+  const customParsed = filters.readReportFilters('?fromDate=2026-02-01&toDate=2026-02-28');
+  assert.equal(customParsed.periodType, 'custom');
+  assert.equal(customParsed.fromDate, '2026-02-01');
+  assert.equal(customParsed.toDate, '2026-02-28');
 });
 
 // Test RBAC & API boundary mocks

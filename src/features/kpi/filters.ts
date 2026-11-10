@@ -86,7 +86,9 @@ export function readReportFilters(search: string): ReportFilters {
   const params = new URLSearchParams(search);
   const defaults = defaultReportFilters();
 
-  const periodType = (params.get('periodType') as PeriodType | null) ?? undefined;
+  const rawPeriod = params.get('periodType') as PeriodType | null;
+  const hasCustomDates = params.has('fromDate') || params.has('toDate');
+  const periodType = rawPeriod ?? (hasCustomDates ? 'custom' : defaults.periodType);
 
   return {
     fromDate: params.get('fromDate') ?? defaults.fromDate,
@@ -94,7 +96,7 @@ export function readReportFilters(search: string): ReportFilters {
     salesGroupId: params.get('salesGroupId') ?? '',
     salesUserId: params.get('salesUserId') ?? '',
     criterion: (params.get('criterion') ?? 'Quantity') as ProductCriterion,
-    periodType: periodType ?? 'custom',
+    periodType,
   };
 }
 
@@ -161,27 +163,32 @@ export function validateReportFilters(
     return 'Kỳ báo cáo không được bắt đầu trong tương lai.';
   }
 
+  if (filters.toDate > today) {
+    return 'Ngày kết thúc không được trong tương lai.';
+  }
+
   if (!['Quantity', 'Revenue'].includes(filters.criterion)) {
     return 'Tiêu chí xếp hạng sản phẩm không hợp lệ.';
   }
 
   if (filters.salesGroupId && !UUID_REGEX.test(filters.salesGroupId)) {
-    return 'Sales Group ID không hợp lệ.';
+    return 'Mã nhóm Sales không hợp lệ.';
   }
 
   if (filters.salesUserId && !UUID_REGEX.test(filters.salesUserId)) {
-    return 'Sales User ID không hợp lệ.';
+    return 'Mã nhân viên Sales không hợp lệ.';
   }
 
   return undefined;
 }
 
 export function scopeText(scope?: string | null): string {
-  if (!scope) return 'Phạm vi được cấp quyền';
+  if (!scope) return 'Phạm vi được phân công';
   const names: Record<string, string> = {
-    All: 'Toàn bộ phạm vi báo cáo',
-    Group: 'Theo nhóm được phép',
-    OwnGroup: 'Nhóm của người dùng',
+    All: 'Toàn hệ thống',
+    Group: 'Theo nhóm được phân công',
+    OwnGroup: 'Nhóm trực thuộc',
+    PortalWide: 'Toàn hệ thống',
   };
 
   return names[scope] ?? scope;

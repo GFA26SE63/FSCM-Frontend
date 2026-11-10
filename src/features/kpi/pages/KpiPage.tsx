@@ -17,7 +17,6 @@ import {
   useSalesRanking,
 } from '../hooks';
 import { RankingFilters } from '../components/RankingFilters';
-import { ReportSummary } from '../components/ReportSummary';
 import { SalesKpiTable } from '../components/SalesKpiTable';
 import { SalesRankingTable } from '../components/SalesRankingTable';
 import { ProductRankingTable } from '../components/ProductRankingTable';
@@ -72,7 +71,7 @@ function RankingPageContent() {
     <>
       <PageHeader
         title="Quản lý KPI & Xếp hạng kinh doanh"
-        subtitle="Theo dõi chỉ tiêu, tiến độ hoàn thành và đơn hàng ghi nhận từ backend."
+        subtitle="Theo dõi chỉ tiêu, tiến độ hoàn thành và các đơn hàng ghi nhận doanh thu."
         actions={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {canConfig && (
@@ -95,7 +94,6 @@ function RankingPageContent() {
       <RankingFilters
         value={filters}
         productMode={tab === 'products'}
-        showSalesStaff={tab === 'kpi'}
         error={validationError}
         onChange={updateFilters}
       />
@@ -115,15 +113,6 @@ function RankingPageContent() {
           <QueryState query={kpi}>
             {(report) => (
               <>
-                <ReportSummary
-                  fromDate={report.fromDate}
-                  toDate={report.toDate}
-                  scope={report.scope}
-                  recognitionRule={report.recognitionRule}
-                  configurationVersion={String(report.configurationVersion)}
-                  configurationEffectiveFrom={report.configurationEffectiveFrom}
-                />
-
                 <SalesKpiTable
                   rows={report.entries}
                   filters={filters}
@@ -152,38 +141,19 @@ function RankingPageContent() {
         ) : tab === 'sales' ? (
           <QueryState query={sales}>
             {(report) => (
-              <>
-                <ReportSummary
-                  fromDate={report.fromDate}
-                  toDate={report.toDate}
-                  scope={report.scope}
-                />
-
-                <SalesRankingTable
-                  rows={report.entries}
-                  filters={filters}
-                />
-              </>
+              <SalesRankingTable
+                rows={report.entries}
+                filters={filters}
+              />
             )}
           </QueryState>
         ) : (
           <QueryState query={products}>
             {(report) => (
-              <>
-                <ReportSummary
-                  fromDate={report.fromDate}
-                  toDate={report.toDate}
-                  scope={report.scope}
-                  criterion={report.criterion}
-                  quantityUnit={report.quantityUnit}
-                  recognitionRule={report.recognitionRule}
-                />
-
-                <ProductRankingTable
-                  rows={report.entries}
-                  quantityUnit={report.quantityUnit}
-                />
-              </>
+              <ProductRankingTable
+                rows={report.entries}
+                quantityUnit={report.quantityUnit}
+              />
             )}
           </QueryState>
         )
