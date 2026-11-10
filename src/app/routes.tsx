@@ -86,6 +86,7 @@ export const APP_ROUTES: AppRoute[] = [
     { path: 'new', element: page(products, 'ProductCreatePage') },
     { path: ':sku/edit', element: page(products, 'ProductEditPage') },
     { path: ':sku/new-version', element: page(products, 'ProductReplacementPage') },
+    { path: ':sku/clone', element: page(products, 'ProductClonePage') },
     { path: ':sku', element: page(products, 'ProductDetailPage') },
   ] },
   { key: 'whs', label: 'Kho', roles: [A], list: page(warehouses, 'WarehousesPage'), sub: [
