@@ -370,6 +370,7 @@ export function BatchDetailPage() {
               <QrLabelsPanel
                 batchId={b.batchId}
                 batchCode={b.batchCode}
+                batch={b}
               />
             )}
 

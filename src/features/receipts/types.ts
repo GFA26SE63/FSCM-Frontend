@@ -18,7 +18,7 @@ export interface ReceiveGoodsLineRequest {
   productId: string;
   sourceLotCode?: string | null;
   quantity: number;
-  productionDate: string; // YYYY-MM-DD
+  productionDate?: string; // YYYY-MM-DD
   expirationDate: string; // YYYY-MM-DD
 }
 
@@ -84,7 +84,7 @@ export interface ReceiptInput {
   lines: {
     productId: string;
     sku?: string;
-    productionDate: string;
+    productionDate?: string;
     expirationDate: string;
     quantity: number;
     sourceLotCode?: string | null;

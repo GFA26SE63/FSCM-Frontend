@@ -15,7 +15,6 @@ import {
   StatusChip,
 } from '@/shared/ui';
 import { formatCases, formatDate, formatDateTime } from '@/shared/lib';
-import { QrLabelsPanel } from '@/features/qr-labels';
 import { useApproveReceipt, useReceipt } from '../hooks';
 
 export function ReceiptDetailPage() {
@@ -26,7 +25,6 @@ export function ReceiptDetailPage() {
   const approveMutation = useApproveReceipt();
 
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
 
   const canApprove = can(user, 'receipts.approve');
 
@@ -38,13 +36,6 @@ export function ReceiptDetailPage() {
 
         const lines = receipt.lines ?? [];
         const batchLines = lines.filter((line) => Boolean(line.batchId));
-
-        const activeBatchId =
-          selectedBatchId && batchLines.some((l) => l.batchId === selectedBatchId)
-            ? selectedBatchId
-            : batchLines[0]?.batchId ?? null;
-
-        const activeBatchLine = batchLines.find((l) => l.batchId === activeBatchId);
 
         const totalQuantity = lines.reduce(
           (sum, line) => sum + (line.receivedQuantity || 0),
@@ -219,7 +210,7 @@ export function ReceiptDetailPage() {
                   },
                   {
                     header: 'Lô hàng (Batch)',
-                    width: '210px',
+                    width: '240px',
                     cell: (line) =>
                       line.batchId ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -241,7 +232,7 @@ export function ReceiptDetailPage() {
                   },
                   {
                     header: 'Tồn kho vật lý',
-                    width: '140px',
+                    width: '150px',
                     cell: (line) =>
                       isReceived && line.batchId ? (
                         <span style={{ color: '#027A48', fontWeight: 600, fontSize: 12.5 }}>
@@ -249,23 +240,6 @@ export function ReceiptDetailPage() {
                         </span>
                       ) : (
                         <span className="muted" style={{ fontSize: 12 }}>Chưa cộng kho</span>
-                      ),
-                  },
-                  {
-                    header: 'Tem QR',
-                    width: '90px',
-                    align: 'center',
-                    cell: (line) =>
-                      line.batchId ? (
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          onClick={() => setSelectedBatchId(line.batchId!)}
-                        >
-                          Xem tem
-                        </button>
-                      ) : (
-                        <span className="muted">—</span>
                       ),
                   },
                 ]}
@@ -284,48 +258,13 @@ export function ReceiptDetailPage() {
               <div style={{ marginTop: 12 }}>
                 {batchLines.length === lines.length && lines.length > 0 ? (
                   <Callout tone="ok">
-                    Phiếu nhập đã được phê duyệt và ghi sổ tồn kho thành công. Tất cả các lô hàng đã được cập nhật trên hệ thống với mã định danh thực tế.
+                    Phiếu nhập đã được phê duyệt và ghi sổ tồn kho thành công. Nhấn vào mã lô hàng để xem chi tiết lô và thực hiện sinh tem QR.
                   </Callout>
                 ) : (
                   <Callout tone="warn">
                     Phiếu đã duyệt nhưng một số dòng hàng đang chờ hệ thống cập nhật mã lô hàng. Vui lòng làm mới trang hoặc kiểm tra lại thông tin tồn kho.
                   </Callout>
                 )}
-              </div>
-            )}
-
-            {isReceived && batchLines.length > 0 && activeBatchId && (
-              <div style={{ marginTop: 8 }}>
-                {batchLines.length > 1 && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      marginBottom: 10,
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text)' }}>
-                      Chọn lô hàng xem tem:
-                    </span>
-                    {batchLines.map((b) => (
-                      <button
-                        key={b.batchId}
-                        type="button"
-                        className={`btn btn-sm ${b.batchId === activeBatchId ? 'btn-primary' : ''}`}
-                        onClick={() => setSelectedBatchId(b.batchId!)}
-                      >
-                        {b.sku} · {b.batchCode || b.batchId}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <QrLabelsPanel
-                  batchId={activeBatchId}
-                  batchCode={activeBatchLine?.batchCode ?? undefined}
-                />
               </div>
             )}
 

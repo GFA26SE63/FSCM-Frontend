@@ -61,6 +61,12 @@ export interface QrLabelDetail {
   events: QrLabelEvent[];
 }
 
+export interface GenerateQrLabelRequest {
+  batchId: string;
+  quantity: number;
+  blobUrl?: string | null;
+}
+
 export type PrintTarget =
   | {
       kind: 'label';
