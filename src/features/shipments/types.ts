@@ -42,6 +42,7 @@ export interface OrderShipmentReadiness {
 export const HAS_LEFT: ShipmentPartStatus[] = ['Issued', 'Delivering', 'Received'];
 
 export interface Shipment {
+  exceptionReason?: string | null;
   id: string;
   orderId: string;
   orderCode: string;

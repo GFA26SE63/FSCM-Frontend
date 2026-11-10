@@ -19,6 +19,9 @@ export function AllocationTraceDialog({ order, open, onClose }: {
   const lineIndex = Math.min(idx, Math.max(order.lines.length - 1, 0));
   const line = order.lines[lineIndex];
   const fragments = line ? [...line.allocationFragments].sort((a, b) => a.sequence - b.sequence) : [];
+  const audit = order.allocationAudit?.lines.find(item => item.lineId === line?.id);
+  const reasons = { Eligible: 'Đủ điều kiện', NoRemainingQuantity: 'Hết tồn khả dụng', RouteUnavailable: 'Không có tuyến giao hợp lệ',
+    OutsideServiceRadius: 'Ngoài bán kính phục vụ', ArrivesAfterDeadline: 'Đến sau hạn giao', BelowMlor: 'Không đạt MLOR tại ETA' };
 
   return (
     <Modal
@@ -66,8 +69,16 @@ export function AllocationTraceDialog({ order, open, onClose }: {
             <h3 style={{ marginTop: 0 }}>B2 · Lọc batch đủ điều kiện</h3>
             <p className="muted small">
               Hệ thống loại batch hết tồn, không có tuyến giao, ngoài vùng phục vụ, đến trễ hoặc không đạt MLOR.
-              Bảng dưới chỉ hiển thị các batch đã được chọn vì phiên bản hiện tại chưa lưu các ứng viên bị loại.
+              {audit ? 'Bảng ghi lại từng bước lọc của tất cả batch tại thời điểm phân bổ.' : 'Đơn cũ chưa lưu trace ứng viên; bảng dưới chỉ có batch đã chọn.'}
             </p>
+            {audit && <SimpleTable compact rows={audit.filters} empty="Không có ứng viên."
+              columns={[
+                { header: 'Kho / batch', cell: item => `${item.warehouseCode} / ${item.batchCode}` },
+                { header: 'Bước lọc', cell: item => item.stage },
+                { header: 'Kết quả / lý do', cell: item => <Chip tone={item.passed ? 'success' : 'danger'}>{reasons[item.reason]}</Chip> },
+                { header: 'ETA', cell: item => formatDateTime(item.estimatedArrivalAt) },
+                { header: 'Hạn còn lại / yêu cầu', cell: item => `${item.remainingShelfLifeHours ?? '—'} / ${item.requiredShelfLifeHours ?? '—'} giờ` },
+              ]} />}
             <SimpleTable
               compact
               rows={fragments}
@@ -104,6 +115,15 @@ export function AllocationTraceDialog({ order, open, onClose }: {
 
           <section className="card" style={{ padding: 16 }}>
             <h3 style={{ marginTop: 0 }}>B4 · Xếp điểm, cấp hàng và chốt giá</h3>
+            {order.allocationAudit && <p className="muted small">Trọng số lúc chạy: HSD {order.allocationAudit.weights.shelfLife}, khoảng cách {order.allocationAudit.weights.distance}, độ phủ {order.allocationAudit.weights.coverage}; bán kính {order.allocationAudit.weights.maximumDistanceMeters / 1000} km.</p>}
+            {audit && <SimpleTable compact rows={audit.scores} empty="Không có ứng viên qua bước lọc."
+              columns={[
+                { header: 'Lượt / hạng', cell: item => `${item.iteration} / ${item.rank}` },
+                { header: 'Batch', cell: item => item.batchCode },
+                { header: 'HSD / khoảng cách / độ phủ', cell: item => `${item.shelfLifeScore.toFixed(3)} / ${item.distanceScore.toFixed(3)} / ${item.coverageScore.toFixed(3)}` },
+                { header: 'Tổng điểm', cell: item => item.weightedScore.toFixed(3) },
+                { header: 'Lựa chọn', cell: item => item.selected ? `Cấp ${item.selectedQuantity}` : 'Không chọn trong lượt này' },
+              ]} />}
             <p className="muted small">
               Trong mỗi lượt, hệ thống chọn ứng viên có weighted score cao nhất, cấp tối đa phần nhu cầu còn thiếu,
               rồi tính lại cho lượt kế tiếp. Sau khi batch đã được chọn, hệ thống mới áp dụng giảm HSD.

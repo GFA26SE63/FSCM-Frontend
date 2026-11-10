@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Callout, Card, Chip, PageHeader, QueryState, Select, SimpleTable, Stat, type Tone } from '@/shared/ui';
+import { Button, Callout, Card, Chip, Input, PageHeader, QueryState, Select, SimpleTable, Stat, type Tone } from '@/shared/ui';
 import { formatNumber } from '@/shared/lib';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { useApiMutation } from '@/shared/hooks/useApiMutation';
@@ -252,6 +252,8 @@ export function ShipmentActionRow({
   const warehouseVehicles = vehicles.filter((item) => item.isActive && item.warehouseId === shipment.warehouseId && item.capacity >= shipment.totalQuantity);
   const [driverId, setDriverId] = useState(warehouseDrivers[0]?.id ?? '');
   const [vehicleId, setVehicleId] = useState(warehouseVehicles[0]?.id ?? '');
+  const [resolutionReason, setResolutionReason] = useState('');
+  const resolve = useApiMutation(shipmentsApi.resolveException, { success: 'Đã xử lý ngoại lệ và cập nhật trạng thái đơn.', onSuccess: () => setResolutionReason('') });
   const selectedDriver = warehouseDrivers.find((item) => item.id === driverId);
   const selectedVehicle = warehouseVehicles.find((item) => item.id === vehicleId);
   const issue = useApiMutation(shipmentsApi.issue, { success: 'Đã xác nhận shipment rời kho; tồn thực tế đã được trừ.' });
@@ -279,6 +281,13 @@ export function ShipmentActionRow({
           Xác nhận xuất kho
         </Button>
       )}
+
+      {shipment.status === 'Exception' && mayDispatch && <div className="stack" style={{ marginTop: 8 }}>
+        {shipment.exceptionReason && <Callout tone="danger">{shipment.exceptionReason}</Callout>}
+        <Input aria-label="Kết quả xử lý ngoại lệ" placeholder="Nhập lý do / kết quả xử lý" value={resolutionReason} onChange={e => setResolutionReason(e.target.value)} />
+        <Button size="sm" loading={resolve.isPending} disabled={!resolutionReason.trim() || resolutionReason.trim().length > 1000}
+          onClick={() => resolve.mutate({ shipment, reason: resolutionReason })}>Hoàn tất xử lý ngoại lệ</Button>
+      </div>}
 
       {shipment.status === 'Issued' && mayDispatch && !shipment.driverId && (
         <div className="row-wrap" style={{ gap: 8, marginTop: 8 }}>
