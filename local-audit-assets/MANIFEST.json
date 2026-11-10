@@ -1,0 +1,122 @@
+{
+  "source_branch": "fix/review2-order-flow",
+  "source_commit": "de51bf76ef91f1c7083c3045f5da69c8909ce46b",
+  "purpose": "Archive of local review2 edits and local demo assets; not a develop integration.",
+  "validation": "This archive has not been build/test validated as a combined release.",
+  "excluded": [
+    "credentials",
+    "runtime secrets/configuration",
+    "logs",
+    "PostgreSQL data"
+  ],
+  "files": [
+    {
+      "path": "src/app/layout/Sidebar.tsx",
+      "source": "review2 working tree",
+      "sha256": "c9a8401b03e352a221c76218e1ea8e895fd23346ba8ab5c3721e8491fcc79ec7"
+    },
+    {
+      "path": "src/app/routes.tsx",
+      "source": "review2 working tree",
+      "sha256": "0340e89d9d7d443400c4558465ccf4563e1ea14d6f7230bf1790bca707cc1fa8"
+    },
+    {
+      "path": "src/features/allocation/api.ts",
+      "deleted": true
+    },
+    {
+      "path": "src/features/allocation/hooks.ts",
+      "deleted": true
+    },
+    {
+      "path": "src/features/config/api.ts",
+      "source": "review2 working tree",
+      "sha256": "29c5252008ecd973fd0d5d4510983aa9d2b414d199d539ea0fe4786e31d6b28c"
+    },
+    {
+      "path": "src/features/config/components/RunScheduleSection.tsx",
+      "source": "review2 working tree",
+      "sha256": "b3539d38b5dc4f16d876e24c8ff1392c7d37930c9424ba48d319f5d71941c301"
+    },
+    {
+      "path": "src/features/config/hooks.ts",
+      "source": "review2 working tree",
+      "sha256": "b249dcb66087deb5d6950f396584c1a5623489e21e48500e7acd4eb3d9c4f6da"
+    },
+    {
+      "path": "src/features/config/pages/ConfigPage.tsx",
+      "source": "review2 working tree",
+      "sha256": "877d23eb9093dfd73cc0b82fbcb77cf9d4549d0a6accc4280d59390df14cdcf5"
+    },
+    {
+      "path": "src/features/config/types.ts",
+      "source": "review2 working tree",
+      "sha256": "3393f906140914a86c0dad78b7ef5d670b810f9d0dbbfa29bc155be2966a74e7"
+    },
+    {
+      "path": "src/features/dashboard/pages/DashboardPage.tsx",
+      "source": "review2 working tree",
+      "sha256": "5dd7f5b615de58d1729e24245aa3a5c5c17498dd7e602aa8fc3ade6e2fb6d589"
+    },
+    {
+      "path": "src/features/notifications/api.ts",
+      "source": "review2 working tree",
+      "sha256": "b62c1784599cc6917f08001e9089587f63f1447bdb1ad4f8a20e1d43f0ad30f8"
+    },
+    {
+      "path": "src/features/notifications/components/NotificationBell.tsx",
+      "source": "review2 working tree",
+      "sha256": "5a67633e0f723428014c6fdcf04f36087fe2c4d8f6f05df59fac3171435422c7"
+    },
+    {
+      "path": "src/features/notifications/hooks.ts",
+      "source": "review2 working tree",
+      "sha256": "fff496d00380ac708d56bcdd0fb12cc959db688b61cdad3f93d9851eccc9c83a"
+    },
+    {
+      "path": "src/features/notifications/index.ts",
+      "source": "review2 working tree",
+      "sha256": "47c4f9549daabbb8e6dab3e40d51a1dcd2b430252424087d749ffecdef1c69e3"
+    },
+    {
+      "path": "src/features/notifications/types.ts",
+      "source": "review2 working tree",
+      "sha256": "29ca39e45cb14052d2e4eaedd2bca11e6b7298c620f72e509977003312bdf839"
+    },
+    {
+      "path": "src/features/runpicking/pages/RunPickingPage.tsx",
+      "source": "review2 working tree",
+      "sha256": "e21e8c6b99ca114ec396711c68471dbe0397572f1c148d76580717a17960205f"
+    },
+    {
+      "path": "src/features/runpicking/types.ts",
+      "source": "review2 working tree",
+      "sha256": "33f23a2a1d8f00402bd4c82b7952c741dd6b4bdae929ec4cec93a400e49171fa"
+    },
+    {
+      "path": "local-audit-assets/verify-checkout/playwright.local.config.ts",
+      "source": "PackageCode/_verify_merged_Frontend/playwright.local.config.ts",
+      "sha256": "de2951b531d9fbffec352ee4f1fe8f652b260be9678da17bc5c0111686b8bd6a"
+    },
+    {
+      "path": "local-audit-assets/verify-checkout/pr-product-search.md",
+      "source": "PackageCode/_verify_merged_Frontend/pr-product-search.md",
+      "sha256": "f8ae9fa719fbaea00125c42d560e3fbb8257f174b9c103eec26120a11ad2f444"
+    },
+    {
+      "path": "local-audit-assets/verify-checkout/pr-promotion-retailer-table.md",
+      "source": "PackageCode/_verify_merged_Frontend/pr-promotion-retailer-table.md",
+      "sha256": "bb22ac104a2d6d59b9c723190b31c1a12887b4ee798bc3c084a0fea04d61b90a"
+    },
+    {
+      "path": "local-audit-assets/verify-checkout/pr-prototype-promos.md",
+      "source": "PackageCode/_verify_merged_Frontend/pr-prototype-promos.md",
+      "sha256": "bd7b411eb68a2c6d4e01337ce86c91be830fc2d7a73258d374d294aeaa57401a"
+    },
+    {
+      "path": "local-audit-assets/verify-checkout/pr-table-layout.md",
+      "source": "PackageCode/_verify_merged_Frontend/pr-table-layout.md",
+      "sha256": "e3d3aae46921a5f37d7c859dadbd6a900bd9b70ec11217af5a789531d551d92e"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+Promotion applicability currently uses an inline checkbox list with little retailer information. Replace it with searchable, paged retailer tables showing name/code, contact, address, Sales group and credit term, plus Add/Remove actions. Keep selected stores visible across searches, exclude inactive stores from new selections and submit only the selected IDs. Display promotion names in order pricing, promotion details and success messages. Keep action buttons visible during horizontal scrolling.
+
+This branch integrates current develop and carries forward the prototype PerSku/ProductGroup forms and table width fixes from #77/#78, which were merged into stacked parent branches rather than develop. Keep the newer team fleet, ranking and QR-label features; resolve the batch-detail conflict using the team's QR panel.
+
+Validation: production build passed; 10 browser tests passed, including selecting/removing retailers and verifying the submitted IDs. Live demo PostgreSQL checks at 1024, 1366 and 1536px found the real retailer, preserved selection, and showed no page overflow or browser errors. No test promotion was written to the shared database.

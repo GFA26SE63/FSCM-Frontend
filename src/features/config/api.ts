@@ -16,9 +16,9 @@ export const transitApi = {
 };
 
 export const runScheduleApi = {
-  /** Milestones come back already resolved to instants, so the portal never re-derives the zone. */
+  /** Current preparation, buffer and dispatch-slot configuration. */
   current: () => get<RunSchedule>('/eta/schedule'),
-  /** One document: the cutoff, the deadline and the reminders are validated against each other. */
+  /** Allocation is real-time; only the downstream warehouse timing is configurable. */
   publish: (payload: RunSchedulePayload) =>
     put<unknown>('/business-configurations/eta.schedule', { value: payload }),
 };

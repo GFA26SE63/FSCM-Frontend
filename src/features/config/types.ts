@@ -49,17 +49,12 @@ export interface ConfigDraft { settings: SystemSettings }
 
 /** One point in the run day, already resolved to an instant for a business date by the server. */
 export interface ScheduleMilestone {
-  key:
-    | 'sales_submission_advice'
-    | 'order_review_reminder'
-    | 'allocation_run'
-    | 'plan_approval_reminder'
-    | 'plan_approval_deadline';
+  key: string;
   label: string;
   /** "HH:mm:ss" in the published time zone. */
   localTime: string;
   at: string;
-  /** Advice, not a gate: an order accepted after it and before the cutoff is still in the run. */
+  /** Dispatch slots are operational milestones, not allocation gates. */
   isAdvisory: boolean;
 }
 
@@ -73,14 +68,9 @@ export interface RunSchedule {
   dispatchSlotsLocalTime: string[];
 }
 
-/** The stored document. Written whole, because the times only make sense against each other. */
+/** Operational timing used after real-time allocation. */
 export interface RunSchedulePayload {
   timeZone: string;
-  salesSubmissionAdviceLocalTime: string;
-  orderReviewReminderLocalTime: string;
-  allocationRunLocalTime: string;
-  planApprovalReminderLocalTime: string;
-  planApprovalDeadlineLocalTime: string;
   preparationMinutes: number;
   bufferMinutes: number;
   dispatchSlotsLocalTime: string[];

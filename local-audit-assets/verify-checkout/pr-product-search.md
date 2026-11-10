@@ -1,0 +1,5 @@
+Saved campaigns start inactive, but the management list previously requested only active records. Load all statuses so saved and paused promotions remain visible, and explain activation after saving.
+
+Add searchable code/name product pickers for receipts, transfer batches, batch filtering and shelf-life rules. Campaign scope search keeps selections across queries. Replace raw UUID JSON editing with product/category fields for shelf-life publishing. Show allocation scores to three decimal places and keep HSD reductions separate from quantity-promotion columns. The price snapshot additions in GFA26SE63/FSCM-Backend#106 remove the false official-total warning.
+
+Rebased onto current develop, preserving the team's batch UI and session handling. Validation: production build, targeted ESLint, 35 regression tests and four browser workflow tests passed. Live DB browser checks confirmed paused KM-004/KM-005 remain visible, code/name batch search works, and DH-001059 shows five allocation fragments with a reconciled official total of 93,050,000 VND and readable scoring.
