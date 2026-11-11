@@ -30,7 +30,6 @@ import {
   paymentLabel,
   statusLabel,
 } from '@/shared/lib';
-import { ShipmentAssignmentPanel } from '@/features/shipments';
 import { useOrder } from '../hooks';
 import {
   AllocationTraceDialog,
@@ -470,6 +469,20 @@ function OrderBody({
                       order.creditTermDays,
                     ),
                 },
+                ...(order.paymentMethod === 'Credit'
+                  ? [
+                      {
+                        label: 'Kỳ hạn snapshot',
+                        value: `${order.creditTermDays} ngày`,
+                      },
+                      {
+                        label: 'Hạn thanh toán',
+                        value: order.payment?.dueDate
+                          ? formatDate(order.payment.dueDate)
+                          : `Sau khi nhận đủ + ${order.creditTermDays} ngày`,
+                      },
+                    ]
+                  : []),
                 {
                   label:
                     'Lần phân bổ',
@@ -493,6 +506,13 @@ function OrderBody({
                 },
               ]}
             />
+            {order.paymentMethod === 'Credit' && (
+              <div style={{ marginTop: '12px' }}>
+                <Callout tone="neutral">
+                  <b>Quy tắc công nợ & snapshot:</b> Đơn hàng áp dụng kỳ hạn snapshot <b>{order.creditTermDays} ngày</b>. Hạn thanh toán được tính từ mốc nhận đủ hàng (hoặc ngày hoàn tất xử lý khiếu nại), không tính từ thời điểm đặt đơn và không bị thay đổi bởi các điều chỉnh hồ sơ điểm bán sau này.
+                </Callout>
+              </div>
+            )}
           </Card>
 
           <Card
@@ -740,12 +760,6 @@ function OrderBody({
               ]}
             />
           </Card>
-
-          {order.warehouseProgress.some((item) => item.shipmentId) && (
-            <Card title="Giao hàng theo kho">
-              <ShipmentAssignmentPanel orderId={order.id} />
-            </Card>
-          )}
 
           <Card title="Nghiệp vụ liên quan">
             <WorkflowLinks

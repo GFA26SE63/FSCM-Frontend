@@ -78,7 +78,7 @@ export function LabelPrintDialog({
           ? `Xem / in tem ${target.qrCode}`
           : 'Xem / in tem của batch'
       }
-      subtitle="Bản in do backend tạo. In lại sử dụng mã tem hiện có."
+      subtitle="Bản in tem chính thức từ hệ thống. In lại sẽ sử dụng mã tem hiện có."
       onClose={onClose}
       width={960}
       footer={

@@ -41,38 +41,20 @@ export interface OrderShipmentReadiness {
 /** Statuses that mean the goods have physically left that warehouse. */
 export const HAS_LEFT: ShipmentPartStatus[] = ['Issued', 'Delivering', 'Received'];
 
-export interface ShipmentLine {
-  orderLineId: string;
-  lineNumber: number;
-  sku: string;
-  productName: string;
-  batchId: string;
-  batchCode: string;
-  /** Cartons of this batch in the part. */
-  quantity: number;
-}
-
 export interface Shipment {
   id: string;
   orderId: string;
   orderCode: string;
   warehouseId: string;
   warehouseCode: string;
-  warehouseName?: string;
   shipmentCode: string;
   status: ShipmentPartStatus;
-  /** Total cartons of the part; a vehicle must carry at least this much. */
-  totalQuantity: number;
   version: number;
+  totalQuantity: number;
   driverId: string | null;
   driverName: string | null;
-  driverPhone?: string | null;
   vehicleId: string | null;
   plateNumber: string | null;
-  vehicleType?: string | null;
-  assignedAt?: string | null;
-  exceptionReason?: string | null;
-  lines: ShipmentLine[];
 }
 
 export interface DeliveryDriver {
@@ -80,7 +62,6 @@ export interface DeliveryDriver {
   warehouseId: string;
   code: string;
   fullName: string;
-  phone?: string;
   isActive: boolean;
 }
 
@@ -89,7 +70,6 @@ export interface DeliveryVehicle {
   warehouseId: string;
   plateNumber: string;
   vehicleType: string;
-  /** Cartons the vehicle can carry. */
   capacity: number;
   isActive: boolean;
 }

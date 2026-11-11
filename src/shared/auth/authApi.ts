@@ -129,7 +129,7 @@ function mapAuthenticationResult(
     throw new ApiError(
       502,
       'Phản hồi đăng nhập không hợp lệ',
-      'Backend không trả đủ token và thời hạn phiên.',
+      'Xác thực không thành công. Vui lòng đăng nhập lại.',
     );
   }
 

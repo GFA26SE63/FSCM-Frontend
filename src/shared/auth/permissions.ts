@@ -58,14 +58,13 @@ export const ACTION_ROLES = {
   'retailers.review': ['Admin', 'Operator'],
   'retailers.status': ['Admin'],
 
-  // Endpoint /mlor-configurations hiện yêu cầu Admin.
-  'mlor.read': ['Admin'],
-  'mlor.manage': ['Admin'],
+  // Endpoint /mlor-configurations hỗ trợ quản trị và vận hành.
+  'mlor.read': ['Admin', 'Operator'],
+  'mlor.manage': ['Admin', 'Operator'],
 
-  // Portal chưa có API tạo/sửa retailer tổng quát.
-  // Sales declaration được triển khai trên Mobile.
-  'retailers.create': [],
-  'retailers.edit': [],
+  // Chỉnh sửa hồ sơ retailer theo khai báo/xét duyệt.
+  'retailers.create': ['Admin'],
+  'retailers.edit': ['Admin', 'Operator'],
 
   // InternalTransfersController hiện có [NonController].
   'transfers.manage': [],
