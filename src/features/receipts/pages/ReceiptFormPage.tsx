@@ -13,23 +13,20 @@ import {
 } from '@/shared/ui';
 import { IdFormat } from '@/shared/lib';
 import { useCreateReceipt, useReceiptLookups } from '../hooks';
+import type { CreateGoodsReceiptRequest } from '../types';
 
 interface FormLine {
   productId: string;
   sku: string;
-  productionDate: string;
   expirationDate: string;
   quantity: string;
-  sourceLotCode: string;
 }
 
 const createBlankLine = (): FormLine => ({
   productId: '',
   sku: '',
-  productionDate: '',
   expirationDate: '',
   quantity: '',
-  sourceLotCode: '',
 });
 
 export function ReceiptFormPage() {
@@ -153,11 +150,7 @@ export function ReceiptFormPage() {
 
   const getRowError = (r: FormLine): string | null => {
     if (!r.productId) return 'Vui lòng chọn sản phẩm.';
-    if (!r.productionDate) return 'Vui lòng nhập ngày sản xuất.';
     if (!r.expirationDate) return 'Vui lòng nhập hạn sử dụng.';
-    if (r.productionDate > r.expirationDate) {
-      return 'Ngày sản xuất phải trước hoặc bằng hạn sử dụng.';
-    }
     const qtyNum = Number(r.quantity);
     if (!qtyNum || qtyNum <= 0) return 'Số lượng nhập phải lớn hơn 0.';
     return null;
@@ -171,14 +164,12 @@ export function ReceiptFormPage() {
     if (!isFormValid) return;
 
     try {
-      const payload = {
+      const payload: CreateGoodsReceiptRequest = {
         warehouseId: selectedWarehouseId,
         lines: rows.map((r) => ({
           productId: r.productId,
           quantity: Number(r.quantity),
-          productionDate: r.productionDate,
           expirationDate: r.expirationDate,
-          sourceLotCode: r.sourceLotCode.trim() || null,
         })),
       };
 
@@ -311,7 +302,7 @@ export function ReceiptFormPage() {
                 <div
                   className="form-grid"
                   style={{
-                    gridTemplateColumns: '2fr 1.2fr 1.2fr 0.9fr 1fr auto',
+                    gridTemplateColumns: '2.5fr 1.5fr 1.2fr auto',
                     alignItems: 'end',
                     gap: 12,
                   }}
@@ -325,14 +316,6 @@ export function ReceiptFormPage() {
                         label: `${p.sku} · ${p.name}`,
                       }))}
                       placeholder="Chọn sản phẩm..."
-                    />
-                  </FormField>
-
-                  <FormField label="Ngày sản xuất (NSX)" required>
-                    <Input
-                      type="date"
-                      value={r.productionDate}
-                      onChange={(e) => updateRow(i, { productionDate: e.target.value })}
                     />
                   </FormField>
 
@@ -353,14 +336,6 @@ export function ReceiptFormPage() {
                       placeholder="0"
                       value={r.quantity}
                       onChange={(e) => updateRow(i, { quantity: e.target.value })}
-                    />
-                  </FormField>
-
-                  <FormField label="Lô NSX">
-                    <Input
-                      placeholder="Ví dụ: LOT-2026-A"
-                      value={r.sourceLotCode}
-                      onChange={(e) => updateRow(i, { sourceLotCode: e.target.value })}
                     />
                   </FormField>
 

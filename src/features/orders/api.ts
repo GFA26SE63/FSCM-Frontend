@@ -57,6 +57,7 @@ async function listOrders():
 }
 
 export const orderApi = {
+  retryAllocation: (order: { id: string; version: number }) => post<OrderDetail>(`/orders/${order.id}/allocation/retry`, { expectedVersion: order.version }),
   list: listOrders,
 
   get: (

@@ -27,7 +27,7 @@ export const formatInstantDate = (iso?: string | null): string => (iso ? vnDate.
 export const formatInstantDateTime = (iso?: string | null): string => (iso ? vnDateTime.format(new Date(iso)) : '—');
 
 export const formatDate = (iso?: string | null): string => {
-  if (!iso) return '—';
+  if (!iso || iso.startsWith('0001')) return '—';
   const d = parseIso(iso);
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 };

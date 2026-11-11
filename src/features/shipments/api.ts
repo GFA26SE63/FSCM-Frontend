@@ -22,4 +22,6 @@ export const shipmentsApi = {
     }),
   dispatch: (shipment: Shipment) =>
     post<Shipment>(`/shipments/${shipment.id}/dispatch`, { expectedVersion: shipment.version }),
+  resolveException: ({ shipment, reason }: { shipment: Shipment; reason: string }) =>
+    post<Shipment>(`/shipments/${shipment.id}/exception/resolve`, { reason: reason.trim(), expectedVersion: shipment.version }),
 };

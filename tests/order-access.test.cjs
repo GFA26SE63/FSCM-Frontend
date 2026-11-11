@@ -226,6 +226,8 @@ test('OrderActions renders Withdraw only for permitted role and state', () => {
       },
 
       '../orderAccess': access,
+      '@/shared/hooks/useApiMutation': { useApiMutation: () => ({ mutate() {}, isPending: false }) },
+      '../api': { orderApi: {} },
 
       './OrderDialogs': {
         WithdrawOrderDialog:
@@ -259,6 +261,7 @@ test('OrderActions renders Withdraw only for permitted role and state', () => {
     render('Quoted'),
     /Rút yêu cầu/,
   );
+  assert.match(render('AllocationFailed'), /Thử phân bổ lại/);
 
   currentUser =
     user('WarehouseKeeper');
