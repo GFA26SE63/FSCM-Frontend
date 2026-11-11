@@ -1,10 +1,9 @@
 export interface Gift { code: string; name: string; points: number; stock: number; redeemed: number; status: 'Active' | 'Paused' }
 export interface LoyaltyProgram {
-  id?: string; code: string; name: string; description?: string | null;
-  spendAmountPerPoint?: number; minimumRedeemPoints?: number; startAt?: string; endAt?: string;
-  pointsExpireAt?: string | null; retailerIds?: string[]; isActive?: boolean;
-  scope?: string; validFrom?: string; validTo?: string; pointsExpireOn?: string;
-  status?: 'Running' | 'Paused'; pointRateVnd?: number; gifts?: Gift[];
+  id: string; code: string; name: string; description: string | null;
+  spendAmountPerPoint: number; minimumRedeemPoints: number; startAt: string; endAt: string;
+  pointsExpireAt: string | null; retailerIds: string[]; isActive: boolean;
+  createdByUserId: string; createdAt: string; updatedAt: string;
 }
 export interface BalanceRow {
   retailerCode: string; retailerName: string; balance: number; held: number; available: number; pendingOrders: number; lastEarned: { date: string; points: number } | null;
@@ -23,3 +22,4 @@ export interface ProgramInput {
   minimumRedeemPoints: number; startAt: string; endAt: string; pointsExpireAt?: string | null;
   retailerIds: string[];
 }
+export interface ProgramRetailerOption { id: string; code: string; name: string; status: string }
