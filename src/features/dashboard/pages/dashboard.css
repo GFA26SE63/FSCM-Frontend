@@ -1,7 +1,9 @@
 .dashboard-page { display: grid; gap: 16px; }
 .dashboard-filters { display: grid; grid-template-columns: repeat(auto-fit,minmax(165px,1fr)); gap: 12px; align-items: end; }
 .dashboard-kpis { display: grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap: 12px; }
-.dashboard-kpis .stat-value { font-size: clamp(22px,2vw,32px); overflow-wrap: anywhere; }
+.dashboard-kpis .stat { container-type: inline-size; }
+.dashboard-kpis .stat-value { font-size: 28px; overflow-wrap: normal; }
+.dashboard-stat-number { display: block; white-space: nowrap; font-size: min(24px,calc(150cqi / var(--value-characters))); font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1.2; }
 .dashboard-pair { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(0,1fr); gap: 16px; }
 .dashboard-page .card { min-width: 0; }
 .dashboard-scope { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; font-size: 13px; color: var(--c-muted,#60716c); }
