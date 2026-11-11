@@ -90,43 +90,60 @@ test('sidebar and direct URL guard handle all Portal roles, loading and anonymou
   assert.match(renderToStaticMarkup(React.createElement(RequireAuth, null, 'SECRET')), /LOGIN/);
 });
 
-test('Operator can view loyalty but cannot open its edit form or run update mutation', async () => {
+test('Operator can view loyalty but cannot open its edit form or run program mutations', async () => {
   let current = user('Operator');
   let writes = 0;
   const auth = { useAuth: () => ({ user: current }) };
   const hookMocks = {
     '@tanstack/react-query': { useQuery() {} },
+    '@/shared/auth/AuthContext': auth,
     '@/shared/hooks': {
       useApiMutation: (fn, options) => ({ mutateAsync: async (input) => {
         permissions.assertPermission(current, options.permission);
         return fn(input);
       } }),
     },
-    './api': { loyaltyApi: { updateProgram: async () => { writes += 1; } } },
+    './api': { loyaltyApi: {
+      updateProgram: async () => { writes += 1; },
+      createProgram: async () => { writes += 1; },
+      setProgramActive: async () => { writes += 1; },
+    } },
   };
   const mutationHooks = source('features/loyalty/hooks.ts', hookMocks);
-  await assert.rejects(mutationHooks.useUpdateProgram().mutateAsync({}), { status: 403 });
+  for (const hook of ['useUpdateProgram', 'useCreateProgram', 'useSetProgramActive']) {
+    await assert.rejects(mutationHooks[hook]().mutateAsync({}), { status: 403 });
+  }
   assert.equal(writes, 0);
+  const fixture = { id: 'p1', code: 'LP-001', name: 'Program', spendAmountPerPoint: 100000,
+    minimumRedeemPoints: 0, retailerIds: ['r1'], isActive: true,
+    startAt: '2026-01-01T00:00:00Z', endAt: '2099-01-01T00:00:00Z' };
   const Wrapper = ({ children, actions }) => React.createElement('div', null, actions, children);
-  const { LoyaltyPage } = source('features/loyalty/pages/LoyaltyPage.tsx', {
+  const ui = {
+    Button: ({ children, onClick }) => React.createElement('button', { onClick }, children),
+    Card: Wrapper, Modal: () => null, Fields: () => null, Chip: Wrapper,
+    DataTable: ({ rows, rowActions, actions }) => React.createElement('div', null,
+      actions, rows?.map((r) => React.createElement('div', { key: r.id }, rowActions(r)))),
+  };
+  const { LoyaltyProgramsPanel } = source('features/loyalty/components/LoyaltyProgramsPanel.tsx', {
     '@/shared/auth/AuthContext': auth,
     '@/shared/auth/permissions': permissions,
-    '@/shared/router/compat': { useNavigate: () => () => {} },
-    '@/shared/ui': {
-      Button: ({ children, onClick }) => React.createElement('button', { onClick }, children),
-      Card: Wrapper, PageHeader: Wrapper, Fields: () => null, DataTable: () => null,
-      StatusChip: () => null,
-      FormDialog: ({ open }) => open ? React.createElement('p', null, 'EDIT FORM') : null,
-    },
-    '@/shared/lib': { formatDate: String, formatMoney: String, formatNumber: String },
-    '../hooks': {
-      useProgram: () => ({ data: { code: 'L1', name: 'Program', status: 'Running' } }),
-      useBalances: () => ({}), useUpdateProgram: () => ({}),
-    },
+    '@/shared/api/errors': { errorMessage: String },
+    '@/shared/ui': ui,
+    '@/shared/lib': { formatInstantDateTime: String, formatMoney: String, formatNumber: String },
+    '../hooks': { usePrograms: () => ({ data: [fixture] }), useSetProgramActive: () => ({}) },
+    '../programForm': { programStatus: () => 'Running' },
+    './ProgramDialog': { ProgramDialog: () => React.createElement('p', null, 'EDIT FORM') },
   });
-  assert.ok(!renderToStaticMarkup(React.createElement(LoyaltyPage)).includes('Sửa'));
+  const operator = renderToStaticMarkup(React.createElement(LoyaltyProgramsPanel));
+  assert.match(operator, /Xem/);
+  for (const action of ['Sửa', 'Tạo chương trình', 'Tạm dừng', 'EDIT FORM']) {
+    assert.ok(!operator.includes(action));
+  }
   current = user('Admin');
-  assert.match(renderToStaticMarkup(React.createElement(LoyaltyPage)), /Sửa/);
+  const admin = renderToStaticMarkup(React.createElement(LoyaltyProgramsPanel));
+  assert.match(admin, /Sửa/);
+  assert.match(admin, /Tạo chương trình/);
+  assert.match(admin, /Tạm dừng/);
   await mutationHooks.useUpdateProgram().mutateAsync({});
   assert.equal(writes, 1);
 });
