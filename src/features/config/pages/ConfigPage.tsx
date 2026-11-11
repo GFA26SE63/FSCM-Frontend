@@ -5,6 +5,7 @@ import { TransitTableSection } from '../components/TransitTableSection';
 import { RunScheduleSection } from '../components/RunScheduleSection';
 import { useRunSchedule, useSaveConfig, useSettings, useTransitTable } from '../hooks';
 import type { SystemSettings } from '../types';
+import { validAllocationWeights, validKilometers } from '../validation';
 
 export function SettingsForm({ settings }: { settings: SystemSettings }) {
   const [weights, setWeights] = useState({ wE: String(settings.allocation.wE), wD: String(settings.allocation.wD), wQ: String(settings.allocation.wQ) });
@@ -12,11 +13,10 @@ export function SettingsForm({ settings }: { settings: SystemSettings }) {
   const [step, setStep] = useState(String(settings.orderStepCartons));
   const [mlor, setMlor] = useState(String(settings.defaultMlorRatio * 100));
   const save = useSaveConfig();
-  const values = Object.values(weights).map(Number);
-  const valid = Object.values(weights).every(v => v.trim() !== '') && values.every(v => Number.isFinite(v) && v >= 0)
-    && Math.abs(values.reduce((s, v) => s + v, 0) - 1) <= 0.0001
-    && Number.isFinite(Number(radius)) && Number(radius) > 0 && Number.isInteger(Number(radius) * 1000)
-    && Number.isInteger(Number(step)) && Number(step) > 0 && Number(mlor) > 0 && Number(mlor) < 100;
+  const valid = validAllocationWeights(Object.values(weights))
+    && validKilometers(Number(radius)) && Number(radius) > 0
+    && Number(radius) * 1000 <= 2147483647
+    && Number.isInteger(Number(step)) && Number(step) > 0 && Number(step) <= 2147483647 && Number(mlor) > 0 && Number(mlor) < 100;
   return <>
     <Card title="Trọng số phân bổ đơn hàng">
       <WeightsEditor value={weights} onChange={setWeights} />
@@ -28,10 +28,10 @@ export function SettingsForm({ settings }: { settings: SystemSettings }) {
         <FormField label="MLOR mặc định (%)"><Input value={mlor} onChange={e => setMlor(e.target.value)} inputMode="decimal" /></FormField>
       </div>
       {!valid && <Callout tone="danger">Trọng số phải không âm và có tổng bằng 1; bán kính và bước thùng phải dương; MLOR phải nằm giữa 0 và 100%.</Callout>}
-      <Button variant="primary" disabled={!valid} loading={save.isPending} onClick={() => save.mutate({ settings: {
+      <Button variant="primary" disabled={!valid} loading={save.isPending} onClick={() => { if (!valid || save.isPending) return; save.mutate({ settings: {
         allocation: { wE: Number(weights.wE), wD: Number(weights.wD), wQ: Number(weights.wQ) },
         dmaxRetailerKm: Number(radius), orderStepCartons: Number(step), defaultMlorRatio: Number(mlor) / 100,
-      } })}>Lưu cấu hình</Button>
+      } }); }}>Lưu cấu hình</Button>
     </Card>
   </>;
 }

@@ -61,6 +61,7 @@ test('sidebar and direct URL guard handle all Portal roles, loading and anonymou
     Navigate: () => React.createElement('p', null, 'LOGIN') };
   const { Sidebar } = source('app/layout/Sidebar.tsx', {
     '@/shared/router/compat': router,
+    '@/shared/hooks': { useCurrentTime: () => Date.now() },
     '@/shared/auth/AuthContext': auth,
     '@/shared/auth/roles': source('shared/auth/roles.ts'),
     '@/shared/lib/env': { env: { useMock: false } },
@@ -109,6 +110,7 @@ test('Operator can view loyalty but cannot open its edit form or run update muta
   assert.equal(writes, 0);
   const Wrapper = ({ children, actions }) => React.createElement('div', null, actions, children);
   const { LoyaltyPage } = source('features/loyalty/pages/LoyaltyPage.tsx', {
+    '@/shared/hooks': { useCurrentTime: () => Date.now() },
     '@/shared/auth/AuthContext': auth,
     '@/shared/auth/permissions': permissions,
     '@/shared/router/compat': { useNavigate: () => () => {} },
@@ -118,7 +120,7 @@ test('Operator can view loyalty but cannot open its edit form or run update muta
       StatusChip: () => null,
       FormDialog: ({ open }) => open ? React.createElement('p', null, 'EDIT FORM') : null,
     },
-    '@/shared/lib': { formatDate: String, formatMoney: String, formatNumber: String },
+    '@/shared/lib': { formatDate: String, formatMoney: String, formatNumber: String, formatInstantDate: String, vietnamDate: v => v ? String(v).slice(0, 10) : '' },
     '../hooks': {
       useProgram: () => ({ data: { code: 'L1', name: 'Program', status: 'Running' } }),
       useBalances: () => ({}), useUpdateProgram: () => ({}),

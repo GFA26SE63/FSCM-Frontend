@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
 import { Button, Callout, Card, Checkbox, DataTable, FormField, Input, PageHeader, SearchSelect, Select, type Column } from '@/shared/ui';
-import { addDays, toIsoDate } from '@/shared/lib';
+import { addDays, vietnamDate } from '@/shared/lib';
 import { errorMessage } from '@/shared/api/errors';
 import { useCreatePromo, usePromoLookups } from '../hooks';
 import type { RetailerOption } from '../types';
@@ -17,7 +17,7 @@ export function PromoFormPage() {
   const navigate = useNavigate();
   const { products, retailers } = usePromoLookups();
   const create = useCreatePromo();
-  const today = toIsoDate(new Date());
+  const today = vietnamDate();
   const [name, setName] = useState('');
   const [from, setFrom] = useState(today);
   const [to, setTo] = useState(addDays(today, 30));
@@ -38,16 +38,16 @@ export function PromoFormPage() {
     { key: 'salesGroupCode', header: 'Nhóm Sales', width: '130px', text: (r) => r.salesGroupCode || '—' },
     { key: 'creditTermDays', header: 'Hạn công nợ', width: '130px', text: (r) => r.creditTermDays == null ? '—' : r.creditTermDays > 0 ? `${r.creditTermDays} ngày` : 'Trả trước' },
   ];
-  const validQty = (v: string) => Number(v) > 0 && Number.isInteger(Number(v));
-  const validPct = (v: string) => Number(v) >= 1 && Number(v) <= 100;
+  const validQty = (v: string) => Number(v) > 0 && Number(v) <= 999999999999999 && Number.isInteger(Number(v));
+  const validPct = (v: string) => Number(v) >= 1 && Number(v) <= 100 && Number(Number(v).toFixed(2)) === Number(v);
   const invalidRows = rows.some((r) => !r.productId || !validQty(r.minimumQuantity) || !validPct(r.discountPercent)) || new Set(rows.map((r) => r.productId)).size !== rows.length;
-  const invalid = name.trim().length < 3 || !from || !to || to < from ||
+  const invalid = name.trim().length < 3 || name.trim().length > 200 || !from || from < today || !to || to < from ||
     (mode === 'PerSku' ? invalidRows : !productIds.length || !validQty(minQty) || !validPct(pct));
   const toggle = (items: string[], set: (v: string[]) => void, id: string, on: boolean) => set(on ? [...items, id] : items.filter((x) => x !== id));
   const update = (index: number, patch: Partial<RuleRow>) => setRows((r) => r.map((x, i) => i === index ? { ...x, ...patch } : x));
   const submit = async (activateOnSave: boolean) => {
     setTried(true);
-    if (invalid) return;
+    if (invalid || create.isPending) return;
     try {
       const saved = await create.mutateAsync({ name: name.trim(), campaignMode: mode,
         minimumQuantity: mode === 'PerSku' ? Math.min(...rows.map((r) => Number(r.minimumQuantity))) : Number(minQty),
@@ -61,10 +61,10 @@ export function PromoFormPage() {
   return <>
     <PageHeader back="/promos" title="Tạo khuyến mãi" subtitle="Mỗi dòng sản phẩm nhận một chương trình đủ điều kiện có mức giảm cao nhất. Giảm HSD được tính sau khi chọn batch." />
     <Card title="Thông tin chung"><div className="form-grid cols-2">
-      <FormField label="Tên chương trình" required><Input value={name} onChange={(e) => setName(e.target.value)} /></FormField>
+      <FormField label="Tên chương trình" required><Input maxLength={200} value={name} onChange={(e) => setName(e.target.value)} /></FormField>
       <FormField label="Loại chương trình"><Select value={mode} onChange={(e) => setMode(e.target.value as typeof mode)} options={[{ value: 'PerSku', label: 'Loại 1 · Theo từng SKU' }, { value: 'ProductGroup', label: 'Loại 2 · Theo nhóm sản phẩm' }]} /></FormField>
-      <FormField label="Hiệu lực từ" required><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></FormField>
-      <FormField label="Hiệu lực đến" required><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></FormField>
+      <FormField label="Hiệu lực từ" required><Input type="date" min={today} value={from} onChange={(e) => setFrom(e.target.value)} /></FormField>
+      <FormField label="Hiệu lực đến" required><Input type="date" min={from || today} value={to} onChange={(e) => setTo(e.target.value)} /></FormField>
     </div></Card>
     {mode === 'PerSku' ? <Card title="Loại 1 · Điều kiện riêng cho từng SKU" actions={<Button onClick={() => setRows((r) => [...r, blank()])}>+ Thêm sản phẩm</Button>}>
       <div className="stack-sm">{rows.map((r, i) => <div className="form-grid" key={i} style={{ gridTemplateColumns: 'minmax(220px, 2fr) 1fr 1fr auto', alignItems: 'end' }}>
@@ -102,7 +102,7 @@ export function PromoFormPage() {
       </div>
     </Card>
     <Callout>Nhập phần trăm được giảm: giảm 10% thì nhập 10. “Mua 10 giảm tiền tương đương 1” tương đương giảm 10%, không phải 90%.</Callout>
-    {tried && invalid && <Callout tone="danger">Nhập tên từ 3 ký tự, ngày hợp lệ và đầy đủ sản phẩm, số thùng nguyên dương, % giảm từ 1–100. Không chọn trùng SKU.</Callout>}
+    {tried && invalid && <Callout tone="danger">Nhập tên từ 3–200 ký tự, ngày bắt đầu từ hôm nay (giờ Việt Nam) và đầy đủ sản phẩm, số thùng nguyên dương, % giảm từ 1–100. Không chọn trùng SKU.</Callout>}
     {create.error && <Callout tone="danger">{errorMessage(create.error)}</Callout>}
     <div className="row" style={{ justifyContent: 'flex-end' }}><Button onClick={() => navigate('/promos')}>Hủy</Button><Button disabled={create.isPending} onClick={() => submit(false)}>Lưu nháp</Button><Button variant="primary" loading={create.isPending} onClick={() => submit(true)}>Lưu và kích hoạt</Button></div>
   </>;

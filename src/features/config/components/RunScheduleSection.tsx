@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Button, Callout, FormField, Input } from '@/shared/ui';
 import { usePublishRunSchedule } from '../hooks';
 import type { RunSchedule } from '../types';
+import { validMinutes } from '../validation';
 
 const normalizeSlots = (value: string) =>
   value
@@ -13,36 +14,40 @@ const validTime = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 
 /** Operational ETA configuration for the real-time allocation flow. */
 export function RunScheduleSection({ current }: { current: RunSchedule }) {
-  const [preparationMinutes, setPreparationMinutes] = useState(current.preparationMinutes);
-  const [bufferMinutes, setBufferMinutes] = useState(current.bufferMinutes);
+  const [preparationMinutes, setPreparationMinutes] = useState(String(current.preparationMinutes));
+  const [bufferMinutes, setBufferMinutes] = useState(String(current.bufferMinutes));
   const [dispatchSlots, setDispatchSlots] = useState(current.dispatchSlotsLocalTime.map((v) => v.slice(0, 5)).join(', '));
   const publish = usePublishRunSchedule();
 
   useEffect(() => {
-    setPreparationMinutes(current.preparationMinutes);
-    setBufferMinutes(current.bufferMinutes);
+    setPreparationMinutes(String(current.preparationMinutes));
+    setBufferMinutes(String(current.bufferMinutes));
     setDispatchSlots(current.dispatchSlotsLocalTime.map((v) => v.slice(0, 5)).join(', '));
   }, [current]);
 
   const slots = normalizeSlots(dispatchSlots);
   const errors: string[] = [];
-  if (!Number.isInteger(preparationMinutes) || preparationMinutes < 0) {
+  if (!validMinutes(preparationMinutes)) {
     errors.push('Thời gian soạn hàng phải là số phút không âm.');
   }
-  if (!Number.isInteger(bufferMinutes) || bufferMinutes < 0) {
+  if (!validMinutes(bufferMinutes)) {
     errors.push('Thời gian đệm phải là số phút không âm.');
   }
   if (slots.length === 0 || slots.some((slot) => !validTime(slot))) {
     errors.push('Cần ít nhất một giờ xuất kho dạng HH:mm; nhiều mốc cách nhau bằng dấu phẩy.');
   }
 
-  const submit = () =>
+  if (new Set(slots).size !== slots.length) errors.push('Các giờ xuất kho không được trùng nhau.');
+
+  const submit = () => {
+    if (errors.length || publish.isPending) return;
     publish.mutate({
       timeZone: current.timeZone,
-      preparationMinutes,
-      bufferMinutes,
+      preparationMinutes: Number(preparationMinutes),
+      bufferMinutes: Number(bufferMinutes),
       dispatchSlotsLocalTime: slots,
     });
+  };
 
   return (
     <div className="stack">
@@ -59,7 +64,7 @@ export function RunScheduleSection({ current }: { current: RunSchedule }) {
             min={0}
             step={1}
             value={preparationMinutes}
-            onChange={(event) => setPreparationMinutes(Number(event.target.value))}
+            onChange={(event) => setPreparationMinutes(event.target.value)}
           />
         </FormField>
         <FormField label="Thời gian đệm ETA (phút)" hint="Biên an toàn cộng sau thời gian vận chuyển.">
@@ -68,7 +73,7 @@ export function RunScheduleSection({ current }: { current: RunSchedule }) {
             min={0}
             step={1}
             value={bufferMinutes}
-            onChange={(event) => setBufferMinutes(Number(event.target.value))}
+            onChange={(event) => setBufferMinutes(event.target.value)}
           />
         </FormField>
         <FormField label="Các giờ xuất kho" hint="Ví dụ: 06:00, 14:00. Hệ thống chọn chuyến gần nhất sau khi soạn xong.">
