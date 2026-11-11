@@ -95,3 +95,9 @@ export function labelStatusText(status: string): string {
 
   return labels[status] ?? status;
 }
+export interface QrGenerationCapacity {
+  batchId: string;
+  physicalQuantity: number;
+  labelledQuantity: number;
+  unlabelledQuantity: number;
+}
