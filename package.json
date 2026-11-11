@@ -18,11 +18,7 @@
     "test:regions": "node --test tests/regions-dropdown.test.cjs",
     "test:actions": "node --test tests/action-standardization.test.cjs",
     "test:retailer-credit": "node --test tests/retailer-credit.test.cjs",
-    "preview": "vite preview",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
-    "test:e2e:report": "playwright show-report",
-    "test:e2e:install": "playwright install chromium"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@apollo/client": "^4.2.9",
@@ -40,7 +36,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@playwright/test": "^1.64.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.12.3",
     "@types/react": "^19.2.14",
