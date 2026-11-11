@@ -73,3 +73,20 @@ test('Keeper region grants are saved explicitly and derived region labels do not
   await finishUserSave({...keeper,assignments:{...assignments,regions:['r-explicit']}});
   assert.deepEqual(calls,[{userId:'k',kind:'regions',scopeId:'r-explicit',remove:false}]);
 });
+
+test('dashboard picking link shows and expands the requested sheet, with a way back to all sheets', () => {
+  let search='?code=PK-TARGET';
+  const rows=['TARGET','OTHER'].map(code=>({id:code,pickingCode:`PK-${code}`,status:'Pending',warehouseCode:'WH',warehouseName:'Kho',orderCode:`SO-${code}`,retailerCode:'R',retailerName:'Shop',items:[{sku:`SKU-${code}`,productName:'Milk',batchCode:'B',expirationDate:'2026-11-20',requestedQuantity:10,pickedQuantity:0,remainingQuantity:10,status:'Pending'}]}));
+  const Wrap=({children,title,value,label,actions})=>React.createElement('div',null,title,label,value,actions,children);
+  const {RunPickingPage}=source('features/runpicking/pages/RunPickingPage.tsx',{
+    '@/shared/router/compat':{useLocation:()=>({search}),useNavigate:()=>()=>{}},
+    '../hooks':{usePickingLists:()=>({data:rows}),useWarehouseOptions:()=>({data:[]})},
+    '@/shared/ui':{Card:Wrap,Chip:Wrap,PageHeader:Wrap,Stat:Wrap,Select:()=>null,QueryState:({query,children})=>children(query.data),SimpleTable:({rows,columns})=>React.createElement('div',null,rows.map((r,i)=>React.createElement('div',{key:i},columns.map((c,j)=>React.createElement('span',{key:j},c.cell(r))))))},
+    '@/shared/lib':{formatCases:String,formatNumber:String,formatPercent:String},
+    '@/shared/lib/dates':{formatDate:String,formatInstantDateTime:String},
+  });
+  const html=renderToStaticMarkup(React.createElement(RunPickingPage));
+  assert.match(html,/PK-TARGET/);assert.match(html,/SKU-TARGET/);assert.match(html,/Xem tất cả phiếu/);assert.doesNotMatch(html,/PK-OTHER/);
+  search='';const all=renderToStaticMarkup(React.createElement(RunPickingPage));
+  assert.match(all,/PK-TARGET/);assert.match(all,/PK-OTHER/);assert.doesNotMatch(all,/Xem tất cả phiếu/);
+});
