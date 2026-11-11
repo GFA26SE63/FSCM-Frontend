@@ -2,11 +2,8 @@ export interface Weights { wE: number; wD: number; wQ: number }
 export interface SystemSettings {
   allocation: Weights;
   dmaxRetailerKm: number;
-  dmaxWarehouseKm: number;
-  rotation: Weights & { velocityDays: number; minQty: number; roundTo: number };
-  minRegionalStock: number;
-  batchDiscountTiers: { maxRemainingPct: number; discountPct: number }[];
-  loyaltyPointRateVnd: number;
+  orderStepCartons: number;
+  defaultMlorRatio: number;
 }
 
 /**

@@ -63,6 +63,11 @@ export const ACTION_ROLES = {
   'retailers.create': ['Admin'],
   'retailers.edit': ['Admin', 'Operator'],
 
+  // Quản lý và in tem QR lô hàng kho.
+  'qr.view': ['Admin', 'WarehouseKeeper', 'Operator'],
+  'qr.generate': ['Admin', 'WarehouseKeeper', 'Operator'],
+  'qr.print': ['Admin', 'WarehouseKeeper', 'Operator'],
+
   // InternalTransfersController hiện có [NonController].
   'transfers.manage': [],
   'transfers.receive': [],
@@ -101,8 +106,8 @@ export function assertPermission(
   if (!can(user, permission)) {
     throw new ApiError(
       403,
-      'Không đủ quyền thực hiện thao tác',
-      'Tài khoản hiện tại không được phép thực hiện thao tác này.',
+      'Bạn chưa được cấp quyền thực hiện thao tác này',
+      'Tài khoản hiện tại chưa được cấp quyền thực hiện thao tác này.',
     );
   }
 }

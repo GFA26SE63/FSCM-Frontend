@@ -11,6 +11,8 @@ const mocks = {
     Button: ({ disabled, children }) => React.createElement('button', { disabled }, children),
     Select: ({ options, value, onChange }) => React.createElement('select', { value, onChange }, options.map(item => React.createElement('option', { key: item.value, value: item.value }, item.label))),
     Chip: ({ children }) => React.createElement('span', null, children),
+    Input: props => React.createElement('input', props),
+    Callout: ({ children }) => React.createElement('p', null, children),
   },
   '@/shared/lib': { formatNumber: value => String(value) },
   '@/shared/auth/AuthContext': {},
@@ -46,4 +48,14 @@ test('a driver from another warehouse cannot enable assignment', () => {
   const html = render([{ ...driver, warehouseId: 'warehouse-b' }], [vehicle]);
   assert.match(html, /<button disabled/);
   assert.doesNotMatch(html, /Correct driver/);
+});
+
+test('only operators see an exception resolution action and it needs a result', () => {
+  const props = { shipment: { ...shipment, status: 'Exception', exceptionReason: 'Missing carton' }, drivers: [], vehicles: [] };
+  const operator = renderToStaticMarkup(React.createElement(mod.exports.ShipmentActionRow, { ...props, mayDispatch: true }));
+  assert.match(operator, /Hoàn tất xử lý ngoại lệ/);
+  assert.match(operator, /Missing carton/);
+  assert.match(operator, /<button disabled/);
+  const reader = renderToStaticMarkup(React.createElement(mod.exports.ShipmentActionRow, { ...props, mayDispatch: false }));
+  assert.doesNotMatch(reader, /Hoàn tất xử lý ngoại lệ/);
 });

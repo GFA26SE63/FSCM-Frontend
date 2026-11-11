@@ -160,6 +160,7 @@ export interface OrderPaymentSummaryResult {
 }
 
 export interface OrderDetail extends OrderSummary {
+  allocationAudit?: { weights: TraceWeights; lines: { lineId: string; sku: string; filters: TraceCandidate[]; scores: TraceScore[] }[] } | null;
   reviewedByUserId: string | null;
   creditTermDays: number;
   payment?: OrderPaymentSummaryResult | null;
