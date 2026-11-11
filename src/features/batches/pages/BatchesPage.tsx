@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Eye, Lock, Trash2, Unlock } from 'lucide-react';
+import { Eye, Lock, Printer, QrCode, Trash2, Unlock } from 'lucide-react';
 import { useNavigate } from '@/shared/router/compat';
 import {
   ActionDropdown,
@@ -14,6 +14,13 @@ import { formatLockReason } from '@/shared/lib/status';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
 import { useWarehouses } from '@/features/warehouses/hooks';
+import {
+  GenerateQrDialog,
+  LabelPrintDialog,
+  useAllQrLabels,
+  type PrintTarget,
+  type QrLabel,
+} from '@/features/qr-labels';
 import { useBatches, useBatchLocks } from '../hooks';
 import {
   LockBatchDialog,
@@ -28,6 +35,8 @@ export function BatchesPage() {
 
   const canLock = can(user, 'inventory.lock');
   const canUnlock = can(user, 'inventory.unlock');
+  const canGenerateQr = can(user, 'qr.generate');
+  const canPrintQr = can(user, 'qr.print');
 
   const isKeeper = user?.role === 'WarehouseKeeper';
   const assignedWhIds = useMemo(() => user?.scope?.warehouseIds ?? [], [user]);
@@ -37,6 +46,20 @@ export function BatchesPage() {
   const { data: warehouses = [] } = useWarehouses();
   const query = useBatches({ includeExpired: true });
   const { data: allActiveLocks = [] } = useBatchLocks({ status: 'Active' });
+  const qrQuery = useAllQrLabels();
+
+  // Map of batchId -> real QR labels
+  const qrLabelsByBatch = useMemo(() => {
+    const map = new Map<string, QrLabel[]>();
+    (qrQuery.data ?? []).forEach((label) => {
+      if (label.batchId) {
+        const list = map.get(label.batchId) || [];
+        list.push(label);
+        map.set(label.batchId, list);
+      }
+    });
+    return map;
+  }, [qrQuery.data]);
 
   // Map of batchId / batchCode -> active lock
   const activeLockByBatch = useMemo(() => {
@@ -70,6 +93,8 @@ export function BatchesPage() {
   // Dialog targets
   const [lockTarget, setLockTarget] = useState<BatchInventoryItem | null>(null);
   const [releaseTarget, setReleaseTarget] = useState<InventoryLockItem | null>(null);
+  const [generateTarget, setGenerateTarget] = useState<BatchInventoryItem | null>(null);
+  const [printTarget, setPrintTarget] = useState<PrintTarget | null>(null);
 
   // Dynamic warehouse filter options
   const warehouseOptions = useMemo(() => {
@@ -231,6 +256,50 @@ export function BatchesPage() {
         return 'Còn hạn';
       },
     },
+    {
+      key: 'qr',
+      header: 'Tem QR',
+      width: '105px',
+      align: 'center',
+      render: (b) => {
+        const labels = qrLabelsByBatch.get(b.batchId) || [];
+        if (qrQuery.isLoading) {
+          return <span className="muted" style={{ fontSize: 12 }}>…</span>;
+        }
+        if (labels.length === 0) {
+          return <span className="muted" style={{ fontSize: 12 }}>Chưa có</span>;
+        }
+        return (
+          <span
+            className="chip tone-ok"
+            style={{
+              cursor: canPrintQr ? 'pointer' : 'default',
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+            }}
+            title={
+              canPrintQr
+                ? `Đã có ${labels.length} tem QR. Bấm để xem và in.`
+                : `Đã có ${labels.length} tem QR.`
+            }
+            onClick={
+              canPrintQr
+                ? (e) => {
+                    e.stopPropagation();
+                    setPrintTarget({ kind: 'batch', batchId: b.batchId });
+                  }
+                : undefined
+            }
+          >
+            {labels.length} tem
+          </span>
+        );
+      },
+      text: (b) => {
+        const labels = qrLabelsByBatch.get(b.batchId) || [];
+        return labels.length > 0 ? `${labels.length} tem` : 'Chưa có';
+      },
+    },
   ];
 
   return (
@@ -288,7 +357,40 @@ export function BatchesPage() {
           // Build dropdown items
           const dropdownItems: ActionDropdownItem[] = [];
 
-          // 1. Mở khóa (Green, admin only)
+          const canGenerateThis =
+            canGenerateQr &&
+            b.expiryStatus !== 'Disposed' &&
+            (!isKeeper ||
+              assignedWhIds.includes(b.warehouseId) ||
+              b.warehouseCode === assignedWhCode);
+
+          const batchLabels = qrLabelsByBatch.get(b.batchId) || [];
+
+          // 1. Sinh mã QR (Teal)
+          if (canGenerateThis) {
+            dropdownItems.push({
+              key: 'generate-qr',
+              label: 'Sinh mã QR',
+              icon: <QrCode size={14} style={{ color: '#0D9488' }} />,
+              color: '#0D9488',
+              onClick: () => setGenerateTarget(b),
+              title: 'Sinh mã QR mới cho lô hàng',
+            });
+          }
+
+          // 2. In tem QR (Blue)
+          if (canPrintQr && batchLabels.length > 0) {
+            dropdownItems.push({
+              key: 'print-qr',
+              label: 'In tem QR',
+              icon: <Printer size={14} style={{ color: '#1D4ED8' }} />,
+              color: '#1D4ED8',
+              onClick: () => setPrintTarget({ kind: 'batch', batchId: b.batchId }),
+              title: 'Xem và in tem QR của lô hàng',
+            });
+          }
+
+          // 3. Mở khóa (Green, admin only)
           if (canUnlock && b.lockedQuantity > 0 && activeLock) {
             dropdownItems.push({
               key: 'unlock',
@@ -375,6 +477,28 @@ export function BatchesPage() {
           open={releaseTarget !== null}
           lock={releaseTarget}
           onClose={() => setReleaseTarget(null)}
+        />
+      )}
+
+      {/* Generate and Print QR Dialogs */}
+      {generateTarget && (
+        <GenerateQrDialog
+          open={generateTarget !== null}
+          batch={generateTarget}
+          existingCount={(qrLabelsByBatch.get(generateTarget.batchId) || []).length}
+          onClose={() => setGenerateTarget(null)}
+          onPrintExisting={() => {
+            const id = generateTarget.batchId;
+            setGenerateTarget(null);
+            setPrintTarget({ kind: 'batch', batchId: id });
+          }}
+        />
+      )}
+      {printTarget && user && (
+        <LabelPrintDialog
+          ownerId={user.id}
+          target={printTarget}
+          onClose={() => setPrintTarget(null)}
         />
       )}
     </>

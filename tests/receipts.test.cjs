@@ -151,9 +151,7 @@ test('Receipt creation payload matches OpenAPI CreateGoodsReceiptRequest schema 
   const line = payload.lines[0];
   assert.ok(line.productId);
   assert.ok(line.quantity > 0);
-  assert.ok(line.productionDate);
   assert.ok(line.expirationDate);
-  assert.ok(line.productionDate <= line.expirationDate);
 
   // Must not have forbidden extra properties that would fail additionalProperties: false
   assert.equal(payload.note, undefined);
@@ -170,24 +168,21 @@ test('Batch code preview follows authoritative IdFormat.batch standard', () => {
   assert.equal(batchCode, 'WH-CENTRAL-MILK-180-15052027');
 });
 
-test('Validation: reject negative quantity, missing dates, or invalid chronological order', () => {
+test('Validation: reject negative quantity, missing product or expiration date without requiring mfg date or lot', () => {
   const validateRow = (r) => {
-    if (!r.productId) return 'Vui lòng chọn sản phẩm';
-    if (!r.productionDate) return 'Vui lòng nhập ngày sản xuất';
-    if (!r.expirationDate) return 'Vui lòng nhập hạn sử dụng';
-    if (r.productionDate > r.expirationDate) return 'Ngày sản xuất phải trước hoặc bằng hạn sử dụng';
+    if (!r.productId) return 'Vui lòng chọn sản phẩm.';
+    if (!r.expirationDate) return 'Vui lòng nhập hạn sử dụng.';
     const qtyNum = Number(r.quantity);
-    if (!qtyNum || qtyNum <= 0) return 'Số lượng nhập phải lớn hơn 0';
+    if (!qtyNum || qtyNum <= 0) return 'Số lượng nhập phải lớn hơn 0.';
     return null;
   };
 
-  assert.equal(validateRow({ productId: '', productionDate: '2026-11-01', expirationDate: '2027-05-01', quantity: '10' }), 'Vui lòng chọn sản phẩm');
-  assert.equal(validateRow({ productId: 'p1', productionDate: '', expirationDate: '2027-05-01', quantity: '10' }), 'Vui lòng nhập ngày sản xuất');
-  assert.equal(validateRow({ productId: 'p1', productionDate: '2026-11-01', expirationDate: '', quantity: '10' }), 'Vui lòng nhập hạn sử dụng');
-  assert.equal(validateRow({ productId: 'p1', productionDate: '2027-05-02', expirationDate: '2027-05-01', quantity: '10' }), 'Ngày sản xuất phải trước hoặc bằng hạn sử dụng');
-  assert.equal(validateRow({ productId: 'p1', productionDate: '2026-11-01', expirationDate: '2027-05-01', quantity: '0' }), 'Số lượng nhập phải lớn hơn 0');
-  assert.equal(validateRow({ productId: 'p1', productionDate: '2026-11-01', expirationDate: '2027-05-01', quantity: '-5' }), 'Số lượng nhập phải lớn hơn 0');
-  assert.equal(validateRow({ productId: 'p1', productionDate: '2026-11-01', expirationDate: '2027-05-01', quantity: '50' }), null);
+  assert.equal(validateRow({ productId: '', expirationDate: '2027-05-01', quantity: '10' }), 'Vui lòng chọn sản phẩm.');
+  assert.equal(validateRow({ productId: 'p1', expirationDate: '', quantity: '10' }), 'Vui lòng nhập hạn sử dụng.');
+  assert.equal(validateRow({ productId: 'p1', expirationDate: '2027-05-01', quantity: '0' }), 'Số lượng nhập phải lớn hơn 0.');
+  assert.equal(validateRow({ productId: 'p1', expirationDate: '2027-05-01', quantity: '-5' }), 'Số lượng nhập phải lớn hơn 0.');
+  // Valid line without mfgDate or lotNumber
+  assert.equal(validateRow({ productId: 'p1', expirationDate: '2027-05-01', quantity: '50' }), null);
 });
 
 test('normalizeWarehouseOption correctly parses backend WarehouseResult with isActive boolean and keepers', () => {
@@ -450,14 +445,8 @@ test('Dropdown selection UX: Contextual preselection from query params (?warehou
       if (!r.productId) {
         errors.push('Vui lòng chọn sản phẩm.');
       }
-      if (!r.productionDate) {
-        errors.push('Vui lòng nhập ngày sản xuất.');
-      }
       if (!r.expirationDate) {
         errors.push('Vui lòng nhập hạn sử dụng.');
-      }
-      if (r.productionDate && r.expirationDate && r.productionDate > r.expirationDate) {
-        errors.push('Ngày sản xuất phải trước hoặc bằng hạn sử dụng.');
       }
       const qtyNum = Number(r.quantity);
       if (!qtyNum || qtyNum <= 0) {
@@ -467,17 +456,16 @@ test('Dropdown selection UX: Contextual preselection from query params (?warehou
     return errors;
   };
 
-  const initialErrors = validateForm('', [{ productId: '', productionDate: '', expirationDate: '', quantity: '' }]);
+  const initialErrors = validateForm('', [{ productId: '', expirationDate: '', quantity: '' }]);
   assert.ok(initialErrors.includes('Vui lòng chọn kho nhận hàng.'));
   assert.ok(initialErrors.includes('Vui lòng chọn sản phẩm.'));
-  assert.ok(initialErrors.includes('Vui lòng nhập ngày sản xuất.'));
+  assert.equal(initialErrors.includes('Vui lòng nhập ngày sản xuất.'), false);
   assert.ok(initialErrors.includes('Vui lòng nhập hạn sử dụng.'));
   assert.ok(initialErrors.includes('Số lượng nhập phải lớn hơn 0.'));
 
   const validErrors = validateForm('wh-1', [
     {
       productId: 'p-1',
-      productionDate: '2026-11-01',
       expirationDate: '2027-05-01',
       quantity: '50',
     },
