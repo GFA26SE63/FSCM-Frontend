@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation } from '@/shared/router/compat';
 import { Card, Chip, PageHeader, QueryState, Select, SimpleTable, Stat, type Tone } from '@/shared/ui';
 import { formatCases, formatNumber, formatPercent } from '@/shared/lib';
 import { formatDate, formatInstantDateTime } from '@/shared/lib/dates';
@@ -13,6 +14,7 @@ const STATUS: Record<PickingStatus, { tone: Tone; label: string }> = {
 };
 
 export function RunPickingPage() {
+  const requestedCode = new URLSearchParams(useLocation().search).get('code');
   const [warehouseId, setWarehouseId] = useState('');
   const [status, setStatus] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
@@ -58,8 +60,8 @@ export function RunPickingPage() {
               <PickingCard
                 key={list.id}
                 list={list}
-                open={openId === list.id}
-                onToggle={() => setOpenId(openId === list.id ? null : list.id)}
+                open={openId === list.id || openId === null && requestedCode === list.pickingCode}
+                onToggle={() => setOpenId(openId === list.id || openId === null && requestedCode === list.pickingCode ? '' : list.id)}
               />
             ))}
             {rows.length === 0 && <Card>Không có phiếu soạn phù hợp bộ lọc.</Card>}

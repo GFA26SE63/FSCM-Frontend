@@ -57,7 +57,7 @@ const dashboard = () => import('@/features/dashboard');
 
 /** Single source for routing + sidebar menu (matching prototype prod menuAll order and roles). */
 export const APP_ROUTES: AppRoute[] = [
-  { key: 'dashboard', label: 'Dashboard', roles: [A], list: page(dashboard, 'DashboardPage') },
+  { key: 'dashboard', label: 'Tổng quan & báo cáo', roles: [A, OP, WK, SM], list: page(dashboard, 'DashboardPage') },
   { key: 'orders', label: 'Đơn hàng', roles: [A, OP], badge: 'orders', list: page(orders, 'OrdersPage'), sub: [{ path: ':orderId', element: page(orders, 'OrderDetailPage') }] },
   { key: 'allocation', label: 'Allocation real-time', roles: [A, OP], list: page(allocation, 'AllocationRunPage') },
   { key: 'debts', label: 'Công nợ', roles: [A, OP], badge: 'debts', list: page(debts, 'DebtsPage') },
@@ -109,5 +109,5 @@ export const APP_ROUTES: AppRoute[] = [
   { key: 'rotation', label: 'Luân chuyển cận hạn', roles: [A], hidden: true, list: page(rotation, 'RotationPage'), sub: [{ path: ':id', element: page(rotation, 'RotationDetailPage') }] },
 ];
 
-/** First screen after login (Admin/Operator → orders, Warehouse Keeper → the run's picking sheets, Sales Manager → regions). */
-export const HOME_BY_ROLE: Record<PortalRole, string> = { Admin: '/orders', Operator: '/orders', WarehouseKeeper: '/runpicking', SalesManager: '/regions' };
+/** Each Portal role starts on its authorized dashboard. */
+export const HOME_BY_ROLE: Record<PortalRole, string> = { Admin: '/dashboard', Operator: '/dashboard', WarehouseKeeper: '/dashboard', SalesManager: '/dashboard' };
