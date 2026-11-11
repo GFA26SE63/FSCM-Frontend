@@ -1,4 +1,4 @@
-export type ReceivableStatus = 'Unpaid' | 'Paid' | 'Overdue' | 'Cancelled';
+export type ReceivableStatus = 'Unpaid' | 'PartiallyPaid' | 'Paid' | 'Overdue' | 'Cancelled';
 export interface Receivable {
   id: string;
   orderId: string;
