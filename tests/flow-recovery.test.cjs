@@ -27,9 +27,10 @@ test('configuration reads versioned keys and saves supported values in backend u
   assert.equal(settings.dmaxRetailerKm, 35);
   assert.deepEqual(settings.allocation, { wE: .7, wD: .2, wQ: .1 });
   await configApi.saveSettings(settings);
-  assert.deepEqual(calls.map(c => c.url), ['/configurations/allocation.weights', '/configurations/allocation.service_radius_meters', '/configurations/order.order_step_cartons', '/configurations/mlor.default_ratio']);
-  assert.equal(calls[1].body.value, 35000);
-  assert.equal(calls[3].body.value, .4);
+  assert.deepEqual(calls.map(c => c.url), ['/configurations/batch']);
+  assert.deepEqual(calls[0].body.entries.map(e => e.key), ['allocation.weights', 'allocation.service_radius_meters', 'order.order_step_cartons', 'mlor.default_ratio']);
+  assert.equal(calls[0].body.entries[1].value, 35000);
+  assert.equal(calls[0].body.entries[3].value, .4);
 });
 
 test('shipment exception resolution sends current version and a trimmed result', async () => {

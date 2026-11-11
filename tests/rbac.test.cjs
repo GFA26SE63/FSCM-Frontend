@@ -61,6 +61,7 @@ test('sidebar and direct URL guard handle all Portal roles, loading and anonymou
     Navigate: () => React.createElement('p', null, 'LOGIN') };
   const { Sidebar } = source('app/layout/Sidebar.tsx', {
     '@/shared/router/compat': router,
+    '@/shared/hooks': { useCurrentTime: () => Date.now() },
     '@/shared/auth/AuthContext': auth,
     '@/shared/auth/roles': source('shared/auth/roles.ts'),
     '@/shared/lib/env': { env: { useMock: false } },

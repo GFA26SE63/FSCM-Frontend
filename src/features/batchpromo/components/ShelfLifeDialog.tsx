@@ -4,23 +4,34 @@ import { errorMessage } from '@/shared/api/errors';
 import { usePromoLookups } from '@/features/promos/hooks';
 import { usePublishShelfLife } from '../hooks';
 import type { ShelfLifeTier } from '../types';
+import { minimumVersionDate } from '@/shared/lib';
 
 const blank = (): ShelfLifeTier => ({ scope: 'Sku', productId: '', minRemainingPercent: 0, maxRemainingPercent: 20, discountType: 'Percent', discountValue: 10 });
 
-export function ShelfLifeDialog({ initial, onClose }: { initial: ShelfLifeTier[]; onClose: () => void }) {
+export function ShelfLifeDialog({ initial, currentFrom, onClose }: { initial: ShelfLifeTier[]; currentFrom?: string; onClose: () => void }) {
   const { products, categories } = usePromoLookups();
   const publish = usePublishShelfLife();
   const [tiers, setTiers] = useState<ShelfLifeTier[]>(initial.length ? initial.map((tier) => ({ ...tier, id: undefined })) : [blank()]);
-  const [date, setDate] = useState(new Date().toLocaleDateString('en-CA'));
+  const [date, setDate] = useState(minimumVersionDate(currentFrom));
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
   const update = (index: number, patch: Partial<ShelfLifeTier>) => setTiers((items) => items.map((t, i) => i === index ? { ...t, ...patch } : t));
   const save = async () => {
-    if (!date || !tiers.length || tiers.some((t) => !(t.scope === 'Sku' ? t.productId : t.productCategoryId) ||
+    if (publish.isPending) return;
+    if (!date || date < minimumVersionDate(currentFrom)) { setError('Ngày hiệu lực phải từ ngày mai theo giờ Việt Nam và sau phiên bản mới nhất.'); return; }
+    if (note.trim().length > 500) { setError('Ghi chú tối đa 500 ký tự.'); return; }
+    if (!tiers.length || tiers.some((t) => !(t.scope === 'Sku' ? t.productId : t.productCategoryId) ||
       !Number.isFinite(t.minRemainingPercent) || !Number.isFinite(t.maxRemainingPercent) || !Number.isFinite(t.discountValue) ||
+      Number(t.minRemainingPercent.toFixed(2)) !== t.minRemainingPercent || Number(t.maxRemainingPercent.toFixed(2)) !== t.maxRemainingPercent ||
+      Number(t.discountValue.toFixed(2)) !== t.discountValue || t.discountValue >= 1e16 ||
       t.minRemainingPercent < 0 || t.maxRemainingPercent > 100 || t.maxRemainingPercent <= t.minRemainingPercent ||
-      t.discountValue <= 0 || (t.discountType === 'Percent' && t.discountValue >= 100))) {
-      setError('Chọn sản phẩm hoặc nhóm hàng cho mỗi bậc. Khoảng HSD phải nằm trong 0–100%, mức giảm phải hợp lệ.'); return;
+      t.discountValue < 0 || (t.discountType === 'Percent' && t.discountValue > 100))) {
+      setError('Chọn sản phẩm hoặc nhóm hàng cho mỗi bậc. Khoảng HSD phải nằm trong 0–100%, mức giảm hợp lệ; các giá trị tối đa 2 chữ số thập phân.'); return;
+    }
+    if (tiers.some((t, i) => tiers.slice(i + 1).some((other) => t.scope === other.scope &&
+      (t.scope === 'Sku' ? t.productId === other.productId : t.productCategoryId === other.productCategoryId) &&
+      t.minRemainingPercent < other.maxRemainingPercent && other.minRemainingPercent < t.maxRemainingPercent))) {
+      setError('Các bậc HSD cùng sản phẩm hoặc nhóm hàng không được chồng nhau.'); return;
     }
     setError('');
     try {
@@ -32,8 +43,8 @@ export function ShelfLifeDialog({ initial, onClose }: { initial: ShelfLifeTier[]
     <Button disabled={publish.isPending} onClick={onClose}>Hủy</Button><Button variant="primary" loading={publish.isPending} onClick={save}>Publish</Button>
   </>}>
     <div className="stack-sm">
-      <FormField label="Hiệu lực từ" required><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></FormField>
-      <FormField label="Ghi chú"><Input value={note} onChange={(e) => setNote(e.target.value)} /></FormField>
+      <FormField label="Hiệu lực từ" required><Input type="date" min={minimumVersionDate(currentFrom)} value={date} onChange={(e) => setDate(e.target.value)} /></FormField>
+      <FormField label="Ghi chú"><Input maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} /></FormField>
       {tiers.map((tier, i) => <div className="card stack-sm" style={{ padding: 16 }} key={i}>
         <div className="row"><strong className="spacer">Bậc {i + 1}</strong><Button size="sm" disabled={tiers.length === 1} onClick={() => setTiers((items) => items.filter((_, j) => i !== j))}>Xóa bậc</Button></div>
         <div className="form-grid cols-2">
