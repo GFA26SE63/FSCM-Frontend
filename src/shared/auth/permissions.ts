@@ -39,7 +39,9 @@ export const ACTION_ROLES = {
   'fleet.manage': ['Admin', 'Operator'],
   'redeem.manage': ['Admin', 'Operator'],
 
+  // Operator may request more evidence; only Admin approves/rejects (F62).
   'complaints.resolve': ['Admin', 'Operator'],
+  'complaints.decide': ['Admin'],
 
   'inventory.lock': [
     'Admin',
