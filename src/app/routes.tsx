@@ -30,6 +30,7 @@ const SM: PortalRole = 'SalesManager';
 const orders = () => import('@/features/orders');
 const allocation = () => import('@/features/allocation');
 const debts = () => import('@/features/debts');
+const refunds = () => import('@/features/refunds');
 const runpicking = () => import('@/features/runpicking');
 const shipments = () => import('@/features/shipments');
 const receipts = () => import('@/features/receipts');
@@ -60,6 +61,7 @@ export const APP_ROUTES: AppRoute[] = [
   { key: 'orders', label: 'Đơn hàng', roles: [A, OP], badge: 'orders', list: page(orders, 'OrdersPage'), sub: [{ path: ':orderId', element: page(orders, 'OrderDetailPage') }] },
   { key: 'allocation', label: 'Allocation real-time', roles: [A, OP], list: page(allocation, 'AllocationRunPage') },
   { key: 'debts', label: 'Công nợ', roles: [A, OP], badge: 'debts', list: page(debts, 'DebtsPage') },
+  { key: 'refunds', label: 'Hoàn tiền', roles: [A, OP], list: page(refunds, 'RefundsPage'), sub: [{ path: ':id', element: page(refunds, 'RefundDetailPage') }] },
   { key: 'runpicking', label: 'Phiếu soạn hàng', roles: [A, OP, WK], list: page(runpicking, 'RunPickingPage') },
   { key: 'readiness', label: 'Sẵn sàng xuất', roles: [A, OP, WK], list: page(shipments, 'OrderReadinessPage') },
   {
