@@ -37,6 +37,13 @@ const permissions = source('shared/auth/permissions.ts', {
 
 const user = (role) => ({ id: 'user-' + role, role, name: role, email: role + '@example.com' });
 
+test('source A is historical after splitting and only its new B/C labels can print', () => {
+  assert.equal(qrTypes.labelStatusText('Split'), 'Đã tách · chỉ lưu lịch sử');
+  assert.equal(qrTypes.isPrintableLabel({ status: 'Split', invalidatedAt: null, quantity: 50 }), false);
+  assert.equal(qrTypes.isPrintableLabel({ status: 'Picked', invalidatedAt: null, quantity: 25 }), true);
+  assert.equal(qrTypes.isPrintableLabel({ status: 'Available', invalidatedAt: null, quantity: 25 }), true);
+});
+
 function generationDialog({ quantity, query = {} } = {}) {
   const state = { submitted: [], error: null, submit: null, refetched: 0 };
   let hookIndex = 0;
