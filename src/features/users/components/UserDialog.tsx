@@ -151,9 +151,9 @@ export function UserDialog({ user, onClose }: Props) {
 
     if (
       role === 'WarehouseKeeper' &&
-      assignments.warehouses.length === 0
+      assignments.warehouses.length === 0 && assignments.regions.length === 0
     ) {
-      next.warehouses = 'Chọn ít nhất một kho.';
+      next.warehouses = 'Chọn ít nhất một kho hoặc khu vực.';
     }
 
     if (
@@ -480,11 +480,11 @@ export function UserDialog({ user, onClose }: Props) {
               </>
             )}
 
-            {user?.role === 'SalesManager' && (
+            {(user?.role === 'SalesManager' || user?.role === 'WarehouseKeeper') && (
               <>
                 <AssignmentPicker
                   kind="regions"
-                  label="Khu vực đang có quyền — gồm quyền kế thừa từ nhóm"
+                  label="Khu vực đang có quyền — gồm phạm vi từ kho/nhóm"
                   value={user.scope.regionIds}
                   onChange={() => undefined}
                   readOnly

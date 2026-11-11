@@ -1,202 +1,160 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
+import { useAuth } from '@/shared/auth/AuthContext';
+import type { PortalRole } from '@/shared/auth/roles';
 import { useNavigate } from '@/shared/router/compat';
-import { Card, PageHeader, QueryState, StatusChip, Stat } from '@/shared/ui';
+import { Button, Callout, Card, Chip, PageHeader, QueryState, SimpleTable, Stat, StatusChip, Tabs } from '@/shared/ui';
 import { formatMoney, formatNumber } from '@/shared/lib';
+import { formatDate, formatInstantDateTime } from '@/shared/lib/dates';
 import { useDashboard } from '../hooks';
 import { RevenueByDayChart } from '../components/RevenueChart';
+import { DASHBOARD_TITLES, dashboardTabs, defaultDashboardDates, visibleCards } from '../dashboardModel';
+import type { DashboardFilters, DashboardResponse } from '../types';
+import './dashboard.css';
 
-/** "Dashboard" (Admin): KPIs, orders by status with progress bars, sales revenue ranking, top products, and revenue trend. */
 export function DashboardPage() {
+  const { user } = useAuth();
+  return user ? <DashboardSession key={user.id} role={user.role} /> : null;
+}
+function DashboardSession({ role }: { role: PortalRole }) {
+  const [filters, setFilters] = useState<DashboardFilters>(() => defaultDashboardDates());
+  const [tab, setTab] = useState('overview');
+  const query = useDashboard(filters);
+  const options = query.data?.scope;
+  const dateError = !filters.fromDate || !filters.toDate || filters.toDate < filters.fromDate || filters.toDate > defaultDashboardDates().toDate;
+  return <div className="dashboard-page">
+    <PageHeader title={DASHBOARD_TITLES[role]} subtitle="Số liệu từ hệ thống · cập nhật theo quyền của tài khoản"
+      actions={<Button loading={query.isFetching} onClick={() => void query.refetch()}>Làm mới dữ liệu</Button>} />
+    <section className="card dashboard-filters" style={{ padding: 16 }} aria-label="Bộ lọc báo cáo">
+      <label className="lbl">Từ ngày<input className="inp" type="date" value={filters.fromDate} max={filters.toDate}
+        onChange={e => setFilters(f => ({ ...f, fromDate: e.target.value }))} /></label>
+      <label className="lbl">Đến ngày<input className="inp" type="date" value={filters.toDate} max={defaultDashboardDates().toDate}
+        onChange={e => setFilters(f => ({ ...f, toDate: e.target.value }))} /></label>
+      <label className="lbl">Khu vực<select className="inp" value={filters.regionId ?? ''}
+        onChange={e => setFilters(f => ({ ...f, regionId: e.target.value, warehouseId: '', salesGroupId: '' }))}>
+        <option value="">Tất cả trong phạm vi</option>{options?.regions.map(r => <option key={r.id} value={r.id}>{r.code} · {r.name}</option>)}
+      </select></label>
+      {role !== 'SalesManager' && <label className="lbl">Kho<select className="inp" value={filters.warehouseId ?? ''}
+        onChange={e => setFilters(f => ({ ...f, warehouseId: e.target.value }))}>
+        <option value="">Tất cả kho được phép xem</option>{options?.warehouses.filter(w => !filters.regionId || w.regionId === filters.regionId).map(w => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}
+      </select></label>}
+      {role !== 'WarehouseKeeper' && <label className="lbl">Nhóm Sales<select className="inp" value={filters.salesGroupId ?? ''}
+        onChange={e => setFilters(f => ({ ...f, salesGroupId: e.target.value }))}>
+        <option value="">Tất cả nhóm được phép xem</option>{options?.salesGroups.filter(g => !filters.regionId || g.regionId === filters.regionId).map(g => <option key={g.id} value={g.id}>{g.code} · {g.name}</option>)}
+      </select></label>}
+    </section>
+    {dateError ? <Callout tone="danger">Chọn khoảng ngày hợp lệ, không vượt hôm nay.</Callout> :
+      <QueryState query={query}>{data => <DashboardContent data={data} tab={tab} onTabChange={setTab} />}</QueryState>}
+  </div>;
+}
+
+export function DashboardContent({ data, tab, onTabChange }: {
+  data: DashboardResponse; tab: string; onTabChange: (tab: string) => void;
+}) {
   const navigate = useNavigate();
-  const [fromDate, setFromDate] = useState('2026-09-01');
-  const [toDate, setToDate] = useState('2026-09-30');
-  const [area, setArea] = useState('Tất cả');
-
-  const q = useDashboard({ from: fromDate, to: toDate });
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <PageHeader
-        title="Dashboard"
-        subtitle={q.data ? `Từ ${fromDate} đến ${toDate} · doanh thu tính sau khuyến mãi & điều chỉnh` : undefined}
-      />
-
-      <section className="card" style={{ padding: '14px 16px', display: 'flex', gap: 14, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-        <label className="lbl" style={{ width: 180 }}>
-          Từ ngày
-          <input className="inp" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-        </label>
-        <label className="lbl" style={{ width: 180 }}>
-          Đến ngày
-          <input className="inp" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-        </label>
-        <label className="lbl" style={{ width: 200 }}>
-          Khu vực
-          <select className="inp" value={area} onChange={(e) => setArea(e.target.value)}>
-            <option value="Tất cả">Tất cả</option>
-            <option value="Quận 12">Quận 12</option>
-            <option value="Gò Vấp">Gò Vấp</option>
-            <option value="Thủ Đức">Thủ Đức</option>
-          </select>
-        </label>
-      </section>
-
-      <QueryState query={q}>
-        {(d) => {
-          const maxStatusCount = Math.max(1, ...d.ordersByStatus.map((s) => s.count));
-          const maxSalesRev = Math.max(1, ...d.revenueBySales.map((s) => s.afterPromo));
-          const maxProdQty = Math.max(1, ...d.topProducts.map((p) => p.qty));
-
-          return (
-            <>
-              {/* 4 KPI Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 14 }}>
-                <Stat
-                  label="Tổng đơn tháng 9"
-                  value={formatNumber(d.totalOrders)}
-                  note="Bấm để mở danh sách đơn"
-                  onClick={() => navigate('/orders')}
-                />
-                <Stat
-                  label="Doanh thu (sau KM)"
-                  value={formatMoney(d.revenueAfterPromo)}
-                  color="var(--c-primary)"
-                  note={`Trước KM: ${formatMoney(d.revenueBeforePromo)}`}
-                  onClick={() => navigate('/kpi')}
-                />
-                <Stat
-                  label="SO đang xử lý"
-                  value={d.pendingOrders}
-                  color="var(--c-accent)"
-                  note="Allocation chạy real-time khi gửi SO"
-                  onClick={() => navigate('/orders')}
-                />
-                <Stat
-                  label="Đơn thiếu hàng / từ chối"
-                  value={d.rejectedOrders}
-                  color="var(--c-danger)"
-                  note="Không giữ tồn khi allocation thất bại"
-                  onClick={() => navigate('/orders')}
-                />
-              </div>
-
-              {/* 2 Cards side by side: Orders by status & Sales revenue ranking */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14 }}>
-                <div className="card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <h2 className="sec">Đơn hàng theo trạng thái</h2>
-                    <span className="muted" style={{ fontSize: 12.5 }}>Bấm dòng để lọc đơn</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {d.ordersByStatus.map((b) => {
-                      const pct = Math.round((b.count / maxStatusCount) * 100);
-                      return (
-                        <button
-                          key={b.status}
-                          type="button"
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: '160px 1fr 40px',
-                            gap: 10,
-                            alignItems: 'center',
-                            fontSize: 13,
-                            border: 'none',
-                            background: 'transparent',
-                            padding: '4px 0',
-                            cursor: 'pointer',
-                            fontFamily: 'inherit',
-                            color: 'inherit',
-                            textAlign: 'left',
-                          }}
-                          onClick={() => navigate('/orders')}
-                        >
-                          <span><StatusChip domain="order" value={b.status} /></span>
-                          <div style={{ height: 14, background: '#EEF1EC', borderRadius: 4, overflow: 'hidden' }}>
-                            <div style={{ height: '100%', borderRadius: 4, background: '#14655B', width: `${pct}%` }} />
-                          </div>
-                          <span style={{ textAlign: 'right', fontWeight: 600 }}>{b.count}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <h2 className="sec">Doanh thu theo Sales (sau khuyến mãi)</h2>
-                    <span className="muted" style={{ fontSize: 12.5 }}>Top nhân viên</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {d.revenueBySales.map((s) => {
-                      const pct = Math.round((s.afterPromo / maxSalesRev) * 100);
-                      return (
-                        <div
-                          key={s.name}
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: '150px 1fr 140px',
-                            gap: 10,
-                            alignItems: 'center',
-                            fontSize: 13,
-                          }}
-                        >
-                          <span style={{ fontWeight: 500 }}>{s.name}</span>
-                          <div style={{ height: 14, background: '#EEF1EC', borderRadius: 4, overflow: 'hidden' }}>
-                            <div style={{ height: '100%', borderRadius: 4, background: '#1F4E79', width: `${pct}%` }} />
-                          </div>
-                          <span style={{ textAlign: 'right', display: 'flex', flexDirection: 'column' }}>
-                            <strong style={{ color: '#14655B' }}>{formatMoney(s.afterPromo)}</strong>
-                            <span className="muted" style={{ fontSize: 11 }}>Trước KM {formatMoney(s.beforePromo)}</span>
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Top Products Table with rank badges & bars */}
-              <div className="card" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <h2 className="sec">Sản phẩm bán chạy tháng 9 (theo số thùng)</h2>
-                  <span className="muted" style={{ fontSize: 12.5 }}>Doanh thu tính sau khuyến mãi</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {d.topProducts.map((t) => {
-                    const pct = Math.round((t.qty / maxProdQty) * 100);
-                    return (
-                      <div
-                        key={t.sku}
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: '36px minmax(0, 2fr) minmax(0, 1.4fr) 110px 140px',
-                          gap: 12,
-                          alignItems: 'center',
-                          fontSize: 13,
-                          padding: '4px 0',
-                        }}
-                      >
-                        <span style={{ fontWeight: 700, color: '#14655B', fontSize: 14 }}>#{t.rank}</span>
-                        <span style={{ fontWeight: 600 }}>{t.productName} <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>({t.sku})</span></span>
-                        <div style={{ height: 10, background: '#F4EDE6', borderRadius: 4, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', borderRadius: 4, background: '#14655B', width: `${pct}%` }} />
-                        </div>
-                        <span style={{ textAlign: 'right', fontWeight: 600 }}>{formatNumber(t.qty)} thùng</span>
-                        <span style={{ textAlign: 'right', fontWeight: 700, color: '#14655B' }}>{formatMoney(t.revenueAfterPromo)}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Revenue Trend Chart */}
-              <Card title="Biểu đồ xu hướng doanh thu theo ngày">
-                <RevenueByDayChart days={d.revenueByDay} />
-              </Card>
-            </>
-          );
-        }}
-      </QueryState>
+  const tabs = dashboardTabs(data.role);
+  const allowed = tabs.some(t => t.key === tab) ? tab : 'overview';
+  const cards = visibleCards(data.cards, data.role, allowed);
+  const keeper = data.role === 'WarehouseKeeper';
+  const manager = data.role === 'SalesManager';
+  const financial = !keeper && ['overview', 'finance'].includes(allowed);
+  const showStock = !manager && (allowed === 'inventory' || keeper);
+  const showWork = ['overview', 'operations', 'finance'].includes(allowed);
+  const work = allowed === 'finance' ? data.workItems.filter(w => ['complaint', 'refund'].includes(w.kind)) : data.workItems;
+  return <>
+    <div className="dashboard-scope">
+      <Chip tone={data.scope.isGlobal ? 'info' : 'success'}>{data.scope.description}</Chip>
+      <span>Kỳ {formatDate(data.fromDate)} – {formatDate(data.toDate)}</span>
+      <span>Cập nhật {formatInstantDateTime(data.asOf)}</span>
     </div>
-  );
+    {!data.scope.hasAssignments && <Callout tone="warn">Chưa có phạm vi được phân công. Liên hệ Admin để được gán khu vực, kho hoặc nhóm Sales.</Callout>}
+    <Tabs items={tabs} value={allowed} onChange={onTabChange} />
+    <div className="dashboard-kpis">{cards.map(c => {
+      const value = c.unit === 'VND' ? formatMoney(c.value) : `${formatNumber(c.value)}${c.unit === 'carton' ? ' thùng' : c.unit === 'percent' ? '%' : ''}`;
+      return <Stat key={c.key} label={c.label}
+        value={<span className="dashboard-stat-number" style={{ '--value-characters': value.length } as CSSProperties}>{value}</span>}
+        note={c.note} color={c.tone === 'danger' ? 'var(--c-danger)' : c.tone === 'warn' ? '#ad6a16' : c.tone === 'success' ? '#14655b' : undefined} />;
+    })}</div>
+    {financial && <div className="dashboard-pair">
+      <Card title="Doanh thu ghi nhận và tiền thu theo ngày"><div className="dashboard-chart"><RevenueByDayChart days={data.revenueByDay} /></div></Card>
+      <Card title="Đơn tạo trong kỳ · trạng thái hiện tại">
+        {data.ordersByStatus.length === 0 && <p className="muted">Không có đơn trong kỳ đã chọn.</p>}
+        {data.ordersByStatus.map(s => <div className="dashboard-status-row" key={s.status}>
+          <StatusChip domain="order" value={s.status} /><div className="dashboard-status-bar"><div style={{ width: `${s.count / Math.max(1, ...data.ordersByStatus.map(x => x.count)) * 100}%` }} /></div><strong>{formatNumber(s.count)}</strong>
+        </div>)}
+      </Card>
+    </div>}
+    {showWork && <Card title="Việc cần xử lý · tối đa 30 mục ưu tiên">
+      <SimpleTable compact rows={work} empty="Không có công việc chờ trong phạm vi này."
+        columns={[
+          { header: 'Mức độ', cell: w => <Chip tone={w.priority === 1 ? 'danger' : w.priority === 2 ? 'warn' : 'info'}>{w.priority === 1 ? 'Ưu tiên cao' : w.priority === 2 ? 'Cần xử lý' : 'Đang chờ'}</Chip> },
+          { header: 'Chứng từ', cell: w => <><strong>{w.code}</strong><br />{w.title}</> },
+          { header: 'Trạng thái / lý do', cell: w => <>{w.status}<br /><span className="muted small">{w.reason}</span></> },
+          { header: 'Chờ từ', cell: w => formatInstantDateTime(w.since) },
+          { header: 'Giá trị', align: 'right', cell: w => w.amount == null ? '—' : formatMoney(w.amount) },
+          { header: '', cell: w => w.href ? <Button size="sm" onClick={() => navigate(w.href!)}>Mở xử lý</Button> : 'Theo dõi trong phạm vi quản lý' },
+        ]} />
+    </Card>}
+    {showStock && <>
+      <Card title="Tồn kho hiện tại · thùng">
+        <SimpleTable rows={data.inventory} empty="Chưa có tồn kho trong phạm vi đã chọn." columns={[
+          { header: 'Kho', cell: w => <>{w.code}<br /><span className="muted small">{w.name}</span></> },
+          { header: 'Vật lý', align: 'right', cell: w => formatNumber(w.onHand) },
+          { header: 'Đang giữ', align: 'right', cell: w => formatNumber(w.reserved) },
+          { header: 'Đang khóa', align: 'right', cell: w => formatNumber(w.locked) },
+          { header: 'Khả dụng', align: 'right', cell: w => <strong>{formatNumber(w.available)}</strong> },
+          { header: 'Cận hạn', align: 'right', cell: w => formatNumber(w.nearExpiry) },
+          { header: 'Hết hạn', align: 'right', cell: w => formatNumber(w.expired) },
+        ]} />
+      </Card>
+      <Card title="Batch cần chú ý · 15 batch ưu tiên theo hạn sử dụng">
+        <SimpleTable rows={data.expiryRisks} empty="Không có batch cận hạn/hết hạn còn tồn." columns={[
+          { header: 'Batch / kho', cell: b => <>{b.batchCode}<br />{b.warehouseCode}</> },
+          { header: 'SKU', cell: b => b.sku }, { header: 'Hết hạn', cell: b => formatDate(b.expirationDate) },
+          { header: 'Tồn vật lý', align: 'right', cell: b => formatNumber(b.onHand) },
+          { header: 'Khả dụng', align: 'right', cell: b => formatNumber(b.available) },
+          { header: 'Cảnh báo', cell: b => <Chip tone={b.status === 'Expired' ? 'danger' : 'warn'}>{b.status === 'Expired' ? 'Hết hạn' : 'Cận hạn'}</Chip> },
+          { header: '', cell: b => <Button size="sm" onClick={() => navigate(`/batches/${encodeURIComponent(b.batchCode)}`)}>Xem batch</Button> },
+        ]} />
+      </Card>
+    </>}
+    {allowed === 'sales' && <>
+      <Card title="Thành viên Sales · gồm người chưa có đơn hoàn tất">
+        <SimpleTable rows={data.salesTeam} empty="Chưa có thành viên Sales trong phạm vi này." columns={[
+          { header: 'Thành viên / nhóm', cell: s => <>{s.name}<br /><span className="muted small">{s.groupCode}</span></> },
+          { header: 'Đơn hoàn tất', align: 'right', cell: s => formatNumber(s.completedOrders) },
+          { header: 'Điểm bán phục vụ', align: 'right', cell: s => formatNumber(s.retailersServed) },
+          { header: 'Doanh thu', align: 'right', cell: s => formatMoney(s.revenue) },
+          { header: 'KPI tổng', align: 'right', cell: s => s.kpiCompletion == null ? 'Chưa cấu hình' : `${s.kpiCompletion.toFixed(1)}%` },
+          { header: '', cell: s => <Button size="sm" onClick={() => navigate(`/kpi/sales/${s.id}/${s.groupId}`)}>Xem KPI</Button> },
+        ]} />
+        {!!data.unattributedRevenue && <p className="dashboard-note">Doanh thu đơn tự đặt / chưa quy về thành viên đang quản lý: {formatMoney(data.unattributedRevenue)}.</p>}
+      </Card>
+      <Card title="10 SKU bán chạy · đơn đã hoàn tất trong kỳ">
+        <SimpleTable rows={data.topProducts} columns={[
+          { header: 'SKU', cell: p => p.sku }, { header: 'Sản phẩm', cell: p => p.name },
+          { header: 'Thùng', align: 'right', cell: p => formatNumber(p.quantity) },
+          { header: 'Doanh thu sau điều chỉnh', align: 'right', cell: p => formatMoney(p.revenue) },
+        ]} />
+      </Card>
+    </>}
+    {allowed === 'customers' && manager && <Card title="Điểm bán trong phạm vi · 30 điểm ưu tiên theo công nợ và lần mua gần nhất">
+      <SimpleTable rows={data.customers} columns={[
+        { header: 'Điểm bán', cell: r => <>{r.code}<br /><strong>{r.name}</strong></> },
+        { header: 'Trạng thái', cell: r => r.status }, { header: 'Đơn trong kỳ', align: 'right', cell: r => formatNumber(r.periodOrders) },
+        { header: 'Mua gần nhất', cell: r => r.lastOrderAt ? formatInstantDateTime(r.lastOrderAt) : 'Chưa có đơn' },
+        { header: 'Tần suất dự kiến', cell: r => `${r.expectedFrequencyPerMonth} lần/tháng` },
+        { header: 'Còn phải thu', align: 'right', cell: r => formatMoney(r.outstanding) },
+        { header: 'Quá hạn', align: 'right', cell: r => <strong style={{ color: r.overdue > 0 ? 'var(--c-danger)' : undefined }}>{formatMoney(r.overdue)}</strong> },
+      ]} />
+    </Card>}
+    {allowed === 'health' && data.health && <Card title="Tác vụ nền · trạng thái thực tế gần nhất">
+      <div className="dashboard-kpis">
+        <Stat label="Theo dõi HSD chạy gần nhất" value={data.health.expiryLastRunAt ? formatInstantDateTime(data.health.expiryLastRunAt) : 'Chưa ghi nhận'} note={data.health.expiryStatus ?? 'Chưa có lượt chạy'} />
+        <Stat label="Sự kiện chờ xử lý" value={formatNumber(data.health.pendingEvents)} />
+        <Stat label="Sự kiện lỗi" value={formatNumber(data.health.failedEvents)} />
+        <Stat label="SO đang phân bổ quá 2 phút" value={formatNumber(data.health.abandonedAllocations)} />
+      </div>
+    </Card>}
+    <div>{data.notes.map(note => <p key={note} className="dashboard-note">{note}</p>)}</div>
+  </>;
 }

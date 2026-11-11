@@ -3,6 +3,7 @@ import { ApiError } from '@/shared/api/errors';
 
 import {
   isPrintableLabel,
+  type GenerateQrLabelRequest,
   type PrintTarget,
   type QrLabel,
   type QrLabelDetail,
@@ -45,7 +46,7 @@ async function loadHtml(path: string): Promise<string> {
     throw new ApiError(
       502,
       'Bản in không hợp lệ',
-      'Backend không trả về tài liệu HTML để in tem.',
+      'Hệ thống không tìm thấy mẫu in tem phù hợp.',
     );
   }
 
@@ -53,8 +54,27 @@ async function loadHtml(path: string): Promise<string> {
 }
 
 export const qrLabelApi = {
+  list: (params?: { warehouseId?: string; batchId?: string }): Promise<QrLabel[]> =>
+    get<QrLabel[]>('/qr-labels', params),
+
   listByBatch: (batchId: string): Promise<QrLabel[]> =>
     get<QrLabel[]>('/qr-labels', { batchId }),
+
+  generate: (req: GenerateQrLabelRequest, idempotencyKey?: string): Promise<void> => {
+    const key =
+      idempotencyKey ||
+      (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `idemp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`);
+
+    return http
+      .post<void>('/qr-labels', req, {
+        headers: {
+          'Idempotency-Key': key,
+        },
+      })
+      .then((res) => res.data);
+  },
 
   detail: (qrCode: string): Promise<QrLabelDetail> =>
     get<QrLabelDetail>(

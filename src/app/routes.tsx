@@ -30,6 +30,7 @@ const SM: PortalRole = 'SalesManager';
 const orders = () => import('@/features/orders');
 const allocation = () => import('@/features/allocation');
 const debts = () => import('@/features/debts');
+const refunds = () => import('@/features/refunds');
 const runpicking = () => import('@/features/runpicking');
 const shipments = () => import('@/features/shipments');
 const receipts = () => import('@/features/receipts');
@@ -56,10 +57,11 @@ const dashboard = () => import('@/features/dashboard');
 
 /** Single source for routing + sidebar menu (matching prototype prod menuAll order and roles). */
 export const APP_ROUTES: AppRoute[] = [
-  { key: 'dashboard', label: 'Dashboard', roles: [A], list: page(dashboard, 'DashboardPage') },
+  { key: 'dashboard', label: 'Tổng quan & báo cáo', roles: [A, OP, WK, SM], list: page(dashboard, 'DashboardPage') },
   { key: 'orders', label: 'Đơn hàng', roles: [A, OP], badge: 'orders', list: page(orders, 'OrdersPage'), sub: [{ path: ':orderId', element: page(orders, 'OrderDetailPage') }] },
   { key: 'allocation', label: 'Allocation real-time', roles: [A, OP], list: page(allocation, 'AllocationRunPage') },
   { key: 'debts', label: 'Công nợ', roles: [A, OP], badge: 'debts', list: page(debts, 'DebtsPage') },
+  { key: 'refunds', label: 'Hoàn tiền', roles: [A, OP], list: page(refunds, 'RefundsPage'), sub: [{ path: ':id', element: page(refunds, 'RefundDetailPage') }] },
   { key: 'runpicking', label: 'Phiếu soạn hàng', roles: [A, OP, WK], list: page(runpicking, 'RunPickingPage') },
   { key: 'readiness', label: 'Sẵn sàng xuất', roles: [A, OP, WK], list: page(shipments, 'OrderReadinessPage') },
   {
@@ -76,7 +78,7 @@ export const APP_ROUTES: AppRoute[] = [
     key: 'promos', label: 'Khuyến mãi', roles: [A], list: page(promos, 'PromosPage'),
     sub: [{ path: 'new', element: page(promos, 'PromoFormPage') }, { path: ':id', element: page(promos, 'PromoDetailPage') }],
   },
-  { key: 'retailers', label: 'Retailer', roles: [A, OP], badge: 'retailers', list: page(retailers, 'RetailersPage'), sub: [{ path: ':code', element: page(retailers, 'RetailerDetailPage') }] },
+  { key: 'retailers', label: 'Retailer', roles: [A, OP], badge: 'retailers', list: page(retailers, 'RetailersPage'), sub: [{ path: ':id', element: page(retailers, 'RetailerDetailPage') }] },
   { key: 'loyalty', label: 'Loyalty', roles: [A, OP], list: page(loyalty, 'LoyaltyPage'), sub: [{ path: ':code', element: page(loyalty, 'LoyaltyDetailPage') }] },
   { key: 'redeem', label: 'Đổi quà', roles: [A, OP], badge: 'redeem', list: page(redeem, 'RedeemPage'), sub: [{ path: ':code', element: page(redeem, 'RedeemDetailPage') }] },
   { key: 'gifts', label: 'Danh mục quà đổi điểm', roles: [A], list: page(gifts, 'GiftsPage') },
@@ -86,6 +88,7 @@ export const APP_ROUTES: AppRoute[] = [
     { path: 'new', element: page(products, 'ProductCreatePage') },
     { path: ':sku/edit', element: page(products, 'ProductEditPage') },
     { path: ':sku/new-version', element: page(products, 'ProductReplacementPage') },
+    { path: ':sku/clone', element: page(products, 'ProductClonePage') },
     { path: ':sku', element: page(products, 'ProductDetailPage') },
   ] },
   { key: 'whs', label: 'Kho', roles: [A], list: page(warehouses, 'WarehousesPage'), sub: [
@@ -96,7 +99,7 @@ export const APP_ROUTES: AppRoute[] = [
     { path: ':code', element: page(warehouses, 'WarehouseDetailPage') },
   ] },
   { key: 'users', label: 'Người dùng', roles: [A], list: page(users, 'UsersPage'), sub: [{ path: ':id', element: page(users, 'UserDetailPage') }] },
-  { key: 'kpi', label: 'Xếp hạng kinh doanh', roles: [A, OP, SM], list: page(kpi, 'KpiPage'), sub: [{ path: 'sales/:salesUserId/:groupId', element: page(kpi, 'KpiDetailPage') }] },
+  { key: 'kpi', label: 'KPI & Xếp hạng kinh doanh', roles: [A, OP, SM], list: page(kpi, 'KpiPage'), sub: [{ path: 'sales/:salesUserId/:groupId', element: page(kpi, 'KpiDetailPage') }] },
   { key: 'complaints', label: 'Khiếu nại', roles: [A, OP], badge: 'complaints', list: page(complaints, 'ComplaintsPage'), sub: [{ path: ':code', element: page(complaints, 'ComplaintDetailPage') }] },
   { key: 'config', label: 'Cấu hình hệ thống', roles: [A], list: page(config, 'ConfigPage') },
 
@@ -106,5 +109,5 @@ export const APP_ROUTES: AppRoute[] = [
   { key: 'rotation', label: 'Luân chuyển cận hạn', roles: [A], hidden: true, list: page(rotation, 'RotationPage'), sub: [{ path: ':id', element: page(rotation, 'RotationDetailPage') }] },
 ];
 
-/** First screen after login (Admin/Operator → orders, Warehouse Keeper → the run's picking sheets, Sales Manager → regions). */
-export const HOME_BY_ROLE: Record<PortalRole, string> = { Admin: '/orders', Operator: '/orders', WarehouseKeeper: '/runpicking', SalesManager: '/regions' };
+/** Each Portal role starts on its authorized dashboard. */
+export const HOME_BY_ROLE: Record<PortalRole, string> = { Admin: '/dashboard', Operator: '/dashboard', WarehouseKeeper: '/dashboard', SalesManager: '/dashboard' };

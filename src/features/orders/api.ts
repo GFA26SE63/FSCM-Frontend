@@ -21,37 +21,43 @@ export interface WithdrawOrderRequest {
   reason: string;
 }
 
+/**
+ * The server loads every order of a page one by one (about a second each against the remote DB), so
+ * one request for 100 orders takes ~25 s and trips the 20 s client timeout. Small pages keep each
+ * request short, and every page after the first is requested in parallel.
+ */
+const LIST_PAGE_SIZE = 10;
+
 async function listOrders():
   Promise<OrderSummary[]> {
-  const result: OrderSummary[] = [];
-  let page = 1;
-
-  while (true) {
-    const response =
-      await get<OrderPage>(
-        '/orders',
-        {
-          page,
-          pageSize: 100,
-        },
-      );
-
-    result.push(...response.items);
-
-    if (
-      response.items.length === 0 ||
-      page >= response.totalPages
-    ) {
-      break;
-    }
-
-    page += 1;
-  }
-
-  return result;
+  const first =
+    await get<OrderPage>(
+      '/orders',
+      {
+        page: 1,
+        pageSize: LIST_PAGE_SIZE,
+      },
+    );
+  const rest = await Promise.all(
+    Array.from(
+      { length: Math.max(0, first.totalPages - 1) },
+      (_, index) =>
+        get<OrderPage>(
+          '/orders',
+          {
+            page: index + 2,
+            pageSize: LIST_PAGE_SIZE,
+          },
+        ),
+    ),
+  );
+  return [first, ...rest].flatMap(
+    (page) => page.items,
+  );
 }
 
 export const orderApi = {
+  retryAllocation: (order: { id: string; version: number }) => post<OrderDetail>(`/orders/${order.id}/allocation/retry`, { expectedVersion: order.version }),
   list: listOrders,
 
   get: (

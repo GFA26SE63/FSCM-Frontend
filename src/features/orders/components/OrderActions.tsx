@@ -18,6 +18,8 @@ import type {
 import {
   WithdrawOrderDialog,
 } from './OrderDialogs';
+import { useApiMutation } from '@/shared/hooks/useApiMutation';
+import { orderApi } from '../api';
 
 export interface OrderActionTarget {
   id: string;
@@ -41,6 +43,7 @@ export function OrderActions({
   children,
 }: Props) {
   const { user } = useAuth();
+  const retry = useApiMutation(orderApi.retryAllocation, { success: 'Đã thử phân bổ lại đơn.' });
 
   const [
     selectedOrder,
@@ -53,6 +56,10 @@ export function OrderActions({
     order: OrderActionTarget,
     size: 'sm' | 'md' = 'sm',
   ) => {
+    if (user && ['Admin', 'Operator', 'Sales', 'Retailer'].includes(user.role) &&
+      ['AllocationFailed', 'AllocationConflict'].includes(order.status)) {
+      return <Button size={size} loading={retry.isPending} onClick={() => retry.mutate(order)}>Thử phân bổ lại</Button>;
+    }
     if (
       !canWithdrawOrder(
         user,

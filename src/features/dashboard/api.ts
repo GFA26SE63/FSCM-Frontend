@@ -1,6 +1,10 @@
 import { get } from '@/shared/api/http';
-import type { DashboardResponse } from './types';
+import type { DashboardResponse, DashboardFilters } from './types';
 
 export const dashboardApi = {
-  get: (params: { from?: string; to?: string; areaCode?: string }) => get<DashboardResponse>('/dashboard', params),
+  get: (params: DashboardFilters) => get<DashboardResponse>('/dashboard', {
+    fromDate: params.fromDate, toDate: params.toDate,
+    regionId: params.regionId || undefined, warehouseId: params.warehouseId || undefined,
+    salesGroupId: params.salesGroupId || undefined,
+  }),
 };

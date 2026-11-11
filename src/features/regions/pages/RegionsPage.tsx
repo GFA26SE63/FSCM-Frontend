@@ -502,7 +502,6 @@ export function RegionsPage() {
                 onClick: () =>
                   setTransferDlg({
                     open: true,
-                    staffName: group.members[0],
                   }),
                 title: 'Điều chuyển nhân viên sang nhóm khác',
               });

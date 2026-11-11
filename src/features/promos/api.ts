@@ -12,7 +12,11 @@ import type { CategoryOption, ProductOption, PromoDetail, PromoInput, PromoSumma
 export const promoApi = {
   list: () => get<PromoSummary[]>('/promotions', { includeInactive: true }),
   get: (id: string) => get<PromoDetail>(`/promotions/${id}`),
-  create: (input: PromoInput) => post<PromoDetail>('/promotions', input),
+  create: async (input: PromoInput): Promise<PromoDetail> => {
+    const saved = await post<PromoDetail[]>('/promotions/campaigns', input);
+    if (saved.length === 0) throw new Error('Máy chủ chưa xác nhận chương trình khuyến mãi.');
+    return saved[0];
+  },
   /** The server calls it deactivate; the screen says "tạm dừng", which is what it means. */
   pause: (id: string) => post<PromoDetail>(`/promotions/${id}/deactivate`),
   activate: (id: string) => post<PromoDetail>(`/promotions/${id}/activate`),

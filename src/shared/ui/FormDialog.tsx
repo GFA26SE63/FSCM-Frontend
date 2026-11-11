@@ -11,7 +11,7 @@ export type FormValues = Record<string, any>;
 export interface FormFieldDef {
   key: string;
   label: string;
-  type?: 'text' | 'number' | 'date' | 'datetime-local' | 'select' | 'search' | 'textarea' | 'check' | 'chips' | 'info';
+  type?: 'text' | 'number' | 'date' | 'datetime-local' | 'select' | 'search' | 'textarea' | 'check' | 'chips' | 'info' | 'custom';
   required?: boolean;
   placeholder?: string;
   hint?: ReactNode;
@@ -23,6 +23,8 @@ export interface FormFieldDef {
   /** Read-only computed text for type "info". */
   info?: (values: FormValues) => ReactNode;
   visible?: (values: FormValues) => boolean;
+  /** Custom render function for type 'custom' or bespoke field UI */
+  render?: (values: FormValues, set: (key: string, v: unknown) => void, error?: string) => ReactNode;
 }
 
 interface FormDialogProps {
@@ -67,6 +69,9 @@ export function FormDialog({ open, title, subtitle, fields, initial, submitLabel
   const errorOf = (f: FormFieldDef): string | undefined => {
     if (f.type === 'info' || f.type === 'check') return undefined;
     const v = values[f.key];
+    if (f.type === 'custom' && f.validate) {
+      return f.validate(v, values) || undefined;
+    }
     if (f.required && isEmpty(v)) return 'Bắt buộc nhập.';
     if (isEmpty(v)) return undefined;
     if (f.type === 'number' && Number.isNaN(Number(String(v).replace(',', '.')))) return 'Phải là số.';
@@ -125,6 +130,16 @@ export function FormDialog({ open, title, subtitle, fields, initial, submitLabel
           const err = (tried || serverErrors[f.key] ? errors[f.key] : undefined) ?? serverErrors[f.key];
           const span = Math.min(f.span ?? 1, columns) as 1 | 2 | 3;
           const type = f.type ?? 'text';
+          if (type === 'custom' || f.render)
+            return (
+              <div
+                key={f.key}
+                className={span > 1 ? `span-${span}` : undefined}
+                style={span > 1 ? { gridColumn: `span ${span}` } : undefined}
+              >
+                {f.render ? f.render(values, set, err) : null}
+              </div>
+            );
           if (type === 'info')
             return (
               <div key={f.key} className={`fv${span > 1 ? ` span-${span}` : ''}`}>

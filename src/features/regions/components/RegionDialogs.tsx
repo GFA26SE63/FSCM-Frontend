@@ -54,8 +54,10 @@ export function AreaDialog({
   const update = useUpdateArea();
   const toast = useToast();
 
+  const wasOpenRef = useRef(false);
   useEffect(() => {
-    if (open) {
+    if (open && !wasOpenRef.current) {
+      wasOpenRef.current = true;
       if (area) {
         setCode(area.code);
         setName(area.name);
@@ -65,12 +67,14 @@ export function AreaDialog({
         setCode('');
         setName('');
         setDescription('');
-        setManagerId(managers[0]?.id ?? '');
+        setManagerId('');
       }
       setErrors({});
       setGeneralError(null);
+    } else if (!open) {
+      wasOpenRef.current = false;
     }
-  }, [open, area, managers]);
+  }, [open, area]);
 
   const validate = () => {
     const err: Record<string, string[]> = {};
@@ -126,9 +130,12 @@ export function AreaDialog({
   };
 
   const managerOptions = useMemo(() => {
-    const base = [{ value: '', label: '— Chưa phân công —' }];
-    return base.concat(managers.map((m) => ({ value: m.id, label: m.name })));
-  }, [managers]);
+    const list = managers.map((m) => ({ value: m.id, label: m.name }));
+    if (area?.managerId && !list.some((m) => m.value === area.managerId)) {
+      list.unshift({ value: area.managerId, label: area.managerName || area.managerId });
+    }
+    return list;
+  }, [managers, area]);
 
   return (
     <Modal
@@ -191,10 +198,11 @@ export function AreaDialog({
         <FormField label="Sales Manager phụ trách">
           {readOnly ? (
             <div className="inp readonly">
-              {managerOptions.find((m) => m.value === managerId)?.label || '— Chưa phân công —'}
+              {managerOptions.find((m) => m.value === managerId)?.label || (managerId ? managerId : '— Chưa phân công —')}
             </div>
           ) : (
             <Select
+              placeholder="Chọn Sales Manager..."
               value={managerId}
               options={managerOptions}
               onChange={(e) => setManagerId(e.target.value)}
@@ -228,10 +236,12 @@ export function AreaDialog({
 export function GroupDialog({
   open,
   group,
+  initialAreaCode,
   onClose,
 }: {
   open: boolean;
   group?: SalesGroup | null;
+  initialAreaCode?: string;
   onClose: () => void;
 }) {
   const edit = !!group;
@@ -252,32 +262,65 @@ export function GroupDialog({
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
 
+  const wasOpenRef = useRef(false);
   useEffect(() => {
-    if (open) {
+    if (open && !wasOpenRef.current) {
+      wasOpenRef.current = true;
       if (group) {
         setCode(group.code);
         setAreaCode(group.areaCode);
         setManagerId(group.managerId ?? '');
         setSelectedMembers(group.members ?? []);
       } else {
-        const defaultArea = areas[0]?.code ?? '';
-        const matchedArea = areas.find((a) => a.code === defaultArea);
         setCode('');
-        setAreaCode(defaultArea);
-        setManagerId(matchedArea?.managerId ?? managers[0]?.id ?? '');
+        // A valid region explicitly supplied by navigation context may be preselected if active
+        const validContextArea =
+          initialAreaCode &&
+          areas.some(
+            (a) =>
+              a.code.toUpperCase() === initialAreaCode.toUpperCase() &&
+              a.isActive !== false,
+          )
+            ? initialAreaCode.toUpperCase()
+            : '';
+        setAreaCode(validContextArea);
+        setManagerId('');
         setSelectedMembers([]);
       }
       setStaffSearch('');
       setErrors({});
       setGeneralError(null);
+    } else if (!open) {
+      wasOpenRef.current = false;
     }
-  }, [open, group, areas, managers]);
+  }, [open, group, initialAreaCode, areas]);
+
+  // Only active regions are eligible for assignment. In edit mode, preserve current area even if inactive.
+  const selectableAreas = useMemo(() => {
+    const active = areas.filter((a) => a.isActive !== false);
+    if (edit && group?.areaCode) {
+      const currentArea = areas.find(
+        (a) => a.code.toUpperCase() === group.areaCode.toUpperCase(),
+      );
+      if (currentArea && currentArea.isActive === false) {
+        return [currentArea, ...active];
+      }
+    }
+    return active;
+  }, [areas, edit, group]);
 
   const handleAreaChange = (nextAreaCode: string) => {
     setAreaCode(nextAreaCode);
-    const matched = areas.find((a) => a.code === nextAreaCode);
-    if (matched?.managerId) {
-      setManagerId(matched.managerId);
+    if (!nextAreaCode) {
+      setManagerId('');
+      return;
+    }
+    // Changing the parent clears dependent selections that are no longer valid
+    if (managerId) {
+      const targetArea = areas.find((a) => a.code.toUpperCase() === nextAreaCode.toUpperCase());
+      if (targetArea?.managerId && targetArea.managerId !== managerId) {
+        setManagerId('');
+      }
     }
   };
 
@@ -349,9 +392,12 @@ export function GroupDialog({
   }, [availableStaff, staffSearch]);
 
   const managerOptions = useMemo(() => {
-    const base = [{ value: '', label: '— Chưa phân công —' }];
-    return base.concat(managers.map((m) => ({ value: m.id, label: m.name })));
-  }, [managers]);
+    const list = managers.map((m) => ({ value: m.id, label: m.name }));
+    if (edit && group?.managerId && !list.some((m) => m.value === group.managerId)) {
+      list.unshift({ value: group.managerId, label: group.managerName || group.managerId });
+    }
+    return list;
+  }, [managers, edit, group]);
 
   const validate = () => {
     const err: Record<string, string[]> = {};
@@ -363,9 +409,32 @@ export function GroupDialog({
         err.code = ['Mã nhóm đã tồn tại.'];
       }
     }
-    if (!areaCode) err.areaCode = ['Chọn khu vực.'];
+    if (!areaCode) {
+      err.areaCode = ['Vui lòng chọn vùng hoạt động.'];
+    } else {
+      const targetArea = areas.find((a) => a.code.toUpperCase() === areaCode.toUpperCase());
+      if (!targetArea || (targetArea.isActive === false && (!edit || targetArea.code !== group?.areaCode))) {
+        err.areaCode = ['Vùng hoạt động đã chọn không còn phù hợp.'];
+      }
+    }
     if (!selectedMembers.length) {
       err.members = ['Vui lòng chọn ít nhất 1 nhân viên cho nhóm.'];
+    } else {
+      const invalidMembers = selectedMembers.filter((name) => {
+        const s = staff.find((st) => st.name === name);
+        if (!s) return false;
+        if (edit && group) {
+          const isCurrentGroup =
+            (group.id && s.groupId && group.id.toLowerCase() === s.groupId.toLowerCase()) ||
+            (group.code && s.groupCode && group.code.toUpperCase() === s.groupCode.toUpperCase()) ||
+            (group.members && group.members.includes(name));
+          if (isCurrentGroup) return false;
+        }
+        return Boolean(s.groupId || s.groupCode);
+      });
+      if (invalidMembers.length > 0) {
+        err.members = ['Nhân viên này đã thuộc một nhóm Sales khác.'];
+      }
     }
     setErrors(err);
     return Object.keys(err).length === 0;
@@ -464,8 +533,13 @@ export function GroupDialog({
 
           <FormField label="Khu vực" required error={errors.areaCode?.[0]}>
             <Select
+              placeholder="Chọn vùng hoạt động..."
               value={areaCode}
-              options={areas.map((a) => ({ value: a.code, label: `${a.name} (${a.code})` }))}
+              options={selectableAreas.map((a) => ({
+                value: a.code,
+                label: a.isActive === false ? `${a.name} (${a.code}) - Tạm ngừng` : `${a.name} (${a.code})`,
+                disabled: a.isActive === false,
+              }))}
               onChange={(e) => handleAreaChange(e.target.value)}
             />
           </FormField>
@@ -473,6 +547,8 @@ export function GroupDialog({
 
         <FormField label="Sales Manager phụ trách">
           <Select
+            placeholder="Chọn Sales Manager..."
+            disabled={!areaCode}
             value={managerId}
             options={managerOptions}
             onChange={(e) => setManagerId(e.target.value)}
@@ -685,35 +761,66 @@ export function TransferStaffDialog({
   const [groupId, setGroupId] = useState('');
   const [error, setError] = useState('');
 
+  const staff = useMemo(() => staffQuery.data ?? [], [staffQuery.data]);
+
   useEffect(() => {
     if (open) {
-      setUserId('');
-      setGroupId('');
       setError('');
+      setGroupId('');
+      if (initialStaffName && staff.length > 0) {
+        const found = staff.find((s) => s.name === initialStaffName);
+        setUserId(found?.userId ?? '');
+      } else {
+        setUserId('');
+      }
     }
-  }, [open, initialStaffName]);
+  }, [open, initialStaffName, staff]);
 
-  const staff = staffQuery.data ?? [];
-  const current = staff.find((s) => s.userId === userId)
-    ?? (!userId ? staff.find((s) => s.name === initialStaffName) ?? staff[0] : undefined);
-  const destinations = (groupsQuery.data ?? []).filter(
-    (g) => g.isActive !== false && g.id && g.id !== current?.groupId,
-  );
-  const destination = destinations.find((g) => g.id === groupId)
-    ?? (!groupId ? destinations[0] : undefined);
+  // Current selected staff member (strictly based on explicit userId; never auto-selects first staff)
+  const current = useMemo(() => {
+    if (!userId) return undefined;
+    return staff.find((s) => s.userId === userId);
+  }, [staff, userId]);
+
+  // Destination groups are only available once current staff is chosen
+  // Excludes staff's current group and inactive groups
+  const destinations = useMemo(() => {
+    if (!current) return [];
+    return (groupsQuery.data ?? []).filter(
+      (g) =>
+        g.isActive !== false &&
+        g.id &&
+        g.id !== current.groupId &&
+        g.code.toUpperCase() !== (current.groupCode || '').toUpperCase(),
+    );
+  }, [groupsQuery.data, current]);
+
+  // Destination group (strictly based on explicit groupId; never auto-selects first destination)
+  const destination = useMemo(() => {
+    if (!groupId) return undefined;
+    return destinations.find((g) => g.id === groupId);
+  }, [destinations, groupId]);
+
   const loading = staffQuery.isLoading || groupsQuery.isLoading;
   const loadError = staffQuery.error || groupsQuery.error;
   const mayAssign = can(user, 'territory.assign');
   const close = () => { if (!saving.current) onClose(); };
+
   const submit = async () => {
     if (saving.current || loading || loadError) return;
     setError('');
+
+    if (!current) {
+      setError('Vui lòng chọn nhân viên Sales.');
+      return;
+    }
+    if (!destination?.id) {
+      setError('Vui lòng chọn nhóm Sales.');
+      return;
+    }
+
     try {
       assertPermission(user, 'territory.assign');
-      if (!current || !destination?.id) {
-        setError('Chọn nhân viên và nhóm đích hợp lệ.');
-        return;
-      }
       saving.current = true;
       await transfer.mutateAsync({
         name: current.name,
@@ -756,18 +863,37 @@ export function TransferStaffDialog({
       <fieldset disabled={loading || Boolean(loadError) || transfer.isPending}
         style={{ border: 0, padding: 0, margin: 0, display: 'grid', gap: 14, minWidth: 0 }}>
         <FormField label="Nhân viên Sales" required>
-          <Select value={current?.userId ?? ''} options={staff.map((s) => ({
-            value: s.userId,
-            label: s.name + ' (' + (s.groupCode ?? 'Chưa phân nhóm') + ')',
-          }))} onChange={(e) => { setUserId(e.target.value); setGroupId(''); }} />
+          <Select
+            placeholder="Chọn nhân viên Sales..."
+            value={userId}
+            options={staff.map((s) => ({
+              value: s.userId,
+              label: s.name + ' (' + (s.groupCode ?? 'Chưa phân nhóm') + ')',
+            }))}
+            onChange={(e) => {
+              setUserId(e.target.value);
+              setGroupId('');
+              setError('');
+            }}
+          />
         </FormField>
         <FormField label="Nhóm hiện tại">
-          <div className="inp readonly">{current?.groupCode ?? 'Chưa phân nhóm'}</div>
+          <div className="inp readonly">{current ? (current.groupCode ?? 'Chưa phân nhóm') : '—'}</div>
         </FormField>
         <FormField label="Nhóm đích" required>
-          <Select value={destination?.id ?? ''} options={destinations.map((g) => ({
-            value: g.id!, label: g.code + ' (' + g.areaName + ')',
-          }))} onChange={(e) => setGroupId(e.target.value)} />
+          <Select
+            placeholder="Chọn nhóm Sales..."
+            disabled={!current || destinations.length === 0}
+            value={groupId}
+            options={destinations.map((g) => ({
+              value: g.id!,
+              label: g.code + ' (' + g.areaName + ')',
+            }))}
+            onChange={(e) => {
+              setGroupId(e.target.value);
+              setError('');
+            }}
+          />
         </FormField>
       </fieldset>
     </Modal>

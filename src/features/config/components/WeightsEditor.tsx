@@ -1,5 +1,5 @@
 import { FormField, Input } from '@/shared/ui';
-import { formatNumber } from '@/shared/lib';
+import { validAllocationWeights } from '../validation';
 import type { Weights } from '../types';
 
 const keys: { k: keyof Weights; label: string }[] = [
@@ -11,16 +11,16 @@ const keys: { k: keyof Weights; label: string }[] = [
 /** Three weights that must add up to 1. Values are kept as strings while typing. */
 export function WeightsEditor({ value, onChange }: { value: Record<keyof Weights, string>; onChange: (v: Record<keyof Weights, string>) => void }) {
   const sum = keys.reduce((a, { k }) => a + (Number(value[k]) || 0), 0);
-  const ok = Math.abs(sum - 1) < 0.001;
+  const ok = validAllocationWeights(Object.values(value));
   return (
     <div className="form-grid">
       {keys.map(({ k, label }) => (
-        <FormField key={k} label={label} error={Number.isNaN(Number(value[k])) || value[k] === '' ? 'Phải là số.' : null}>
+        <FormField key={k} label={label} error={!value[k].trim() || !Number.isFinite(Number(value[k])) || Number(value[k]) < 0 || Number(value[k]) > 1 ? 'Nhập số từ 0 đến 1.' : null}>
           <Input inputMode="decimal" value={value[k]} onChange={(e) => onChange({ ...value, [k]: e.target.value.replace(',', '.') })} />
         </FormField>
       ))}
       <span className={ok ? 'muted small' : 'field-err'} style={{ gridColumn: '1 / -1' }}>
-        Tổng = {formatNumber(sum, 2)} {ok ? '(hợp lệ)' : '– phải bằng 1.'}
+        Tổng = {Number(sum.toPrecision(12))} {ok ? '(hợp lệ)' : '– phải bằng 1.'}
       </span>
     </div>
   );
