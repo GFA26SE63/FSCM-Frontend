@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { useAuth } from '@/shared/auth/AuthContext';
 import type { PortalRole } from '@/shared/auth/roles';
 import { useNavigate } from '@/shared/router/compat';
@@ -68,9 +68,12 @@ export function DashboardContent({ data, tab, onTabChange }: {
     </div>
     {!data.scope.hasAssignments && <Callout tone="warn">Chưa có phạm vi được phân công. Liên hệ Admin để được gán khu vực, kho hoặc nhóm Sales.</Callout>}
     <Tabs items={tabs} value={allowed} onChange={onTabChange} />
-    <div className="dashboard-kpis">{cards.map(c => <Stat key={c.key} label={c.label}
-      value={c.unit === 'VND' ? formatMoney(c.value) : `${formatNumber(c.value)}${c.unit === 'carton' ? ' thùng' : c.unit === 'percent' ? '%' : ''}`}
-      note={c.note} color={c.tone === 'danger' ? 'var(--c-danger)' : c.tone === 'warn' ? '#ad6a16' : c.tone === 'success' ? '#14655b' : undefined} />)}</div>
+    <div className="dashboard-kpis">{cards.map(c => {
+      const value = c.unit === 'VND' ? formatMoney(c.value) : `${formatNumber(c.value)}${c.unit === 'carton' ? ' thùng' : c.unit === 'percent' ? '%' : ''}`;
+      return <Stat key={c.key} label={c.label}
+        value={<span className="dashboard-stat-number" style={{ '--value-characters': value.length } as CSSProperties}>{value}</span>}
+        note={c.note} color={c.tone === 'danger' ? 'var(--c-danger)' : c.tone === 'warn' ? '#ad6a16' : c.tone === 'success' ? '#14655b' : undefined} />;
+    })}</div>
     {financial && <div className="dashboard-pair">
       <Card title="Doanh thu ghi nhận và tiền thu theo ngày"><div className="dashboard-chart"><RevenueByDayChart days={data.revenueByDay} /></div></Card>
       <Card title="Đơn tạo trong kỳ · trạng thái hiện tại">
