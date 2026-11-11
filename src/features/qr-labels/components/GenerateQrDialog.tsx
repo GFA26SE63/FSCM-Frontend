@@ -4,7 +4,7 @@ import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
 import { Button, Callout, FormField, Input, Modal } from '@/shared/ui';
 import { formatDate } from '@/shared/lib';
-import { useGenerateQrLabel } from '../hooks';
+import { useGenerateQrLabel, useQrGenerationCapacity } from '../hooks';
 
 export interface BatchForQrGeneration {
   batchId: string;
@@ -50,14 +50,12 @@ export function GenerateQrDialog({
 
   const hasPermission = can(user, 'qr.generate') && isWarehouseScoped;
 
-  const defaultQty =
-    batch && (batch.availableQuantity ?? 0) > 0
-      ? batch.availableQuantity!
-      : batch && (batch.onHandQuantity ?? 0) > 0
-        ? batch.onHandQuantity!
-        : 1;
-
-  const [quantity, setQuantity] = useState<string>(String(defaultQty));
+  const capacityQuery = useQrGenerationCapacity(batch?.batchId ?? '', open && hasPermission);
+  const capacity = capacityQuery.data;
+  const [quantityInput, setQuantity] = useState<{ batchId: string; value: string } | null>(null);
+  const quantity = quantityInput?.batchId === batch?.batchId
+    ? quantityInput!.value
+    : capacity ? String(capacity.unlabelledQuantity) : '';
   const [error, setError] = useState<string | null>(null);
 
   if (!open || !batch) return null;
@@ -70,6 +68,8 @@ export function GenerateQrDialog({
     (batch.onHandQuantity ?? 0) <= 0 &&
     (batch.availableQuantity ?? 0) <= 0;
   const isEligible = !isDisposed && !hasZeroStock;
+  const capacityReady = capacityQuery.isSuccess && !capacityQuery.isFetching;
+  const canSubmit = isEligible && hasPermission && capacityReady && (capacity?.unlabelledQuantity ?? 0) > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,10 +85,22 @@ export function GenerateQrDialog({
       );
       return;
     }
+    if (!canSubmit || !capacity) {
+      setError('Vui lòng tải lại số thùng chưa có tem QR trước khi sinh mã.');
+      return;
+    }
 
     const num = Number(quantity);
     if (!Number.isFinite(num) || num <= 0) {
       setError('Vui lòng nhập số lượng hợp lệ lớn hơn 0.');
+      return;
+    }
+    if (!Number.isInteger(num)) {
+      setError('Số lượng thùng phải là số nguyên.');
+      return;
+    }
+    if (num > capacity.unlabelledQuantity) {
+      setError(`Chỉ còn ${capacity.unlabelledQuantity.toLocaleString('vi-VN')} thùng chưa có tem QR.`);
       return;
     }
 
@@ -101,6 +113,7 @@ export function GenerateQrDialog({
       onClose();
     } catch (err) {
       const apiErr = toApiError(err);
+      if (apiErr.status === 409) void capacityQuery.refetch();
       if (apiErr.status === 403) {
         setError('Bạn chưa được cấp quyền thực hiện thao tác này.');
       } else {
@@ -128,7 +141,7 @@ export function GenerateQrDialog({
           <Button
             variant="primary"
             onClick={handleSubmit}
-            disabled={!isEligible || !hasPermission || generate.isPending}
+            disabled={!canSubmit || generate.isPending}
           >
             {generate.isPending ? 'Đang sinh mã…' : 'Sinh mã QR'}
           </Button>
@@ -155,7 +168,7 @@ export function GenerateQrDialog({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
               <span>
                 Lô hàng này đã có <strong>{existingCount} tem QR</strong> trong hệ thống.
-                Bạn có thể in lại tem hiện có hoặc nhập số lượng để sinh thêm tem mới.
+                Bạn có thể in lại tem hiện có. Chỉ sinh thêm cho số thùng chưa có tem QR.
               </span>
               {onPrintExisting && (
                 <Button
@@ -173,6 +186,16 @@ export function GenerateQrDialog({
         )}
 
         {error && <Callout tone="danger">{error}</Callout>}
+        {capacityQuery.isFetching && <Callout tone="info">Đang kiểm tra số thùng chưa có tem QR…</Callout>}
+        {capacityQuery.isError && (
+          <Callout tone="danger">
+            Không tải được số thùng chưa có tem QR. Vui lòng thử lại.
+            <Button size="sm" onClick={() => void capacityQuery.refetch()}>Tải lại</Button>
+          </Callout>
+        )}
+        {capacityReady && capacity?.unlabelledQuantity === 0 && (
+          <Callout tone="info">Hàng còn trong kho đã có đủ tem QR. Hãy in lại tem hiện có.</Callout>
+        )}
 
         {/* Batch Overview Box */}
         <div
@@ -225,20 +248,29 @@ export function GenerateQrDialog({
               {(batch.availableQuantity ?? 0).toLocaleString('vi-VN')} thùng
             </span>
           </div>
+          <div>
+            <span className="muted" style={{ display: 'block', fontSize: 11.5 }}>Chưa có tem QR:</span>
+            <strong>{capacityReady && capacity ? `${capacity.unlabelledQuantity.toLocaleString('vi-VN')} thùng` : '—'}</strong>
+          </div>
+          <div className="muted" style={{ gridColumn: '1 / -1' }}>
+            Số thùng chưa có tem tính trên hàng còn trong kho, bao gồm hàng đang giữ cho đơn. Hàng đã xuất không tính lại.
+          </div>
         </div>
 
         {/* Quantity Field */}
         <FormField
           label="Số lượng thùng trên tem *"
-          hint="Nhập số lượng sản phẩm đại diện trên tem QR này (ví dụ: số thùng theo pallet hoặc kiện hàng)."
+          hint="Nhập số thùng đại diện trên tem, tối đa bằng số thùng chưa có tem QR."
         >
           <Input
             type="number"
             min="1"
+            step="1"
+            max={capacityReady ? capacity?.unlabelledQuantity : undefined}
             value={quantity}
-            disabled={!isEligible || !hasPermission || generate.isPending}
+            disabled={!canSubmit || generate.isPending}
             onChange={(e) => {
-              setQuantity(e.target.value);
+              setQuantity({ batchId: batch.batchId, value: e.target.value });
               if (error) setError(null);
             }}
             placeholder="Ví dụ: 50"
