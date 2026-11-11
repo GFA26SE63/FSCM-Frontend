@@ -142,7 +142,7 @@ export function GroupDetailPage() {
                   value={g.isActive !== false ? 'Hoạt động' : 'Tạm ngừng'}
                 />
                 {assignTerritory && (
-                  <Button onClick={() => setTransferTarget(g.members[0] ?? '')}>
+                  <Button onClick={() => setTransferTarget('')}>
                     Chuyển nhân sự
                   </Button>
                 )}
@@ -337,7 +337,7 @@ export function GroupDetailPage() {
           {assignTerritory && (
             <TransferStaffDialog
               open={transferTarget !== null}
-              initialStaffName={transferTarget ?? undefined}
+              initialStaffName={transferTarget || undefined}
               onClose={() => setTransferTarget(null)}
             />
           )}

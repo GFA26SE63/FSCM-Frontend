@@ -52,7 +52,7 @@ export function WithdrawOrderDialog({
               : 'Vui lòng nhập lý do.',
         },
       ]}
-      note="Chỉ áp dụng khi SO còn đang phân bổ. Nếu hệ thống đã chốt báo giá trong lúc thao tác, backend sẽ từ chối yêu cầu này."
+      note="Chỉ áp dụng khi đơn hàng còn đang trong quá trình phân bổ. Nếu hệ thống đã hoàn tất phân bổ hoặc chốt đơn trong lúc thao tác, yêu cầu rút đơn sẽ không thể thực hiện."
       onClose={onClose}
       onSubmit={async (values) => {
         if (!order) return;

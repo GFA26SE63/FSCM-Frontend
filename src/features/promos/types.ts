@@ -27,6 +27,7 @@ export interface PromoDetail extends PromoSummary {
 }
 
 export interface PromoInput {
+  requestId: string;
   campaignMode?: "PerSku" | "ProductGroup";
   productRules?: PromoProductRule[];
   activateOnSave?: boolean;

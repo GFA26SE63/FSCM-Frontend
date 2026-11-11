@@ -44,15 +44,18 @@ test('Published and Inactive never expose edit/price actions; Draft links to edi
   assert.match(render('Draft'), /Sửa nháp \/ giá/);
   assert.ok(!render('Published').includes('Sửa nháp'));
   assert.match(render('Published'), /Tạo bản mới/);
-  assert.equal(render('Inactive'), '');
+  assert.match(render('Inactive'), /Tạo bản mới/);
+  assert.ok(!render('Inactive').includes('Tạo bản thay thế'));
+  assert.match(render('Published'), /Tạo bản thay thế/);
 });
 
-test('create/edit/new-version routes are explicit and precede product details', () => {
+test('create/edit/clone/new-version routes are explicit and precede product details', () => {
   const { APP_ROUTES } = source('app/routes.tsx');
   const routes = APP_ROUTES.find((r) => r.key === 'skus').sub;
   for (const [url, expected] of [
     ['/skus/new', 'new'], ['/skus/p1/edit', ':sku/edit'],
     ['/skus/p1/new-version', ':sku/new-version'], ['/skus/p1', ':sku'],
+    ['/skus/p1/clone', ':sku/clone'],
   ]) {
     const matched = routes.find((r) => matchPath(url, { path: '/skus/' + r.path, exact: true }));
     assert.equal(matched.path, expected);
@@ -89,6 +92,25 @@ test('new version uses replacement contract instead of independent clone', async
   assert.deepEqual(request, { url: '/products/p1/replacement', payload });
 });
 
+test('independent clone sends edited master data and price in one clone request', async () => {
+  const requests = [];
+  const { productApi } = source('features/products/api.ts', {
+    '@/shared/api/errors': errors,
+    '@/shared/api/http': {
+      post: async (url, payload) => { requests.push({ url, payload }); return { ...fixture, ...payload, id: 'p2', status: 'Draft', replacesProductId: null }; },
+      get() { throw new Error('Clone must not require a second read'); },
+      put() { throw new Error('Clone must not update the source'); },
+      del() {},
+    },
+  });
+  const payload = { ...fields, sku: 'SKU002', productCategoryId: 'c2', name: 'Cloned milk', initialUnitPrice: 260000 };
+  const result = await productApi.clone({ id: 'p1', ...payload });
+  assert.deepEqual(requests, [{ url: '/products/p1/clone', payload }]);
+  assert.equal(result.id, 'p2');
+  assert.equal(result.status, 'Draft');
+  assert.equal(result.replacesProductId, null);
+});
+
 test('retry after partial save does not repeat successful metadata updates or duplicate a draft', async () => {
   let current = { ...fixture };
   let updates = 0;
@@ -115,7 +137,8 @@ test('retry after partial save does not repeat successful metadata updates or du
 test('new-version form is a full page prefilled from source; Published edit URL stays blocked', () => {
   const utils = source('features/products/utils.ts', { '@/shared/api/errors': errors });
   const Wrapper = ({ children }) => React.createElement('section', null, children);
-  const { ProductReplacementPage, ProductEditPage, ProductCreatePage } = source('features/products/pages/ProductFormPage.tsx', {
+  let sourceStatus = 'Published';
+  const { ProductReplacementPage, ProductEditPage, ProductCreatePage, ProductClonePage } = source('features/products/pages/ProductFormPage.tsx', {
     '@tanstack/react-query': { useQueryClient: () => ({}) },
     '@/shared/auth/AuthContext': { useAuth: () => ({ user: { role: 'Admin' } }) },
     '@/shared/auth/permissions': { can: () => true, assertPermission() {} },
@@ -127,9 +150,9 @@ test('new-version form is a full page prefilled from source; Published edit URL 
       QueryState: ({ query, children }) => children(query.data),
     },
     '../hooks': {
-      useProduct: () => ({ data: { ...fixture, status: 'Published' } }),
+      useProduct: () => ({ data: { ...fixture, status: sourceStatus } }),
       useCategoryOptions: () => ({ data: [{ id: 'c1', code: 'CAT-01', name: 'Dairy', isActive: true }] }),
-      useCreateProduct: () => ({}), useCreateReplacement: () => ({}), useSaveProductDraft: () => ({}),
+      useCreateProduct: () => ({}), useCreateReplacement: () => ({}), useCloneProduct: () => ({}), useSaveProductDraft: () => ({}),
     },
     '../utils': utils,
   });
@@ -143,4 +166,14 @@ test('new-version form is a full page prefilled from source; Published edit URL 
   assert.ok(!blocked.includes('<form'));
   assert.match(blocked, /Không thể mở form/);
   assert.match(renderToStaticMarkup(React.createElement(ProductCreatePage)), /<form/);
+  for (sourceStatus of ['Draft', 'Published', 'Inactive']) {
+    const clone = renderToStaticMarkup(React.createElement(ProductClonePage));
+    assert.match(clone, /<form/);
+    assert.match(clone, /value="Milk"/);
+    assert.match(clone, /value="250000"/);
+    assert.match(clone, /value="30"/);
+    assert.match(clone, /value=""/);
+    assert.match(clone, /bản nháp độc lập/);
+    assert.ok(!clone.includes('khi đăng bán bản mới, bản nguồn sẽ ngừng bán'));
+  }
 });

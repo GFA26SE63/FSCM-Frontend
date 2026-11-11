@@ -103,15 +103,9 @@ export const productApi = {
   replacement: ({ id, ...input }: Omit<CreateProductInput, 'productCategoryId'> & { id: string }) =>
     post<Product>(path(id) + '/replacement', input),
 
-  clone: ({
-    id,
-    sku,
-  }: {
-    id: string;
-    sku: string;
-  }) =>
+  clone: ({ id, ...input }: CreateProductInput & { id: string }) =>
     post<Product>(
       path(id) + '/clone',
-      { sku },
+      input,
     ),
 };

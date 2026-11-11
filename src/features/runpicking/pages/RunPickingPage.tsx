@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation, useNavigate } from '@/shared/router/compat';
 import { Card, Chip, PageHeader, QueryState, Select, SimpleTable, Stat, type Tone } from '@/shared/ui';
 import { formatCases, formatNumber, formatPercent } from '@/shared/lib';
 import { formatDate, formatInstantDateTime } from '@/shared/lib/dates';
@@ -13,6 +14,8 @@ const STATUS: Record<PickingStatus, { tone: Tone; label: string }> = {
 };
 
 export function RunPickingPage() {
+  const requestedCode = new URLSearchParams(useLocation().search).get('code');
+  const navigate = useNavigate();
   const [warehouseId, setWarehouseId] = useState('');
   const [status, setStatus] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
@@ -24,6 +27,7 @@ export function RunPickingPage() {
       <PageHeader
         title="Phiếu soạn hàng"
         subtitle="Phiếu được tạo theo từng kho sau khi SO đủ điều kiện thành PO. Mỗi dòng giữ nguyên batch và giá đã chốt từ allocation."
+        actions={requestedCode ? <button className="btn" onClick={() => navigate('/runpicking')}>Xem tất cả phiếu</button> : undefined}
       />
       <Card title="Bộ lọc">
         <div className="row-wrap" style={{ gap: 12 }}>
@@ -46,7 +50,9 @@ export function RunPickingPage() {
       </Card>
 
       <QueryState query={lists}>
-        {(rows) => (
+        {(allRows) => {
+          const rows = requestedCode ? allRows.filter(row => row.pickingCode === requestedCode) : allRows;
+          return (
           <>
             <div className="stats-grid" style={{ marginBottom: 12 }}>
               <Stat label="Tổng phiếu" value={formatNumber(rows.length)} />
@@ -58,13 +64,14 @@ export function RunPickingPage() {
               <PickingCard
                 key={list.id}
                 list={list}
-                open={openId === list.id}
-                onToggle={() => setOpenId(openId === list.id ? null : list.id)}
+                open={openId === list.id || openId === null && requestedCode === list.pickingCode}
+                onToggle={() => setOpenId(openId === list.id || openId === null && requestedCode === list.pickingCode ? '' : list.id)}
               />
             ))}
             {rows.length === 0 && <Card>Không có phiếu soạn phù hợp bộ lọc.</Card>}
           </>
-        )}
+          );
+        }}
       </QueryState>
     </>
   );

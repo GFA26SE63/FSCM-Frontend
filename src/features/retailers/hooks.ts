@@ -1,14 +1,14 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApiMutation } from '@/shared/hooks';
 import { retailerApi } from './api';
-import type { RetailerRow } from './types';
+import type { RetailerRow, SetMlorPayload, UpdateRetailerDeclarationPayload } from './types';
 
 /** Retailers + pending/rejected registrations merged into one list (Approved registrations already exist as retailers). */
 export const useRetailerRows = () =>
   useQuery({
     queryKey: ['retailers', 'rows'],
     queryFn: async (): Promise<RetailerRow[]> => {
-      const [retailers, regs] = await Promise.all([retailerApi.list(), retailerApi.registrations()]);
+      const [retailers, regs] = await Promise.all([retailerApi.listAll(), retailerApi.registrations()]);
       const regRows: RetailerRow[] = regs
         .filter((x) => x.status !== 'Approved')
         .map((x) => ({ code: x.code, name: x.name, address: x.address, areaName: x.areaName, contact: x.contact, phone: x.phone, kind: 'Registration', status: x.status, statusDomain: 'registration', potentialClass: x.potentialClass, source: `Sales ${x.salesName} khai báo` }));
@@ -16,11 +16,86 @@ export const useRetailerRows = () =>
       return [...regRows, ...rows];
     },
   });
-export const useRetailer = (code: string, enabled = true) => useQuery({ queryKey: ['retailers', 'detail', code], queryFn: () => retailerApi.get(code), enabled });
+export const useRetailer = (identifier: string, enabled = true) =>
+  useQuery({
+    queryKey: ['retailers', 'detail', identifier],
+    queryFn: () => retailerApi.get(identifier),
+    enabled: Boolean(identifier && enabled),
+  });
 export const useRegistration = (code: string, enabled = true) => useQuery({ queryKey: ['retailers', 'registration', code], queryFn: () => retailerApi.registration(code), enabled });
 export const useRetailerMlor = (code: string, enabled = true) => useQuery({ queryKey: ['retailers', 'mlor', code], queryFn: () => retailerApi.mlor(code), enabled });
-export const useRetailerReceivables = (code: string, enabled = true) => useQuery({ queryKey: ['retailers', 'receivables', code], queryFn: () => retailerApi.receivables(code), enabled });
-export const useRetailerLoyalty = (code: string, enabled = true) => useQuery({ queryKey: ['retailers', 'loyalty', code], queryFn: () => retailerApi.loyalty(code), enabled });
+export const useRetailerMlorConfigs = (retailerId: string, enabled = true) =>
+  useQuery({
+    queryKey: ['retailers', 'mlor-configs', retailerId],
+    queryFn: () => retailerApi.mlorConfigs(retailerId),
+    enabled: Boolean(retailerId && enabled),
+  });
+export const useResolveMlor = (retailerId: string, productId: string, enabled = true) =>
+  useQuery({
+    queryKey: ['retailers', 'mlor-resolution', retailerId, productId],
+    queryFn: () => retailerApi.resolveMlor(retailerId, productId),
+    enabled: Boolean(retailerId && productId && enabled),
+  });
+export const useSetMlor = (retailerId?: string) => {
+  const queryClient = useQueryClient();
+  return useApiMutation(
+    (payload: SetMlorPayload) => retailerApi.setMlor(payload),
+    {
+      permission: 'mlor.manage',
+      success: 'Đã lưu cấu hình MLOR.',
+      onSuccess: () => {
+        if (retailerId) {
+          void queryClient.invalidateQueries({ queryKey: ['retailers', 'mlor-configs', retailerId] });
+          void queryClient.invalidateQueries({ queryKey: ['retailers', 'mlor-resolution', retailerId] });
+          void queryClient.invalidateQueries({ queryKey: ['retailers', 'detail'] });
+        }
+      },
+    },
+  );
+};
+export const useDeleteMlor = (retailerId?: string) => {
+  const queryClient = useQueryClient();
+  return useApiMutation(
+    (mlorId: string) => retailerApi.deleteMlor(mlorId),
+    {
+      permission: 'mlor.manage',
+      success: 'Đã xóa cấu hình MLOR.',
+      onSuccess: () => {
+        if (retailerId) {
+          void queryClient.invalidateQueries({ queryKey: ['retailers', 'mlor-configs', retailerId] });
+          void queryClient.invalidateQueries({ queryKey: ['retailers', 'mlor-resolution', retailerId] });
+          void queryClient.invalidateQueries({ queryKey: ['retailers', 'detail'] });
+        }
+      },
+    },
+  );
+};
+export const useUpdateRetailerDeclaration = () => {
+  const queryClient = useQueryClient();
+  return useApiMutation(
+    ({ retailerId, payload }: { retailerId: string; payload: UpdateRetailerDeclarationPayload }) =>
+      retailerApi.updateDeclaration(retailerId, payload),
+    {
+      permission: 'retailers.edit',
+      success: 'Cập nhật thông tin Retailer thành công.',
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: ['retailers'] });
+      },
+    },
+  );
+};
+export const useRetailerReceivables = (retailerId?: string, retailerCode?: string, enabled = true) =>
+  useQuery({
+    queryKey: ['retailers', 'receivables', retailerId || '', retailerCode || ''],
+    queryFn: () => retailerApi.receivables(retailerId, retailerCode),
+    enabled: Boolean((retailerId || retailerCode) && enabled),
+  });
+export const useRetailerLoyalty = (retailerIdOrCode: string, enabled = true) =>
+  useQuery({
+    queryKey: ['retailers', 'loyalty', retailerIdOrCode],
+    queryFn: () => retailerApi.loyalty(retailerIdOrCode),
+    enabled: Boolean(retailerIdOrCode && enabled),
+  });
 export const useRetailerLookups = (enabled = true) => ({
   areas: useQuery({ queryKey: ['retailers', 'areas'], queryFn: retailerApi.areas, enabled }),
   groups: useQuery({ queryKey: ['retailers', 'groups'], queryFn: retailerApi.groups, enabled }),
@@ -30,3 +105,14 @@ export const useUpdateRetailer = () => useApiMutation(retailerApi.update, { perm
 export const useApproveRegistration = () => useApiMutation(retailerApi.approve, { permission: 'retailers.review', success: (r) => `Đã duyệt ${r.registration.code}: cấp mã điểm bán ${r.retailer.code} và báo Sales.` });
 export const useRejectRegistration = () => useApiMutation(retailerApi.reject, { permission: 'retailers.review', success: (r) => `Đã từ chối ${r.code}.` });
 export const useSaveMlor = () => useApiMutation(retailerApi.saveMlor, { permission: 'mlor.manage', success: 'Đã lưu MLOR của retailer.' });
+export const useRetailerEligibility = (retailerId: string, enabled = true) =>
+  useQuery({
+    queryKey: ['retailers', 'eligibility', retailerId],
+    queryFn: () => retailerApi.eligibility(retailerId),
+    enabled: Boolean(retailerId && enabled),
+  });
+export const useUpdateCreditTerms = () =>
+  useApiMutation(retailerApi.updateCreditTerms, {
+    permission: 'retailers.review',
+    success: (r) => `Đã cập nhật kỳ hạn công nợ cho điểm bán ${r.code}.`,
+  });

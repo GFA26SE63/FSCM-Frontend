@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Callout, Card, Chip, PageHeader, QueryState, Select, SimpleTable, Stat, type Tone } from '@/shared/ui';
+import { Button, Callout, Card, Chip, Input, PageHeader, QueryState, Select, SimpleTable, Stat, type Tone } from '@/shared/ui';
 import { formatNumber } from '@/shared/lib';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { useApiMutation } from '@/shared/hooks/useApiMutation';
@@ -237,7 +237,7 @@ function ShipmentOperations({ orderId }: { orderId: string }) {
   );
 }
 
-function ShipmentActionRow({
+export function ShipmentActionRow({
   shipment,
   mayDispatch,
   drivers,
@@ -249,9 +249,13 @@ function ShipmentActionRow({
   vehicles: DeliveryVehicle[];
 }) {
   const warehouseDrivers = drivers.filter((item) => item.isActive && item.warehouseId === shipment.warehouseId);
-  const warehouseVehicles = vehicles.filter((item) => item.isActive && item.warehouseId === shipment.warehouseId);
+  const warehouseVehicles = vehicles.filter((item) => item.isActive && item.warehouseId === shipment.warehouseId && item.capacity >= shipment.totalQuantity);
   const [driverId, setDriverId] = useState(warehouseDrivers[0]?.id ?? '');
   const [vehicleId, setVehicleId] = useState(warehouseVehicles[0]?.id ?? '');
+  const [resolutionReason, setResolutionReason] = useState('');
+  const resolve = useApiMutation(shipmentsApi.resolveException, { success: 'Đã xử lý ngoại lệ và cập nhật trạng thái đơn.', onSuccess: () => setResolutionReason('') });
+  const selectedDriver = warehouseDrivers.find((item) => item.id === driverId);
+  const selectedVehicle = warehouseVehicles.find((item) => item.id === vehicleId);
   const issue = useApiMutation(shipmentsApi.issue, { success: 'Đã xác nhận shipment rời kho; tồn thực tế đã được trừ.' });
   const assign = useApiMutation(shipmentsApi.assign, { success: 'Đã gán tài xế và xe.' });
   const dispatch = useApiMutation(shipmentsApi.dispatch, { success: 'Shipment đã bắt đầu giao; tem đã chuyển InTransit.' });
@@ -278,6 +282,13 @@ function ShipmentActionRow({
         </Button>
       )}
 
+      {shipment.status === 'Exception' && mayDispatch && <div className="stack" style={{ marginTop: 8 }}>
+        {shipment.exceptionReason && <Callout tone="danger">{shipment.exceptionReason}</Callout>}
+        <Input aria-label="Kết quả xử lý ngoại lệ" placeholder="Nhập lý do / kết quả xử lý" value={resolutionReason} onChange={e => setResolutionReason(e.target.value)} />
+        <Button size="sm" loading={resolve.isPending} disabled={!resolutionReason.trim() || resolutionReason.trim().length > 1000}
+          onClick={() => resolve.mutate({ shipment, reason: resolutionReason })}>Hoàn tất xử lý ngoại lệ</Button>
+      </div>}
+
       {shipment.status === 'Issued' && mayDispatch && !shipment.driverId && (
         <div className="row-wrap" style={{ gap: 8, marginTop: 8 }}>
           <Select
@@ -290,16 +301,19 @@ function ShipmentActionRow({
             value={vehicleId}
             onChange={(event) => setVehicleId(event.target.value)}
             placeholder="Chọn xe"
-            options={warehouseVehicles.map((item) => ({ value: item.id, label: item.plateNumber }))}
+            options={warehouseVehicles.map((item) => ({ value: item.id, label: `${item.plateNumber} · ${formatNumber(item.capacity)} thùng` }))}
           />
           <Button
             size="sm"
             loading={assign.isPending}
-            disabled={!driverId || !vehicleId}
-            onClick={() => assign.mutate({ shipment, driverId, vehicleId })}
+            disabled={!selectedDriver || !selectedVehicle}
+            onClick={() => {
+              if (selectedDriver && selectedVehicle) assign.mutate({ shipment, driverId: selectedDriver.id, vehicleId: selectedVehicle.id });
+            }}
           >
             Gán xe & tài xế
           </Button>
+          {warehouseVehicles.length === 0 && <span className="muted small">Kho chưa có xe đang hoạt động đủ tải cho {formatNumber(shipment.totalQuantity)} thùng.</span>}
         </div>
       )}
 
