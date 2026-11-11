@@ -32,7 +32,10 @@ function createStorage() {
   };
 }
 
-function loadStore() {
+function loadStore({
+  BroadcastChannel,
+  window,
+} = {}) {
   const filename = path.resolve(
     __dirname,
     '../src/shared/auth/tokenStore.ts',
@@ -60,6 +63,8 @@ function loadStore() {
     'sessionStorage',
     'localStorage',
     'crypto',
+    'BroadcastChannel',
+    'window',
     code,
   )(
     module,
@@ -70,6 +75,8 @@ function loadStore() {
       randomUUID: () =>
         `session-${++sequence}`,
     },
+    BroadcastChannel,
+    window,
   );
 
   return {
@@ -77,6 +84,43 @@ function loadStore() {
       module.exports.tokenStore,
     sessionStorage,
     localStorage,
+  };
+}
+
+function createWindow() {
+  const listeners = new Map();
+
+  return {
+    addEventListener(name, listener) {
+      listeners.set(name, listener);
+    },
+    removeEventListener(name) {
+      listeners.delete(name);
+    },
+    dispatchEvent(event) {
+      listeners.get(event.type)?.(event);
+    },
+    setTimeout,
+  };
+}
+
+function createBroadcastChannels() {
+  const channels = new Set();
+
+  return class FakeBroadcastChannel {
+    constructor(name) {
+      this.name = name;
+      this.onmessage = null;
+      channels.add(this);
+    }
+
+    postMessage(data) {
+      for (const channel of channels) {
+        if (channel !== this && channel.name === this.name) {
+          channel.onmessage?.({ data });
+        }
+      }
+    }
   };
 }
 
@@ -247,4 +291,41 @@ test('Logout clears session and persistent authentication', () => {
     localStorage.length,
     0,
   );
+});
+
+test('A non-remembered session is restored in a new tab without localStorage', async () => {
+  const BroadcastChannel = createBroadcastChannels();
+  const firstTab = loadStore({
+    BroadcastChannel,
+    window: createWindow(),
+  });
+  const newTab = loadStore({
+    BroadcastChannel,
+    window: createWindow(),
+  });
+
+  firstTab.tokenStore.startCrossTabSync();
+  firstTab.tokenStore.set(tokens(), false);
+  newTab.tokenStore.startCrossTabSync();
+
+  assert.equal(
+    await newTab.tokenStore.requestSharedSession(),
+    true,
+  );
+  assert.equal(newTab.tokenStore.get(), 'access-1');
+  assert.equal(newTab.sessionStorage.length, 1);
+  assert.equal(newTab.localStorage.length, 0);
+
+  const firstSession = firstTab.tokenStore.getSession();
+  assert.equal(
+    firstTab.tokenStore.rotate(
+      firstSession.id,
+      tokens('rotated'),
+    ),
+    true,
+  );
+  assert.equal(newTab.tokenStore.get(), 'access-rotated');
+
+  firstTab.tokenStore.clearEverywhere();
+  assert.equal(newTab.tokenStore.hasSession(), false);
 });

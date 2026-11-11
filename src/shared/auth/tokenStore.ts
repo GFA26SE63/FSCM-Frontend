@@ -14,6 +14,33 @@ export interface StoredSession extends SessionTokens {
 
 let unauthorizedHandler: (() => void) | null = null;
 
+const SESSION_CHANNEL = 'fscm.portal.session';
+const SESSION_UPDATED_EVENT =
+  'fscm:session-updated';
+const SESSION_CLEARED_EVENT =
+  'fscm:session-cleared';
+
+type SessionMessage =
+  | { type: 'request-session' }
+  | {
+      type: 'session';
+      session: StoredSession;
+    }
+  | { type: 'clear-session' };
+
+let sessionChannel: BroadcastChannel | null = null;
+let sessionRequestResolvers: Array<
+  (restored: boolean) => void
+> = [];
+
+function notify(
+  eventName: string,
+): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(eventName));
+  }
+}
+
 function read(storage: Storage): StoredSession | null {
   const raw = storage.getItem(SESSION_KEY);
 
@@ -46,6 +73,30 @@ function read(storage: Storage): StoredSession | null {
   } catch {
     return null;
   }
+}
+
+function validSession(
+  value: unknown,
+): value is StoredSession {
+  if (
+    typeof value !== 'object' ||
+    value === null
+  ) {
+    return false;
+  }
+
+  const session = value as Partial<StoredSession>;
+
+  return (
+    typeof session.id === 'string' &&
+    typeof session.remember === 'boolean' &&
+    typeof session.accessToken === 'string' &&
+    typeof session.accessTokenExpiresAt ===
+      'string' &&
+    typeof session.refreshToken === 'string' &&
+    typeof session.refreshTokenExpiresAt ===
+      'string'
+  );
 }
 
 function getSession(): StoredSession | null {
@@ -91,6 +142,87 @@ function clear(): void {
   removeLegacyKeys();
 }
 
+function saveSession(
+  session: StoredSession,
+): void {
+  const storage = session.remember
+    ? localStorage
+    : sessionStorage;
+
+  storage.setItem(
+    SESSION_KEY,
+    JSON.stringify(session),
+  );
+}
+
+function publish(
+  message: SessionMessage,
+): void {
+  sessionChannel?.postMessage(message);
+}
+
+function resolveSessionRequests(
+  restored: boolean,
+): void {
+  const resolvers = sessionRequestResolvers;
+  sessionRequestResolvers = [];
+
+  resolvers.forEach((resolve) => resolve(restored));
+}
+
+function getSessionChannel(): BroadcastChannel | null {
+  if (
+    sessionChannel ||
+    typeof BroadcastChannel === 'undefined'
+  ) {
+    return sessionChannel;
+  }
+
+  sessionChannel = new BroadcastChannel(
+    SESSION_CHANNEL,
+  );
+
+  sessionChannel.onmessage = (
+    event: MessageEvent<unknown>,
+  ) => {
+    const message = event.data as Partial<SessionMessage>;
+
+    if (message?.type === 'request-session') {
+      const session = getSession();
+
+      if (session) {
+        publish({ type: 'session', session });
+      }
+
+      return;
+    }
+
+    const current = getSession();
+
+    if (
+      message?.type === 'session' &&
+      validSession(message.session) &&
+      (!current || current.id === message.session.id)
+    ) {
+      // Chỉ nhận lại cùng sessionId để đồng bộ token rotation.
+      // Login vào tài khoản khác không được phép ghi đè một tab
+      // đang hoạt động bởi một message trễ của phiên cũ.
+      saveSession(message.session);
+      resolveSessionRequests(true);
+      notify(SESSION_UPDATED_EVENT);
+      return;
+    }
+
+    if (message?.type === 'clear-session') {
+      clear();
+      resolveSessionRequests(false);
+      notify(SESSION_CLEARED_EVENT);
+    }
+  };
+
+  return sessionChannel;
+}
+
 export const tokenStore = {
   getSession,
 
@@ -130,14 +262,8 @@ export const tokenStore = {
       remember,
     };
 
-    const storage = remember
-      ? localStorage
-      : sessionStorage;
-
-    storage.setItem(
-      SESSION_KEY,
-      JSON.stringify(session),
-    );
+    saveSession(session);
+    publish({ type: 'session', session });
 
     return session;
   },
@@ -155,25 +281,56 @@ export const tokenStore = {
       return false;
     }
 
-    const storage = current.remember
-      ? localStorage
-      : sessionStorage;
+    const next = {
+      ...current,
+      ...tokens,
+    } satisfies StoredSession;
 
-    storage.setItem(
-      SESSION_KEY,
-      JSON.stringify({
-        ...current,
-        ...tokens,
-      } satisfies StoredSession),
-    );
+    saveSession(next);
+    publish({ type: 'session', session: next });
 
     return true;
   },
 
   clear,
 
-  onUnauthorized(): void {
+  requestSharedSession(): Promise<boolean> {
+    if (getSession()) {
+      return Promise.resolve(true);
+    }
+
+    if (!getSessionChannel()) {
+      return Promise.resolve(false);
+    }
+
+    return new Promise((resolve) => {
+      sessionRequestResolvers.push(resolve);
+      publish({ type: 'request-session' });
+
+      window.setTimeout(() => {
+        const index = sessionRequestResolvers.indexOf(
+          resolve,
+        );
+
+        if (index >= 0) {
+          sessionRequestResolvers.splice(index, 1);
+          resolve(false);
+        }
+      }, 300);
+    });
+  },
+
+  clearEverywhere(): void {
     clear();
+    publish({ type: 'clear-session' });
+  },
+
+  startCrossTabSync(): void {
+    getSessionChannel();
+  },
+
+  onUnauthorized(): void {
+    this.clearEverywhere();
     unauthorizedHandler?.();
   },
 

@@ -59,11 +59,7 @@ export function AuthProvider({
   const queryClient = useQueryClient();
 
   const [status, setStatus] =
-    useState<AuthStatus>(() =>
-      tokenStore.hasSession()
-        ? 'loading'
-        : 'anonymous',
-    );
+    useState<AuthStatus>('loading');
 
   const [user, setUser] =
     useState<CurrentUser | null>(null);
@@ -92,7 +88,11 @@ export function AuthProvider({
     const refreshToken =
       tokenStore.getRefreshToken();
 
-    clearSession();
+    tokenStore.clearEverywhere();
+    queryClient.clear();
+    setUser(null);
+    setStatus('anonymous');
+    setSessionMessage(null);
 
     const logoutVersion = version.current;
 
@@ -110,7 +110,7 @@ export function AuthProvider({
           }
         });
     }
-  }, [clearSession]);
+  }, [queryClient]);
 
   useEffect(() => {
     let cancelled = false;
@@ -122,7 +122,22 @@ export function AuthProvider({
       );
     });
 
-    if (tokenStore.hasSession()) {
+    const restoreSession = async () => {
+      tokenStore.startCrossTabSync();
+
+      if (!tokenStore.hasSession()) {
+        // Phiên không được "ghi nhớ" vẫn phải hoạt động ở mọi tab
+        // đang mở, nhưng không được ghi refresh token vào localStorage.
+        await tokenStore.requestSharedSession();
+      }
+
+      if (!tokenStore.hasSession()) {
+        if (!cancelled) {
+          setStatus('anonymous');
+        }
+        return;
+      }
+
       // Shared HTTP tự refresh trước /me nếu
       // access token đã hoặc sắp hết hạn.
       void authApi.me().then(
@@ -152,10 +167,37 @@ export function AuthProvider({
           clearSession(errorMessage(error));
         },
       );
-    }
+    };
+
+    const handleRemoteSession = () => {
+      if (!tokenStore.hasSession()) {
+        clearSession();
+        return;
+      }
+
+      void restoreSession();
+    };
+
+    void restoreSession();
+    window.addEventListener(
+      'fscm:session-updated',
+      handleRemoteSession,
+    );
+    window.addEventListener(
+      'fscm:session-cleared',
+      handleRemoteSession,
+    );
 
     return () => {
       cancelled = true;
+      window.removeEventListener(
+        'fscm:session-updated',
+        handleRemoteSession,
+      );
+      window.removeEventListener(
+        'fscm:session-cleared',
+        handleRemoteSession,
+      );
       tokenStore.setUnauthorizedHandler(null);
     };
   }, [clearSession]);
