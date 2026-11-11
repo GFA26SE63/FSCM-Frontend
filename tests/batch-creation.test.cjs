@@ -31,7 +31,7 @@ const dates = source('shared/lib/dates.ts');
 const ids = source('shared/lib/ids.ts');
 
 test('1. UI: "Ngày sản xuất" and "Lô NSX" fields are removed from Batch Creation form', () => {
-  const formSource = fs.readFileSync(path.resolve(__dirname, '../src/features/receipts/pages/ReceiptFormPage.tsx'), 'utf8');
+  const formSource = fs.readFileSync(path.resolve(__dirname, '../src/features/receipts/pages/ReceiptFormPage.tsx'), 'utf8').replace(/\r\n/g, '\n');
 
   // Verify fields are absent from JSX labels
   assert.equal(formSource.includes('label="Ngày sản xuất (NSX)"'), false, 'Should not render Ngày sản xuất FormField');

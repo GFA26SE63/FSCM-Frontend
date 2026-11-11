@@ -127,7 +127,7 @@ export const roleOptions: {
 
 export const assignmentKinds: Record<CreatableRole, ScopeKind[]> = {
   Operator: [],
-  WarehouseKeeper: ['warehouses'],
+  WarehouseKeeper: ['warehouses', 'regions'],
   SalesManager: ['regions', 'sales-groups'],
   Sales: ['sales-groups'],
   Retailer: ['retailers'],
