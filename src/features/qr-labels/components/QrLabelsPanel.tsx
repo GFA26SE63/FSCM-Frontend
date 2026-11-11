@@ -98,6 +98,7 @@ function AuthorizedQrLabelsPanel({
 
           <div className="muted small">
             In lại dùng mã tem hiện có, không tạo thêm hàng tồn.
+            {' '}Tem đã tách giữ số lượng ban đầu để lưu lịch sử; chỉ dùng và in các tem con mới.
           </div>
         </div>
 
@@ -223,6 +224,7 @@ function AuthorizedQrLabelsPanel({
                       }}
                     >
                       {label.qrCode}
+                      {label.parentQrCode && <div className="muted small">Tách từ {label.parentQrCode}</div>}
                     </td>
 
                     <td>
@@ -268,7 +270,7 @@ function AuthorizedQrLabelsPanel({
                             title={
                               printable
                                 ? 'Xem bản in của tem hiện có'
-                                : 'Tem đã bị vô hiệu hóa'
+                                : 'Tem đã hết hiệu lực; hãy in các tem con thay thế'
                             }
                             onClick={() => {
                               setTarget({
