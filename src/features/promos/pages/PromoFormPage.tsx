@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
 import { Button, Callout, Card, Checkbox, DataTable, FormField, Input, PageHeader, SearchSelect, Select, type Column } from '@/shared/ui';
 import { addDays, vietnamDate } from '@/shared/lib';
 import { errorMessage } from '@/shared/api/errors';
 import { useCreatePromo, usePromoLookups } from '../hooks';
-import type { RetailerOption } from '../types';
+import type { PromoInput, RetailerOption } from '../types';
 
 const matches = (text: string, query: string) => {
   const clean = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').toLowerCase();
@@ -17,6 +17,7 @@ export function PromoFormPage() {
   const navigate = useNavigate();
   const { products, retailers } = usePromoLookups();
   const create = useCreatePromo();
+  const submission = useRef<{ signature: string; requestId: string } | null>(null);
   const today = vietnamDate();
   const [name, setName] = useState('');
   const [from, setFrom] = useState(today);
@@ -49,12 +50,16 @@ export function PromoFormPage() {
     setTried(true);
     if (invalid || create.isPending) return;
     try {
-      const saved = await create.mutateAsync({ name: name.trim(), campaignMode: mode,
+      const input: Omit<PromoInput, 'requestId'> = { name: name.trim(), campaignMode: mode,
         minimumQuantity: mode === 'PerSku' ? Math.min(...rows.map((r) => Number(r.minimumQuantity))) : Number(minQty),
         discountPercent: mode === 'PerSku' ? Math.max(...rows.map((r) => Number(r.discountPercent))) : Number(pct),
         productRules: mode === 'PerSku' ? rows.map((r) => ({ productId: r.productId, minimumQuantity: Number(r.minimumQuantity), discountPercent: Number(r.discountPercent) })) : [],
         startAt: `${from}T00:00:00+07:00`, endAt: `${to}T23:59:59.999+07:00`,
-        productIds: mode === 'PerSku' ? rows.map((r) => r.productId) : productIds, categoryIds: [], retailerIds, activateOnSave });
+        productIds: mode === 'PerSku' ? rows.map((r) => r.productId) : productIds, categoryIds: [], retailerIds, activateOnSave };
+      const signature = JSON.stringify(input);
+      if (submission.current?.signature !== signature)
+        submission.current = { signature, requestId: crypto.randomUUID() };
+      const saved = await create.mutateAsync({ ...input, requestId: submission.current.requestId });
       navigate(`/promos/${saved.id}`);
     } catch { /* Keep the form and show the server error. */ }
   };

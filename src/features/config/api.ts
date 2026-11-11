@@ -18,7 +18,7 @@ export const configApi = {
       ['allocation.service_radius_meters', Math.round(s.dmaxRetailerKm * 1000)],
       ['order.order_step_cartons', s.orderStepCartons], ['mlor.default_ratio', s.defaultMlorRatio],
     ] as const;
-    for (const [key, value] of entries) await put(`/configurations/${key}`, { value });
+    await put('/configurations/batch', { entries: entries.map(([key, value]) => ({ key, value })) });
     return s;
   },
   save: async (d: ConfigDraft) => { await configApi.saveSettings(d.settings); },

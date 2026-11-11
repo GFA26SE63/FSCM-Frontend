@@ -83,3 +83,42 @@ test('shelf-life handler rejects overlapping tiers and today before sending a re
     assert.ok(message);
   }
 });
+
+test('campaign API sends every SKU rule and activation flag in one group request', async () => {
+  const calls = [];
+  const { promoApi } = load('features/promos/api.ts', { '@/shared/api/http': {
+    post: async (url, body) => { calls.push({ url, body }); return [{ id: 'first' }, { id: 'second' }]; },
+  } });
+  const input = { requestId: 'request', campaignMode: 'PerSku', activateOnSave: true,
+    productRules: [{ productId: 'a', minimumQuantity: 10, discountPercent: 5 }, { productId: 'b', minimumQuantity: 30, discountPercent: 7 }] };
+  assert.equal((await promoApi.create(input)).id, 'first');
+  assert.deepEqual(calls, [{ url: '/promotions/campaigns', body: input }]);
+});
+
+test('campaign form reuses its request ID after a lost response and changes it for edited input', async () => {
+  const today = dates.vietnamDate();
+  const state = ['Campaign retry', today, dates.addDays(today, 2), 'PerSku',
+    [{ productId: 'a', minimumQuantity: '10', discountPercent: '5' }, { productId: 'b', minimumQuantity: '30', discountPercent: '7' }],
+    '', '', [], [], '', false];
+  const ref = { current: null };
+  const calls = [];
+  let index = 0;
+  const { PromoFormPage } = load('features/promos/pages/PromoFormPage.tsx', {
+    react: { useState: () => [state[index++], () => {}], useRef: () => ref },
+    '@/shared/router/compat': { useNavigate: () => () => {} },
+    '@/shared/lib': dates, '@/shared/api/errors': { errorMessage: String },
+    '@/shared/ui': Object.fromEntries(['Button', 'Callout', 'Card', 'Checkbox', 'DataTable', 'FormField', 'Input', 'PageHeader', 'SearchSelect', 'Select'].map(key => [key, key])),
+    '../hooks': { usePromoLookups: () => ({ products: { data: [] }, retailers: { data: [] } }),
+      useCreatePromo: () => ({ mutateAsync: async input => { calls.push(input); throw new Error('Response lost'); } }) },
+  });
+  const find = node => !node || typeof node !== 'object' ? undefined : node.type === 'Button' && node.props.children === 'Lưu và kích hoạt' ? node : [node.props?.children].flat(Infinity).map(find).find(Boolean);
+  const button = find(PromoFormPage());
+  await button.props.onClick(); await button.props.onClick();
+  assert.equal(calls.length, 2);
+  assert.match(calls[0].requestId, /^[a-f0-9-]{36}$/);
+  assert.equal(calls[0].requestId, calls[1].requestId);
+  assert.deepEqual(calls[0].productRules.map(rule => rule.discountPercent), [5, 7]);
+  state[0] = 'Edited campaign'; index = 0;
+  await find(PromoFormPage()).props.onClick();
+  assert.notEqual(calls[0].requestId, calls[2].requestId);
+});
