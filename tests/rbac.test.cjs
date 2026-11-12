@@ -37,11 +37,11 @@ const permissions = source('shared/auth/permissions.ts', {
 const roles = ['Admin', 'Operator', 'WarehouseKeeper', 'SalesManager'];
 const user = (role) => ({ id: 'user-' + role, role, name: role, email: role + '@example.com' });
 
-test('only Admin manages groups and loyalty; collection stays Operator-only', () => {
+test('Admin has every portal capability while delegated roles stay scoped', () => {
   for (const role of roles) {
     assert.equal(permissions.can(user(role), 'salesGroups.manage'), role === 'Admin');
     assert.equal(permissions.can(user(role), 'loyalty.manage'), role === 'Admin');
-    assert.equal(permissions.can(user(role), 'payments.collect'), role === 'Operator');
+    assert.equal(permissions.can(user(role), 'payments.collect'), ['Admin', 'Operator'].includes(role));
     assert.equal(permissions.can(user(role), 'territory.assign'), ['Admin', 'SalesManager'].includes(role));
   }
   assert.throws(() => permissions.assertPermission(null, 'users.manage'), { status: 401 });

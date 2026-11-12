@@ -364,12 +364,11 @@ test('Goods Receipt Separation: Goods Receipt links to Batch Detail without embe
   assert.ok(detailCode.includes('batch={b}'));
 });
 
-test('Strict RBAC Verification for Batch QR Generation (No hardcoded Admin bypass, natural Vietnamese)', () => {
+test('Admin retains full portal access, including Batch QR Generation', () => {
   const permCode = fs.readFileSync(path.resolve(__dirname, '../src/shared/auth/permissions.ts'), 'utf8');
 
-  // Verify no hardcoded Admin bypass in can()
-  assert.ok(!permCode.includes("user.role === 'Admin'"));
-  assert.ok(!permCode.includes('user.role === "Admin"'));
+  // The shared permission helper intentionally grants Admin every portal action.
+  assert.ok(permCode.includes("user.role === 'Admin'"));
 
   // Admin with required permission can generate QR
   const adminUser = user('Admin');
