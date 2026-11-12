@@ -139,11 +139,11 @@ export function UserDialog({ user, onClose }: Props) {
     if (
       !user &&
       role !== 'Retailer' &&
-      (password.length < 12 ||
-        !/[A-Z]/.test(password) ||
-        !/[a-z]/.test(password) ||
-        !/\d/.test(password) ||
-        !/[^A-Za-z0-9]/.test(password))
+      (password.trim().length < 12 ||
+        !/[A-Z]/.test(password.trim()) ||
+        !/[a-z]/.test(password.trim()) ||
+        !/\d/.test(password.trim()) ||
+        !/[^A-Za-z0-9]/.test(password.trim()))
     ) {
       next.password =
         'Mật khẩu tối thiểu 12 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.';
@@ -207,7 +207,7 @@ export function UserDialog({ user, onClose }: Props) {
             email: email.trim().toLowerCase(),
             role,
             phone: phone.trim(),
-            password,
+            password: password.trim(),
           });
 
           // Ghi nhớ ngay sau POST thành công.
