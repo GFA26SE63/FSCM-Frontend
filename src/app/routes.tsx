@@ -54,16 +54,18 @@ const kpi = () => import('@/features/kpi');
 const complaints = () => import('@/features/complaints');
 const config = () => import('@/features/config');
 const dashboard = () => import('@/features/dashboard');
+const reports = () => import('@/features/reports');
 
 /** Single source for routing + sidebar menu (matching prototype prod menuAll order and roles). */
 export const APP_ROUTES: AppRoute[] = [
   { key: 'dashboard', label: 'Tổng quan & báo cáo', roles: [A, OP, WK, SM], list: page(dashboard, 'DashboardPage') },
+  { key: 'reports', label: 'Báo cáo đổi quà & chương trình', roles: [A, OP], list: page(reports, 'OperationsReportsPage') },
   { key: 'orders', label: 'Đơn hàng', roles: [A, OP], badge: 'orders', list: page(orders, 'OrdersPage'), sub: [{ path: ':orderId', element: page(orders, 'OrderDetailPage') }] },
   { key: 'allocation', label: 'Allocation real-time', roles: [A, OP], list: page(allocation, 'AllocationRunPage') },
   { key: 'debts', label: 'Công nợ', roles: [A, OP], badge: 'debts', list: page(debts, 'DebtsPage') },
   { key: 'refunds', label: 'Hoàn tiền', roles: [A, OP], list: page(refunds, 'RefundsPage'), sub: [{ path: ':id', element: page(refunds, 'RefundDetailPage') }] },
   { key: 'runpicking', label: 'Phiếu soạn hàng', roles: [A, OP, WK], list: page(runpicking, 'RunPickingPage') },
-  { key: 'readiness', label: 'Sẵn sàng xuất', roles: [A, OP, WK], list: page(shipments, 'OrderReadinessPage') },
+  { key: 'readiness', label: 'Xuất kho', roles: [A, OP, WK], list: page(shipments, 'OrderReadinessPage') },
   {
     key: 'receipts', label: 'Nhập kho', roles: [A, WK], list: page(receipts, 'ReceiptsPage'),
     sub: [{ path: 'new', element: page(receipts, 'ReceiptFormPage') }, { path: ':code', element: page(receipts, 'ReceiptDetailPage') }],

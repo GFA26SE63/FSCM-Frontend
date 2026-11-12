@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { useNavigate } from '@/shared/router/compat';
+import { useEnumParam } from '@/shared/router/listState';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
 import { errorMessage } from '@/shared/api/errors';
@@ -29,6 +30,8 @@ import { VehicleDialog } from '../components/VehicleDialog';
 import { DriverDialog } from '../components/DriverDialog';
 import { FleetStatusDialog } from '../components/FleetStatusDialog';
 
+const FLEET_TABS = ['vehicles', 'drivers'] as const;
+
 export function FleetPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -38,7 +41,7 @@ export function FleetPage() {
   const drivers = useDrivers();
   const warehouses = useFleetWarehouses();
 
-  const [tab, setTab] = useState<'vehicles' | 'drivers'>('vehicles');
+  const [tab, setTab] = useEnumParam('tab', FLEET_TABS, 'vehicles');
   const [vehicleDialog, setVehicleDialog] =
     useState<{ item: Vehicle | null } | null>(null);
   const [driverDialog, setDriverDialog] =
@@ -132,6 +135,7 @@ export function FleetPage() {
       {tab === 'vehicles' ? (
         <DataTable
           key="vehicles"
+          stateKey="vehicles"
           title="Danh sách xe"
           rows={vehicles.data}
           loading={vehicles.isLoading}
@@ -196,6 +200,7 @@ export function FleetPage() {
       ) : (
         <DataTable
           key="drivers"
+          stateKey="drivers"
           title="Danh sách tài xế"
           rows={drivers.data}
           loading={drivers.isLoading}

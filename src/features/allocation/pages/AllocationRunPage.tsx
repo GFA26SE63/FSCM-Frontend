@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from '@/shared/router/compat';
+import { useDateParam } from '@/shared/router/listState';
 import { Button, DataTable, Input, PageHeader, Stat, StatusChip, type Column } from '@/shared/ui';
 import { formatCases, formatMoney, formatShortDateTime } from '@/shared/lib';
 import { useOrders } from '@/features/orders/hooks';
@@ -9,8 +10,8 @@ import type { OrderSummary } from '@/features/orders/types';
 export function AllocationRunPage() {
   const navigate = useNavigate();
   const query = useOrders();
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const [from, setFrom] = useDateParam('from', { resets: ['page'] });
+  const [to, setTo] = useDateParam('to', { resets: ['page'] });
 
   const rows = useMemo(
     () => (query.data ?? []).filter((order) => {

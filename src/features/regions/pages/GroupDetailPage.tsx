@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Eye } from 'lucide-react';
 import { useNavigate, useParams } from '@/shared/router/compat';
+import { useReturnToList } from '@/shared/router/listState';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
 import {
@@ -28,6 +29,7 @@ import { GroupDialog, TransferStaffDialog } from '../components/RegionDialogs';
 export function GroupDetailPage() {
   const { code = '' } = useParams();
   const navigate = useNavigate();
+  const returnToList = useReturnToList();
   const toast = useToast();
   const { user } = useAuth();
 
@@ -121,7 +123,7 @@ export function GroupDetailPage() {
       await deleteGroupMutation.mutateAsync(g.id || g.code);
       toast.show('Đã xóa nhóm bán hàng.');
       setDeleteConfirm(false);
-      navigate('/regions');
+      returnToList('/regions');
     } catch {
       toast.show('Không thể xóa nhóm bán hàng vì vẫn còn nhân viên đang được phân công.');
       setDeleteConfirm(false);
