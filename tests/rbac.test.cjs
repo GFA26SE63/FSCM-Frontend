@@ -37,6 +37,38 @@ const permissions = source('shared/auth/permissions.ts', {
 const roles = ['Admin', 'Operator', 'WarehouseKeeper', 'SalesManager'];
 const user = (role) => ({ id: 'user-' + role, role, name: role, email: role + '@example.com' });
 
+test('overview offers three report links and highlights only the selected report for authorized roles', () => {
+  const { MemoryRouter } = require('react-router-dom');
+  const router = source('shared/router/compat.tsx');
+  const routes = source('app/routes.tsx');
+  let role = 'Admin';
+  const { Sidebar } = source('app/layout/Sidebar.tsx', {
+    '@/shared/router/compat': router,
+    '@/shared/auth/AuthContext': { useAuth: () => ({ user: user(role), logout() {} }) },
+    '@/shared/auth/roles': source('shared/auth/roles.ts'),
+    '../routes': routes,
+  });
+  for (role of ['Admin', 'Operator']) {
+    for (const kind of ['redemptions', 'loyalty', 'promotions']) {
+      const html = renderToStaticMarkup(React.createElement(MemoryRouter, {
+        initialEntries: [`/reports?kind=${kind}`],
+      }, React.createElement(Sidebar)));
+      assert.match(html, /Tổng quan<\/span>/);
+      for (const report of ['redemptions', 'loyalty', 'promotions'])
+        assert.ok(html.includes(`href="/reports?kind=${report}"`));
+      assert.equal((html.match(/class="menu menu-sub active(?: active)?"/g) ?? []).length, 1);
+      assert.match(html, new RegExp(`class="menu menu-sub active(?: active)?"[^>]*href="/reports\\?kind=${kind}"`));
+      assert.ok(!html.includes('Báo cáo đổi quà &amp; chương trình'));
+    }
+  }
+  for (role of ['WarehouseKeeper', 'SalesManager']) {
+    const html = renderToStaticMarkup(React.createElement(MemoryRouter, {
+      initialEntries: ['/dashboard'],
+    }, React.createElement(Sidebar)));
+    assert.ok(!html.includes('href="/reports'));
+  }
+});
+
 test('Admin has every portal capability while delegated roles stay scoped', () => {
   for (const role of roles) {
     assert.equal(permissions.can(user(role), 'salesGroups.manage'), role === 'Admin');

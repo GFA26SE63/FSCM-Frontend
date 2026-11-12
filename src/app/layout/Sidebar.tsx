@@ -8,7 +8,7 @@ const initials = (name: string) => name.split(' ').slice(-2).map((s) => s[0]).jo
 
 /** Sidebar topics (feature groups). Routes not listed fall into "Khác". */
 const MENU_GROUPS: { key: string; label: string; keys: string[] }[] = [
-  { key: 'overview', label: 'Tổng quan', keys: ['dashboard', 'kpi'] },
+  { key: 'overview', label: 'Tổng quan', keys: ['dashboard', 'reports', 'kpi'] },
   { key: 'sales', label: 'Bán hàng & Tài chính', keys: ['orders', 'allocation', 'debts', 'refunds', 'complaints'] },
   { key: 'warehouse', label: 'Kho vận', keys: ['runpicking', 'readiness', 'receipts', 'batches', 'batchpromo', 'disposal', 'whtransfer', 'rotation', 'fleet'] },
   { key: 'customer', label: 'Khách hàng & Khuyến mãi', keys: ['retailers', 'promos', 'loyalty', 'redeem', 'gifts'] },
@@ -75,12 +75,15 @@ export function Sidebar() {
               </button>
               {isOpen && (
                 <div className="menu-group-items">
-                  {g.items.map((r) => (
-                    <NavLink key={r.key} to={`/${r.key}`} className={({ isActive }) => `menu menu-sub${isActive ? ' active' : ''}`}>
+                  {g.items.flatMap((r) => (r.menuLinks ?? [{ key: r.key, label: r.label, to: `/${r.key}` }]).map(link => (
+                    <NavLink key={link.key} to={link.to}
+                      isActive={(match, location) => !!match && (!r.menuLinks ||
+                        (new URLSearchParams(location.search).get('kind') ?? 'redemptions') === new URLSearchParams(link.to.split('?')[1]).get('kind'))}
+                      className={({ isActive }) => `menu menu-sub${isActive ? ' active' : ''}`}>
                       <span className="menu-dot" />
-                      <span style={{ flex: 1 }}>{r.label}</span>
+                      <span style={{ flex: 1 }}>{link.label}</span>
                     </NavLink>
-                  ))}
+                  )))}
                 </div>
               )}
             </div>

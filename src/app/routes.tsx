@@ -17,6 +17,8 @@ export interface AppRoute {
   badge?: MenuBadgeKey;
   /** Hidden from sidebar menu (e.g. preserved routes not in prototype prod sidebar). */
   hidden?: boolean;
+  /** Separate sidebar entries sharing one page, selected by query string. */
+  menuLinks?: { key: string; label: string; to: string }[];
   list: LazyExoticComponent<ComponentType>;
   /** Extra sub-routes relative to /<key> (detail, create, scan …). */
   sub?: { path: string; element: LazyExoticComponent<ComponentType> }[];
@@ -59,7 +61,11 @@ const reports = () => import('@/features/reports');
 /** Single source for routing + sidebar menu (matching prototype prod menuAll order and roles). */
 export const APP_ROUTES: AppRoute[] = [
   { key: 'dashboard', label: 'Tổng quan & báo cáo', roles: [A, OP, WK, SM], list: page(dashboard, 'DashboardPage') },
-  { key: 'reports', label: 'Báo cáo đổi quà & chương trình', roles: [A, OP], list: page(reports, 'OperationsReportsPage') },
+  { key: 'reports', label: 'Báo cáo đổi quà & chương trình', roles: [A, OP], list: page(reports, 'OperationsReportsPage'), menuLinks: [
+    { key: 'report-redemptions', label: 'Báo cáo đổi quà', to: '/reports?kind=redemptions' },
+    { key: 'report-loyalty', label: 'Báo cáo loyalty', to: '/reports?kind=loyalty' },
+    { key: 'report-promotions', label: 'Báo cáo khuyến mãi', to: '/reports?kind=promotions' },
+  ] },
   { key: 'orders', label: 'Đơn hàng', roles: [A, OP], badge: 'orders', list: page(orders, 'OrdersPage'), sub: [{ path: ':orderId', element: page(orders, 'OrderDetailPage') }] },
   { key: 'allocation', label: 'Allocation real-time', roles: [A, OP], list: page(allocation, 'AllocationRunPage') },
   { key: 'debts', label: 'Công nợ', roles: [A, OP], badge: 'debts', list: page(debts, 'DebtsPage') },

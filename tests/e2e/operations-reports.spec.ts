@@ -50,4 +50,13 @@ test('operator reports filter, show details, switch kinds and export every page'
   await page.getByRole('tab', { name: 'Sử dụng khuyến mãi', exact: true }).click();
   await expect.poll(() => requests.at(-1)?.pathname).toContain('/promotions');
   await expect(page.getByRole('columnheader', { name: 'Tiền giảm (đ)' })).toBeVisible();
+  const menu = page.getByRole('navigation', { name: 'Menu', exact: true });
+  await menu.getByRole('link', { name: 'Báo cáo đổi quà', exact: true }).click();
+  await expect(page).toHaveURL(/kind=redemptions/);
+  await expect(page.getByRole('tab', { name: 'Báo cáo đổi quà', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await menu.getByRole('link', { name: 'Báo cáo loyalty', exact: true }).click();
+  await expect(page.getByRole('columnheader', { name: 'Biến động điểm' })).toBeVisible();
+  await expect(menu.getByRole('link', { name: 'Báo cáo loyalty', exact: true })).toHaveClass(/active/);
+  await page.goBack();
+  await expect(page.getByRole('tab', { name: 'Báo cáo đổi quà', exact: true })).toHaveAttribute('aria-selected', 'true');
 });
