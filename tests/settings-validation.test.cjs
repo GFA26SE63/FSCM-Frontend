@@ -104,6 +104,7 @@ test('campaign form reuses its request ID after a lost response and changes it f
   const calls = [];
   let index = 0;
   const { PromoFormPage } = load('features/promos/pages/PromoFormPage.tsx', {
+    '../components/PromoSelectionModal': { PromoSelectionModal: 'PromoSelectionModal' },
     react: { useState: () => [state[index++], () => {}], useRef: () => ref },
     '@/shared/router/compat': { useNavigate: () => () => {} },
     '@/shared/lib': dates, '@/shared/api/errors': { errorMessage: String },
