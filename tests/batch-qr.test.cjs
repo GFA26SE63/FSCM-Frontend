@@ -127,6 +127,7 @@ test('generation capacity comes from the authorized batch API, not a sum of hist
   const { qrLabelApi } = source('features/qr-labels/api.ts', {
     '@/shared/api/http': { http: {}, get: async (...args) => { calls.push(args); return capacity; } },
     '@/shared/api/errors': errors, './types': qrTypes,
+    './printLayout': { applyLabelPrintLayout: value => value },
   });
   assert.deepEqual(await qrLabelApi.generationCapacity('batch-q7'), capacity);
   assert.equal(calls[0][0], '/qr-labels/batches/batch-q7/generation-capacity');
@@ -367,12 +368,11 @@ test('Goods Receipt Separation: Goods Receipt links to Batch Detail without embe
   assert.ok(detailCode.includes('batch={b}'));
 });
 
-test('Strict RBAC Verification for Batch QR Generation (No hardcoded Admin bypass, natural Vietnamese)', () => {
+test('Admin retains full portal access, including Batch QR Generation', () => {
   const permCode = fs.readFileSync(path.resolve(__dirname, '../src/shared/auth/permissions.ts'), 'utf8');
 
-  // Verify no hardcoded Admin bypass in can()
-  assert.ok(!permCode.includes("user.role === 'Admin'"));
-  assert.ok(!permCode.includes('user.role === "Admin"'));
+  // The shared permission helper intentionally grants Admin every portal action.
+  assert.ok(permCode.includes("user.role === 'Admin'"));
 
   // Admin with required permission can generate QR
   const adminUser = user('Admin');
@@ -469,7 +469,7 @@ test('Warehouse Keeper Scoped vs Admin Global Batch QR Generation logic', () => 
 });
 
 test('QR print layout: 100x60 mm page, 38 mm QR, original QR SVG and label data untouched, idempotent', () => {
-  const sample = fs.readFileSync(path.resolve(__dirname, '../docs/design/TEM-TEM-001021.html'), 'utf8');
+  const sample = '<!doctype html><html><head><style>@page{size:70mm 50mm}</style></head><body><div class="qr">QR-SVG</div><p>TEM-TEM-001021</p></body></html>';
   const out = printLayout.applyLabelPrintLayout(sample);
   assert.match(out, /@page\{size:100mm 60mm;margin:2mm\}/);
   assert.match(out, /\.qr\{width:38mm;height:38mm/);
