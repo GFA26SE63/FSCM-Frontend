@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { Button } from './Button';
+import { UrlStateScope } from './urlStateScope';
 
 interface ModalProps {
   open: boolean;
@@ -39,7 +40,7 @@ export function Modal({ open, title, subtitle, onClose, children, footer, width 
           </Button>
         </div>
         <div className="modal-bd" style={{ flex: 1 }}>
-          {children}
+          <UrlStateScope.Provider value={false}>{children}</UrlStateScope.Provider>
         </div>
         {footer && <div className="modal-ft">{footer}</div>}
       </div>
@@ -61,7 +62,7 @@ export function Drawer({ open, title, subtitle, onClose, children, footer, width
           <Button onClick={onClose}>Đóng</Button>
         </div>
         <div className="modal-bd" style={{ flex: 1 }}>
-          {children}
+          <UrlStateScope.Provider value={false}>{children}</UrlStateScope.Provider>
         </div>
         {footer && <div className="modal-ft">{footer}</div>}
       </aside>

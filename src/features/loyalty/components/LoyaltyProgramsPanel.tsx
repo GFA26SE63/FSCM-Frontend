@@ -33,7 +33,7 @@ export function LoyaltyProgramsPanel() {
   ];
 
   return <>
-    <DataTable title="Chương trình loyalty" rows={query.data}
+    <DataTable stateKey="programs" title="Chương trình loyalty" rows={query.data}
       loading={query.isLoading} error={query.error} columns={columns}
       rowKey={(p) => p.id} searchPlaceholder="Mã hoặc tên chương trình…"
       emptyText="Chưa có chương trình loyalty phù hợp."

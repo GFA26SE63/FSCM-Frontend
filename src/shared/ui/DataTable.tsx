@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { paramName, parsePage, useQueryParams, type ParamUpdates } from '../router/listState';
+import { UrlStateScope } from './urlStateScope';
 import { Button } from './Button';
 import { Input, Select } from './FormField';
 import { EmptyState } from './EmptyState';
@@ -26,6 +28,8 @@ export interface FilterDef<T> {
   value: (row: T) => string;
   /** Initial selection (default "Tất cả"). */
   initial?: string;
+  /** Tên tham số URL; mặc định suy ra từ label (vd. "Trạng thái" → "trangthai"). */
+  param?: string;
 }
 
 export interface ServerPaging {
@@ -62,9 +66,129 @@ interface DataTableProps<T> {
   /** When set, paging/search are delegated to the server (?page=&size=&search=). Filters still apply client-side. */
   server?: ServerPaging;
   emptyText?: string;
+  /**
+   * Namespace tham số URL của bảng. Bắt buộc khi một màn hình có nhiều bảng
+   * (vd. theo tab) để trạng thái từng bảng không lẫn nhau.
+   */
+  stateKey?: string;
+  /** false: giữ trạng thái cục bộ, không ghi lên URL (bảng trong form). Bảng trong Modal/Drawer tự động là false. */
+  urlState?: boolean;
 }
 
 const ALL = 'Tất cả';
+/** Giá trị URL khi người dùng chọn "Tất cả" trong khi mặc định của bộ lọc là một giá trị khác. */
+const ALL_TOKEN = '*';
+const SEARCH_DEBOUNCE_MS = 350;
+
+const optionValue = (o: string | SelectOption) => (typeof o === 'string' ? o : o.value);
+
+/** "Trạng thái" → "trangthai": tên tham số ổn định, chỉ ký tự ASCII. */
+function filterParamName<T>(f: FilterDef<T>): string {
+  if (f.param) return f.param;
+  const slug = f.label
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+  return slug || 'filter';
+}
+
+/**
+ * Trạng thái tìm kiếm / bộ lọc / trang của bảng. Mặc định lưu trên URL (giữ nguyên khi mở chi tiết
+ * rồi quay lại, tải lại trang, Back/Forward); dùng state cục bộ khi urlState = false hoặc nằm trong hộp thoại.
+ */
+function useTableState<T>(filters: FilterDef<T>[], persist: boolean, namespace: string | undefined) {
+  const { params, setParams, hasRouter } = useQueryParams();
+  const p = (key: string) => paramName(namespace, key);
+  const defaultOf = (f: FilterDef<T>) => f.initial ?? ALL;
+
+  const [localSearch, setLocalSearch] = useState('');
+  const [localFv, setLocalFv] = useState<Record<string, string>>(() => Object.fromEntries(filters.map((f) => [f.label, defaultOf(f)])));
+  const [localPage, setLocalPage] = useState(1);
+
+  if (!persist || !hasRouter) {
+    return {
+      search: localSearch,
+      fv: localFv,
+      page: localPage,
+      setSearch: (v: string) => {
+        setLocalSearch(v);
+        setLocalPage(1);
+      },
+      setFilter: (label: string, v: string) => {
+        setLocalFv((s) => ({ ...s, [label]: v }));
+        setLocalPage(1);
+      },
+      setPage: setLocalPage,
+      clear: () => {
+        setLocalSearch('');
+        setLocalFv(Object.fromEntries(filters.map((f) => [f.label, ALL])));
+        setLocalPage(1);
+      },
+    };
+  }
+
+  // Giá trị trên URL không thuộc danh sách lựa chọn → về mặc định.
+  const fv: Record<string, string> = Object.fromEntries(
+    filters.map((f) => {
+      const raw = params.get(p(filterParamName(f)));
+      if (raw === null) return [f.label, defaultOf(f)];
+      if (raw === ALL_TOKEN) return [f.label, ALL];
+      const values = f.options.map(optionValue);
+      return [f.label, values.length > 0 && !values.includes(raw) ? defaultOf(f) : raw];
+    }),
+  );
+  const encode = (f: FilterDef<T>, v: string) => (v === defaultOf(f) ? null : v === ALL ? ALL_TOKEN : v);
+
+  return {
+    search: params.get(p('q')) ?? '',
+    fv,
+    page: parsePage(params.get(p('page'))),
+    setSearch: (v: string) => setParams({ [p('q')]: v, [p('page')]: null }),
+    setFilter: (label: string, v: string) => {
+      const f = filters.find((x) => x.label === label);
+      if (f) setParams({ [p(filterParamName(f))]: encode(f, v), [p('page')]: null });
+    },
+    setPage: (n: number) => setParams({ [p('page')]: n > 1 ? n : null }),
+    clear: () => {
+      const updates: ParamUpdates = { [p('q')]: null, [p('page')]: null };
+      for (const f of filters) updates[p(filterParamName(f))] = encode(f, ALL);
+      setParams(updates);
+    },
+  };
+}
+
+/** Ô tìm kiếm phía server: gõ liên tục chỉ gửi một yêu cầu sau khi dừng gõ. */
+function useDebouncedServerSearch(server: ServerPaging | undefined) {
+  const external = server?.search ?? '';
+  const [draft, setDraft] = useState(external);
+  const sent = useRef(external);
+  const onChange = server?.onSearchChange;
+
+  // Giá trị đổi từ bên ngoài (Back/Forward, tải lại) → cập nhật ô nhập.
+  useEffect(() => {
+    if (external !== sent.current) {
+      sent.current = external;
+      setDraft(external);
+    }
+  }, [external]);
+
+  useEffect(() => {
+    if (!onChange || draft === sent.current) return;
+    const t = window.setTimeout(() => {
+      sent.current = draft;
+      onChange(draft);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(t);
+  }, [draft, onChange]);
+
+  const reset = () => {
+    sent.current = '';
+    setDraft('');
+  };
+  return { draft, setDraft, reset };
+}
 
 const cellText = <T,>(c: Column<T>, row: T): string => {
   const v = c.text ? c.text(row) : (row as Record<string, unknown>)[c.key];
@@ -96,10 +220,13 @@ export function DataTable<T>({
   pageSize = 10,
   server,
   emptyText = 'Không có bản ghi phù hợp bộ lọc.',
+  stateKey,
+  urlState = true,
 }: DataTableProps<T>) {
-  const [search, setSearch] = useState('');
-  const [fv, setFv] = useState<Record<string, string>>(() => Object.fromEntries(filters.map((f) => [f.label, f.initial ?? ALL])));
-  const [page, setPage] = useState(1);
+  const inUrlScope = useContext(UrlStateScope);
+  const state = useTableState(filters, urlState && inUrlScope, stateKey);
+  const { search, fv, page } = state;
+  const serverSearch = useDebouncedServerSearch(server);
 
   const q = (server ? '' : search).trim().toLowerCase();
   const filtered = useMemo(() => {
@@ -110,21 +237,28 @@ export function DataTable<T>({
     });
   }, [rows, q, fv, filters, columns]);
 
-  useEffect(() => setPage(1), [q, fv]);
-
   const total = server ? server.total : filtered.length;
   const size = server ? server.size : pageSize;
-  const curPage = server ? server.page : page;
   const pageCount = Math.max(1, Math.ceil(total / size));
+  const ready = !loading && rows !== undefined;
+  // Trang đã lưu không còn tồn tại (dữ liệu thay đổi) → hiển thị trang hợp lệ gần nhất.
+  const curPage = server ? server.page : ready ? Math.min(page, pageCount) : page;
+  const serverPageChange = server?.onPageChange;
+  const serverOutOfRange = !!server && ready && server.total > 0 && server.page > pageCount;
+  useEffect(() => {
+    if (serverOutOfRange) serverPageChange?.(pageCount);
+  }, [serverOutOfRange, serverPageChange, pageCount]);
   const visible = server ? filtered : filtered.slice((curPage - 1) * size, curPage * size);
   const from = total === 0 ? 0 : (curPage - 1) * size + 1;
   const to = Math.min(total, curPage * size);
-  const goto = (p: number) => (server ? server.onPageChange(p) : setPage(p));
+  const goto = (p: number) => (server ? server.onPageChange(p) : state.setPage(p));
 
   const clear = () => {
-    setSearch('');
-    server?.onSearchChange('');
-    setFv(Object.fromEntries(filters.map((f) => [f.label, ALL])));
+    state.clear();
+    if (server) {
+      serverSearch.reset();
+      server.onSearchChange('');
+    }
   };
 
   const pages = Array.from({ length: pageCount }, (_, i) => i + 1).filter((p) => p === 1 || p === pageCount || Math.abs(p - curPage) <= 2);
@@ -144,15 +278,15 @@ export function DataTable<T>({
               Tìm kiếm
               <Input
                 placeholder={searchPlaceholder}
-                value={server ? server.search : search}
-                onChange={(e) => (server ? server.onSearchChange(e.target.value) : setSearch(e.target.value))}
+                value={server ? serverSearch.draft : search}
+                onChange={(e) => (server ? serverSearch.setDraft(e.target.value) : state.setSearch(e.target.value))}
               />
             </label>
             {filters.map((f) => (
               <label className="lbl" key={f.label}>
                 {f.label}
-                {f.searchable ? <SearchSelect value={fv[f.label] ?? ALL} options={[ALL, ...f.options]} onChange={(v) => setFv((s) => ({ ...s, [f.label]: v || ALL }))} />
-                  : <Select value={fv[f.label] ?? ALL} options={[ALL, ...f.options]} onChange={(e) => setFv((s) => ({ ...s, [f.label]: e.target.value }))} />}
+                {f.searchable ? <SearchSelect value={fv[f.label] ?? ALL} options={[ALL, ...f.options]} onChange={(v) => state.setFilter(f.label, v || ALL)} />
+                  : <Select value={fv[f.label] ?? ALL} options={[ALL, ...f.options]} onChange={(e) => state.setFilter(f.label, e.target.value)} />}
               </label>
             ))}
             {filterExtra}

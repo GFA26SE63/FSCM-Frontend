@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowRightLeft, Eye, Pause, Pencil, Play, Trash2 } from 'lucide-react';
 import { useNavigate } from '@/shared/router/compat';
+import { useEnumParam } from '@/shared/router/listState';
 import {
   ActionDropdown,
   Button,
@@ -32,12 +33,14 @@ import {
 } from '../components/RegionDialogs';
 import type { Area, SalesGroup } from '../types';
 
+const REGION_TABS = ['groups', 'areas'] as const;
+
 export function RegionsPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const { user } = useAuth();
 
-  const [tab, setTab] = useState<'groups' | 'areas'>('groups');
+  const [tab, setTab] = useEnumParam('tab', REGION_TABS, 'groups');
   const areas = useAreas();
   const groups = useGroups();
 
@@ -441,6 +444,7 @@ export function RegionsPage() {
       {tab === 'groups' ? (
         <DataTable
           key="groups"
+          stateKey="groups"
           title="Danh sách nhóm bán hàng"
           rows={groups.data}
           loading={groups.isLoading}
@@ -577,6 +581,7 @@ export function RegionsPage() {
       ) : (
         <DataTable
           key="areas"
+          stateKey="areas"
           title="Danh sách vùng hoạt động"
           rows={areas.data}
           loading={areas.isLoading}

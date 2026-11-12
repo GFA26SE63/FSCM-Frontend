@@ -1,6 +1,7 @@
 import { get, post, put } from '@/shared/api/http';
 import { ApiError } from '@/shared/api/errors';
 import type { LoyaltyCardApi, LoyaltyProgram, ProgramInput, ProgramRetailerOption, RetailerLoyalty } from './types';
+import type { RedemptionApi } from '@/features/redeem/types';
 
 const programBody = (v: ProgramInput): ProgramInput => ({
   name: v.name, description: v.description, spendAmountPerPoint: v.spendAmountPerPoint,
@@ -22,9 +23,9 @@ function requireProgram(p: LoyaltyProgram): LoyaltyProgram {
 const toRetailerLoyalty = (card: LoyaltyCardApi): RetailerLoyalty => ({
   retailerCode: card.retailerCode, retailerName: card.retailerName, balance: card.availablePoints,
   held: card.heldPoints, available: card.availablePoints, pendingOrders: card.pendingPoints,
-  lastEarned: card.ledger.find((x) => x.points > 0) ? { date: card.ledger.find((x) => x.points > 0)!.createdAt, points: card.ledger.find((x) => x.points > 0)!.points } : null,
+  lastEarned: card.ledger.find((x) => x.transactionType === 'Earned') ? { date: card.ledger.find((x) => x.transactionType === 'Earned')!.createdAt, points: card.ledger.find((x) => x.transactionType === 'Earned')!.points } : null,
   programCode: card.programCode ?? '—', programName: card.programName ?? '—', pointsExpireOn: card.pointsExpireAt ?? '',
-  ledger: card.ledger.map((x) => ({ date: x.createdAt, description: x.note ?? x.transactionType, kind: x.transactionType.includes('Redemption') ? 'Redeemed' : x.transactionType === 'PendingEarn' ? 'Pending' : x.points < 0 ? 'Redeemed' : 'Earned', points: x.points })),
+  ledger: card.ledger.map((x) => ({ date: x.createdAt, description: x.note ?? x.transactionType, kind: x.transactionType, points: x.points })),
   redemptions: [],
 });
 
@@ -57,5 +58,14 @@ export const loyaltyApi = {
   updateProgram: (v: ProgramInput & { id: string }) =>
     put<LoyaltyProgram>(`/loyalty/programs/${encodeURIComponent(v.id)}`, programBody(v)).then(requireProgram),
   balances: () => get<LoyaltyCardApi[]>('/loyalty/cards').then((items) => items.map(toRetailerLoyalty)),
-  retailer: (code: string) => get<LoyaltyCardApi>(`/loyalty/cards/by-code/${encodeURIComponent(code)}`).then(toRetailerLoyalty),
+  retailer: async (code: string): Promise<RetailerLoyalty> => {
+    const [card, redemptions] = await Promise.all([
+      get<LoyaltyCardApi>(`/loyalty/cards/by-code/${encodeURIComponent(code)}`),
+      get<RedemptionApi[]>('/loyalty/redemptions'),
+    ]);
+    return { ...toRetailerLoyalty(card), redemptions: redemptions.filter(x => x.retailerId === card.retailerId).map(x => ({
+      code: x.id, giftCode: x.rewardCode, giftName: x.rewardName, points: x.redeemedPoints, requestedAt: x.createdAt,
+      status: (x.status === 'Pending' ? 'Requested' : x.status === 'Completed' ? 'Done' : x.status) as RetailerLoyalty['redemptions'][number]['status'],
+    })) };
+  },
 };

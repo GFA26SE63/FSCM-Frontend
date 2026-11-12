@@ -4,7 +4,13 @@ export const env = {
   google: {
     clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '',
   },
+  /**
+   * VietMap dùng hai khóa trình duyệt riêng biệt (không dùng thay thế cho nhau):
+   *  - mapsKey: Maps API – ô bản đồ nền Street Map (raster "tm").
+   *  - searchKey: Services API – tìm kiếm địa chỉ, chi tiết địa điểm, định vị ngược.
+   */
   vietmap: {
-    apiKey: (import.meta.env.VITE_VIETMAP_API_KEY ?? '').trim(),
+    mapsKey: (import.meta.env.VITE_VIETMAP_MAPS_API_KEY ?? '').trim(),
+    searchKey: (import.meta.env.VITE_VIETMAP_SEARCH_API_KEY ?? '').trim(),
   },
 } as const;

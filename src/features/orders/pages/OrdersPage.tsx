@@ -1,10 +1,7 @@
 import {
-  useState,
-} from 'react';
-
-import {
   useNavigate,
 } from '@/shared/router/compat';
+import { useDateParam } from '@/shared/router/listState';
 import {
   Button,
   DataTable,
@@ -35,7 +32,7 @@ export function OrdersPage() {
   const query = useOrders();
 
   const [from, setFrom] =
-    useState('');
+    useDateParam('from', { resets: ['page'] });
 
   const rows = (
     query.data ?? []

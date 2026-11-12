@@ -811,8 +811,9 @@ export const warehouseApi = {
         code: String(r.code ?? r.retailerCode ?? ""),
         name: String(r.name ?? ""),
         address: String(r.address ?? ""),
-        lat: Number(r.lat ?? r.latitude ?? 10.87),
-        lng: Number(r.lng ?? r.longitude ?? 106.65),
+        // Retailer chưa có tọa độ → NaN, bản đồ bỏ qua (không gán vị trí thay thế).
+        lat: Number(r.lat ?? r.latitude ?? Number.NaN),
+        lng: Number(r.lng ?? r.longitude ?? Number.NaN),
       }));
     } catch {
       return [];

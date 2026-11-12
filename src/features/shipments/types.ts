@@ -38,6 +38,13 @@ export interface OrderShipmentReadiness {
   parts: ShipmentReadinessPart[];
 }
 
+/** Lightweight metadata for ordering the export list by actual order creation time. */
+export interface ExportOrder {
+  id: string;
+  orderCode: string;
+  createdAt: string;
+}
+
 /** Statuses that mean the goods have physically left that warehouse. */
 export const HAS_LEFT: ShipmentPartStatus[] = ['Issued', 'Delivering', 'Received'];
 

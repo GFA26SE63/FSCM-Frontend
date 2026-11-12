@@ -24,7 +24,8 @@ import {
   useWarehouses,
 } from '../hooks';
 import type { Warehouse, WarehouseInput } from '../types';
-import { forwardGeocode, reverseGeocode } from '../lib/geocoding';
+import { createLatestGuard, forwardGeocode, isValidCoordinate, reverseGeocode } from '../lib/geocoding';
+import { postMapPoint, useMapPickMessages } from '@/shared/lib/useMapPick';
 import { buildWarehouseMapDoc } from '../components/warehouseMap';
 
 const defaultForm: WarehouseInput = {
@@ -116,6 +117,8 @@ function WarehouseEditor({
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
   const [pickerModalOpen, setPickerModalOpen] = useState(false);
   const mapIframeRef = useRef<HTMLIFrameElement | null>(null);
+  const modalMapIframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [reverseGuard] = useState(createLatestGuard);
 
   const create = useCreateWarehouse();
   const update = useUpdateWarehouse();
@@ -139,6 +142,7 @@ function WarehouseEditor({
 
     // 1. Immediately update lat/lng so coordinates are never lost
     setForm((prev) => ({ ...prev, lat, lng }));
+    postMapPoint([mapIframeRef, modalMapIframeRef], lat, lng);
     setErrors((prev) => {
       if (!prev.lat && !prev.lng) return prev;
       const next = { ...prev };
@@ -147,11 +151,13 @@ function WarehouseEditor({
       return next;
     });
 
-    // 2. Reverse-geocode to address
+    // 2. Reverse-geocode to address (chỉ áp dụng kết quả của lần chọn mới nhất)
+    const requestId = reverseGuard.next();
     setReverseGeocoding(true);
     setGeocodeError(null);
     try {
       const resolvedAddress = await reverseGeocode(lat, lng);
+      if (!reverseGuard.isLatest(requestId)) return;
       if (resolvedAddress && resolvedAddress.trim()) {
         setForm((prev) => ({ ...prev, address: resolvedAddress.trim() }));
         setErrors((prev) => {
@@ -165,26 +171,15 @@ function WarehouseEditor({
         toast.show(`Đã chọn tọa độ [${lat}, ${lng}]. Vui lòng nhập địa chỉ cụ thể.`);
       }
     } catch {
+      if (!reverseGuard.isLatest(requestId)) return;
       toast.show(`Đã chọn tọa độ [${lat}, ${lng}]. Không thể lấy địa chỉ tự động, bạn có thể nhập thủ công.`);
     } finally {
-      setReverseGeocoding(false);
+      if (reverseGuard.isLatest(requestId)) setReverseGeocoding(false);
     }
-  }, [toast]);
+  }, [toast, reverseGuard]);
 
-  // Listen to iframe map messages
-  useEffect(() => {
-    const handleMessage = (e: MessageEvent) => {
-      if (
-        (e.data?.type === 'mapPick' || e.data?.type === 'fscm:pick-coords') &&
-        typeof e.data.lat === 'number' &&
-        typeof e.data.lng === 'number'
-      ) {
-        handleCoordPicked(e.data.lat, e.data.lng);
-      }
-    };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [handleCoordPicked]);
+  // Chỉ nhận tọa độ từ hai bản đồ của form này (bản đồ nhúng và bản đồ phóng to)
+  useMapPickMessages([mapIframeRef, modalMapIframeRef], handleCoordPicked);
 
   // Address geocode -> executed ONLY when user explicitly clicks "Định vị" button
   const handleGeocodeFromAddress = async () => {
@@ -198,12 +193,11 @@ function WarehouseEditor({
     try {
       const coords = await forwardGeocode(addr);
       if (coords && Number.isFinite(coords.lat) && Number.isFinite(coords.lng)) {
+        reverseGuard.next(); // bỏ kết quả định vị ngược còn chờ của lần chọn trước
+        setReverseGeocoding(false);
         setForm((prev) => ({ ...prev, lat: coords.lat, lng: coords.lng }));
         // Move pin & circle on map iframe without reloading the iframe
-        mapIframeRef.current?.contentWindow?.postMessage(
-          { type: 'setPoint', lat: coords.lat, lng: coords.lng },
-          '*',
-        );
+        postMapPoint([mapIframeRef, modalMapIframeRef], coords.lat, coords.lng);
         toast.show(`Đã định vị tọa độ: [${coords.lat}, ${coords.lng}]`);
       } else {
         setGeocodeError('Không tìm thấy tọa độ cho địa chỉ này trên Vietmap. Bạn có thể chọn trực tiếp trên bản đồ.');
@@ -228,11 +222,10 @@ function WarehouseEditor({
   };
 
   // Stable initial coordinate anchor so map iframe does NOT reload when user edits fields
-  const initialCoords = useMemo<[number, number]>(() => {
-    return [
-      initialWarehouse?.lat || form.lat || 10.8891,
-      initialWarehouse?.lng || form.lng || 106.5912,
-    ];
+  const initialCoords = useMemo<[number, number] | null>(() => {
+    const lat = initialWarehouse?.lat || form.lat;
+    const lng = initialWarehouse?.lng || form.lng;
+    return isValidCoordinate(lat, lng) ? [Number(lat), Number(lng)] : null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -240,31 +233,36 @@ function WarehouseEditor({
     const otherWh = allWarehouses
       .filter((w) => !edit || w.code.toUpperCase() !== (initialWarehouse?.code ?? '').toUpperCase())
       .map((w) => ({
-        lat: w.lat || 10.87,
-        lng: w.lng || 106.65,
+        lat: w.lat,
+        lng: w.lng,
         kind: 'wh' as const,
         label: `${w.code} · ${w.name}`,
         sub: w.address,
       }));
 
     const retPoints = retailers.map((r) => ({
-      lat: r.lat || 10.87,
-      lng: r.lng || 106.65,
+      lat: r.lat,
+      lng: r.lng,
       kind: 'ret' as const,
       label: r.name,
       sub: `${r.code} · ${r.address}`,
     }));
 
     return buildWarehouseMapDoc({
-      center: initialCoords,
+      center: initialCoords ?? undefined,
+      pickPoint: initialCoords,
       points: [
-        {
-          lat: initialCoords[0],
-          lng: initialCoords[1],
-          kind: 'wh',
-          label: edit ? `${initialWarehouse?.code} · ${initialWarehouse?.name}` : 'Kho mới',
-          sub: initialWarehouse?.address || '',
-        },
+        ...(initialCoords
+          ? [
+              {
+                lat: initialCoords[0],
+                lng: initialCoords[1],
+                kind: 'wh' as const,
+                label: edit ? `${initialWarehouse?.code} · ${initialWarehouse?.name}` : 'Kho mới',
+                sub: initialWarehouse?.address || '',
+              },
+            ]
+          : []),
         ...otherWh,
         ...retPoints,
       ],
@@ -501,10 +499,7 @@ function WarehouseEditor({
               onChange={(e) => {
                 const val = Number(e.target.value);
                 set('lat', val);
-                mapIframeRef.current?.contentWindow?.postMessage(
-                  { type: 'setPoint', lat: val, lng: form.lng },
-                  '*',
-                );
+                postMapPoint([mapIframeRef, modalMapIframeRef], val, form.lng);
               }}
             />
           </FormField>
@@ -518,10 +513,7 @@ function WarehouseEditor({
               onChange={(e) => {
                 const val = Number(e.target.value);
                 set('lng', val);
-                mapIframeRef.current?.contentWindow?.postMessage(
-                  { type: 'setPoint', lat: form.lat, lng: val },
-                  '*',
-                );
+                postMapPoint([mapIframeRef, modalMapIframeRef], form.lat, val);
               }}
             />
           </FormField>
@@ -614,8 +606,10 @@ function WarehouseEditor({
         footer={<Button onClick={() => setPickerModalOpen(false)}>Xác nhận vị trí</Button>}
       >
         <iframe
+          ref={modalMapIframeRef}
           title="Bản đồ phóng to"
           srcDoc={mapSrcDoc}
+          onLoad={() => postMapPoint([modalMapIframeRef], Number(form.lat), Number(form.lng))}
           style={{
             width: '100%',
             height: 580,

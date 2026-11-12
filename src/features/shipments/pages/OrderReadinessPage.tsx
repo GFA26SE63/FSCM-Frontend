@@ -1,333 +1,75 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Callout, Card, Chip, Input, PageHeader, QueryState, Select, SimpleTable, Stat, type Tone } from '@/shared/ui';
-import { formatNumber } from '@/shared/lib';
-import { useAuth } from '@/shared/auth/AuthContext';
-import { useApiMutation } from '@/shared/hooks/useApiMutation';
+import { Button, Callout, PageHeader, QueryState, Select, Stat } from '@/shared/ui';
 import { usePickingLists } from '@/features/runpicking/hooks';
-import type { PickingList } from '@/features/runpicking/types';
-import { useOrdersReadiness } from '../hooks';
 import { shipmentsApi } from '../api';
-import { HAS_LEFT, type DeliveryDriver, type DeliveryVehicle, type OrderShipmentReadiness, type Shipment, type ShipmentPartStatus, type ShipmentReadinessPart } from '../types';
+import { useOrdersReadiness } from '../hooks';
+import { ExportOrderCard } from '../components/ExportOrderCard';
+import { EXPORT_PAGE_SIZE, exportStatus, sortExportOrders, type ExportOrderSort, type ShipmentSort } from '../exportList';
+import type { ExportOrder } from '../types';
 
-const PART_STATUS: Record<ShipmentPartStatus, { tone: Tone; label: string }> = {
-  WaitingToPick: { tone: 'info', label: 'Chưa soạn xong' },
-  Ready: { tone: 'success', label: 'Sẵn sàng' },
-  Issued: { tone: 'success', label: 'Đã xuất' },
-  Delivering: { tone: 'warn', label: 'Đang giao' },
-  Received: { tone: 'success', label: 'Đã nhận' },
-  Exception: { tone: 'danger', label: 'Ngoại lệ' },
-};
-
-/**
- * F93: which orders may leave the warehouses on a given run day, and what is holding the rest.
- *
- * The orders come from the run's picking sheets, because that is where the day's work is; the
- * verdict for each of them comes from the server, one order at a time. The screen never derives
- * readiness itself. An order draws from warehouses a single sheet knows nothing about and is gated
- * on a payment condition the Portal cannot see, so a verdict assembled here would eventually
- * disagree with the server — and disagreeing in the permissive direction means shipping half an
- * order.
- *
- * There is no "đưa vào đợt sau": an order that could not be filled is history, and ordering again is
- * a new order with a new place in the queue, never an inherited one. Shipment actions below use the
- * server's current version so issue, assignment and dispatch remain concurrency-safe.
- */
 export function OrderReadinessPage() {
-  const listsQuery = usePickingLists();
-
-  return (
-    <>
-      <PageHeader
-        title="Sẵn sàng xuất & ngoại lệ"
-        subtitle="Cả đơn phải soạn đủ ở mọi kho và đạt điều kiện thanh toán thì mới được xuất. Một kho thiếu hoặc hỏng là giữ cả đơn — không giao một phần."
-      />
-      <QueryState query={listsQuery}>
-        {(lists) => lists.length === 0
-          ? <Callout tone="info">Chưa có PO nào phát hành phiếu soạn để kiểm tra sẵn sàng.</Callout>
-          : <ReadinessBody lists={lists} />}
-      </QueryState>
-    </>
-  );
-}
-
-/** The distinct orders a run's sheets carry, each appearing once however many batches it drew. */
-function ordersOf(lists: PickingList[]) {
-  const byId = new Map<string, string>();
-  for (const list of lists) {
-    if (!byId.has(list.orderId)) byId.set(list.orderId, list.orderCode);
-  }
-  return [...byId.entries()]
-    .map(([salesOrderId, orderCode]) => ({ salesOrderId, orderCode }))
-    .sort((a, b) => a.orderCode.localeCompare(b.orderCode));
-}
-
-function ReadinessBody({ lists }: { lists: PickingList[] }) {
-  const orders = useMemo(() => ordersOf(lists), [lists]);
-  const readiness = useOrdersReadiness(orders.map((order) => order.salesOrderId));
-
-  // Three groups, not two. The server answers isReady for an order whose parts have all already
-  // left - nothing is holding it, because there is nothing left to hold - so counting those as
-  // "ready to issue" overstates the work waiting and makes the number disagree with the warehouse.
-  const hasLeft = (item: OrderShipmentReadiness) =>
-    item.parts.length > 0 && item.parts.every((part) => HAS_LEFT.includes(part.status));
-  const blocked = readiness.data.filter((item) => !item.isReady);
-  const gone = readiness.data.filter((item) => item.isReady && hasLeft(item));
-  const ready = readiness.data.filter((item) => item.isReady && !hasLeft(item));
-
-  return (
-    <>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
-        <Stat label="Phiếu soạn" value={formatNumber(lists.length)} note="Theo các PO hiện hành" />
-        <Stat label="Đơn trong đợt" value={formatNumber(orders.length)} />
-        <Stat label="Cần xử lý" value={formatNumber(blocked.length)} />
-        <Stat label="Sẵn sàng xuất" value={formatNumber(ready.length)} />
-        <Stat label="Đã rời kho" value={formatNumber(gone.length)} />
-      </div>
-
-      {readiness.loading && <Callout tone="info">Đang lấy trạng thái sẵn sàng của từng đơn…</Callout>}
-      {readiness.error && (
-        <Callout tone="danger">
-          Không lấy được trạng thái sẵn sàng của một hoặc nhiều đơn. Những đơn hiện bên dưới vẫn là
-          dữ liệu thật; đơn thiếu thì chưa kết luận được, đừng coi là sẵn sàng.
-        </Callout>
-      )}
-
-      {blocked.length > 0 && (
-        <>
-          <h3 style={{ margin: '14px 2px 8px', fontSize: 15 }}>Cần xử lý ({blocked.length})</h3>
-          {blocked.map((item) => (
-            <OrderCard key={item.salesOrderId} readiness={item} />
-          ))}
-        </>
-      )}
-
-      {ready.length > 0 && (
-        <>
-          <h3 style={{ margin: '18px 2px 8px', fontSize: 15 }}>Sẵn sàng xuất ({ready.length})</h3>
-          {ready.map((item) => (
-            <OrderCard key={item.salesOrderId} readiness={item} />
-          ))}
-        </>
-      )}
-
-      {gone.length > 0 && (
-        <>
-          <h3 style={{ margin: '18px 2px 8px', fontSize: 15 }}>Đã rời kho ({gone.length})</h3>
-          {gone.map((item) => (
-            <OrderCard key={item.salesOrderId} readiness={item} />
-          ))}
-        </>
-      )}
-
-      {!readiness.loading && readiness.data.length === 0 && (
-        <Callout tone="info">Chưa đọc được trạng thái của đơn nào trong đợt này.</Callout>
-      )}
-    </>
-  );
-}
-
-function OrderCard({ readiness }: { readiness: OrderShipmentReadiness }) {
-  const columns = [
-    { header: 'Kho', cell: (row: ShipmentReadinessPart) => <strong>{row.warehouseCode}</strong> },
-    {
-      header: 'Trạng thái',
-      cell: (row: ShipmentReadinessPart) => {
-        const status = PART_STATUS[row.status] ?? { tone: 'neutral' as Tone, label: row.status };
-        return <Chip tone={status.tone}>{status.label}</Chip>;
-      },
-    },
-    {
-      header: 'Phiếu giao',
-      cell: (row: ShipmentReadinessPart) =>
-        row.shipmentCode ? (
-          <span>{row.shipmentCode}</span>
-        ) : (
-          // No shipment record yet because that warehouse has not closed its sheet. Saying so is
-          // the point: this is the warehouse the order is waiting on.
-          <span className="muted small">chưa có — kho chưa đóng phiếu soạn</span>
-        ),
-    },
-    {
-      header: 'Ghi chú',
-      cell: (row: ShipmentReadinessPart) => row.exceptionReason ?? <span className="muted">—</span>,
-    },
-  ];
-
-  const anyLeft = readiness.parts.some((part) => HAS_LEFT.includes(part.status));
-
-  return (
-    <Card
-      title={readiness.orderCode}
-      actions={
-        readiness.parts.length > 0 && readiness.parts.every((part) => HAS_LEFT.includes(part.status)) ? (
-          <Chip tone="deep">Đã rời kho</Chip>
-        ) : readiness.isReady ? (
-          <Chip tone="success">Được xuất</Chip>
-        ) : (
-          <Chip tone={readiness.hasException ? 'danger' : 'warn'}>
-            {readiness.hasException ? 'Ngoại lệ' : 'Đang bị giữ'}
-          </Chip>
-        )
-      }
-    >
-      {readiness.blockingReasons.length > 0 && (
-        <Callout tone={readiness.hasException ? 'danger' : 'warn'}>
-          <ul style={{ margin: 0, paddingLeft: 18 }}>
-            {readiness.blockingReasons.map((reason) => (
-              <li key={reason}>{reason}</li>
-            ))}
-          </ul>
-        </Callout>
-      )}
-
-      {!readiness.paymentSettled && (
-        <Callout tone="warn">
-          Đơn trả trước chưa thanh toán đủ. Đơn công nợ hợp lệ không bị chặn ở cửa kho.
-        </Callout>
-      )}
-
-      <SimpleTable columns={columns} rows={readiness.parts} empty="Đơn này chưa có phần hàng theo kho nào." />
-
-      <ShipmentOperations orderId={readiness.salesOrderId} />
-
-      <p className="muted small" style={{ margin: '8px 2px 0' }}>
-        {anyLeft
-          ? 'Đã có phần hàng rời kho, nên không còn hủy được — phát sinh phải đi theo luồng khiếu nại.'
-          : 'Chưa có phần nào rời kho, nên vẫn hủy được theo quyền; thao tác hủy kèm tác động tới tồn giữ và tiền đã thu nằm ở màn Hủy đơn.'}
-      </p>
-    </Card>
-  );
-}
-
-function ShipmentOperations({ orderId }: { orderId: string }) {
-  const { user } = useAuth();
-  const mayDispatch = user?.role === 'Admin' || user?.role === 'Operator';
-  const shipments = useQuery({
-    queryKey: ['shipments', orderId],
-    queryFn: () => shipmentsApi.list(orderId),
+  const lists = usePickingLists();
+  const orderIds = useMemo(() => [...new Set((lists.data ?? []).map(list => list.orderId))].sort(), [lists.data]);
+  const orders = useQuery({
+    queryKey: ['shipments', 'export-orders', orderIds],
+    queryFn: () => shipmentsApi.exportOrders(orderIds),
+    enabled: lists.isSuccess && orderIds.length > 0,
   });
-  const drivers = useQuery({
-    queryKey: ['shipments', 'drivers'],
-    queryFn: shipmentsApi.drivers,
-    enabled: mayDispatch,
-  });
-  const vehicles = useQuery({
-    queryKey: ['shipments', 'vehicles'],
-    queryFn: shipmentsApi.vehicles,
-    enabled: mayDispatch,
-  });
+  return <>
+    <PageHeader title="Xuất kho"
+      subtitle="Cả đơn phải soạn đủ ở mọi kho và đạt điều kiện thanh toán thì mới được xuất. Mở từng đơn để xem kho, shipment và thao tác vận hành." />
+    <QueryState query={lists}>{data => data.length === 0
+      ? <Callout tone="info">Chưa có PO nào phát hành phiếu soạn để kiểm tra xuất kho.</Callout>
+      : <QueryState query={orders}>{items => <ExportOrders orders={items} pickingCount={data.length} />}</QueryState>}
+    </QueryState>
+  </>;
+}
 
-  if (shipments.isPending) return <p className="muted small">Đang tải thao tác vận hành…</p>;
-  if (shipments.isError) return <Callout tone="danger">Không tải được shipment của đơn.</Callout>;
-  if (!shipments.data?.length) return null;
+function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; pickingCount: number }) {
+  const [sort, setSort] = useState<ExportOrderSort>('newest');
+  const [shipmentSort, setShipmentSort] = useState<ShipmentSort>('asc');
+  const [page, setPage] = useState(1);
+  const sorted = useMemo(() => sortExportOrders(orders, sort), [orders, sort]);
+  const totalPages = Math.max(1, Math.ceil(sorted.length / EXPORT_PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const visible = sorted.slice((currentPage - 1) * EXPORT_PAGE_SIZE, currentPage * EXPORT_PAGE_SIZE);
+  const readiness = useOrdersReadiness(visible.map(order => order.id));
+  const byId = new Map(readiness.data.map(item => [item.salesOrderId, item]));
+  const countsKnown = !readiness.loading && !readiness.error;
+  const count = (label: string) => readiness.data.filter(item => exportStatus(item).label === label).length;
 
-  return (
-    <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
-      {shipments.data.map((shipment) => (
-        <ShipmentActionRow
-          key={shipment.id}
-          shipment={shipment}
-          mayDispatch={mayDispatch}
-          drivers={drivers.data ?? []}
-          vehicles={vehicles.data ?? []}
-        />
-      ))}
+  return <div className="stack">
+    <div className="row-wrap" style={{ gap: 12 }}>
+      <Stat label="Phiếu soạn" value={String(pickingCount)} />
+      <Stat label="Tổng đơn" value={String(orders.length)} />
+      <Stat label="Cần xử lý (trang này)" value={countsKnown ? String(count('Đang bị giữ') + count('Ngoại lệ')) : '—'} />
+      <Stat label="Được xuất (trang này)" value={countsKnown ? String(count('Được xuất')) : '—'} />
+      <Stat label="Đã rời kho (trang này)" value={countsKnown ? String(count('Đã rời kho')) : '—'} />
     </div>
-  );
-}
-
-export function ShipmentActionRow({
-  shipment,
-  mayDispatch,
-  drivers,
-  vehicles,
-}: {
-  shipment: Shipment;
-  mayDispatch: boolean;
-  drivers: DeliveryDriver[];
-  vehicles: DeliveryVehicle[];
-}) {
-  const warehouseDrivers = drivers.filter((item) => item.isActive && item.warehouseId === shipment.warehouseId);
-  const warehouseVehicles = vehicles.filter((item) => item.isActive && item.warehouseId === shipment.warehouseId && item.capacity >= shipment.totalQuantity);
-  const [driverId, setDriverId] = useState(warehouseDrivers[0]?.id ?? '');
-  const [vehicleId, setVehicleId] = useState(warehouseVehicles[0]?.id ?? '');
-  const [resolutionReason, setResolutionReason] = useState('');
-  const resolve = useApiMutation(shipmentsApi.resolveException, { success: 'Đã xử lý ngoại lệ và cập nhật trạng thái đơn.', onSuccess: () => setResolutionReason('') });
-  const selectedDriver = warehouseDrivers.find((item) => item.id === driverId);
-  const selectedVehicle = warehouseVehicles.find((item) => item.id === vehicleId);
-  const issue = useApiMutation(shipmentsApi.issue, { success: 'Đã xác nhận shipment rời kho; tồn thực tế đã được trừ.' });
-  const assign = useApiMutation(shipmentsApi.assign, { success: 'Đã gán tài xế và xe.' });
-  const dispatch = useApiMutation(shipmentsApi.dispatch, { success: 'Shipment đã bắt đầu giao; tem đã chuyển InTransit.' });
-
-  return (
-    <div className="card" style={{ padding: 12 }}>
-      <div className="row-wrap" style={{ gap: 10, alignItems: 'center' }}>
-        <strong>{shipment.shipmentCode} · {shipment.warehouseCode}</strong>
-        <Chip tone={PART_STATUS[shipment.status]?.tone ?? 'neutral'}>
-          {PART_STATUS[shipment.status]?.label ?? shipment.status}
-        </Chip>
-        {shipment.driverName && <span>{shipment.driverName} · {shipment.plateNumber}</span>}
-      </div>
-
-      {shipment.status === 'Ready' && (
-        <Button
-          size="sm"
-          variant="primary"
-          loading={issue.isPending}
-          onClick={() => issue.mutate(shipment)}
-          style={{ marginTop: 8 }}
-        >
-          Xác nhận xuất kho
-        </Button>
-      )}
-
-      {shipment.status === 'Exception' && mayDispatch && <div className="stack" style={{ marginTop: 8 }}>
-        {shipment.exceptionReason && <Callout tone="danger">{shipment.exceptionReason}</Callout>}
-        <Input aria-label="Kết quả xử lý ngoại lệ" placeholder="Nhập lý do / kết quả xử lý" value={resolutionReason} onChange={e => setResolutionReason(e.target.value)} />
-        <Button size="sm" loading={resolve.isPending} disabled={!resolutionReason.trim() || resolutionReason.trim().length > 1000}
-          onClick={() => resolve.mutate({ shipment, reason: resolutionReason })}>Hoàn tất xử lý ngoại lệ</Button>
-      </div>}
-
-      {shipment.status === 'Issued' && mayDispatch && !shipment.driverId && (
-        <div className="row-wrap" style={{ gap: 8, marginTop: 8 }}>
-          <Select
-            value={driverId}
-            onChange={(event) => setDriverId(event.target.value)}
-            placeholder="Chọn tài xế"
-            options={warehouseDrivers.map((item) => ({ value: item.id, label: `${item.code} · ${item.fullName}` }))}
-          />
-          <Select
-            value={vehicleId}
-            onChange={(event) => setVehicleId(event.target.value)}
-            placeholder="Chọn xe"
-            options={warehouseVehicles.map((item) => ({ value: item.id, label: `${item.plateNumber} · ${formatNumber(item.capacity)} thùng` }))}
-          />
-          <Button
-            size="sm"
-            loading={assign.isPending}
-            disabled={!selectedDriver || !selectedVehicle}
-            onClick={() => {
-              if (selectedDriver && selectedVehicle) assign.mutate({ shipment, driverId: selectedDriver.id, vehicleId: selectedVehicle.id });
-            }}
-          >
-            Gán xe & tài xế
-          </Button>
-          {warehouseVehicles.length === 0 && <span className="muted small">Kho chưa có xe đang hoạt động đủ tải cho {formatNumber(shipment.totalQuantity)} thùng.</span>}
-        </div>
-      )}
-
-      {shipment.status === 'Issued' && mayDispatch && shipment.driverId && (
-        <Button
-          size="sm"
-          variant="primary"
-          loading={dispatch.isPending}
-          onClick={() => dispatch.mutate(shipment)}
-          style={{ marginTop: 8 }}
-        >
-          Bắt đầu giao
-        </Button>
-      )}
+    <div className="row-wrap" style={{ gap: 16 }}>
+      <label className="lbl">Sắp xếp đơn
+        <Select value={sort} onChange={event => { setSort(event.target.value as ExportOrderSort); setPage(1); }}
+          options={[
+            { value: 'newest', label: 'Mới nhất trước' }, { value: 'oldest', label: 'Cũ nhất trước' },
+            { value: 'codeAsc', label: 'Mã đơn tăng dần' }, { value: 'codeDesc', label: 'Mã đơn giảm dần' },
+          ]} />
+      </label>
+      <label className="lbl">Shipment trong từng đơn
+        <Select value={shipmentSort} onChange={event => setShipmentSort(event.target.value as ShipmentSort)}
+          options={[{ value: 'asc', label: 'Mã shipment tăng dần' }, { value: 'desc', label: 'Mã shipment giảm dần' }]} />
+      </label>
+      <Button onClick={() => { void readiness.refetch(); }}>Tải lại trạng thái</Button>
     </div>
-  );
+    {readiness.error && <Callout tone="danger">Có đơn chưa tải được trạng thái. Chưa thể kết luận điều kiện xuất kho cho các đơn đó.</Callout>}
+    {visible.map(order => <ExportOrderCard key={order.id} order={order} readiness={byId.get(order.id)}
+      loading={readiness.loading && !byId.has(order.id)} failed={readiness.failedIds.includes(order.id)}
+      sort={shipmentSort} retry={() => { void readiness.refetch(); }} />)}
+    <nav aria-label="Phân trang xuất kho" className="row-wrap" style={{ gap: 12, justifyContent: 'flex-end' }}>
+      <span>{orders.length ? (currentPage - 1) * EXPORT_PAGE_SIZE + 1 : 0}–{Math.min(currentPage * EXPORT_PAGE_SIZE, orders.length)} / {orders.length} đơn · 10 đơn/trang</span>
+      <Button disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>Trước</Button>
+      <span>Trang {currentPage}/{totalPages}</span>
+      <Button disabled={currentPage >= totalPages} onClick={() => setPage(currentPage + 1)}>Sau</Button>
+    </nav>
+  </div>;
 }

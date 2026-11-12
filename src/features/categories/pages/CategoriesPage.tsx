@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from '@/shared/router/compat';
+import { useStringParam } from '@/shared/router/listState';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { ConfirmDialog, Modal, Button } from '@/shared/ui';
 import { formatMoney } from '@/shared/lib';
@@ -28,8 +29,8 @@ export function CategoriesPage() {
   const updateStatusMutation = useUpdateCategoryStatus();
   const deleteMutation = useDeleteCategory();
 
-  const [selectedCode, setSelectedCode] = useState<string>('');
-  const [searchTree, setSearchTree] = useState('');
+  const [selectedCode, setSelectedCode] = useStringParam('selected');
+  const [searchTree, setSearchTree] = useStringParam('q');
   const [openState, setOpenState] = useState<Record<string, boolean>>({});
 
   // Dialog & Modal states
@@ -50,12 +51,6 @@ export function CategoriesPage() {
       return selectedCode;
     }
     return categories[0]?.code ?? '';
-  }, [selectedCode, categories]);
-
-  useEffect(() => {
-    if (!selectedCode && categories.length > 0) {
-      setSelectedCode(categories[0].code);
-    }
   }, [selectedCode, categories]);
 
   // Default open state for tree branches

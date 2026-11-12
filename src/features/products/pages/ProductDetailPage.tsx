@@ -1,8 +1,8 @@
 import {
   Link,
-  useNavigate,
   useParams,
 } from '@/shared/router/compat';
+import { useReturnToList } from '@/shared/router/listState';
 
 import {
   Button,
@@ -23,7 +23,7 @@ import { lifeText, priceText } from '../utils';
 export function ProductDetailPage() {
   const { sku: productId = '' } = useParams();
 
-  const navigate = useNavigate();
+  const returnToList = useReturnToList();
   const query = useProduct(productId);
 
   return (
@@ -31,7 +31,7 @@ export function ProductDetailPage() {
       {query.error && (
         <div className="row-wrap">
           <Button
-            onClick={() => navigate('/skus')}
+            onClick={() => returnToList('/skus')}
           >
             Về danh sách
           </Button>
@@ -63,7 +63,7 @@ export function ProductDetailPage() {
                   size="md"
 
                   onDeleted={() =>
-                    navigate('/skus')
+                    returnToList('/skus')
                   }
                 />
               }

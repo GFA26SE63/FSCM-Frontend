@@ -17,6 +17,7 @@ import {
   errorMessage,
 } from '../api/errors';
 import { tokenStore } from './tokenStore';
+import { clearRememberedLocations } from '../router/listState';
 import {
   authApi,
   type AuthenticationResult,
@@ -75,6 +76,7 @@ export function AuthProvider({
       version.current += 1;
 
       tokenStore.clear();
+      clearRememberedLocations();
       queryClient.clear();
 
       setUser(null);
@@ -90,6 +92,7 @@ export function AuthProvider({
 
     tokenStore.clearEverywhere();
     queryClient.clear();
+    clearRememberedLocations();
     setUser(null);
     setStatus('anonymous');
     setSessionMessage(null);
@@ -222,6 +225,7 @@ export function AuthProvider({
 
       setSessionMessage(null);
       tokenStore.clear();
+      clearRememberedLocations();
       queryClient.clear();
       setUser(null);
       setStatus('anonymous');
