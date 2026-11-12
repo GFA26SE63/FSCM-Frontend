@@ -54,10 +54,12 @@ const kpi = () => import('@/features/kpi');
 const complaints = () => import('@/features/complaints');
 const config = () => import('@/features/config');
 const dashboard = () => import('@/features/dashboard');
+const reports = () => import('@/features/reports');
 
 /** Single source for routing + sidebar menu (matching prototype prod menuAll order and roles). */
 export const APP_ROUTES: AppRoute[] = [
   { key: 'dashboard', label: 'Tổng quan & báo cáo', roles: [A, OP, WK, SM], list: page(dashboard, 'DashboardPage') },
+  { key: 'reports', label: 'Báo cáo đổi quà & chương trình', roles: [A, OP], list: page(reports, 'OperationsReportsPage') },
   { key: 'orders', label: 'Đơn hàng', roles: [A, OP], badge: 'orders', list: page(orders, 'OrdersPage'), sub: [{ path: ':orderId', element: page(orders, 'OrderDetailPage') }] },
   { key: 'allocation', label: 'Allocation real-time', roles: [A, OP], list: page(allocation, 'AllocationRunPage') },
   { key: 'debts', label: 'Công nợ', roles: [A, OP], badge: 'debts', list: page(debts, 'DebtsPage') },
