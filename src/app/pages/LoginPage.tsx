@@ -200,7 +200,7 @@ export function LoginPage() {
     try {
       await loginWithPassword(
         email.trim(),
-        password,
+        password.trim(),
         rememberLogin,
       );
 

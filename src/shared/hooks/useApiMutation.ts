@@ -15,7 +15,7 @@ import { useToast } from '../ui/Toast';
 
 interface Options<TData, TVars> {
   permission?: Permission;
-  /** Use false for background/UI-preference writes that should not interrupt users. */
+  /** Opt in only when this mutation has no clearer inline/page feedback. */
   notify?: boolean;
   success?: string | ((data: TData, vars: TVars) => string);
   onSuccess?: (data: TData, vars: TVars) => void;
@@ -53,15 +53,18 @@ export function useApiMutation<
           ? options.success(data, vars)
           : options.success;
 
-      // Every command needs an acknowledgement. Feature hooks can still supply
-      // a precise message, while less specific mutations get a consistent one.
-      if (options.notify !== false) toast.mutationSuccess(message);
+      // Network code never owns user feedback. A feature must explicitly opt
+      // in with a success message (or notify: true) when its UI does not
+      // already acknowledge the result inline or by updating the page.
+      const shouldNotify = options.notify ?? message !== undefined;
+      if (shouldNotify) toast.mutationSuccess(message);
 
       options.onSuccess?.(data, vars);
     },
 
     onError: (error) => {
-      if (options.notify !== false) toast.mutationError(error);
+      const shouldNotify = options.notify ?? options.success !== undefined;
+      if (shouldNotify) toast.mutationError(error);
     },
   });
 }

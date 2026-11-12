@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { errorMessage } from '../api/errors';
 
 interface ToastItem {
@@ -19,29 +19,63 @@ let seq = 0;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([]);
-  const pendingMutation = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const push = useCallback((text: string, tone: ToastItem['tone']) => {
+  const active = useRef<ToastItem | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingErrors = useRef<ToastItem[]>([]);
+  const recent = useRef(new Map<string, number>());
+  const mounted = useRef(true);
+
+  useEffect(() => () => {
+    mounted.current = false;
+    if (timer.current) clearTimeout(timer.current);
+  }, []);
+
+  const fingerprint = (text: string, tone: ToastItem['tone']) => `${tone}:${text.trim()}`;
+  function dismiss(id: number) {
+    if (active.current?.id !== id) return;
+    active.current = null;
+    timer.current = null;
+    if (mounted.current) setItems([]);
+    const next = pendingErrors.current.shift();
+    if (next) {
+      active.current = next;
+      if (mounted.current) setItems([next]);
+      timer.current = setTimeout(() => dismiss(next.id), 6000);
+    }
+  }
+
+  function push(text: string, tone: ToastItem['tone']) {
+    const normalized = text.trim();
+    if (!normalized) return;
+    const now = Date.now();
+    const key = fingerprint(normalized, tone);
+    for (const [seen, at] of recent.current) {
+      if (now - at >= 3000) recent.current.delete(seen);
+    }
+    if (
+      recent.current.has(key) ||
+      (active.current && fingerprint(active.current.text, active.current.tone) === key) ||
+      pendingErrors.current.some((item) => fingerprint(item.text, item.tone) === key)
+    ) return;
+    recent.current.set(key, now);
     const id = ++seq;
-    setItems((s) => [...s.slice(-2), { id, text, tone }]);
-    setTimeout(() => setItems((s) => s.filter((t) => t.id !== id)), tone === 'error' ? 6000 : 4000);
-  }, []);
-  const clearPendingMutation = useCallback(() => {
-    if (pendingMutation.current) clearTimeout(pendingMutation.current);
-    pendingMutation.current = null;
-  }, []);
-  const deferMutation = useCallback((text: string, tone: ToastItem['tone']) => {
-    clearPendingMutation();
-    pendingMutation.current = setTimeout(() => {
-      pendingMutation.current = null;
-      push(text, tone);
-    }, 180);
-  }, [clearPendingMutation, push]);
-  const api = useMemo<ToastApi>(() => ({
-    show: (t) => { clearPendingMutation(); push(t, 'info'); },
-    error: (e) => { clearPendingMutation(); push(errorMessage(e), 'error'); },
-    mutationSuccess: (t) => deferMutation(t ?? 'Thao tác thành công.', 'info'),
-    mutationError: (e) => deferMutation(errorMessage(e), 'error'),
-  }), [clearPendingMutation, deferMutation, push]);
+    const item = { id, text: normalized, tone };
+    if (tone === 'error' && active.current?.tone === 'error') {
+      pendingErrors.current.push(item);
+      return;
+    }
+    if (tone === 'info' && active.current) return;
+    if (timer.current) clearTimeout(timer.current);
+    active.current = item;
+    if (mounted.current) setItems([item]);
+    timer.current = setTimeout(() => dismiss(id), tone === 'error' ? 6000 : 4000);
+  }
+  const api: ToastApi = {
+    show: (t) => push(t, 'info'),
+    error: (e) => push(errorMessage(e), 'error'),
+    mutationSuccess: (t) => push(t ?? 'Thao tác thành công.', 'info'),
+    mutationError: (e) => push(errorMessage(e), 'error'),
+  };
   return (
     <ToastContext.Provider value={api}>
       {children}

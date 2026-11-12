@@ -150,7 +150,7 @@ export const authApi = {
           '/login',
           {
             email: email.trim(),
-            password,
+            password: password.trim(),
           },
         );
 
