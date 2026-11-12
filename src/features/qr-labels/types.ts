@@ -80,6 +80,7 @@ export type PrintTarget =
 export function isPrintableLabel(label: QrLabel): boolean {
   return (
     label.status !== 'Invalidated' &&
+    label.status !== 'Split' &&
     label.invalidatedAt === null
   );
 }
@@ -91,7 +92,14 @@ export function labelStatusText(status: string): string {
     InTransit: 'Đang giao',
     Delivered: 'Đã giao',
     Invalidated: 'Đã vô hiệu hóa',
+    Split: 'Đã tách · chỉ lưu lịch sử',
   };
 
   return labels[status] ?? status;
+}
+export interface QrGenerationCapacity {
+  batchId: string;
+  physicalQuantity: number;
+  labelledQuantity: number;
+  unlabelledQuantity: number;
 }

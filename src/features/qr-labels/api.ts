@@ -7,6 +7,7 @@ import {
   type PrintTarget,
   type QrLabel,
   type QrLabelDetail,
+  type QrGenerationCapacity,
 } from './types';
 
 function parsePrintResponse(data: unknown): unknown {
@@ -59,6 +60,9 @@ export const qrLabelApi = {
 
   listByBatch: (batchId: string): Promise<QrLabel[]> =>
     get<QrLabel[]>('/qr-labels', { batchId }),
+
+  generationCapacity: (batchId: string): Promise<QrGenerationCapacity> =>
+    get<QrGenerationCapacity>(`/qr-labels/batches/${encodeURIComponent(batchId)}/generation-capacity`),
 
   generate: (req: GenerateQrLabelRequest, idempotencyKey?: string): Promise<void> => {
     const key =
