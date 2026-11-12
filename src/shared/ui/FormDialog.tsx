@@ -18,6 +18,7 @@ export interface FormFieldDef {
   span?: 1 | 2 | 3;
   options?: (string | SelectOption)[];
   readOnly?: boolean;
+  step?: number | 'any';
   /** Return a message to flag the value as invalid (only called when the field has a value). */
   validate?: (value: unknown, values: FormValues) => string | undefined | false;
   /** Read-only computed text for type "info". */
@@ -188,6 +189,7 @@ export function FormDialog({ open, title, subtitle, fields, initial, submitLabel
                 <Input
                   type={type === 'number' ? 'text' : type}
                   inputMode={type === 'number' ? 'decimal' : undefined}
+                  step={f.step}
                   value={values[f.key] ?? ''}
                   placeholder={f.placeholder}
                   invalid={!!err}

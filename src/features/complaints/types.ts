@@ -18,7 +18,7 @@ export interface Complaint {
   productName: string;
   expectedQuantity: number;
   actualQuantity: number;
-  issueType: 'Shortage' | 'Damaged';
+  issueType: 'Shortage' | 'Damaged' | 'Return';
   status: 'Open' | 'Approved' | 'Rejected' | 'Resolved' | 'Cancelled';
   /** Raw backend status: Submitted | UnderReview | Approved | Rejected | Resolved. */
   reviewStatus?: 'Submitted' | 'UnderReview' | 'Approved' | 'Rejected' | 'Resolved' | 'Cancelled';
@@ -33,4 +33,22 @@ export interface Complaint {
   response: string | null;
   finalUnitPrice: number;
   adjustmentAmount: number;
+  requestType?: 'Complaint' | 'Return' | 'DamagedCollection';
+  settlementMethod?: 'DebtOffset' | 'CashRefund' | 'None';
+  approvedSettlementMethod?: 'DebtOffset' | 'CashRefund' | 'None' | null;
+  requestedQuantity?: number;
+  approvedQuantity?: number | null;
+  handledQuantity?: number | null;
+  requiresCollection?: boolean;
+  physicalHandlingCompleted?: boolean;
+  financialAdjustmentApplied?: boolean;
+  debtOffsetAmount?: number;
+  refundAmount?: number;
+  refundId?: string | null;
+  version?: number;
+  documents?: {id: string; code: string; kind: 'ReturnOrder' | 'CollectionOrder'; status: 'Pending' | 'Completed' | 'Waived';
+    approvedQuantity: number; actualQuantity: number | null; completedAt: string | null; note: string | null; evidenceReference: string | null}[];
 }
+
+export const requestTypeLabel = (type?: string) => type === 'Return' ? 'Trả hàng' : type === 'DamagedCollection' ? 'Thu hồi hàng hỏng' : 'Khiếu nại đơn hàng';
+export const settlementLabel = (method?: string | null) => method === 'CashRefund' ? 'Hoàn tiền' : method === 'None' ? 'Thu hồi, không bồi hoàn' : 'Cấn trừ công nợ';
