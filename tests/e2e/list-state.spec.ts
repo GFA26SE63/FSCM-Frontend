@@ -223,21 +223,3 @@ test('Scroll position of a long list is restored when returning from a detail; a
   await expect(page).toHaveURL(/\/orders$/);
   await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBe(saved);
 });
-
-test('Dashboard: custom date range is kept on refresh and no request is sent for an incomplete range', async ({ page }) => {
-  const calls = await setup(page);
-  await page.goto('/dashboard?fromDate=2026-11-02&toDate=2026-11-05');
-  await expect.poll(() => calls.filter((c) => c.path === '/dashboard').length).toBeGreaterThan(0);
-  const first = calls.filter((c) => c.path === '/dashboard')[0];
-  expect(first.search.get('fromDate')).toBe('2026-11-02');
-  expect(first.search.get('toDate')).toBe('2026-11-05');
-
-  const before = calls.filter((c) => c.path === '/dashboard').length;
-  await label(page, 'Đến ngày').locator('input').fill('');
-  await expect(page.getByText('Chọn khoảng ngày hợp lệ')).toBeVisible();
-  await page.reload();
-  await expect(label(page, 'Từ ngày').locator('input')).toHaveValue('2026-11-02');
-  await expect(label(page, 'Đến ngày').locator('input')).toHaveValue('');
-  await page.waitForTimeout(300);
-  expect(calls.filter((c) => c.path === '/dashboard').length).toBe(before);
-});

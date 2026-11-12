@@ -1,8 +1,7 @@
-import { useMemo, type CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { useAuth } from '@/shared/auth/AuthContext';
 import type { PortalRole } from '@/shared/auth/roles';
 import { useNavigate } from '@/shared/router/compat';
-import { isIsoDate, useQueryParams } from '@/shared/router/listState';
 import { Button, Callout, Card, Chip, PageHeader, QueryState, SimpleTable, Stat, StatusChip, Tabs } from '@/shared/ui';
 import { formatMoney, formatNumber } from '@/shared/lib';
 import { formatDate, formatInstantDateTime } from '@/shared/lib/dates';
@@ -16,38 +15,6 @@ export function DashboardPage() {
   const { user } = useAuth();
   return user ? <DashboardSession key={user.id} role={user.role} /> : null;
 }
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-/** Ô ngày bị xóa trống: giữ trạng thái "chưa chọn" trên URL thay vì tự điền lại kỳ mặc định. */
-const EMPTY_DATE = 'none';
-
-/** Bộ lọc báo cáo lưu trên URL; thiếu ngày → kỳ mặc định (đầu tháng → hôm nay). */
-function useDashboardFilters() {
-  const { params, setParams } = useQueryParams();
-  const search = params.toString();
-  const filters = useMemo<DashboardFilters>(() => {
-    const p = new URLSearchParams(search);
-    const defaults = defaultDashboardDates();
-    const date = (key: 'fromDate' | 'toDate') => {
-      const raw = p.get(key);
-      if (raw === null) return defaults[key];
-      return isIsoDate(raw) ? raw : '';
-    };
-    const id = (key: string) => {
-      const raw = p.get(key) ?? '';
-      return UUID.test(raw) ? raw : '';
-    };
-    return { fromDate: date('fromDate'), toDate: date('toDate'), regionId: id('regionId'), warehouseId: id('warehouseId'), salesGroupId: id('salesGroupId') };
-  }, [search]);
-  const setFilters = (patch: Partial<DashboardFilters>) => {
-    const updates: Record<string, string | null> = {};
-    for (const [key, value] of Object.entries(patch)) {
-      updates[key] = key === 'fromDate' || key === 'toDate' ? (value ? value : EMPTY_DATE) : value || null;
-    }
-    setParams(updates);
-  };
-  return { filters, setFilters, tab: params.get('tab') ?? 'overview', setTab: (tab: string) => setParams({ tab: tab === 'overview' ? null : tab }) };
-}
-
 function DashboardSession({ role }: { role: PortalRole }) {
   const navigate = useNavigate();
   const [filters, setFilters] = useState<DashboardFilters>(() => defaultDashboardDates());
@@ -55,8 +22,6 @@ function DashboardSession({ role }: { role: PortalRole }) {
   const query = useDashboard(filters);
   const options = query.data?.scope;
   const dateError = !filters.fromDate || !filters.toDate || filters.toDate < filters.fromDate || filters.toDate > defaultDashboardDates().toDate;
-  const query = useDashboard(filters, !dateError);
-  const options = query.data?.scope;
   return <div className="dashboard-page">
     <PageHeader title={DASHBOARD_TITLES[role]} subtitle="Số liệu từ hệ thống · cập nhật theo quyền của tài khoản"
       actions={<Button loading={query.isFetching} onClick={() => void query.refetch()}>Làm mới dữ liệu</Button>} />
@@ -67,19 +32,19 @@ function DashboardSession({ role }: { role: PortalRole }) {
     </div>}
     <section className="card dashboard-filters" style={{ padding: 16 }} aria-label="Bộ lọc báo cáo">
       <label className="lbl">Từ ngày<input className="inp" type="date" value={filters.fromDate} max={filters.toDate}
-        onChange={e => setFilters({ fromDate: e.target.value })} /></label>
+        onChange={e => setFilters(f => ({ ...f, fromDate: e.target.value }))} /></label>
       <label className="lbl">Đến ngày<input className="inp" type="date" value={filters.toDate} max={defaultDashboardDates().toDate}
-        onChange={e => setFilters({ toDate: e.target.value })} /></label>
+        onChange={e => setFilters(f => ({ ...f, toDate: e.target.value }))} /></label>
       <label className="lbl">Khu vực<select className="inp" value={filters.regionId ?? ''}
-        onChange={e => setFilters({ regionId: e.target.value, warehouseId: '', salesGroupId: '' })}>
+        onChange={e => setFilters(f => ({ ...f, regionId: e.target.value, warehouseId: '', salesGroupId: '' }))}>
         <option value="">Tất cả trong phạm vi</option>{options?.regions.map(r => <option key={r.id} value={r.id}>{r.code} · {r.name}</option>)}
       </select></label>
       {role !== 'SalesManager' && <label className="lbl">Kho<select className="inp" value={filters.warehouseId ?? ''}
-        onChange={e => setFilters({ warehouseId: e.target.value })}>
+        onChange={e => setFilters(f => ({ ...f, warehouseId: e.target.value }))}>
         <option value="">Tất cả kho được phép xem</option>{options?.warehouses.filter(w => !filters.regionId || w.regionId === filters.regionId).map(w => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}
       </select></label>}
       {role !== 'WarehouseKeeper' && <label className="lbl">Nhóm Sales<select className="inp" value={filters.salesGroupId ?? ''}
-        onChange={e => setFilters({ salesGroupId: e.target.value })}>
+        onChange={e => setFilters(f => ({ ...f, salesGroupId: e.target.value }))}>
         <option value="">Tất cả nhóm được phép xem</option>{options?.salesGroups.filter(g => !filters.regionId || g.regionId === filters.regionId).map(g => <option key={g.id} value={g.id}>{g.code} · {g.name}</option>)}
       </select></label>}
     </section>
