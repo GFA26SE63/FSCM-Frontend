@@ -51,7 +51,9 @@ export function useApiMutation<
           ? options.success(data, vars)
           : options.success;
 
-      if (message) toast.show(message);
+      // Every command needs an acknowledgement. Feature hooks can still supply
+      // a precise message, while less specific mutations get a consistent one.
+      toast.show(message ?? 'Thao tác thành công.');
 
       options.onSuccess?.(data, vars);
     },
