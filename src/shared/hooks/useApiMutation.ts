@@ -15,6 +15,8 @@ import { useToast } from '../ui/Toast';
 
 interface Options<TData, TVars> {
   permission?: Permission;
+  /** Use false for background/UI-preference writes that should not interrupt users. */
+  notify?: boolean;
   success?: string | ((data: TData, vars: TVars) => string);
   onSuccess?: (data: TData, vars: TVars) => void;
 }
@@ -53,13 +55,13 @@ export function useApiMutation<
 
       // Every command needs an acknowledgement. Feature hooks can still supply
       // a precise message, while less specific mutations get a consistent one.
-      toast.mutationSuccess(message);
+      if (options.notify !== false) toast.mutationSuccess(message);
 
       options.onSuccess?.(data, vars);
     },
 
     onError: (error) => {
-      toast.mutationError(error);
+      if (options.notify !== false) toast.mutationError(error);
     },
   });
 }
