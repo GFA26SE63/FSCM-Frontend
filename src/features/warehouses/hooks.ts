@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useApiMutation } from '@/shared/hooks';
 import { warehouseApi } from './api';
 import type { CreateRegionInput, UpdateRegionInput, WarehouseInput } from './types';
 
@@ -17,8 +18,7 @@ export const useRegion = (id: string) =>
 
 export function useCreateRegion() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (input: CreateRegionInput) => warehouseApi.createRegion(input),
+  return useApiMutation((input: CreateRegionInput) => warehouseApi.createRegion(input), {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['warehouses', 'regions'] });
     },
@@ -27,9 +27,9 @@ export function useCreateRegion() {
 
 export function useUpdateRegion() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: UpdateRegionInput }) =>
+  return useApiMutation(({ id, input }: { id: string; input: UpdateRegionInput }) =>
       warehouseApi.updateRegion(id, input),
+    {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['warehouses', 'regions'] });
     },
@@ -38,9 +38,9 @@ export function useUpdateRegion() {
 
 export function useUpdateRegionStatus() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+  return useApiMutation(({ id, isActive }: { id: string; isActive: boolean }) =>
       warehouseApi.updateRegionStatus(id, isActive),
+    {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['warehouses', 'regions'] });
     },
@@ -73,8 +73,7 @@ export const useRetailerMapPoints = (enabled = true) =>
 
 export function useCreateWarehouse() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (body: WarehouseInput) => warehouseApi.create(body),
+  return useApiMutation((body: WarehouseInput) => warehouseApi.create(body), {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['warehouses'] });
     },
@@ -83,9 +82,9 @@ export function useCreateWarehouse() {
 
 export function useUpdateWarehouse() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ code, body }: { code: string; body: WarehouseInput }) =>
+  return useApiMutation(({ code, body }: { code: string; body: WarehouseInput }) =>
       warehouseApi.update(code, body),
+    {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['warehouses'] });
     },
@@ -94,9 +93,9 @@ export function useUpdateWarehouse() {
 
 export function useUpdateWarehouseStatus() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ code, isActive }: { code: string; isActive: boolean }) =>
+  return useApiMutation(({ code, isActive }: { code: string; isActive: boolean }) =>
       warehouseApi.updateStatus(code, isActive),
+    {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['warehouses'] });
     },
