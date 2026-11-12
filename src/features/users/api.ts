@@ -141,7 +141,7 @@ export const userApi = {
       fullName: input.fullName,
       role: input.role,
       phone: input.phone,
-      password: input.password,
+      password: input.password.trim(),
     });
   },
 
