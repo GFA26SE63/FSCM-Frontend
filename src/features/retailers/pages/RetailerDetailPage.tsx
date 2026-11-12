@@ -23,6 +23,7 @@ import {
   useRetailerReceivables,
 } from '../hooks';
 import { RetailerFormDialog } from '../components/RetailerFormDialog';
+import { RetailerReviewDialog } from '../components/RetailerReviewDialog';
 import { CreditTermsCard } from '../components/CreditTermsCard';
 import { RetailerMlorTab } from '../components/RetailerMlorTab';
 import { RetailerAuditTimeline } from '../components/RetailerAuditTimeline';
@@ -99,8 +100,10 @@ function DebtTab({ retailer }: { retailer: Retailer }) {
 function RetailerView({ r }: { r: Retailer }) {
   const [tab, setTab] = useState<'info' | 'mlor' | 'debt' | 'hist'>('info');
   const [edit, setEdit] = useState(false);
+  const [review, setReview] = useState(false);
   const { user } = useAuth();
   const mayEdit = can(user, 'retailers.edit');
+  const mayReview = r.status === 'PendingApproval' && can(user, 'retailers.review');
   const mayReadMlor = can(user, 'mlor.read');
 
   const lat = r.latitude ?? r.lat;
@@ -122,10 +125,19 @@ function RetailerView({ r }: { r: Retailer }) {
         subtitle={r.address || 'Chưa có thông tin địa chỉ'}
         chips={<StatusChip domain="active" value={r.status} />}
         actions={
-          mayEdit ? (
-            <Button variant="primary" onClick={() => setEdit(true)}>
-              Sửa thông tin
-            </Button>
+          mayEdit || mayReview ? (
+            <div style={{ display: 'inline-flex', gap: 8 }}>
+              {mayEdit && (
+                <Button variant="default" onClick={() => setEdit(true)}>
+                  Sửa thông tin
+                </Button>
+              )}
+              {mayReview && (
+                <Button variant="primary" onClick={() => setReview(true)}>
+                  Xét duyệt
+                </Button>
+              )}
+            </div>
           ) : undefined
         }
       />
@@ -309,6 +321,7 @@ function RetailerView({ r }: { r: Retailer }) {
       {tab === 'hist' && <RetailerAuditTimeline retailer={r} />}
 
       <RetailerFormDialog open={edit} retailer={r} onClose={() => setEdit(false)} />
+      {review && <RetailerReviewDialog retailer={{ id: r.id ?? '', code: r.code ?? '' }} onClose={() => setReview(false)} />}
     </>
   );
 }
