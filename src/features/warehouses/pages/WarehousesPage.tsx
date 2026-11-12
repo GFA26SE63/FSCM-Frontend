@@ -124,8 +124,8 @@ export function WarehousesPage() {
       ...allWarehouses.map((w) => {
         const reg = rawRegions.find((r) => r.id === w.regionId);
         return {
-          lat: w.lat || 10.87,
-          lng: w.lng || 106.65,
+          lat: w.lat,
+          lng: w.lng,
           kind: 'wh' as const,
           label: `${w.code} · ${w.name}`,
           sub: w.address,
@@ -134,15 +134,15 @@ export function WarehousesPage() {
         };
       }),
       ...retailers.map((r) => ({
-        lat: r.lat || 10.87,
-        lng: r.lng || 106.65,
+        lat: r.lat,
+        lng: r.lng,
         kind: 'ret' as const,
         label: r.name,
         sub: `${r.code} · ${r.address}`,
       })),
     ];
     return buildWarehouseMapDoc({
-      center: refWh ? [refWh.lat || 10.8744, refWh.lng || 106.6511] : [10.8744, 106.6511],
+      center: [refWh?.lat, refWh?.lng],
       points,
       radiusKm: 20,
       zoom: 11,

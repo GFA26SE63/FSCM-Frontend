@@ -30,6 +30,7 @@ function source(file, mocks = {}) {
 
 const errors = source('shared/api/errors.ts');
 const qrTypes = source('features/qr-labels/types.ts');
+const printLayout = source('features/qr-labels/printLayout.ts');
 const permissions = source('shared/auth/permissions.ts', {
   '../api/errors': errors,
   '../lib/env': { env: { useMock: false } },
@@ -171,6 +172,7 @@ test('QR API Contract: qrLabelApi.generate calls POST /api/v1/qr-labels with Ide
     },
     '@/shared/api/errors': errors,
     './types': qrTypes,
+    './printLayout': printLayout,
   });
 
   const batchId = 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d';
@@ -202,6 +204,7 @@ test('QR API Contract: qrLabelApi.list queries /qr-labels with optional batchId/
     },
     '@/shared/api/errors': errors,
     './types': qrTypes,
+    './printLayout': printLayout,
   });
 
   const labels = await apiModule.qrLabelApi.list({ batchId: 'b-1' });
@@ -463,4 +466,15 @@ test('Warehouse Keeper Scoped vs Admin Global Batch QR Generation logic', () => 
   // Warehouse Keeper has access to scoped batch, blocked on out-of-scope batch
   assert.equal(checkScope(keeperAssigned, batchInScope), true);
   assert.equal(checkScope(keeperAssigned, batchOutOfScope), false);
+});
+
+test('QR print layout: 100x60 mm page, 38 mm QR, original QR SVG and label data untouched, idempotent', () => {
+  const sample = fs.readFileSync(path.resolve(__dirname, '../docs/design/TEM-TEM-001021.html'), 'utf8');
+  const out = printLayout.applyLabelPrintLayout(sample);
+  assert.match(out, /@page\{size:100mm 60mm;margin:2mm\}/);
+  assert.match(out, /\.qr\{width:38mm;height:38mm/);
+  assert.equal(out.replace(/<style id="fscm-label-layout-100x60">[\s\S]*?<\/style>/, ''), sample);
+  assert.equal(printLayout.applyLabelPrintLayout(out), out);
+  // Layout override comes after the original stylesheet so it wins.
+  assert.ok(out.indexOf('fscm-label-layout-100x60') > out.indexOf('@page{size:70mm 50mm'));
 });
