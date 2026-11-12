@@ -1,19 +1,18 @@
-import { AddressLocationPicker, FormDialog, Modal, type FormFieldDef } from '@/shared/ui';
+import { AddressLocationPicker, FormDialog, Modal, useToast, type FormFieldDef } from '@/shared/ui';
 import { IdFormat } from '@/shared/lib';
 import {
   useCreateRetailer,
   useRetailerLookups,
-  useUpdateRetailerDeclaration,
+  useUpdateRetailerProfile,
 } from '../hooks';
-import type { Retailer, UpdateRetailerDeclarationPayload } from '../types';
+import type { Retailer, UpdateRetailerProfilePayload } from '../types';
+import { hasRetailerProfileChanges, retailerProfilePayload } from '../profileForm';
 
 const KINDS = [
-  'Tạp hóa',
-  'Siêu thị mini',
-  'Quán cà phê',
-  'Nhà hàng',
-  'Cửa hàng tiện lợi',
-  'Đại lý phân phối',
+  { value: 'GroceryStore', label: 'Tạp hóa' },
+  { value: 'MiniSupermarket', label: 'Siêu thị mini' },
+  { value: 'ConvenienceStore', label: 'Cửa hàng tiện lợi' },
+  { value: 'MarketStall', label: 'Sạp chợ' },
 ];
 
 /** Create (Admin) / edit retailer. Prepopulates and validates saved values. */
@@ -28,7 +27,8 @@ export function RetailerFormDialog({
 }) {
   const { areas, groups } = useRetailerLookups(open);
   const create = useCreateRetailer();
-  const updateDeclaration = useUpdateRetailerDeclaration();
+  const updateProfile = useUpdateRetailerProfile();
+  const toast = useToast();
 
   if (!open) return null;
 
@@ -96,7 +96,7 @@ export function RetailerFormDialog({
           ? 'Số điện thoại gồm 10 chữ số, bắt đầu bằng 0.'
           : undefined,
     },
-    { key: 'email', label: 'Email', type: 'text' },
+    { key: 'email', label: 'Email', type: 'text', required: true },
     {
       key: 'address',
       label: 'Địa chỉ & Vị trí bản đồ',
@@ -204,7 +204,8 @@ export function RetailerFormDialog({
         phone: retailer.phone || '',
         email: retailer.email || '',
         address: retailer.address || '',
-        retailerType: retailer.retailerType || retailer.kind || KINDS[0],
+        retailerType: KINDS.find(kind => kind.value === retailer.retailerType || kind.label === retailer.retailerType || kind.label === retailer.kind)?.value
+          ?? retailer.retailerType ?? KINDS[0].value,
         areaCode: retailer.areaCode || first,
         groupCode:
           retailer.groupCode ||
@@ -237,7 +238,7 @@ export function RetailerFormDialog({
         phone: '',
         email: '',
         address: '',
-        retailerType: KINDS[0],
+        retailerType: KINDS[0].value,
         areaCode: first,
         groupCode:
           rawGroups.find((g) => g.areaCode === first)?.code ??
@@ -274,27 +275,16 @@ export function RetailerFormDialog({
         const creditDays = Number(v.creditTermDays);
 
         if (edit) {
+          if (!hasRetailerProfileChanges(initialValues, v)) {
+            toast.show('Chưa có thay đổi nào.');
+            return;
+          }
           const retailerId = retailer!.id || retailer!.code;
-          const declarationPayload: UpdateRetailerDeclarationPayload = {
-            name: String(v.name).trim(),
-            contactName: String(v.contactName).trim(),
-            phone: String(v.phone).trim(),
-            email: v.email ? String(v.email).trim() : undefined,
-            address: String(v.address).trim(),
-            retailerType: String(v.retailerType),
-            forecastRevenue,
-            storeSizeSquareMeters: sizeM2,
-            purchasingCapacity: capacity,
-            purchaseFrequencyPerMonth: frequency,
-            requestedCreditTermDays: creditDays,
-            assessmentNote: v.assessmentNote ? String(v.assessmentNote).trim() : undefined,
-            latitude: lat,
-            longitude: lng,
-          };
+          const profilePayload: UpdateRetailerProfilePayload = retailerProfilePayload(v);
 
-          await updateDeclaration.mutateAsync({
+          await updateProfile.mutateAsync({
             retailerId,
-            payload: declarationPayload,
+            payload: profilePayload,
           });
         } else {
           const selectedRegion = rawAreas.find((a) => a.code === v.areaCode || a.id === v.areaCode);

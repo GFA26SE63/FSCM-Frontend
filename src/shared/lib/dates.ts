@@ -15,6 +15,19 @@ export const toIsoDate = (d: Date): string => `${d.getFullYear()}-${pad(d.getMon
 export const toIsoDateTime = (d: Date): string => `${toIsoDate(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
 const VN_ZONE = 'Asia/Ho_Chi_Minh';
+/** Calendar input value for a real instant, always in the business time zone. */
+export const vietnamDate = (value: Date | string = new Date()): string => {
+  if (value === '') return '';
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: VN_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(value));
+  const part = (type: string) => parts.find((p) => p.type === type)!.value;
+  return `${part('year')}-${part('month')}-${part('day')}`;
+};
+
+export const minimumVersionDate = (currentFrom?: string, now = new Date()): string => {
+  const tomorrow = addDays(vietnamDate(now), 1);
+  const afterCurrent = currentFrom ? addDays(vietnamDate(currentFrom), 1) : tomorrow;
+  return tomorrow > afterCurrent ? tomorrow : afterCurrent;
+};
 const vnDate = new Intl.DateTimeFormat('vi-VN', { timeZone: VN_ZONE, day: '2-digit', month: '2-digit', year: 'numeric' });
 const vnDateTime = new Intl.DateTimeFormat('vi-VN', { timeZone: VN_ZONE, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 

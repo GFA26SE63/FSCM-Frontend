@@ -265,3 +265,9 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-lay
 }
 .promo-retailer-picker .tbl tr > :last-child { position: sticky; right: 0; background: var(--c-card, #fff); box-shadow: -1px 0 0 var(--c-border, #e0e5e2); }
 .promo-retailer-picker .tbl thead tr > :last-child { z-index: 3; background: var(--c-th); }
+
+/* Export orders: compact list rows; details use the shared modal. */
+.export-order { overflow: hidden; }
+.export-order-toggle { display: flex; align-items: center; gap: 12px; width: 100%; padding: 18px 20px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.export-order-toggle:hover { background: var(--c-surface-2); }
+.export-order-toggle:focus-visible { outline: 2px solid var(--c-primary, #14655b); outline-offset: -3px; }

@@ -191,6 +191,9 @@ export interface UpdateRetailerDeclarationPayload {
   submitForReview?: boolean;
 }
 
+/** Admin profile edits never submit a declaration or replace its MLOR rules. */
+export type UpdateRetailerProfilePayload = Omit<UpdateRetailerDeclarationPayload, 'mlorDeclarations' | 'submitForReview'>;
+
 export interface RetailerPage {
   items: Retailer[];
   totalCount: number;

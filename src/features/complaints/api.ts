@@ -18,15 +18,25 @@ export const complaintApi = {
   },
   evidence: (id: string) => get<ComplaintEvidence[]>(`/complaints/${id}/evidence`),
   /** F62: review actions. Admin approves/rejects; Admin or Operator requests more evidence. */
-  decide: async (v: { code: string; decision: ComplaintDecision; text: string; id?: string }) => {
+  decide: async (v: { code: string; decision: ComplaintDecision; text: string; id?: string;
+    approvedQuantity?: number; settlementMethod?: string; expectedVersion?: number; waivePhysicalHandling?: boolean; waiverReason?: string }) => {
     const id = await findId(v.code, v.id);
     switch (v.decision) {
       case 'requestEvidence':
         return put<Complaint>(`/complaints/${id}/request-evidence`, { reason: v.text });
       case 'reject':
-        return post<Complaint>(`/complaints/${id}/reject`, { reason: v.text });
+        return post<Complaint>(`/complaints/${id}/reject`, { reason: v.text,
+          ...(v.expectedVersion === undefined ? {} : { expectedVersion: v.expectedVersion }) });
       default:
-        return post<Complaint>(`/complaints/${id}/approve`, { note: v.text });
+        return post<Complaint>(`/complaints/${id}/approve`, { note: v.text,
+          ...(v.approvedQuantity === undefined ? {} : { approvedQuantity: v.approvedQuantity }),
+          ...(v.settlementMethod === undefined ? {} : { settlementMethod: v.settlementMethod }),
+          ...(v.expectedVersion === undefined ? {} : { expectedVersion: v.expectedVersion }),
+          ...(v.waivePhysicalHandling ? { waivePhysicalHandling: true, waiverReason: v.waiverReason } : {}),
+        });
     }
   },
+  completeHandling: (v: { id: string; expectedVersion: number; actualQuantity: number; completedAt: string; note: string; evidenceReference: string }) =>
+    post<Complaint>(`/complaints/${v.id}/complete-handling`, { expectedVersion: v.expectedVersion, actualQuantity: v.actualQuantity,
+      completedAt: v.completedAt, note: v.note, evidenceReference: v.evidenceReference }),
 };

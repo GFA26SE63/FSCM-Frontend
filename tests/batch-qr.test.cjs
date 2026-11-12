@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
+const React = require('react');
+const { renderToStaticMarkup } = require('react-dom/server');
 
 function source(file, mocks = {}) {
   const filename = path.resolve(__dirname, '../src', file);
@@ -34,6 +36,100 @@ const permissions = source('shared/auth/permissions.ts', {
 });
 
 const user = (role) => ({ id: 'user-' + role, role, name: role, email: role + '@example.com' });
+
+test('source A is historical after splitting and only its new B/C labels can print', () => {
+  assert.equal(qrTypes.labelStatusText('Split'), 'Đã tách · chỉ lưu lịch sử');
+  assert.equal(qrTypes.isPrintableLabel({ status: 'Split', invalidatedAt: null, quantity: 50 }), false);
+  assert.equal(qrTypes.isPrintableLabel({ status: 'Picked', invalidatedAt: null, quantity: 25 }), true);
+  assert.equal(qrTypes.isPrintableLabel({ status: 'Available', invalidatedAt: null, quantity: 25 }), true);
+});
+
+function generationDialog({ quantity, query = {} } = {}) {
+  const state = { submitted: [], error: null, submit: null, refetched: 0 };
+  let hookIndex = 0;
+  const capacityQuery = {
+    data: { batchId: 'batch-q7', physicalQuantity: 20, labelledQuantity: 0, unlabelledQuantity: 20 },
+    isSuccess: true, isFetching: false, isError: false,
+    refetch: async () => { state.refetched++; }, ...query,
+  };
+  const element = React.createElement;
+  const Dialog = source('features/qr-labels/components/GenerateQrDialog.tsx', {
+    react: { ...React, useState: () => hookIndex++ === 0
+      ? [quantity === undefined ? null : { batchId: 'batch-q7', value: quantity }, () => {}]
+      : [null, (value) => { state.error = value; }] },
+    '@/shared/api/errors': errors,
+    '@/shared/auth/AuthContext': { useAuth: () => ({ user: user('WarehouseKeeper') }) },
+    '@/shared/auth/permissions': permissions,
+    '@/shared/lib': { formatDate: (value) => value },
+    '../hooks': {
+      useGenerateQrLabel: () => ({ isPending: false, mutateAsync: async (value) => { state.submitted.push(value); } }),
+      useQrGenerationCapacity: () => capacityQuery,
+    },
+    '@/shared/ui': {
+      Modal: ({ children, footer }) => element('div', null, children, footer),
+      Callout: ({ children }) => element('div', null, children),
+      FormField: ({ children }) => element('div', null, children),
+      Input: (props) => element('input', props),
+      Button: ({ children, onClick, disabled }) => {
+        if (children === 'Sinh mã QR') state.submit = { onClick, disabled };
+        return element('button', { onClick, disabled }, children);
+      },
+    },
+  }).GenerateQrDialog;
+  state.html = renderToStaticMarkup(element(Dialog, {
+    open: true, batch: { batchId: 'batch-q7', batchCode: 'WH-Q7-SKU002', sku: 'SKU002',
+      productName: 'Sữa chua', onHandQuantity: 20, availableQuantity: 6 },
+    existingCount: 1, onClose: () => {},
+  }));
+  return state;
+}
+
+test('generation uses server unlabelled stock, distinct from available-to-allocate quantity', async () => {
+  const initial = generationDialog();
+  assert.match(initial.html, /Chưa có tem QR/);
+  assert.match(initial.html, /max="20"/);
+  assert.match(initial.html, /value="20"/);
+  assert.match(initial.html, /6 thùng/);
+  for (const quantity of ['5', '6']) {
+    const state = generationDialog({ quantity });
+    assert.equal(state.submit.disabled, false);
+    await state.submit.onClick({ preventDefault() {} });
+    assert.deepEqual(state.submitted, [{ batchId: 'batch-q7', quantity: Number(quantity) }]);
+  }
+});
+
+test('generation blocks fractional, excessive, empty and nonpositive quantities before POST', async () => {
+  for (const quantity of ['5.5', '21', '', '0', '-1']) {
+    const state = generationDialog({ quantity });
+    await state.submit.onClick({ preventDefault() {} });
+    assert.equal(state.submitted.length, 0, quantity);
+    assert.ok(state.error, quantity);
+  }
+});
+
+test('generation waits for fresh capacity and fails closed on missing data or zero unlabelled stock', async () => {
+  for (const query of [
+    { isFetching: true },
+    { data: undefined, isSuccess: false, isError: true },
+    { data: { batchId: 'batch-q7', physicalQuantity: 20, labelledQuantity: 20, unlabelledQuantity: 0 } },
+  ]) {
+    const state = generationDialog({ quantity: '5', query });
+    assert.equal(state.submit.disabled, true);
+    await state.submit.onClick({ preventDefault() {} });
+    assert.equal(state.submitted.length, 0);
+  }
+});
+
+test('generation capacity comes from the authorized batch API, not a sum of historical label quantities', async () => {
+  const calls = [];
+  const capacity = { batchId: 'batch-q7', physicalQuantity: 20, labelledQuantity: 0, unlabelledQuantity: 20 };
+  const { qrLabelApi } = source('features/qr-labels/api.ts', {
+    '@/shared/api/http': { http: {}, get: async (...args) => { calls.push(args); return capacity; } },
+    '@/shared/api/errors': errors, './types': qrTypes,
+  });
+  assert.deepEqual(await qrLabelApi.generationCapacity('batch-q7'), capacity);
+  assert.equal(calls[0][0], '/qr-labels/batches/batch-q7/generation-capacity');
+});
 
 test('RBAC: qr.view, qr.generate and qr.print conform to warehouse authorization matrix', () => {
   // qr.view

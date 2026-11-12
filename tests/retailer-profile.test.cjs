@@ -251,7 +251,9 @@ test('Source Code Integrity: RetailerMlorTab implements F22-FE Category & SKU ML
   // CRUD hooks usage
   assert.ok(mlorTabCode.includes('useRetailerMlorConfigs'));
   assert.ok(mlorTabCode.includes('useResolveMlor'));
-  assert.ok(mlorTabCode.includes('useSetMlor'));
+  const dialogCode = fs.readFileSync(path.resolve(__dirname, '../src/features/retailers/components/MlorRuleDialog.tsx'), 'utf8');
+  assert.ok(mlorTabCode.includes('<MlorRuleDialog'));
+  assert.ok(dialogCode.includes('useSetMlor'));
   assert.ok(mlorTabCode.includes('useDeleteMlor'));
 });
 

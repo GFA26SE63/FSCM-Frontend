@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { get } from '@/shared/api/http';
 import { useApiMutation } from '@/shared/hooks';
+import { useAuth } from '@/shared/auth/AuthContext';
 
 import { qrLabelApi } from './api';
 import type { GenerateQrLabelRequest, PrintTarget } from './types';
@@ -111,6 +112,16 @@ export function useGenerateQrLabel() {
       },
     },
   );
+}
+
+export function useQrGenerationCapacity(batchId: string, enabled: boolean) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ['qr-labels', 'generation-capacity', user?.id, batchId],
+    queryFn: () => qrLabelApi.generationCapacity(batchId),
+    enabled: Boolean(user?.id && batchId && enabled),
+    staleTime: 0,
+  });
 }
 
 export function useLabelPrintDocument(
