@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from '@/shared/router/compat';
+import { Link, useParams } from '@/shared/router/compat';
+import { useReturnToList } from '@/shared/router/listState';
 import {
   //Chip,
   QueryState,
@@ -19,7 +20,7 @@ import type { InventoryLockItem } from '../types';
 
 export function BatchDetailPage() {
   const { code = '' } = useParams();
-  const navigate = useNavigate();
+  const returnToList = useReturnToList();
   const query = useBatch(code);
   const { user } = useAuth();
   const toast = useToast();
@@ -96,7 +97,7 @@ export function BatchDetailPage() {
               <button
                 type="button"
                 className="btn"
-                onClick={() => navigate('/batches')}
+                onClick={() => returnToList('/batches')}
               >
                 ← Quay lại
               </button>

@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Eye, MapPin, Pause, Pencil, Play } from 'lucide-react';
 import { useNavigate, useParams } from '@/shared/router/compat';
+import { useReturnToList } from '@/shared/router/listState';
+import { useEnumParam } from '@/shared/router/listState';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { statusLabels } from '@/shared/lib';
 import {
@@ -27,14 +29,17 @@ import {
 } from '../hooks';
 import type { MapPoint, SortOrder, Warehouse } from '../types';
 
+const SORT_ORDERS: readonly SortOrder[] = ['desc', 'asc'];
+
 export function RegionWarehousesPage() {
   const { regionId = '' } = useParams<{ regionId: string }>();
   const navigate = useNavigate();
+  const returnToList = useReturnToList();
   const toast = useToast();
   const { user } = useAuth();
   const isAdmin = user?.role === 'Admin';
 
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [sortOrder, setSortOrder] = useEnumParam<SortOrder>('sort', SORT_ORDERS, 'desc');
   const [netMapOpen, setNetMapOpen] = useState(false);
   const [mapWarehouseFilter, setMapWarehouseFilter] = useState<string>('all');
 
@@ -181,7 +186,7 @@ export function RegionWarehousesPage() {
           title="Không tìm thấy vùng hoạt động"
           description={`Vùng hoạt động có mã định danh "${regionId}" không tồn tại hoặc đã bị xóa.`}
           action={
-            <Button variant="primary" onClick={() => navigate('/whs')}>
+            <Button variant="primary" onClick={() => returnToList('/whs')}>
               ← Quay lại danh sách vùng hoạt động
             </Button>
           }

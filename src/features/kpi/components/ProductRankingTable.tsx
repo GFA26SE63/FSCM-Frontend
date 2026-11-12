@@ -38,6 +38,7 @@ export function ProductRankingTable({
 
   return (
     <DataTable
+      stateKey="products"
       title="Sản phẩm bán chạy"
       rows={rows}
       columns={columns}

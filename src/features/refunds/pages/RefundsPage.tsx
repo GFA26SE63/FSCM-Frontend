@@ -65,6 +65,7 @@ export function RefundsPage() {
             <Callout tone="danger">Không tải được các khoản cần hoàn.</Callout>
           ) : (
             <DataTable
+              stateKey="obligations"
               rows={(obligations.data ?? []).filter((item) => item.unrequestedAmount > 0)}
               loading={obligations.isLoading}
               rowKey={(item) => item.paymentId}

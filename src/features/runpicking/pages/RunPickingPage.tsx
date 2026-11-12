@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from '@/shared/router/compat';
+import { useEnumParam, useStringParam } from '@/shared/router/listState';
 import { Card, Chip, PageHeader, QueryState, Select, SimpleTable, Stat, type Tone } from '@/shared/ui';
 import { formatCases, formatNumber, formatPercent } from '@/shared/lib';
 import { formatDate, formatInstantDateTime } from '@/shared/lib/dates';
 import { usePickingLists, useWarehouseOptions } from '../hooks';
 import type { PickingItem, PickingList, PickingStatus } from '../types';
+
+const PICKING_STATUSES: PickingStatus[] = ['Pending', 'InProgress', 'Completed', 'Exception'];
 
 const STATUS: Record<PickingStatus, { tone: Tone; label: string }> = {
   Pending: { tone: 'info', label: 'Chờ soạn' },
@@ -16,10 +19,12 @@ const STATUS: Record<PickingStatus, { tone: Tone; label: string }> = {
 export function RunPickingPage() {
   const requestedCode = new URLSearchParams(useLocation().search).get('code');
   const navigate = useNavigate();
-  const [warehouseId, setWarehouseId] = useState('');
-  const [status, setStatus] = useState('');
+  const [rawWarehouseId, setWarehouseId] = useStringParam('warehouseId');
+  const [status, setStatus] = useEnumParam<PickingStatus | ''>('status', ['', ...PICKING_STATUSES], '');
   const [openId, setOpenId] = useState<string | null>(null);
   const warehouses = useWarehouseOptions();
+  // Kho trên URL không thuộc danh sách kho được phép xem → "Tất cả kho".
+  const warehouseId = !rawWarehouseId || !warehouses.data || warehouses.data.some((w) => w.id === rawWarehouseId) ? rawWarehouseId : '';
   const lists = usePickingLists(warehouseId, status);
 
   return (
@@ -42,7 +47,7 @@ export function RunPickingPage() {
           />
           <Select
             value={status}
-            onChange={(event) => setStatus(event.target.value)}
+            onChange={(event) => setStatus(event.target.value as PickingStatus | '')}
             placeholder="Tất cả trạng thái"
             options={Object.entries(STATUS).map(([code, meta]) => ({ value: code, label: meta.label }))}
           />

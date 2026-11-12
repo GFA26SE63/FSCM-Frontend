@@ -88,12 +88,12 @@ export function PromoFormPage() {
     <Card title="Khách hàng được hưởng ưu đãi">
       <p className="muted small">Không chọn cửa hàng nào là áp dụng cho tất cả cửa hàng đủ điều kiện. Đơn đã chốt không tự thay đổi khi kích hoạt khuyến mãi.</p>
       <div className="promo-retailer-picker">
-      <DataTable title={`Cửa hàng đã thêm · ${retailerIds.length}`}
+      <DataTable urlState={false} title={`Cửa hàng đã thêm · ${retailerIds.length}`}
         columns={retailerColumns} rows={(retailers.data ?? []).filter((r) => retailerIds.includes(r.id))}
         rowKey={(r) => r.id} searchable={false} pageSize={5}
         emptyText="Chưa thêm cửa hàng: áp dụng cho tất cả cửa hàng đủ điều kiện."
         rowActionsWidth="100px" rowActions={(r) => <Button size="sm" onClick={() => setRetailerIds((ids) => ids.filter((id) => id !== r.id))}>Bỏ chọn</Button>} />
-      <DataTable title="Thêm cửa hàng được hưởng ưu đãi"
+      <DataTable urlState={false} title="Thêm cửa hàng được hưởng ưu đãi"
         columns={retailerColumns} rows={retailers.data?.filter((r) => r.status === 'Active' && !retailerIds.includes(r.id))}
         loading={retailers.isLoading} error={retailers.error} rowKey={(r) => r.id} pageSize={5}
         searchPlaceholder="Tìm mã, tên, số điện thoại hoặc địa chỉ cửa hàng…"

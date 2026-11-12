@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Eye, MapPin, Pause, Pencil, Play } from 'lucide-react';
 import { useLocation, useNavigate } from '@/shared/router/compat';
+import { useEnumParam, useQueryParams } from '@/shared/router/listState';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { statusLabels } from '@/shared/lib';
 import {
@@ -29,6 +30,8 @@ import {
 } from '../hooks';
 import type { MapPoint, SortOrder, Warehouse, WarehouseRegion } from '../types';
 
+const SORT_ORDERS: readonly SortOrder[] = ['desc', 'asc'];
+
 export function WarehousesPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'Admin';
@@ -39,19 +42,12 @@ export function WarehousesPage() {
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const tabParam = searchParams.get('tab');
 
-  const [activeTab, setActiveTab] = useState<'regions' | 'all-whs'>(() => {
-    return tabParam === 'warehouses' || tabParam === 'all-whs' ? 'all-whs' : 'regions';
-  });
-
-  useEffect(() => {
-    if (tabParam === 'warehouses' || tabParam === 'all-whs') {
-      setActiveTab('all-whs');
-    } else if (tabParam === 'regions') {
-      setActiveTab('regions');
-    }
-  }, [tabParam]);
-  const [regionSortOrder, setRegionSortOrder] = useState<SortOrder>('desc');
-  const [whSortOrder, setWhSortOrder] = useState<SortOrder>('desc');
+  // tab=warehouses | all-whs (liên kết cũ) → danh sách kho; mặc định: vùng hoạt động.
+  const activeTab: 'regions' | 'all-whs' = tabParam === 'warehouses' || tabParam === 'all-whs' ? 'all-whs' : 'regions';
+  const { setParams } = useQueryParams();
+  const setActiveTab = (tab: 'regions' | 'all-whs') => setParams({ tab: tab === 'all-whs' ? 'warehouses' : null });
+  const [regionSortOrder, setRegionSortOrder] = useEnumParam<SortOrder>('regions.sort', SORT_ORDERS, 'desc');
+  const [whSortOrder, setWhSortOrder] = useEnumParam<SortOrder>('warehouses.sort', SORT_ORDERS, 'desc');
 
   // Modal create region state
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -275,6 +271,8 @@ export function WarehousesPage() {
 
       {activeTab === 'regions' ? (
         <DataTable
+          key="regions"
+          stateKey="regions"
           title="Danh sách vùng hoạt động"
           rows={sortedRegions}
           loading={regionsQuery.isLoading}
@@ -434,6 +432,8 @@ export function WarehousesPage() {
         />
       ) : (
         <DataTable
+          key="warehouses"
+          stateKey="warehouses"
           title="Danh sách kho"
           rows={sortedWarehouses}
           loading={warehousesQuery.isLoading}
