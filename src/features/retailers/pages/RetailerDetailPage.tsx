@@ -1,7 +1,8 @@
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
 import { useState } from 'react';
-import { useNavigate, useParams } from '@/shared/router/compat';
+import { useParams } from '@/shared/router/compat';
+import { useReturnToList } from '@/shared/router/listState';
 import { toApiError } from '@/shared/api/errors';
 import {
   AddressLocationPicker,
@@ -329,7 +330,7 @@ function RetailerView({ r }: { r: Retailer }) {
 /** Route /retailers/:id or /retailers/:code – loads real Retailer detail from Backend API. */
 export function RetailerDetailPage() {
   const { id, code } = useParams();
-  const navigate = useNavigate();
+  const returnToList = useReturnToList();
   const identifier = id || code || '';
   const retailer = useRetailer(identifier);
 
@@ -339,7 +340,7 @@ export function RetailerDetailPage() {
         title="Không tìm thấy Retailer"
         description="Mã điểm bán không hợp lệ hoặc thiếu định danh."
         action={
-          <Button variant="default" onClick={() => navigate('/retailers')}>
+          <Button variant="default" onClick={() => returnToList('/retailers')}>
             Quay lại danh sách
           </Button>
         }
@@ -363,7 +364,7 @@ export function RetailerDetailPage() {
           title="Không tìm thấy Retailer"
           description="Không tìm thấy Retailer này. Thông tin có thể đã được thay đổi hoặc không còn tồn tại."
           action={
-            <Button variant="default" onClick={() => navigate('/retailers')}>
+            <Button variant="default" onClick={() => returnToList('/retailers')}>
               Quay lại danh sách
             </Button>
           }
@@ -376,7 +377,7 @@ export function RetailerDetailPage() {
           title="Không có quyền truy cập"
           description="Bạn không có quyền xem thông tin Retailer này."
           action={
-            <Button variant="default" onClick={() => navigate('/retailers')}>
+            <Button variant="default" onClick={() => returnToList('/retailers')}>
               Quay lại danh sách
             </Button>
           }
@@ -405,7 +406,7 @@ export function RetailerDetailPage() {
             <Button variant="primary" onClick={() => retailer.refetch()}>
               Thử lại
             </Button>
-            <Button variant="default" onClick={() => navigate('/retailers')}>
+            <Button variant="default" onClick={() => returnToList('/retailers')}>
               Quay lại danh sách
             </Button>
           </div>
@@ -420,7 +421,7 @@ export function RetailerDetailPage() {
         title="Không tìm thấy Retailer"
         description="Không tìm thấy Retailer này. Thông tin có thể đã được thay đổi hoặc không còn tồn tại."
         action={
-          <Button variant="default" onClick={() => navigate('/retailers')}>
+          <Button variant="default" onClick={() => returnToList('/retailers')}>
             Quay lại danh sách
           </Button>
         }

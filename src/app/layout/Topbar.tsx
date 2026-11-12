@@ -11,7 +11,7 @@ export function Topbar() {
   const detail = rest.length ? (rest[0] === 'new' ? 'Tạo mới' : 'Chi tiết') : null;
   return (
     <header className="topbar">
-      <div style={{ flex: 1 }}><Breadcrumbs items={[{ label: 'FSCM Portal', to: '/orders' }, { label, to: `/${key}` }, ...(detail ? [{ label: detail }] : [])]} /></div>
+      <div style={{ flex: 1 }}><Breadcrumbs items={[{ label: 'FSCM Portal', to: '/orders' }, { label, to: `/${key}`, restoreList: true }, ...(detail ? [{ label: detail }] : [])]} /></div>
       <NotificationBell />
     </header>
   );

@@ -112,6 +112,7 @@ export function DebtsPage() {
         }}
       />
       <DataTable
+        stateKey="refunds"
         title="Phiếu hoàn tiền"
         rows={refunds.data ?? []}
         loading={refunds.isLoading}

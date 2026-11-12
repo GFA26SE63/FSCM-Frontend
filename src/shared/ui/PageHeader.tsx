@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react';
 import { useNavigate } from '@/shared/router/compat';
+import { useReturnToList } from '@/shared/router/listState';
 import { Button } from './Button';
 
 interface PageHeaderProps {
   title: ReactNode;
   subtitle?: ReactNode;
-  /** Show "← Quay lại"; string = path, true = history back. */
+  /** Show "← Quay lại"; string = path (khôi phục bộ lọc đã dùng ở danh sách đó), true = history back. */
   back?: string | boolean;
   chips?: ReactNode;
   actions?: ReactNode;
@@ -13,10 +14,11 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, subtitle, back, chips, actions }: PageHeaderProps) {
   const navigate = useNavigate();
+  const returnToList = useReturnToList();
   return (
     <div className="page-hd">
       {back && (
-        <Button onClick={() => (typeof back === 'string' ? navigate(back) : navigate(-1))}>← Quay lại</Button>
+        <Button onClick={() => (typeof back === 'string' ? returnToList(back) : navigate(-1))}>← Quay lại</Button>
       )}
       <div className="spacer" style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <div className="row" style={{ flexWrap: 'wrap' }}>

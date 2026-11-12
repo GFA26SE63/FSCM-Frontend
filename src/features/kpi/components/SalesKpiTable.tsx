@@ -190,6 +190,7 @@ export function SalesKpiTable({ rows, onOpenOrders, onOpenDetail }: Props) {
 
   return (
     <DataTable
+      stateKey="kpi"
       title="Bảng theo dõi KPI Sales"
       rows={rows}
       columns={columns}

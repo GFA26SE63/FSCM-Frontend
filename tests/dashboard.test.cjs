@@ -80,6 +80,7 @@ test('dashboard picking link shows and expands the requested sheet, with a way b
   const Wrap=({children,title,value,label,actions})=>React.createElement('div',null,title,label,value,actions,children);
   const {RunPickingPage}=source('features/runpicking/pages/RunPickingPage.tsx',{
     '@/shared/router/compat':{useLocation:()=>({search}),useNavigate:()=>()=>{}},
+    '@/shared/router/listState':{useStringParam:()=>['',()=>{}],useEnumParam:(_n,_a,fallback)=>[fallback,()=>{}]},
     '../hooks':{usePickingLists:()=>({data:rows}),useWarehouseOptions:()=>({data:[]})},
     '@/shared/ui':{Card:Wrap,Chip:Wrap,PageHeader:Wrap,Stat:Wrap,Select:()=>null,QueryState:({query,children})=>children(query.data),SimpleTable:({rows,columns})=>React.createElement('div',null,rows.map((r,i)=>React.createElement('div',{key:i},columns.map((c,j)=>React.createElement('span',{key:j},c.cell(r))))))},
     '@/shared/lib':{formatCases:String,formatNumber:String,formatPercent:String},

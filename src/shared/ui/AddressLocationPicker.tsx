@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Button } from './Button';
 import { Input } from './FormField';
 import { Modal } from './Modal';
 import { buildMapDoc, type MapPoint } from '@/shared/lib/mapDoc';
-import { forwardGeocode, reverseGeocode } from '@/shared/lib/geocoding';
+import { createLatestGuard, forwardGeocode, isValidCoordinate, reverseGeocode } from '@/shared/lib/geocoding';
+import { postMapPoint, useMapPickMessages } from '@/shared/lib/useMapPick';
 
 export interface AddressLocationPickerProps {
   mode?: 'view' | 'edit';
@@ -271,26 +272,29 @@ function AddressLocationEditor({
   const [pickerModalOpen, setPickerModalOpen] = useState(false);
 
   const mapIframeRef = useRef<HTMLIFrameElement | null>(null);
+  const modalIframeRef = useRef<HTMLIFrameElement | null>(null);
+  const frames = [mapIframeRef, modalIframeRef];
+  const [reverseGuard] = useState(createLatestGuard);
 
-  // Stable coordinate anchor for iframe initialization:
-  // Ensures iframe srcDoc is NOT re-rendered on address typing or keystroke!
-  const initialAnchor = useMemo<[number, number]>(() => {
-    const safeLat = lat != null && Number.isFinite(lat) && lat !== 0 ? lat : 10.8744;
-    const safeLng = lng != null && Number.isFinite(lng) && lng !== 0 ? lng : 106.6511;
-    return [safeLat, safeLng];
+  // Vị trí ban đầu của ghim, cố định để bản đồ KHÔNG tải lại khi gõ địa chỉ.
+  // Chưa có tọa độ đã lưu → không đặt ghim cho tới khi người dùng chọn.
+  const initialPin = useMemo<[number, number] | null>(
+    () => (isValidCoordinate(lat, lng) ? [Number(lat), Number(lng)] : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    [],
+  );
 
   const mapSrcDoc = useMemo(() => {
     return buildMapDoc({
-      center: initialAnchor,
+      center: initialPin ?? undefined,
+      pickPoint: initialPin,
       radiusKm,
       zoom: 13,
       interactivePick: true,
       pickHint: 'Nhấp hoặc kéo ghim để chọn vị trí & đồng bộ địa chỉ',
       pinTooltip: entityName || 'Vị trí đang chọn (kéo ghim để đổi)',
     });
-  }, [initialAnchor, radiusKm, entityName]);
+  }, [initialPin, radiusKm, entityName]);
 
   // Handle Map Picking (both from embed iframe and enlarged modal)
   const handleMapPick = useCallback(
@@ -300,12 +304,15 @@ function AddressLocationEditor({
 
       // 1. Immediately update coordinates to preserve selected point
       onCoordinatesChange?.(safeLat, safeLng);
+      postMapPoint([mapIframeRef, modalIframeRef], safeLat, safeLng);
 
-      // 2. Reverse geocode to address
+      // 2. Reverse geocode to address (chỉ kết quả của lần chọn mới nhất được áp dụng)
+      const requestId = reverseGuard.next();
       setReverseGeocoding(true);
       setFeedbackMsg(null);
       try {
         const resolvedAddress = await reverseGeocode(safeLat, safeLng);
+        if (!reverseGuard.isLatest(requestId)) return;
         if (resolvedAddress && resolvedAddress.trim()) {
           onAddressChange?.(resolvedAddress.trim());
           setFeedbackTone('ok');
@@ -315,30 +322,19 @@ function AddressLocationEditor({
           setFeedbackMsg(`Đã chọn tọa độ [${safeLat}, ${safeLng}].`);
         }
       } catch {
+        if (!reverseGuard.isLatest(requestId)) return;
         // Reverse geocoding failed: preserve coordinates, notify user
         setFeedbackTone('error');
         setFeedbackMsg('Không thể xác định địa chỉ tại vị trí này.');
       } finally {
-        setReverseGeocoding(false);
+        if (reverseGuard.isLatest(requestId)) setReverseGeocoding(false);
       }
     },
-    [onCoordinatesChange, onAddressChange],
+    [onCoordinatesChange, onAddressChange, reverseGuard],
   );
 
-  // Listen to iframe map pick messages
-  useEffect(() => {
-    const handleMessage = (e: MessageEvent) => {
-      if (
-        (e.data?.type === 'mapPick' || e.data?.type === 'fscm:pick-coords') &&
-        typeof e.data.lat === 'number' &&
-        typeof e.data.lng === 'number'
-      ) {
-        handleMapPick(e.data.lat, e.data.lng);
-      }
-    };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [handleMapPick]);
+  // Chỉ nhận tọa độ từ chính các bản đồ của ô chọn vị trí này
+  useMapPickMessages(frames, handleMapPick);
 
   // Handle explicit "Định vị" button action
   const handleGeocode = async () => {
@@ -354,12 +350,11 @@ function AddressLocationEditor({
     try {
       const coords = await forwardGeocode(q);
       if (coords && Number.isFinite(coords.lat) && Number.isFinite(coords.lng)) {
+        reverseGuard.next(); // bỏ kết quả định vị ngược còn chờ của lần chọn trước
+        setReverseGeocoding(false);
         onCoordinatesChange?.(coords.lat, coords.lng);
         // Pan map and move marker via postMessage without reloading iframe
-        mapIframeRef.current?.contentWindow?.postMessage(
-          { type: 'setPoint', lat: coords.lat, lng: coords.lng },
-          '*',
-        );
+        postMapPoint(frames, coords.lat, coords.lng);
         setFeedbackTone('ok');
         setFeedbackMsg(`Đã định vị tọa độ: [${coords.lat}, ${coords.lng}]`);
       } else {
@@ -374,8 +369,32 @@ function AddressLocationEditor({
     }
   };
 
-  const currentLat = lat ?? initialAnchor[0];
-  const currentLng = lng ?? initialAnchor[1];
+  const hasCurrent = isValidCoordinate(lat, lng);
+
+  // Bản đồ phóng to: dựng một lần mỗi lần mở, không tải lại khi địa chỉ/tọa độ cập nhật.
+  const modalSrcDoc = useMemo(() => {
+    if (!pickerModalOpen) return '';
+    const current: [number, number] | null = hasCurrent ? [Number(lat), Number(lng)] : null;
+    return buildMapDoc({
+      center: current ?? undefined,
+      pickPoint: current,
+      points: current
+        ? [
+            {
+              lat: current[0],
+              lng: current[1],
+              kind: entityKind,
+              label: entityName || (entityKind === 'ret' ? 'Điểm bán' : 'Kho'),
+              sub: address,
+            },
+          ]
+        : [],
+      interactivePick: true,
+      zoom: 14,
+      pickHint: 'Nhấp hoặc kéo ghim để chọn vị trí & đồng bộ địa chỉ',
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickerModalOpen]);
 
   return (
     <div className="address-location-picker" style={{ width: '100%' }}>
@@ -476,11 +495,8 @@ function AddressLocationEditor({
               disabled={readOnly}
               onChange={(e) => {
                 const val = Number(e.target.value);
-                onCoordinatesChange?.(val, lng ?? initialAnchor[1]);
-                mapIframeRef.current?.contentWindow?.postMessage(
-                  { type: 'setPoint', lat: val, lng: lng ?? initialAnchor[1] },
-                  '*',
-                );
+                onCoordinatesChange?.(val, lng ?? Number.NaN);
+                if (lng != null) postMapPoint(frames, val, lng);
               }}
               placeholder="Ví dụ: 10.8744"
             />
@@ -504,11 +520,8 @@ function AddressLocationEditor({
               disabled={readOnly}
               onChange={(e) => {
                 const val = Number(e.target.value);
-                onCoordinatesChange?.(lat ?? initialAnchor[0], val);
-                mapIframeRef.current?.contentWindow?.postMessage(
-                  { type: 'setPoint', lat: lat ?? initialAnchor[0], lng: val },
-                  '*',
-                );
+                onCoordinatesChange?.(lat ?? Number.NaN, val);
+                if (lat != null) postMapPoint(frames, lat, val);
               }}
               placeholder="Ví dụ: 106.6511"
             />
@@ -540,21 +553,8 @@ function AddressLocationEditor({
         >
           <div style={{ height: 480, borderRadius: 6, overflow: 'hidden' }}>
             <iframe
-              srcDoc={buildMapDoc({
-                center: [currentLat, currentLng],
-                points: [
-                  {
-                    lat: currentLat,
-                    lng: currentLng,
-                    kind: entityKind,
-                    label: entityName || (entityKind === 'ret' ? 'Điểm bán' : 'Kho'),
-                    sub: address,
-                  },
-                ],
-                interactivePick: true,
-                zoom: 14,
-                pickHint: 'Nhấp hoặc kéo ghim để chọn vị trí & đồng bộ địa chỉ',
-              })}
+              ref={modalIframeRef}
+              srcDoc={modalSrcDoc}
               style={{ width: '100%', height: '100%', border: 'none' }}
               title="Bản đồ phóng to"
             />
