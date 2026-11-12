@@ -1,6 +1,8 @@
 import { get, http } from '@/shared/api/http';
 import { ApiError } from '@/shared/api/errors';
 
+import { applyLabelPrintLayout } from './printLayout';
+
 import {
   isPrintableLabel,
   type GenerateQrLabelRequest,
@@ -50,7 +52,7 @@ async function loadHtml(path: string): Promise<string> {
     );
   }
 
-  return response.data;
+  return applyLabelPrintLayout(response.data);
 }
 
 export const qrLabelApi = {
