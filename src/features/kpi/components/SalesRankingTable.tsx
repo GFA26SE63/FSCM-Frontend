@@ -61,6 +61,7 @@ export function SalesRankingTable({ rows, filters }: Props) {
 
   return (
     <DataTable
+      stateKey="sales"
       title="Xếp hạng Sales"
       rows={rows}
       columns={columns}

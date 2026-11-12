@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApiMutation } from '@/shared/hooks';
 import { retailerApi } from './api';
-import type { RetailerRow, SetMlorPayload, UpdateRetailerDeclarationPayload } from './types';
+import type { RetailerRow, SetMlorPayload, UpdateRetailerDeclarationPayload, UpdateRetailerProfilePayload } from './types';
 
 /** Retailers + pending/rejected registrations merged into one list (Approved registrations already exist as retailers). */
 export const useRetailerRows = () =>
@@ -67,6 +67,18 @@ export const useDeleteMlor = (retailerId?: string) => {
           void queryClient.invalidateQueries({ queryKey: ['retailers', 'detail'] });
         }
       },
+    },
+  );
+};
+export const useUpdateRetailerProfile = () => {
+  const queryClient = useQueryClient();
+  return useApiMutation(
+    ({ retailerId, payload }: { retailerId: string; payload: UpdateRetailerProfilePayload }) =>
+      retailerApi.updateProfile(retailerId, payload),
+    {
+      permission: 'retailers.edit',
+      success: 'Đã cập nhật hồ sơ điểm bán.',
+      onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['retailers'] }); },
     },
   );
 };

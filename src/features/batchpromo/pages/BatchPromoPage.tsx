@@ -2,6 +2,7 @@ import { useCurrentTime } from '@/shared/hooks';
 import { ShelfLifeDialog } from '../components/ShelfLifeDialog';
 import { usePromoLookups } from '@/features/promos/hooks';
 import { useState } from 'react';
+import { useEnumParam } from '@/shared/router/listState';
 import { Button, Card, PageHeader, SimpleTable, Tabs } from '@/shared/ui';
 import { formatInstantDate, formatNumber } from '@/shared/lib';
 import { useShelfLifeCurrent, useShelfLifeHistory } from '../hooks';
@@ -11,7 +12,7 @@ export function BatchPromoPage() {
   const current = useShelfLifeCurrent();
   const history = useShelfLifeHistory();
 
-  const [tab, setTab] = useState<'current' | 'history'>('current');
+  const [tab, setTab] = useEnumParam('tab', ['current', 'history'] as const, 'current');
   const [edit, setEdit] = useState(false);
   const table = current.data;
   return (

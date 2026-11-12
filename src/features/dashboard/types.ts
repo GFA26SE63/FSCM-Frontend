@@ -1,7 +1,7 @@
 import type { PortalRole } from '@/shared/auth/roles';
 export interface DashboardFilters { fromDate: string; toDate: string; regionId?: string; warehouseId?: string; salesGroupId?: string }
 export interface DashboardOption { id: string; code: string; name: string; regionId: string | null }
-export interface DashboardCard { key: string; label: string; value: number; unit: 'VND' | 'count' | 'carton' | 'percent'; note: string; tone: string }
+export interface DashboardCard { key: string; label: string; value: number; unit: 'VND' | 'count' | 'carton' | 'percent'; note: string; tone: string; href?: string | null }
 export interface DashboardDay { date: string; recognizedRevenue: number; collectedAmount: number }
 export interface DashboardResponse {
   role: PortalRole; asOf: string; fromDate: string; toDate: string;

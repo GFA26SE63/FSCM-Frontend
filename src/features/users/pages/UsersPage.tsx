@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
+import { parsePage, useQueryParams } from '@/shared/router/listState';
 import {
   Button,
   DataTable,
@@ -15,20 +16,34 @@ import { UserDialog } from '../components/UserDialog';
 import { UserStatusButton } from '../components/UserStatusButton';
 import type { User, UserFilters } from '../types';
 
-const initialFilters: UserFilters = {
-  search: '',
-  role: '',
-  activity: '',
-  page: 1,
-  pageSize: 20,
-};
+const PAGE_SIZE = 20;
+const ACTIVITIES: UserFilters['activity'][] = ['active', 'inactive'];
+
+/** Bộ lọc danh sách tài khoản lấy từ URL (giá trị lạ → mặc định). */
+function useUserFilters() {
+  const { params, setParams } = useQueryParams();
+  const search = params.get('q') ?? '';
+  const rawRole = params.get('role') ?? '';
+  const rawActivity = params.get('activity') ?? '';
+  const page = parsePage(params.get('page'));
+  const filters = useMemo<UserFilters>(
+    () => ({
+      search,
+      role: rawRole in roleLabel ? rawRole : '',
+      activity: (ACTIVITIES as string[]).includes(rawActivity) ? (rawActivity as UserFilters['activity']) : '',
+      page,
+      pageSize: PAGE_SIZE,
+    }),
+    [search, rawRole, rawActivity, page],
+  );
+  return { filters, setParams };
+}
 
 export function UsersPage() {
   const navigate = useNavigate();
   const auth = useAuth();
   const [creating, setCreating] = useState(false);
-  const [filters, setFilters] =
-    useState<UserFilters>(initialFilters);
+  const { filters, setParams } = useUserFilters();
   const query = useUsers(filters);
 
   const columns: Column<User>[] = [
@@ -89,17 +104,10 @@ export function UsersPage() {
           search: filters.search,
 
           onPageChange: (page) =>
-            setFilters((current) => ({
-              ...current,
-              page,
-            })),
+            setParams({ page: page > 1 ? page : null }),
 
           onSearchChange: (search) =>
-            setFilters((current) => ({
-              ...current,
-              search,
-              page: 1,
-            })),
+            setParams({ q: search, page: null }),
         }}
         filterExtra={
           <>
@@ -117,11 +125,7 @@ export function UsersPage() {
                   ),
                 ]}
                 onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    role: event.target.value,
-                    page: 1,
-                  }))
+                  setParams({ role: event.target.value, page: null })
                 }
               />
             </label>
@@ -142,19 +146,14 @@ export function UsersPage() {
                   },
                 ]}
                 onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    activity:
-                      event.target.value as UserFilters['activity'],
-                    page: 1,
-                  }))
+                  setParams({ activity: event.target.value, page: null })
                 }
               />
             </label>
 
             <Button
               onClick={() =>
-                setFilters({ ...initialFilters })
+                setParams({ q: null, role: null, activity: null, page: null })
               }
             >
               Đặt lại tất cả

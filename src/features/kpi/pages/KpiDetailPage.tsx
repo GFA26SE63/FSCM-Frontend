@@ -15,12 +15,20 @@ import { formatDate, formatMoney, formatNumber, formatPercent } from '@/shared/l
 
 import { canReadRankings } from '../api';
 import { completionTone, formatCompletion, reportSearch } from '../filters';
+import { listHref } from '@/shared/router/listState';
 import {
   useRankingFilters,
   useSalesKpi,
   useSalesRanking,
 } from '../hooks';
-import type { SalesKpiMetric, SalesKpiOrder } from '../types';
+import type { RankingTab, ReportFilters, SalesKpiMetric, SalesKpiOrder } from '../types';
+
+/** Quay về đúng màn hình KPI đã mở (kèm tìm kiếm / trang của bảng); không có thì dựng từ bộ lọc hiện tại. */
+function kpiBack(filters: ReportFilters, tab: RankingTab): string {
+  const remembered = listHref('/kpi');
+  const rememberedTab = new URLSearchParams(remembered.split('?')[1] ?? '').get('tab');
+  return remembered !== '/kpi' && rememberedTab === tab ? remembered : `/kpi${reportSearch(filters, tab)}`;
+}
 
 export function KpiDetailPage() {
   const { user } = useAuth();
@@ -55,7 +63,7 @@ function SalesKpiDetail() {
   const { filters, validationError } = useRankingFilters();
   const query = useSalesKpi(filters);
 
-  const back = `/kpi${reportSearch(filters, 'kpi')}`;
+  const back = kpiBack(filters, 'kpi');
 
   if (validationError) {
     return (
@@ -319,6 +327,7 @@ function SalesKpiDetail() {
                   <p className="muted">Không có chỉ tiêu nào được cấu hình cho nhân viên này.</p>
                 ) : (
                   <DataTable
+                    stateKey="metrics"
                     columns={metricColumns}
                     rows={metrics}
                     rowKey={(m) => m.code}
@@ -331,6 +340,7 @@ function SalesKpiDetail() {
                   <p className="muted">Chưa có đơn hàng nào đóng góp vào kết quả trong kỳ này.</p>
                 ) : (
                   <DataTable
+                    stateKey="orders"
                     columns={orderColumns}
                     rows={orders}
                     rowKey={(o) => o.orderId}
@@ -350,7 +360,7 @@ function SalesRankingDetail() {
   const { filters, validationError } = useRankingFilters();
   const query = useSalesRanking(filters);
 
-  const back = `/kpi${reportSearch(filters, 'sales')}`;
+  const back = kpiBack(filters, 'sales');
 
   if (validationError) {
     return (

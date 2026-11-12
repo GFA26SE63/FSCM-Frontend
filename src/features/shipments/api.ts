@@ -1,7 +1,35 @@
 import { get, getAll, patch, post } from '@/shared/api/http';
-import type { DeliveryDriver, DeliveryVehicle, OrderShipmentReadiness, Shipment } from './types';
+import { graphql } from '@/shared/api/graphql';
+import { ApiError } from '@/shared/api/errors';
+import type { DeliveryDriver, DeliveryVehicle, ExportOrder, OrderShipmentReadiness, Shipment } from './types';
+
+async function exportOrders(orderIds: string[]): Promise<ExportOrder[]> {
+  const ids = [...new Set(orderIds)];
+  const rows: ExportOrder[] = [];
+  // Read metadata only, avoiding the REST order list's per-order pricing/detail hydration.
+  for (let offset = 0; offset < ids.length; offset += 100) {
+    const batch = ids.slice(offset, offset + 100);
+    const data = await graphql<{ entities: { salesOrders: { nodes: ExportOrder[] } } }>(`
+      query ExportOrders($ids: [UUID!]!) {
+        entities {
+          salesOrders(first: 100, where: { id: { in: $ids } }) {
+            nodes { id orderCode createdAt }
+          }
+        }
+      }
+    `, { ids: batch });
+    const nodes = data.entities?.salesOrders?.nodes;
+    if (!Array.isArray(nodes) || batch.some(id => !nodes.some(row => row.id === id)) ||
+        nodes.some(row => !row.id || !row.orderCode || !Number.isFinite(Date.parse(row.createdAt)))) {
+      throw new ApiError(502, 'Chưa tải đầy đủ thông tin đơn hàng để sắp xếp.');
+    }
+    rows.push(...nodes);
+  }
+  return rows;
+}
 
 export const shipmentsApi = {
+  exportOrders,
   /**
    * F93. Asked per order, because that is the unit the answer is about — there is no endpoint that
    * lists blocked orders, and inventing the verdict from the picking sheets would be wrong: an

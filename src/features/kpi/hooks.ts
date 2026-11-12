@@ -18,6 +18,8 @@ import type {
   ReportFilters,
 } from './types';
 
+const REPORT_PARAMS = ['fromDate', 'toDate', 'criterion', 'tab', 'salesGroupId', 'salesUserId', 'periodType'];
+
 export function useRankingFilters() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -25,21 +27,23 @@ export function useRankingFilters() {
   const filters = readReportFilters(location.search);
   const tab = readRankingTab(location.search);
 
+  // Ghi các tham số báo cáo, giữ nguyên trạng thái riêng của từng bảng (tìm kiếm, trang…).
+  function write(nextFilters: ReportFilters, nextTab: RankingTab, resetPages: boolean) {
+    const params = new URLSearchParams(location.search);
+    for (const key of REPORT_PARAMS) params.delete(key);
+    if (resetPages) {
+      for (const key of [...params.keys()]) if (key.endsWith('.page')) params.delete(key);
+    }
+    new URLSearchParams(reportSearch(nextFilters, nextTab)).forEach((value, key) => params.set(key, value));
+    navigate(`${location.pathname}?${params.toString()}`, { replace: true });
+  }
+
   function updateFilters(patch: Partial<ReportFilters>) {
-    navigate(
-      `${location.pathname}${reportSearch(
-        { ...filters, ...patch },
-        tab,
-      )}`,
-      { replace: true },
-    );
+    write({ ...filters, ...patch }, tab, true);
   }
 
   function setTab(next: RankingTab) {
-    navigate(
-      `${location.pathname}${reportSearch(filters, next)}`,
-      { replace: true },
-    );
+    write(filters, next, false);
   }
 
   return {

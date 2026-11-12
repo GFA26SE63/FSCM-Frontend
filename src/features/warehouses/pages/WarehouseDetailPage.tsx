@@ -75,8 +75,8 @@ export function WarehouseDetailPage() {
     const dmax = wh.dmaxRetailerKm ?? 20;
     const points: MapPoint[] = [
       {
-        lat: wh.lat || 10.87,
-        lng: wh.lng || 106.65,
+        lat: wh.lat,
+        lng: wh.lng,
         kind: 'wh',
         label: `${wh.code} · ${wh.name}`,
         sub: wh.address,
@@ -84,22 +84,22 @@ export function WarehouseDetailPage() {
       ...allWarehouses
         .filter((x) => x.code !== wh.code)
         .map((x) => ({
-          lat: x.lat || 10.87,
-          lng: x.lng || 106.65,
+          lat: x.lat,
+          lng: x.lng,
           kind: 'wh' as const,
           label: `${x.code} · ${x.name}`,
           sub: x.address,
         })),
       ...retailers.map((r) => ({
-        lat: r.lat || 10.87,
-        lng: r.lng || 106.65,
+        lat: r.lat,
+        lng: r.lng,
         kind: 'ret' as const,
         label: r.name,
         sub: `${r.code} · ${r.address}`,
       })),
     ];
     return buildWarehouseMapDoc({
-      center: [wh.lat || 10.87, wh.lng || 106.65],
+      center: [wh.lat, wh.lng],
       points,
       radiusKm: dmax,
       zoom: 12,

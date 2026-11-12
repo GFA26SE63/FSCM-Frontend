@@ -32,11 +32,14 @@ function normalize(x: RedemptionApi): Redemption {
     points: x.redeemedPoints,
     requestedAt: x.createdAt,
     status: toStatus(x.status),
-    handledNote: '',
+    handledNote: x.updatedAt,
+    quantity: x.quantityIsEstimated ? null : x.quantity,
+    updatedAt: x.updatedAt,
+    regionId: x.regionId,
+    salesGroupIds: x.salesGroupIds ?? [],
     balance: x.balanceAfter,
-    // The server does not report held or available separately on a redemption; only the balance
-    // after it. Showing the same number three times would invent a distinction that is not there.
-    held: 0,
+    // Legacy responses may omit the held balance; retain unknown rather than inventing zero.
+    held: x.heldPoints ?? null,
     available: x.balanceAfter,
   };
 }
