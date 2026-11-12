@@ -37,7 +37,7 @@ test('shipment exception resolution sends current version and a trimmed result',
   const calls = [];
   const { shipmentsApi } = load('features/shipments/api.ts', { '@/shared/api/http': {
     post: async (url, body) => calls.push({ url, body }),
-  } });
+  }, '@/shared/api/graphql': { graphql: async () => ({}) }, '@/shared/api/errors': class ApiError extends Error {} });
   await shipmentsApi.resolveException({ shipment: { id: 'part', version: 7 }, reason: '  Settled shortage  ' });
   assert.deepEqual(calls, [{ url: '/shipments/part/exception/resolve', body: { reason: 'Settled shortage', expectedVersion: 7 } }]);
 });
