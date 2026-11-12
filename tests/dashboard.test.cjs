@@ -78,16 +78,25 @@ test('dashboard picking link shows and expands the requested sheet, with a way b
   let search='?code=PK-TARGET';
   const rows=['TARGET','OTHER'].map(code=>({id:code,pickingCode:`PK-${code}`,status:'Pending',warehouseCode:'WH',warehouseName:'Kho',orderCode:`SO-${code}`,retailerCode:'R',retailerName:'Shop',items:[{sku:`SKU-${code}`,productName:'Milk',batchCode:'B',expirationDate:'2026-11-20',requestedQuantity:10,pickedQuantity:0,remainingQuantity:10,status:'Pending'}]}));
   const Wrap=({children,title,value,label,actions})=>React.createElement('div',null,title,label,value,actions,children);
+  const requests=[];
+  // The server filters by pickingCode (GraphQL where); the mock returns what the server would.
+  const page=(q)=>{requests.push(q);const r=q.pickingCode?rows.filter(x=>x.pickingCode===q.pickingCode):rows;
+    return {data:{rows:r,totalCount:r.length,pageInfo:{hasNextPage:false,hasPreviousPage:false,startCursor:null,endCursor:null},statusCounts:{InProgress:0,Completed:0,Exception:0}},isPending:false,isError:false,isFetching:false};};
   const {RunPickingPage}=source('features/runpicking/pages/RunPickingPage.tsx',{
     '@/shared/router/compat':{useLocation:()=>({search}),useNavigate:()=>()=>{}},
-    '@/shared/router/listState':{useStringParam:()=>['',()=>{}],useEnumParam:(_n,_a,fallback)=>[fallback,()=>{}]},
-    '../hooks':{usePickingLists:()=>({data:rows}),useWarehouseOptions:()=>({data:[]})},
-    '@/shared/ui':{Card:Wrap,Chip:Wrap,PageHeader:Wrap,Stat:Wrap,Select:()=>null,QueryState:({query,children})=>children(query.data),SimpleTable:({rows,columns})=>React.createElement('div',null,rows.map((r,i)=>React.createElement('div',{key:i},columns.map((c,j)=>React.createElement('span',{key:j},c.cell(r))))))},
+    '@/shared/router/listState':{useStringParam:()=>['',()=>{}],useEnumParam:(_n,_a,fallback)=>[fallback,()=>{}],useQueryParams:()=>({params:new URLSearchParams(search),setParams:()=>{}}),parsePage:()=>1},
+    '@/shared/auth/AuthContext':{useAuth:()=>({user:{id:'u',role:'Admin'}})},
+    '@/shared/api/errors':{errorMessage:String},
+    '../pickingGraphql':{PAGE_SIZES:[10,20,50],PICKING_STATUSES:['Pending','InProgress','Completed','Exception']},
+    '../hooks':{usePickingListPage:page,useWarehouseOptions:()=>({data:[]})},
+    '@/shared/ui':{Card:Wrap,Chip:Wrap,PageHeader:Wrap,Stat:Wrap,Button:Wrap,Callout:Wrap,Select:()=>null,SimpleTable:({rows,columns})=>React.createElement('div',null,rows.map((r,i)=>React.createElement('div',{key:i},columns.map((c,j)=>React.createElement('span',{key:j},c.cell(r))))))},
     '@/shared/lib':{formatCases:String,formatNumber:String,formatPercent:String},
     '@/shared/lib/dates':{formatDate:String,formatInstantDateTime:String},
   });
   const html=renderToStaticMarkup(React.createElement(RunPickingPage));
+  assert.equal(requests.at(-1).pickingCode,'PK-TARGET');
   assert.match(html,/PK-TARGET/);assert.match(html,/SKU-TARGET/);assert.match(html,/Xem tất cả phiếu/);assert.doesNotMatch(html,/PK-OTHER/);
   search='';const all=renderToStaticMarkup(React.createElement(RunPickingPage));
+  assert.equal(requests.at(-1).pickingCode,undefined);
   assert.match(all,/PK-TARGET/);assert.match(all,/PK-OTHER/);assert.doesNotMatch(all,/Xem tất cả phiếu/);
 });
