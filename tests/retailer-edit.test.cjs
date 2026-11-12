@@ -216,19 +216,37 @@ test('Retailer Form Dialog Integrity: pre-populates fields, keeps code & region 
   assert.ok(formCode.includes('readOnly: edit'));
 
   // Update declaration payload uses exact OpenAPI properties
-  assert.ok(formCode.includes('updateDeclaration.mutateAsync({'));
-  assert.ok(formCode.includes('declarationPayload'));
+    assert.ok(formCode.includes('updateProfile.mutateAsync({'));
+  assert.ok(formCode.includes('profilePayload'));
   assert.ok(formCode.includes('requestedCreditTermDays: creditDays'));
 
   // No fake fallback to non-existent /retailers/{code} in edit flow
   assert.ok(!formCode.includes('update.mutateAsync({'));
 });
 
-test('Retailer Hooks Integrity: useUpdateRetailerDeclaration conforms to standard mutation rules', () => {
+test('Admin profile update uses a separate endpoint and preserves the Sales declaration API', async () => {
+  const calls = [];
+  const api = source('features/retailers/api.ts', {
+    '@/shared/api/http': { put: async (url, body) => { calls.push({ url, body }); return body; } },
+    '@/shared/api/errors': errors,
+  }).retailerApi;
+  const id = 'b1a2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d';
+  const profile = { name: 'Updated store', contactName: 'Contact', phone: '0909888777', email: 'updated@retailer.test' };
+  await api.updateProfile(id, profile);
+  await api.updateDeclaration(id, { ...profile, submitForReview: true });
+  assert.equal(calls[0].url, `/retailers/${id}/profile`);
+  assert.deepEqual(calls[0].body, profile);
+  assert.equal(calls[1].url, `/retailers/${id}/declaration`);
+  assert.equal(calls[1].body.submitForReview, true);
+  await assert.rejects(api.updateProfile('', profile), { status: 400 });
+});
+
+test('Retailer Hooks Integrity: profile and declaration updates retain cache invalidation', () => {
   const hooksFile = path.resolve(__dirname, '../src/features/retailers/hooks.ts');
   const hooksCode = fs.readFileSync(hooksFile, 'utf8');
 
   assert.ok(hooksCode.includes("permission: 'retailers.edit'"));
   assert.ok(hooksCode.includes("success: 'Cập nhật thông tin Retailer thành công.'"));
+  assert.ok(hooksCode.includes('retailerApi.updateProfile(retailerId, payload)'));
   assert.ok(hooksCode.includes("queryClient.invalidateQueries({ queryKey: ['retailers'] })"));
 });

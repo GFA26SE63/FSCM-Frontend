@@ -22,7 +22,7 @@ const mocks = {
   '../api': { shipmentsApi: {} },
   '../types': { HAS_LEFT: [] },
 };
-const filename = path.resolve(__dirname, '../src/features/shipments/pages/OrderReadinessPage.tsx');
+const filename = path.resolve(__dirname, '../src/features/shipments/components/ShipmentOperations.tsx');
 const code = ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
 const mod = { exports: {} };
 new Function('require', 'exports', 'module', code)(name => Object.hasOwn(mocks, name) ? mocks[name] : require(name), mod.exports, mod);
@@ -58,4 +58,16 @@ test('only operators see an exception resolution action and it needs a result', 
   assert.match(operator, /<button disabled/);
   const reader = renderToStaticMarkup(React.createElement(mod.exports.ShipmentActionRow, { ...props, mayDispatch: false }));
   assert.doesNotMatch(reader, /Hoàn tất xử lý ngoại lệ/);
+});
+
+test('an issued assigned shipment can start delivery even after the order left the warehouse', () => {
+  const props = { shipment: { ...shipment, status: 'Issued', driverId: 'driver', vehicleId: 'vehicle' }, drivers: [driver], vehicles: [vehicle] };
+  const operator = renderToStaticMarkup(React.createElement(mod.exports.ShipmentActionRow, { ...props, mayDispatch: true }));
+  assert.match(operator, /Bắt đầu giao/);
+  const keeper = renderToStaticMarkup(React.createElement(mod.exports.ShipmentActionRow, { ...props, mayDispatch: false }));
+  assert.doesNotMatch(keeper, /Bắt đầu giao/);
+  for (const status of ['Delivering', 'Received']) {
+    const html = renderToStaticMarkup(React.createElement(mod.exports.ShipmentActionRow, { ...props, shipment: { ...props.shipment, status }, mayDispatch: true }));
+    assert.doesNotMatch(html, /Bắt đầu giao|Xác nhận xuất kho|Gán xe/);
+  }
 });

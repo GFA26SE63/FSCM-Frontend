@@ -65,7 +65,7 @@ export const APP_ROUTES: AppRoute[] = [
   { key: 'debts', label: 'Công nợ', roles: [A, OP], badge: 'debts', list: page(debts, 'DebtsPage') },
   { key: 'refunds', label: 'Hoàn tiền', roles: [A, OP], list: page(refunds, 'RefundsPage'), sub: [{ path: ':id', element: page(refunds, 'RefundDetailPage') }] },
   { key: 'runpicking', label: 'Phiếu soạn hàng', roles: [A, OP, WK], list: page(runpicking, 'RunPickingPage') },
-  { key: 'readiness', label: 'Sẵn sàng xuất', roles: [A, OP, WK], list: page(shipments, 'OrderReadinessPage') },
+  { key: 'readiness', label: 'Xuất kho', roles: [A, OP, WK], list: page(shipments, 'OrderReadinessPage') },
   {
     key: 'receipts', label: 'Nhập kho', roles: [A, WK], list: page(receipts, 'ReceiptsPage'),
     sub: [{ path: 'new', element: page(receipts, 'ReceiptFormPage') }, { path: ':code', element: page(receipts, 'ReceiptDetailPage') }],
