@@ -41,10 +41,14 @@ export interface PromoInput {
   retailerIds: string[];
 }
 
-export interface ProductOption { id: string; sku: string; name: string; status: string }
+export interface ProductOption {
+  id: string; sku: string; name: string; status: string;
+  categoryCode?: string; categoryName?: string; unit?: string;
+}
 export interface CategoryOption { id: string; code: string; name: string }
 export interface RetailerOption {
   id: string; code: string; name: string; status: string;
   contactName?: string; phone?: string; address?: string;
+  email?: string;
   salesGroupCode?: string; creditTermDays?: number;
 }
