@@ -16,7 +16,6 @@ export function DashboardPage() {
   return user ? <DashboardSession key={user.id} role={user.role} /> : null;
 }
 function DashboardSession({ role }: { role: PortalRole }) {
-  const navigate = useNavigate();
   const [filters, setFilters] = useState<DashboardFilters>(() => defaultDashboardDates());
   const [tab, setTab] = useState('overview');
   const query = useDashboard(filters);
@@ -25,11 +24,6 @@ function DashboardSession({ role }: { role: PortalRole }) {
   return <div className="dashboard-page">
     <PageHeader title={DASHBOARD_TITLES[role]} subtitle="Số liệu từ hệ thống · cập nhật theo quyền của tài khoản"
       actions={<Button loading={query.isFetching} onClick={() => void query.refetch()}>Làm mới dữ liệu</Button>} />
-    {(role === 'Admin' || role === 'Operator') && <div className="row-wrap" style={{ gap: 8 }}>
-      <Button onClick={() => navigate('/reports?kind=redemptions')}>Báo cáo đổi quà</Button>
-      <Button onClick={() => navigate('/reports?kind=loyalty')}>Báo cáo loyalty</Button>
-      <Button onClick={() => navigate('/reports?kind=promotions')}>Báo cáo khuyến mãi</Button>
-    </div>}
     <section className="card dashboard-filters" style={{ padding: 16 }} aria-label="Bộ lọc báo cáo">
       <label className="lbl">Từ ngày<input className="inp" type="date" value={filters.fromDate} max={filters.toDate}
         onChange={e => setFilters(f => ({ ...f, fromDate: e.target.value }))} /></label>

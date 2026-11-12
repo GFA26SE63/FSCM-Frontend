@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { get, getAll } from '@/shared/api/http';
-import { useNavigate } from '@/shared/router/compat';
+import { useLocation, useNavigate } from '@/shared/router/compat';
 import { Button, Callout, Card, Fields, PageHeader, QueryState, SimpleTable, Stat, Tabs } from '@/shared/ui';
 import { formatNumber } from '@/shared/lib';
 import { formatInstantDateTime } from '@/shared/lib/dates';
@@ -69,11 +69,15 @@ function display(row: Row, col: Column, kind: Kind): string {
   return col.key === 'status' ? labels[String(value)] ?? String(value) : String(value);
 }
 export function OperationsReportsPage() {
+  const { search } = useLocation();
+  const requested = new URLSearchParams(search).get('kind');
+  const kind: Kind = requested === 'loyalty' || requested === 'promotions' ? requested : 'redemptions';
+  return <OperationsReportSession key={kind} kind={kind} />;
+}
+function OperationsReportSession({ kind }: { kind: Kind }) {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const params = new URLSearchParams(window.location.search);
-  const initialKind = params.get('kind');
-  const [kind, setKind] = useState<Kind>(initialKind === 'loyalty' || initialKind === 'promotions' ? initialKind : 'redemptions');
+  const params = new URLSearchParams(useLocation().search);
   const [filters, setFilters] = useState<Filters>(() => ({ ...defaultDashboardDates(), retailer: '', program: '', status: params.get('status') ?? '', regionId: '' }));
   const [draft, setDraft] = useState(filters);
   const [page, setPage] = useState(1);
@@ -102,7 +106,7 @@ export function OperationsReportsPage() {
   }
   return <>
     <PageHeader title="Báo cáo chương trình & đổi quà" subtitle="Tra cứu retailer, giao dịch điểm và giá khuyến mãi đã chốt" actions={<Button disabled={!valid || !query.data || query.isFetching} loading={exporting} onClick={() => void exportCsv()}>Xuất CSV · toàn bộ bộ lọc</Button>} />
-    <Tabs items={tabs} value={kind} onChange={key => { setKind(key as Kind); setSelected(null); setPage(1); setFilters(f => ({ ...f, status: '' })); setDraft(f => ({ ...f, status: '' })); }} />
+    <Tabs items={tabs} value={kind} onChange={key => navigate(`/reports?kind=${key}`)} />
     <form className="card row-wrap" style={{ padding: 16, gap: 16 }} onSubmit={e => { e.preventDefault(); setSelected(null); setFilters({ ...draft }); setPage(1); }}>
       <label className="lbl">Từ ngày<input required className="inp" type="date" value={draft.fromDate} onChange={e => setDraft(f => ({ ...f, fromDate: e.target.value }))} /></label>
       <label className="lbl">Đến ngày<input required className="inp" type="date" min={draft.fromDate} value={draft.toDate} onChange={e => setDraft(f => ({ ...f, toDate: e.target.value }))} /></label>
