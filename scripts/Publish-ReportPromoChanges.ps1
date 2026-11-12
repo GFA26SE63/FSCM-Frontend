@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([switch]$Deploy)
+param([switch]$Deploy, [switch]$DetailTables)
 
 $ErrorActionPreference = 'Stop'
 $frontendRoot = Split-Path -Parent $PSScriptRoot
@@ -36,6 +36,20 @@ Release: this branch starts from production main and contains only these changes
 '@
     }
 )
+
+if ($DetailTables) {
+    $frontendChange = $changes | Where-Object { $_.Repo -eq 'GFA26SE63/FSCM-Frontend' }
+    $frontendChange.Branch = 'fix/promotion-detail-tables-20261112'
+    $frontendChange.Title = 'fix: show complete promotion targets in detail tables'
+    $frontendChange.Body = @'
+Promotion details now show full, searchable and paginated product/customer tables rather than comma-separated labels. Products show SKU, name, category, unit and status; per-SKU promotions also show the saved quantity/discount rule. Customers show code, name, contact, phone, email, address, Sales group, credit term and status. Group-wide thresholds remain explicitly shared.
+
+Applied targets are retrieved by their saved IDs, including inactive selected records. All-retailer scope loads every page of currently active stores and is labelled as such. Promotion pickers now use the API's pageSize contract to load all pages. Lookup errors stay visible with retry controls and do not broaden an explicit customer scope or show stale table rows.
+
+Validation: frontend tests, lint and production build passed. No backend changes or database migrations are required. This branch starts from production main and preserves the previously deployed navigation and Add/Apply/Cancel dialogs.
+'@
+    $changes = @($frontendChange)
+}
 
 $frontendPr = $null
 foreach ($change in $changes) {
