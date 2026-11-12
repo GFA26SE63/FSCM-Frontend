@@ -8,10 +8,8 @@ import {
   Card,
   Chip,
   ConfirmDialog,
-  FormDialog,
   Select,
   SimpleTable,
-  type FormFieldDef,
 } from '@/shared/ui';
 import { formatNumber } from '@/shared/lib';
 import { productApi } from '@/features/products/api';
@@ -19,9 +17,9 @@ import {
   useDeleteMlor,
   useRetailerMlorConfigs,
   useResolveMlor,
-  useSetMlor,
 } from '../hooks';
 import type { MlorConfigItem, Retailer } from '../types';
+import { MlorRuleDialog } from './MlorRuleDialog';
 
 interface RetailerMlorTabProps {
   retailer: Retailer;
@@ -46,8 +44,9 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
     enabled: mayRead,
   });
 
-  const setMlor = useSetMlor(retailerId);
   const deleteMlor = useDeleteMlor(retailerId);
+
+  const [editingConfig, setEditingConfig] = useState<MlorConfigItem | null>(null);
 
   // Dialog states
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
@@ -79,78 +78,24 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
     );
   }
 
-  const categoryOptions = categories.map((cat) => ({
-    value: cat.id,
-    label: `${cat.name} (${cat.code})`,
-  }));
+  if (configsQuery.isLoading) return <Callout tone="info">Đang tải yêu cầu hạn sử dụng…</Callout>;
+  if (configsQuery.error) return <Callout tone="danger">Không tải được yêu cầu hạn sử dụng.
+    <Button size="sm" onClick={() => { void configsQuery.refetch(); }}>Thử lại</Button>
+  </Callout>;
+
+  const lookupsReady = productsQuery.isSuccess && categoriesQuery.isSuccess;
 
   const productOptions = products.map((p) => ({
     value: p.id,
     label: `${p.sku} · ${p.name}`,
   }));
 
-  const categoryFields: FormFieldDef[] = [
-    {
-      key: 'productCategoryId',
-      label: 'Danh mục sản phẩm',
-      type: 'select',
-      required: true,
-      options: categoryOptions,
-    },
-    {
-      key: 'ratioPercent',
-      label: 'Tỷ lệ HSD tối thiểu (%)',
-      type: 'number',
-      required: true,
-      placeholder: 'VD: 50 cho 50%',
-      validate: (v) => {
-        const num = Number(v);
-        if (isNaN(num) || num <= 0 || num >= 100) {
-          return 'Tỷ lệ phải lớn hơn 0% và nhỏ hơn 100%.';
-        }
-        return undefined;
-      },
-    },
-    {
-      key: 'minimumLifeHours',
-      label: 'Số giờ HSD tối thiểu (tùy chọn)',
-      type: 'number',
-      placeholder: 'Để trống nếu chỉ dùng tỷ lệ %',
-    },
-  ];
-
-  const productFields: FormFieldDef[] = [
-    {
-      key: 'productId',
-      label: 'Sản phẩm (SKU)',
-      type: 'select',
-      required: true,
-      options: productOptions,
-    },
-    {
-      key: 'ratioPercent',
-      label: 'Tỷ lệ HSD tối thiểu (%)',
-      type: 'number',
-      required: true,
-      placeholder: 'VD: 60 cho 60%',
-      validate: (v) => {
-        const num = Number(v);
-        if (isNaN(num) || num <= 0 || num >= 100) {
-          return 'Tỷ lệ phải lớn hơn 0% và nhỏ hơn 100%.';
-        }
-        return undefined;
-      },
-    },
-    {
-      key: 'minimumLifeHours',
-      label: 'Số giờ HSD tối thiểu (tùy chọn)',
-      type: 'number',
-      placeholder: 'Để trống nếu chỉ dùng tỷ lệ %',
-    },
-  ];
-
   return (
     <div className="stack" style={{ gap: '20px' }}>
+      {(configsQuery.isLoading || productsQuery.isLoading || categoriesQuery.isLoading) &&
+        <Callout tone="info">Đang tải yêu cầu hạn sử dụng và danh mục sản phẩm…</Callout>}
+      {(configsQuery.error || productsQuery.error || categoriesQuery.error) &&
+        <Callout tone="danger">Không tải đầy đủ yêu cầu hạn sử dụng hoặc danh mục sản phẩm. Vui lòng tải lại trước khi chỉnh sửa.</Callout>}
       {/* MLOR Precedence Rule Callout */}
       <Callout tone="info">
         <div style={{ display: 'grid', gap: '6px' }}>
@@ -174,6 +119,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
             <Button
               variant="primary"
               size="sm"
+              disabled={!lookupsReady}
               onClick={() => setCategoryModalOpen(true)}
             >
               + Thêm yêu cầu theo danh mục
@@ -205,20 +151,16 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
               header: 'HSD tối thiểu (giờ)',
               align: 'right',
               width: '160px',
-              cell: (r) => (r.minimumLifeHours ? `${r.minimumLifeHours} giờ` : '—'),
-            },
-            {
-              header: 'Phiên bản',
-              align: 'center',
-              width: '100px',
-              cell: (r) => `v${r.version}`,
+              cell: (r) => (r.minimumLifeHours != null ? `${r.minimumLifeHours} giờ` : '—'),
             },
             {
               header: 'Thao tác',
               align: 'right',
-              width: '120px',
+              width: '180px',
               cell: (r) =>
                 mayManage ? (
+                  <div className="row-wrap" style={{ justifyContent: 'flex-end', gap: 8 }}>
+                  <Button size="sm" disabled={!lookupsReady} onClick={() => setEditingConfig(r)}>Sửa</Button>
                   <Button
                     size="sm"
                     variant="danger"
@@ -226,6 +168,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
                   >
                     Xóa
                   </Button>
+                  </div>
                 ) : null,
             },
           ]}
@@ -240,6 +183,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
             <Button
               variant="primary"
               size="sm"
+              disabled={!lookupsReady}
               onClick={() => setProductModalOpen(true)}
             >
               + Thêm yêu cầu theo sản phẩm
@@ -271,20 +215,16 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
               header: 'HSD tối thiểu (giờ)',
               align: 'right',
               width: '160px',
-              cell: (r) => (r.minimumLifeHours ? `${r.minimumLifeHours} giờ` : '—'),
-            },
-            {
-              header: 'Phiên bản',
-              align: 'center',
-              width: '100px',
-              cell: (r) => `v${r.version}`,
+              cell: (r) => (r.minimumLifeHours != null ? `${r.minimumLifeHours} giờ` : '—'),
             },
             {
               header: 'Thao tác',
               align: 'right',
-              width: '120px',
+              width: '180px',
               cell: (r) =>
                 mayManage ? (
+                  <div className="row-wrap" style={{ justifyContent: 'flex-end', gap: 8 }}>
+                  <Button size="sm" disabled={!lookupsReady} onClick={() => setEditingConfig(r)}>Sửa</Button>
                   <Button
                     size="sm"
                     variant="danger"
@@ -292,6 +232,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
                   >
                     Xóa
                   </Button>
+                  </div>
                 ) : null,
             },
           ]}
@@ -362,7 +303,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
                     <div>
                       <div className="muted" style={{ fontSize: '13px' }}>Số giờ tối thiểu</div>
                       <div style={{ fontSize: '16px', fontWeight: 600 }}>
-                        {resolutionQuery.data.minimumLifeHours
+                        {resolutionQuery.data.minimumLifeHours != null
                           ? `${resolutionQuery.data.minimumLifeHours} giờ`
                           : '—'}
                       </div>
@@ -383,59 +324,15 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
         </div>
       </Card>
 
-      {/* Add Category MLOR Dialog */}
-      {categoryModalOpen && (
-        <FormDialog
-          open
-          width={560}
-          title="Thêm yêu cầu HSD theo danh mục"
-          subtitle={`Thiết lập MLOR chung cho toàn bộ sản phẩm thuộc danh mục đối với ${retailer.name}.`}
-          submitLabel="Lưu cấu hình"
-          fields={categoryFields}
-          initial={{
-            productCategoryId: categoryOptions[0]?.value ?? '',
-            ratioPercent: '50',
-            minimumLifeHours: '',
-          }}
-          onClose={() => setCategoryModalOpen(false)}
-          onSubmit={async (v) => {
-            const ratioPercent = Number(v.ratioPercent);
-            await setMlor.mutateAsync({
-              retailerId,
-              productCategoryId: String(v.productCategoryId),
-              minimumLifeRatio: ratioPercent / 100,
-              minimumLifeHours: v.minimumLifeHours ? Number(v.minimumLifeHours) : null,
-            });
-            setCategoryModalOpen(false);
-          }}
-        />
-      )}
-
-      {/* Add Product MLOR Dialog */}
-      {productModalOpen && (
-        <FormDialog
-          open
-          width={560}
-          title="Thêm yêu cầu HSD riêng theo sản phẩm"
-          subtitle={`Thiết lập MLOR riêng cho SKU cụ thể (ghi đè lên danh mục và mặc định).`}
-          submitLabel="Lưu cấu hình"
-          fields={productFields}
-          initial={{
-            productId: productOptions[0]?.value ?? '',
-            ratioPercent: '60',
-            minimumLifeHours: '',
-          }}
-          onClose={() => setProductModalOpen(false)}
-          onSubmit={async (v) => {
-            const ratioPercent = Number(v.ratioPercent);
-            await setMlor.mutateAsync({
-              retailerId,
-              productId: String(v.productId),
-              minimumLifeRatio: ratioPercent / 100,
-              minimumLifeHours: v.minimumLifeHours ? Number(v.minimumLifeHours) : null,
-            });
-            setProductModalOpen(false);
-          }}
+      {(categoryModalOpen || productModalOpen || editingConfig) && (
+        <MlorRuleDialog
+          retailerId={retailerId}
+          scope={editingConfig ? (editingConfig.productId ? 'product' : 'category') : categoryModalOpen ? 'category' : 'product'}
+          config={editingConfig ?? undefined}
+          configs={allConfigs}
+          categories={categories}
+          products={products}
+          onClose={() => { setEditingConfig(null); setCategoryModalOpen(false); setProductModalOpen(false); }}
         />
       )}
 

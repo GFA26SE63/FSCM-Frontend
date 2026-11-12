@@ -15,6 +15,7 @@ import type {
   ReviewCreditTermsInput,
   SetMlorPayload,
   UpdateRetailerDeclarationPayload,
+  UpdateRetailerProfilePayload,
 } from './types';
 
 export const retailerApi = {
@@ -62,6 +63,18 @@ export const retailerApi = {
   },
   create: (v: RetailerInput) => post<Retailer>('/retailers', v),
   update: (v: RetailerInput & { code: string }) => put<Retailer>(`/retailers/${v.code}`, v),
+  updateProfile: async (
+    retailerId: string,
+    payload: UpdateRetailerProfilePayload,
+  ): Promise<Retailer> => {
+    if (!retailerId) throw new ApiError(400, 'Mã định danh điểm bán không hợp lệ.');
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(retailerId)) {
+      const existing = await retailerApi.get(retailerId);
+      if (!existing.id) throw new ApiError(404, 'Không tìm thấy định danh điểm bán để cập nhật.');
+      retailerId = existing.id;
+    }
+    return put<Retailer>(`/retailers/${encodeURIComponent(retailerId)}/profile`, payload);
+  },
   updateDeclaration: async (
     retailerId: string,
     payload: UpdateRetailerDeclarationPayload,
