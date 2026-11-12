@@ -17,7 +17,7 @@ export function dashboardTabs(role: PortalRole) {
     { key: 'sales', label: 'Kinh doanh' }, { key: 'health', label: 'Tác vụ hệ thống' }];
 }
 export function visibleCards(cards: DashboardCard[], role: PortalRole, tab: string) {
-  const ops = ['allocationIssues', 'quotesPending', 'prepaidOrders', 'shipmentsReady', 'shipmentExceptions', 'complaintsOpen'];
+  const ops = ['allocationIssues', 'quotesPending', 'prepaidOrders', 'shipmentsReady', 'shipmentExceptions', 'complaintsOpen', 'returnsPending', 'redemptionPending', 'redemptionApproved', 'redemptionDelivered', 'redemptionAged'];
   const stock = ['receiptPending', 'pickingPending', 'pickingActive', 'ready', 'nearExpiry', 'expired'];
   const finance = ['revenue', 'completed', 'collected', 'outstanding', 'overdue', 'prepaid'];
   const keys = tab === 'inventory' || role === 'WarehouseKeeper' ? stock :
