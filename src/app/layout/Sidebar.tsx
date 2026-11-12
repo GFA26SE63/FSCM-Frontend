@@ -33,7 +33,9 @@ const isActivePath = (pathname: string, key: string) => pathname === `/${key}` |
 export function Sidebar() {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
-  const items = user ? APP_ROUTES.filter((r) => !r.hidden && r.roles.includes(user.role)) : [];
+  const items = user
+    ? APP_ROUTES.filter((r) => !r.hidden && (user.role === 'Admin' || r.roles.includes(user.role)))
+    : [];
   const groups = buildGroups(items);
   const activeGroup = groups.find((g) => g.items.some((r) => isActivePath(pathname, r.key)))?.key ?? null;
   // Accordion: only one topic is open at a time; starts with the topic of the current page.

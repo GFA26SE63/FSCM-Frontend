@@ -90,6 +90,10 @@ export function can(
 ): boolean {
   if (!user) return false;
 
+  // Admin is the system-wide operator. Individual permission matrices still
+  // document delegated roles, but must never hide an Admin capability.
+  if (user.role === 'Admin') return true;
+
   const roles:
     | readonly PortalRole[]
     | undefined = ACTION_ROLES[permission];
