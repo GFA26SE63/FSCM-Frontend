@@ -169,6 +169,7 @@ export const retailerApi = {
       return await post<Retailer>(`/retailers/${encodeURIComponent(v.retailerId)}/review`, {
         approve: true,
         creditTermDays: v.creditTermDays,
+        ...(v.creditLimit !== undefined ? { creditLimit: v.creditLimit } : {}),
         reason: v.reason ?? null,
       });
     } catch {

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { get, post } from '@/shared/api/http';
 import { Callout, ConfirmDialog, FormDialog } from '@/shared/ui';
 
-type Retailer = { id: string; code: string; name: string; contactName?: string; phone?: string; address?: string; status: string; retailerType: string; salesGroupCode: string; creditTermDays: number };
+type Retailer = { id: string; code: string; name: string; contactName?: string; phone?: string; address?: string; status: string; retailerType: string; salesGroupCode: string; creditTermDays: number; creditLimit: number };
 type RetailerDetail = Retailer & {
   email?: string;
   forecastRevenue: number;
@@ -25,21 +25,21 @@ type RetailerDetail = Retailer & {
 
 export function RetailerReviewDialog({ retailer, onClose }: { retailer: Pick<Retailer, 'id' | 'code'>; onClose: () => void }) {
   const client = useQueryClient();
-  const [pendingDecision, setPendingDecision] = useState<{ approve: boolean; creditTermDays: number | null; reason: string } | null>(null);
+  const [pendingDecision, setPendingDecision] = useState<{ approve: boolean; creditTermDays: number | null; creditLimit: number | null; reason: string } | null>(null);
   const detail = useQuery({ queryKey: ['retailer', retailer.id, 'review'], queryFn: () => get<RetailerDetail>(`/retailers/${retailer.id}`) });
   if (detail.isLoading) return <FormDialog open width={760} title={`Đang tải khai báo ${retailer.code}`} submitLabel="Đang tải" initial={{}} fields={[]} onClose={onClose} onSubmit={() => undefined} />;
   if (detail.error || !detail.data) return <FormDialog open width={760} title={`Không tải được ${retailer.code}`} submitLabel="Đóng" initial={{}} fields={[]} onClose={onClose} onSubmit={onClose} note={<Callout tone="danger">Không thể tải chi tiết khai báo để xét duyệt.</Callout>} />;
   const r = detail.data;
-  return <><FormDialog open width={900} columns={3} title={`Xét duyệt khai báo ${r.code}`} subtitle="Kiểm tra toàn bộ thông tin Sales đã khai báo trước khi quyết định." submitLabel="Xác nhận quyết định" initial={{ decision: 'approve', reason: '', creditTermDays: String(r.requestedCreditTermDays ?? r.creditTermDays ?? 0) }} fields={[
+  return <><FormDialog key={`review-${r.id}`} open width={900} columns={3} title={`Xét duyệt khai báo ${r.code}`} subtitle="Thiết lập kỳ hạn và hạn mức công nợ theo nghiệp vụ trước khi duyệt." submitLabel="Xác nhận quyết định" initial={{ decision: 'approve', reason: '', creditTermDays: String(r.creditTermDays ?? 0), creditLimit: String(r.creditLimit ?? 0) }} fields={[
     { key: 'name', type: 'info', label: 'Tên điểm bán', info: () => r.name }, { key: 'contact', type: 'info', label: 'Người liên hệ', info: () => r.contactName ?? '—' }, { key: 'phone', type: 'info', label: 'Số điện thoại', info: () => r.phone ?? '—' },
     { key: 'email', type: 'info', label: 'Email', info: () => r.email ?? '—' }, { key: 'address', type: 'info', label: 'Địa chỉ', span: 2, info: () => r.address ?? '—' }, { key: 'salesGroup', type: 'info', label: 'Nhóm Sales', info: () => r.salesGroupCode },
     { key: 'type', type: 'info', label: 'Loại hình', info: () => r.retailerType }, { key: 'area', type: 'info', label: 'Diện tích', info: () => `${r.storeSizeSquareMeters} m²` }, { key: 'capacity', type: 'info', label: 'Sức mua', info: () => `${r.purchasingCapacity} thùng/tháng` },
     { key: 'frequency', type: 'info', label: 'Tần suất mua', info: () => `${r.purchaseFrequencyPerMonth} lần/tháng` }, { key: 'revenue', type: 'info', label: 'Doanh thu dự báo', info: () => new Intl.NumberFormat('vi-VN').format(r.forecastRevenue) + ' đ' }, { key: 'location', type: 'info', label: 'Tọa độ', info: () => r.latitude != null && r.longitude != null ? `${r.latitude}, ${r.longitude}` : '—' },
     { key: 'note', type: 'info', label: 'Ghi chú Sales', span: 3, info: () => r.assessmentNote ?? '—' }, { key: 'mlor', type: 'info', label: 'Khai báo MLOR', span: 3, info: () => r.mlorDeclarations.length ? r.mlorDeclarations.map((item) => `${item.productName ?? item.categoryName ?? item.scope}: ${(item.minimumLifeRatio * 100).toFixed(0)}%${item.minimumLifeHours ? ` · ${item.minimumLifeHours} giờ` : ''}`).join(' | ') : 'Không có' },
-    { key: 'decision', type: 'select', label: 'Quyết định', required: true, options: [{ value: 'approve', label: 'Duyệt retailer' }, { value: 'reject', label: 'Từ chối khai báo' }] }, { key: 'creditTermDays', type: 'select', label: 'Kỳ hạn công nợ', required: true, visible: (v) => v.decision === 'approve', options: [{ value: '0', label: 'Không công nợ' }, { value: '7', label: '7 ngày' }, { value: '14', label: '14 ngày' }, { value: '30', label: '30 ngày' }] }, { key: 'reason', type: 'textarea', label: 'Lý do / ghi chú', required: true, span: 3, placeholder: 'Bắt buộc cho cả duyệt và từ chối' },
+    { key: 'decision', type: 'select', label: 'Quyết định', required: true, options: [{ value: 'approve', label: 'Duyệt retailer' }, { value: 'reject', label: 'Từ chối khai báo' }] }, { key: 'creditTermDays', type: 'select', label: 'Kỳ hạn công nợ', required: true, visible: (v) => v.decision === 'approve', options: [{ value: '0', label: 'Không công nợ' }, { value: '7', label: '7 ngày' }, { value: '14', label: '14 ngày' }, { value: '30', label: '30 ngày' }] }, { key: 'creditLimit', type: 'number', label: 'Hạn mức công nợ (VNĐ)', required: true, visible: (v) => v.decision === 'approve', validate: (v) => Number(v) >= 0 ? undefined : 'Hạn mức công nợ không được âm.' }, { key: 'reason', type: 'textarea', label: 'Lý do / ghi chú', required: true, span: 3, placeholder: 'Bắt buộc cho cả duyệt và từ chối' },
   ]} onClose={onClose} onSubmit={(value) => {
     const approve = value.decision === 'approve';
-    setPendingDecision({ approve, creditTermDays: approve ? Number(value.creditTermDays) : null, reason: value.reason });
+    setPendingDecision({ approve, creditTermDays: approve ? Number(value.creditTermDays) : null, creditLimit: approve ? Number(value.creditLimit) : null, reason: value.reason });
   }} />
   <ConfirmDialog
     open={pendingDecision !== null}
