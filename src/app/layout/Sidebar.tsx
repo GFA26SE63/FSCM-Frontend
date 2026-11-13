@@ -4,6 +4,8 @@ import { useAuth } from '@/shared/auth/AuthContext';
 import { roleLabel } from '@/shared/auth/roles';
 import { APP_ROUTES, type AppRoute } from '../routes';
 
+const FSCM_LOGO_URL = '/src/assets/branding/fscm-logo.png';
+
 const initials = (name: string) => name.split(' ').slice(-2).map((s) => s[0]).join('');
 
 /** Sidebar topics (feature groups). Routes not listed fall into "Khác". */
@@ -46,11 +48,17 @@ export function Sidebar() {
     <aside className="sidebar">
       <div className="brand">
         <div className="brand-logo">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M3 8l9-5 9 5v8l-9 5-9-5z" />
-            <path d="M3 8l9 5 9-5" />
-            <path d="M12 13v8" />
-          </svg>
+          <img
+            src={FSCM_LOGO_URL}
+            onError={(e) => {
+              const target = e.currentTarget;
+              if (target.src !== window.location.origin + '/fscm-logo.png') {
+                target.src = '/fscm-logo.png';
+              }
+            }}
+            alt="FSCM Logo"
+            className="brand-logo-img"
+          />
         </div>
         <div>
           <div className="brand-name">FSCM Portal</div>
