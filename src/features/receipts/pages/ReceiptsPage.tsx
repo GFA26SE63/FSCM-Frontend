@@ -15,6 +15,7 @@ import {
 } from '@/shared/ui';
 import { formatCases, formatDateTime, statusLabels } from '@/shared/lib';
 import { useApproveReceipt, useReceipts } from '../hooks';
+import { useReceiptUserNames } from '../userNames';
 import type { ReceiptListItem } from '../types';
 
 export function ReceiptsPage() {
@@ -22,6 +23,7 @@ export function ReceiptsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const query = useReceipts();
+  const users = useReceiptUserNames((query.data ?? []).map((r) => r.createdByUserId));
   const approveMutation = useApproveReceipt();
 
   const [approveTarget, setApproveTarget] = useState<ReceiptListItem | null>(null);
@@ -73,7 +75,7 @@ export function ReceiptsPage() {
       key: 'by',
       header: 'Người tạo',
       width: '130px',
-      text: (r) => (r.createdByUserId ? `${r.createdByUserId.slice(0, 8)}…` : '—'),
+      text: (r) => users.nameOf(r.createdByUserId),
     },
     {
       key: 'batches',
