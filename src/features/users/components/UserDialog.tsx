@@ -42,6 +42,7 @@ export function UserDialog({ user, onClose }: Props) {
   const [email, setEmail] = useState(user?.email ?? '');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<CreatableRole>(
     isCreatableRole(user?.role)
       ? user.role
@@ -466,16 +467,28 @@ export function UserDialog({ user, onClose }: Props) {
                   required={role !== 'Retailer'}
                   error={errors.password}
                 >
-                  <Input
-                    type="password"
-                    autoComplete="new-password"
-                    value={password}
-                    readOnly={identityLocked || role === 'Retailer'}
-                    placeholder={role === 'Retailer' ? 'Retailer tự tạo mật khẩu sau khi xác minh OTP' : undefined}
-                    onChange={(event) =>
-                      setPassword(event.target.value)
-                    }
-                  />
+                  <div className="password-input">
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      value={password}
+                      readOnly={identityLocked || role === 'Retailer'}
+                      placeholder={role === 'Retailer' ? 'Retailer tự tạo mật khẩu sau khi xác minh OTP' : undefined}
+                      onChange={(event) =>
+                        setPassword(event.target.value)
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle"
+                      aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                      aria-pressed={showPassword}
+                      disabled={identityLocked || role === 'Retailer'}
+                      onClick={() => setShowPassword((visible) => !visible)}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </FormField>
               </>
             )}

@@ -35,6 +35,7 @@ export interface Retailer {
   potentialClass: 'A' | 'B' | 'C' | string;
   assessmentNote?: string | null;
   creditTermDays: 0 | 7 | 14 | 30 | number;
+  creditLimit?: number;
   requestedCreditTermDays?: number | null;
   declaredByUserId?: string;
   reviewedByUserId?: string | null;
@@ -105,6 +106,7 @@ export interface RetailerOrderEligibility {
 export interface ReviewCreditTermsInput {
   retailerId: string;
   creditTermDays: 0 | 7 | 14 | 30;
+  creditLimit?: number;
   reason?: string;
 }
 
