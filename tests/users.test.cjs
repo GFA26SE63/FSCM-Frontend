@@ -97,3 +97,16 @@ test('history is Admin-only and renders backend audit metadata without inventing
   assert.equal(render(), '');
   assert.deepEqual(requests.at(-1), ['target-user', null, false]);
 });
+
+test('create-user dialog provides an accessible password visibility toggle', () => {
+  const dialog = fs.readFileSync(
+    path.resolve(__dirname, '../src/features/users/components/UserDialog.tsx'),
+    'utf8',
+  );
+
+  assert.match(dialog, /const \[showPassword, setShowPassword\] = useState\(false\)/);
+  assert.match(dialog, /type=\{showPassword \? 'text' : 'password'\}/);
+  assert.match(dialog, /className="password-toggle"/);
+  assert.match(dialog, /aria-label=\{showPassword \? 'Ẩn mật khẩu' : 'Hiện mật khẩu'\}/);
+  assert.match(dialog, /onClick=\{\(\) => setShowPassword\(\(visible\) => !visible\)\}/);
+});
