@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useNavigate } from '@/shared/router/compat';
 import { useDateParam } from '@/shared/router/listState';
 import { Button, DataTable, Input, PageHeader, Stat, StatusChip, type Column } from '@/shared/ui';
-import { formatCases, formatMoney, formatShortDateTime } from '@/shared/lib';
+import { formatCases, formatMoney, formatShortDateTime, vietnamDate } from '@/shared/lib';
 import { useOrders } from '@/features/orders/hooks';
 import type { OrderSummary } from '@/features/orders/types';
 
@@ -15,7 +15,7 @@ export function AllocationRunPage() {
 
   const rows = useMemo(
     () => (query.data ?? []).filter((order) => {
-      const date = order.createdAt.slice(0, 10);
+      const date = vietnamDate(order.createdAt);
       return (!from || date >= from) && (!to || date <= to);
     }),
     [query.data, from, to],
