@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { get, getAll } from '@/shared/api/http';
 import { useLocation, useNavigate } from '@/shared/router/compat';
-import { Button, Callout, Card, Fields, PageHeader, QueryState, SimpleTable, Stat, Tabs } from '@/shared/ui';
+import { Button, Callout, Card, Fields, Modal, PageHeader, QueryState, SimpleTable, Stat } from '@/shared/ui';
 import { formatNumber } from '@/shared/lib';
 import { formatInstantDateTime } from '@/shared/lib/dates';
 import { defaultDashboardDates } from '@/features/dashboard/dashboardModel';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { csvCell, loadAllReportRows } from './reportCsv';
+import { REPORT_TITLES, summaryColumns } from './reportLayout';
+import './reports.css';
 
 type Kind = 'redemptions' | 'loyalty' | 'promotions';
 interface Row {
@@ -21,7 +23,6 @@ interface Row {
 }
 interface Result { items: Row[]; totalCount: number; page: number; pageSize: number; summary: { label: string; value: number }[]; notes: string[] }
 interface Filters { fromDate: string; toDate: string; retailer: string; program: string; status: string; regionId: string }
-const tabs = [{ key: 'redemptions', label: 'Báo cáo đổi quà' }, { key: 'loyalty', label: 'Biến động loyalty' }, { key: 'promotions', label: 'Sử dụng khuyến mãi' }];
 const labels: Record<string, string> = {
   Pending: 'Chờ duyệt', Approved: 'Đã duyệt · chờ giao', Delivered: 'Đã giao · chờ xác nhận', Completed: 'Hoàn tất',
   Rejected: 'Từ chối', Cancelled: 'Đã hủy', Earned: 'Tích điểm', EarnedAdjusted: 'Điều chỉnh điểm tích',
@@ -74,22 +75,35 @@ export function OperationsReportsPage() {
   const kind: Kind = requested === 'loyalty' || requested === 'promotions' ? requested : 'redemptions';
   return <OperationsReportSession key={kind} kind={kind} />;
 }
+function useDebounced<T>(value: T, delayMs: number) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(timer);
+  }, [value, delayMs]);
+  return debounced;
+}
+
 function OperationsReportSession({ kind }: { kind: Kind }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const params = new URLSearchParams(useLocation().search);
-  const [filters, setFilters] = useState<Filters>(() => ({ ...defaultDashboardDates(), retailer: '', program: '', status: params.get('status') ?? '', regionId: '' }));
-  const [draft, setDraft] = useState(filters);
+  const [draft, setDraft] = useState<Filters>(() => ({ ...defaultDashboardDates(), retailer: '', program: '', status: params.get('status') ?? '', regionId: '' }));
+  // Filters apply as they change (no "Xem báo cáo" button); typing is debounced.
+  const filters = useDebounced(draft, 400);
+  const filterKey = JSON.stringify(filters);
   const [page, setPage] = useState(1);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState('');
   const [selected, setSelected] = useState<Row | null>(null);
+  useEffect(() => { setPage(1); setSelected(null); }, [filterKey]);
   const rangeDays = (Date.parse(filters.toDate) - Date.parse(filters.fromDate)) / 86400000;
   const valid = Boolean(filters.fromDate && filters.toDate && rangeDays >= 0 && rangeDays <= 366);
   const regions = useQuery({ queryKey: ['report-regions', user?.id], queryFn: () => getAll<{ id: string; name: string }>('/regions', { includeInactive: true }), enabled: !!user });
   const query = useQuery({ queryKey: ['operations-reports', user?.id, user?.role, kind, filters, page], queryFn: () => load(kind, filters, page), enabled: valid && !!user });
   const cols = columns(kind);
   const tableCols = cols.filter(c => ['at', 'retailerName', 'programCode', 'status', 'itemName', 'quantity', 'points', 'balanceAfter', 'discountAmount', 'orderCode'].includes(c.key));
+  const title = REPORT_TITLES[kind];
   async function exportCsv() {
     setExporting(true); setExportError('');
     try {
@@ -105,23 +119,23 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
     finally { setExporting(false); }
   }
   return <>
-    <PageHeader title="Báo cáo chương trình & đổi quà" subtitle="Tra cứu retailer, giao dịch điểm và giá khuyến mãi đã chốt" actions={<Button disabled={!valid || !query.data || query.isFetching} loading={exporting} onClick={() => void exportCsv()}>Xuất CSV · toàn bộ bộ lọc</Button>} />
-    <Tabs items={tabs} value={kind} onChange={key => navigate(`/reports?kind=${key}`)} />
-    <form className="card row-wrap" style={{ padding: 16, gap: 16 }} onSubmit={e => { e.preventDefault(); setSelected(null); setFilters({ ...draft }); setPage(1); }}>
+    <PageHeader title={title} actions={<Button disabled={!valid || !query.data || query.isFetching} loading={exporting} onClick={() => void exportCsv()}>Xuất CSV · toàn bộ bộ lọc</Button>} />
+    <div className="card report-filters">
       <label className="lbl">Từ ngày<input required className="inp" type="date" value={draft.fromDate} onChange={e => setDraft(f => ({ ...f, fromDate: e.target.value }))} /></label>
       <label className="lbl">Đến ngày<input required className="inp" type="date" min={draft.fromDate} value={draft.toDate} onChange={e => setDraft(f => ({ ...f, toDate: e.target.value }))} /></label>
       <label className="lbl">Khu vực<select className="inp" value={draft.regionId} onChange={e => setDraft(f => ({ ...f, regionId: e.target.value }))}><option value="">Tất cả khu vực</option>{regions.data?.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
       <label className="lbl">Retailer<input className="inp" placeholder="Mã hoặc tên retailer" value={draft.retailer} onChange={e => setDraft(f => ({ ...f, retailer: e.target.value }))} /></label>
       <label className="lbl">Chương trình<input className="inp" placeholder={kind === 'promotions' ? 'Mã chiến dịch hoặc HSD' : 'Mã hoặc tên chương trình'} value={draft.program} onChange={e => setDraft(f => ({ ...f, program: e.target.value }))} /></label>
       <label className="lbl">Trạng thái / loại<select className="inp" value={draft.status} onChange={e => setDraft(f => ({ ...f, status: e.target.value }))}><option value="">Tất cả</option>{statuses[kind].map(s => <option key={s} value={s}>{kind === 'loyalty' && s === 'Pending' ? 'Điểm chờ cộng (cũ)' : labels[s] ?? s}</option>)}</select></label>
-      <Button type="submit">Xem báo cáo</Button><Button onClick={() => void query.refetch()} loading={query.isFetching}>Làm mới</Button>
-    </form>
+      <Button onClick={() => void query.refetch()} loading={query.isFetching} disabled={!valid}>Làm mới</Button>
+    </div>
     {regions.isError && <Callout tone="danger">Không tải được danh sách khu vực. <Button size="sm" onClick={() => void regions.refetch()}>Thử lại</Button></Callout>}
     {exportError && <Callout tone="danger">{exportError}</Callout>}
     {!valid ? <Callout tone="danger">Chọn khoảng ngày hợp lệ, tối đa 367 ngày.</Callout> : <QueryState query={query}>{data => <>
-      <div className="row-wrap" style={{ gap: 16, marginBlock: 16 }}>{data.summary.map(s => <Stat key={s.label} label={s.label} value={formatNumber(s.value)} />)}</div>
-      {data.notes.map(note => <p key={note} className="muted small">{note}</p>)}
-      <Card title={`${tabs.find(t => t.key === kind)?.label} · ${formatNumber(data.totalCount)} bản ghi`}>
+      <div className="report-summary" style={{ gridTemplateColumns: `repeat(${summaryColumns(data.summary.length)}, minmax(0, 1fr))` }}>
+        {data.summary.map(s => <Stat key={s.label} label={s.label} value={formatNumber(s.value)} />)}
+      </div>
+      <Card title={`${title} · ${formatNumber(data.totalCount)} bản ghi`}>
         <SimpleTable rows={data.items} columns={[
           { header: 'Mở', cell: row => <>{kind === 'redemptions' ? <Button size="sm" onClick={() => navigate(`/redeem/${row.id}`)}>Yêu cầu</Button> : row.orderId ? <Button size="sm" onClick={() => navigate(`/orders/${row.orderId}`)}>Đơn hàng</Button> : null}
             {kind === 'loyalty' && <Button size="sm" onClick={() => navigate(`/loyalty/${encodeURIComponent(row.retailerCode)}`)}>Thẻ loyalty</Button>}</> },
@@ -134,7 +148,10 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
           <Button disabled={page * data.pageSize >= data.totalCount || query.isFetching} onClick={() => setPage(p => p + 1)}>Sau</Button>
         </div>
       </Card>
-      {selected && <Card title={`Chi tiết · ${selected.id}`}><Button size="sm" onClick={() => setSelected(null)}>Đóng chi tiết</Button><Fields cols={3} items={cols.map(col => ({ label: col.label, value: display(selected, col, kind) }))} /></Card>}
     </>}</QueryState>}
+    <Modal open={!!selected} width={900} title={selected ? `Chi tiết · ${selected.id}` : ''} subtitle={title}
+      onClose={() => setSelected(null)} footer={<Button onClick={() => setSelected(null)}>Đóng</Button>}>
+      {selected && <Fields cols={3} items={cols.map(col => ({ label: col.label, value: display(selected, col, kind) }))} />}
+    </Modal>
   </>;
 }
