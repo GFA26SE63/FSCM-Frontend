@@ -3,7 +3,7 @@ import { can } from '@/shared/auth/permissions';
 import { useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
 import { Button, Callout, DataTable, FormDialog, PageHeader, Stat, StatusChip, type Column } from '@/shared/ui';
-import { formatDate, formatMoney, statusLabel } from '@/shared/lib';
+import { formatDate, formatMoney, statusLabel, toIsoDateTime, vietnamDateTimeToIso } from '@/shared/lib';
 import { useCollectReceivable, useReceivables } from '../hooks';
 import type { Receivable } from '../types';
 import {
@@ -171,9 +171,14 @@ export function DebtsPage() {
         columns={1}
         title={`Bằng chứng hoàn tiền · ${evidenceTarget?.orderCode ?? ''}`}
         submitLabel="Gửi Admin xác minh"
-        initial={{ transferredAt: new Date().toISOString().slice(0, 16), transactionReference: '', evidenceReference: '' }}
+        initial={{ transferredAt: toIsoDateTime(new Date()), transactionReference: '', evidenceReference: '' }}
         fields={[
-          { key: 'transferredAt', type: 'datetime-local', required: true, label: 'Thời điểm chuyển' },
+          { key: 'transferredAt', type: 'datetime-local', required: true, label: 'Thời điểm chuyển (giờ Việt Nam)',
+            validate: value => {
+              try {
+                return Date.parse(vietnamDateTimeToIso(String(value))) > Date.now() ? 'Thời điểm chuyển không được ở tương lai.' : undefined;
+              } catch { return 'Nhập ngày và giờ hợp lệ.'; }
+            } },
           { key: 'transactionReference', required: true, label: 'Mã giao dịch' },
           { key: 'evidenceReference', required: true, label: 'Link / mã bằng chứng' },
         ]}
@@ -183,7 +188,7 @@ export function DebtsPage() {
           await submitEvidence.mutateAsync({
             id: evidenceTarget.id,
             expectedVersion: evidenceTarget.version,
-            transferredAt: new Date(values.transferredAt).toISOString(),
+            transferredAt: vietnamDateTimeToIso(values.transferredAt),
             transactionReference: values.transactionReference,
             evidenceReference: values.evidenceReference,
             operationKey: crypto.randomUUID(),

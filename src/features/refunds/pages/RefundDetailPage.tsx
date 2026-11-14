@@ -3,7 +3,7 @@ import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
 import { useNavigate, useParams } from '@/shared/router/compat';
 import { Button, Callout, Card, Fields, FormDialog, Modal, PageHeader, QueryState } from '@/shared/ui';
-import { formatDateTime, formatMoney, toIsoDateTime } from '@/shared/lib';
+import { formatDateTime, formatMoney, toIsoDateTime, vietnamDateTimeToIso } from '@/shared/lib';
 import { refundApi } from '../api';
 import { useEvidenceUrl, useRefund, useSubmitRefundEvidence, useVerifyRefund } from '../hooks';
 import type { Refund } from '../types';
@@ -237,14 +237,17 @@ function EvidenceModal({ refund, open, onClose }: { refund: Refund; open: boolea
     setError(null);
     if (!reference.trim()) return setError('Cần nhập mã giao dịch.');
     if (!file) return setError('Cần chọn ảnh bằng chứng chuyển tiền.');
-    if (new Date(transferredAt) > new Date()) return setError('Thời điểm chuyển không được ở tương lai.');
+    let transferredInstant: string;
+    try { transferredInstant = vietnamDateTimeToIso(transferredAt); }
+    catch { return setError('Nhập ngày và giờ chuyển hợp lệ.'); }
+    if (Date.parse(transferredInstant) > Date.now()) return setError('Thời điểm chuyển không được ở tương lai.');
     setBusy(true);
     try {
       const uploaded = await refundApi.uploadEvidence(file);
       await submit.mutateAsync({
         id: refund.id,
         expectedVersion: refund.version,
-        transferredAt: new Date(transferredAt).toISOString(),
+        transferredAt: transferredInstant,
         transactionReference: reference.trim(),
         evidenceReference: uploaded.reference,
         operationKey: crypto.randomUUID(),
@@ -275,7 +278,7 @@ function EvidenceModal({ refund, open, onClose }: { refund: Refund; open: boolea
       <div style={{ display: 'grid', gap: 12 }}>
         <Callout tone="info">Nhập thông tin khoản tiền đã thực sự chuyển. Hệ thống không tự chuyển tiền.</Callout>
         <label className="fld">
-          <span className="fl">Thời điểm chuyển *</span>
+          <span className="fl">Thời điểm chuyển (giờ Việt Nam) *</span>
           <input className="inp" type="datetime-local" value={transferredAt} max={toIsoDateTime(new Date())} onChange={(event) => setTransferredAt(event.target.value)} />
         </label>
         <label className="fld">
