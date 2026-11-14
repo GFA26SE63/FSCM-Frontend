@@ -9,6 +9,10 @@ export interface Category {
   productCount?: number;
   createdAt?: string;
   updatedAt?: string;
+  /** Category default MLOR (0..1), null = inherit parent / system default. */
+  defaultMlorRatio?: number | null;
+  defaultMlorVersion?: number;
+  defaultMlorUpdatedAt?: string | null;
 }
 
 export interface CategoryProduct {
