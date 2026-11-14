@@ -14,7 +14,7 @@ const MENU_GROUPS: { key: string; label: string; keys: string[] }[] = [
   { key: 'sales', label: 'Bán hàng & Tài chính', keys: ['orders', 'allocation', 'debts', 'refunds', 'complaints'] },
   { key: 'warehouse', label: 'Kho vận', keys: ['runpicking', 'readiness', 'receipts', 'batches', 'batchpromo', 'disposal', 'whtransfer', 'rotation', 'fleet'] },
   { key: 'customer', label: 'Khách hàng & Khuyến mãi', keys: ['retailers', 'promos', 'loyalty', 'redeem', 'gifts'] },
-  { key: 'catalog', label: 'Danh mục', keys: ['regions', 'cats', 'skus', 'whs'] },
+  { key: 'catalog', label: 'Danh mục', keys: ['regions', 'cats', 'catmlor', 'skus', 'whs'] },
   { key: 'system', label: 'Hệ thống', keys: ['users', 'config'] },
 ];
 

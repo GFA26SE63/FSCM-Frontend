@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Eye, Lock, Printer, QrCode, Trash2, Unlock } from 'lucide-react';
+import { Eye, Lock, Printer, Trash2, Unlock } from 'lucide-react';
 import { useNavigate } from '@/shared/router/compat';
 import {
   ActionDropdown,
@@ -15,7 +15,6 @@ import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
 import { useWarehouses } from '@/features/warehouses/hooks';
 import {
-  GenerateQrDialog,
   LabelPrintDialog,
   useAllQrLabels,
   type PrintTarget,
@@ -35,7 +34,6 @@ export function BatchesPage() {
 
   const canLock = can(user, 'inventory.lock');
   const canUnlock = can(user, 'inventory.unlock');
-  const canGenerateQr = can(user, 'qr.generate');
   const canPrintQr = can(user, 'qr.print');
 
   const isKeeper = user?.role === 'WarehouseKeeper';
@@ -93,7 +91,6 @@ export function BatchesPage() {
   // Dialog targets
   const [lockTarget, setLockTarget] = useState<BatchInventoryItem | null>(null);
   const [releaseTarget, setReleaseTarget] = useState<InventoryLockItem | null>(null);
-  const [generateTarget, setGenerateTarget] = useState<BatchInventoryItem | null>(null);
   const [printTarget, setPrintTarget] = useState<PrintTarget | null>(null);
 
   // Dynamic warehouse filter options
@@ -357,26 +354,7 @@ export function BatchesPage() {
           // Build dropdown items
           const dropdownItems: ActionDropdownItem[] = [];
 
-          const canGenerateThis =
-            canGenerateQr &&
-            b.expiryStatus !== 'Disposed' &&
-            (!isKeeper ||
-              assignedWhIds.includes(b.warehouseId) ||
-              b.warehouseCode === assignedWhCode);
-
           const batchLabels = qrLabelsByBatch.get(b.batchId) || [];
-
-          // 1. Sinh mã QR (Teal)
-          if (canGenerateThis) {
-            dropdownItems.push({
-              key: 'generate-qr',
-              label: 'Sinh mã QR',
-              icon: <QrCode size={14} style={{ color: '#0D9488' }} />,
-              color: '#0D9488',
-              onClick: () => setGenerateTarget(b),
-              title: 'Sinh mã QR mới cho lô hàng',
-            });
-          }
 
           // 2. In tem QR (Blue)
           if (canPrintQr && batchLabels.length > 0) {
@@ -480,20 +458,7 @@ export function BatchesPage() {
         />
       )}
 
-      {/* Generate and Print QR Dialogs */}
-      {generateTarget && (
-        <GenerateQrDialog
-          open={generateTarget !== null}
-          batch={generateTarget}
-          existingCount={(qrLabelsByBatch.get(generateTarget.batchId) || []).length}
-          onClose={() => setGenerateTarget(null)}
-          onPrintExisting={() => {
-            const id = generateTarget.batchId;
-            setGenerateTarget(null);
-            setPrintTarget({ kind: 'batch', batchId: id });
-          }}
-        />
-      )}
+      {/* Print QR Dialog */}
       {printTarget && user && (
         <LabelPrintDialog
           ownerId={user.id}

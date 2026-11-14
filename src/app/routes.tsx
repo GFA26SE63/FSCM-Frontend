@@ -92,6 +92,7 @@ export const APP_ROUTES: AppRoute[] = [
   { key: 'gifts', label: 'Danh mục quà đổi điểm', roles: [A], list: page(gifts, 'GiftsPage') },
   { key: 'regions', label: 'Khu vực & nhóm Sales', roles: [A, SM], list: page(regions, 'RegionsPage'), sub: [{ path: ':code', element: page(regions, 'GroupDetailPage') }] },
   { key: 'cats', label: 'Danh mục sản phẩm', roles: [A], list: page(categories, 'CategoriesPage'), sub: [{ path: ':code', element: page(categories, 'CategoryDetailPage') }] },
+  { key: 'catmlor', label: 'MLOR theo danh mục sản phẩm', roles: [A], list: page(categories, 'CategoryMlorPage') },
   { key: 'skus', label: 'Sản phẩm (SKU)', roles: [A], list: page(products, 'ProductsPage'), sub: [
     { path: 'new', element: page(products, 'ProductCreatePage') },
     { path: ':sku/edit', element: page(products, 'ProductEditPage') },

@@ -5,10 +5,10 @@ import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
 import { formatDate, formatDateTime } from '@/shared/lib';
 import { Modal } from '@/shared/ui';
-import { useBatchQrLabels, useBatchInventory } from '../hooks';
+import { useBatchQrLabels } from '../hooks';
 
 import { LabelPrintDialog } from './LabelPrintDialog';
-import { GenerateQrDialog, type BatchForQrGeneration } from './GenerateQrDialog';
+import type { BatchForQrGeneration } from './GenerateQrDialog';
 import {
   isPrintableLabel,
   labelStatusText,
@@ -19,65 +19,28 @@ import {
 interface Props {
   batchId: string;
   batchCode?: string;
+  /** Kept for API compatibility with callers; not needed now that labels are auto-generated. */
   batch?: BatchForQrGeneration | null;
 }
 
 function AuthorizedQrLabelsPanel({
   batchId,
   batchCode,
-  batch,
   ownerId,
 }: Props & { ownerId: string }) {
   const { user } = useAuth();
   const [target, setTarget] = useState<PrintTarget | null>(null);
-  const [generateOpen, setGenerateOpen] = useState(false);
   const [detailLabel, setDetailLabel] = useState<QrLabel | null>(null);
 
   const query = useBatchQrLabels(ownerId, batchId);
-  const batchQuery = useBatchInventory(batchId, !batch);
 
   const labels = query.data ?? [];
 
   const printableCount = labels.filter(isPrintableLabel).length;
 
-  const resolvedBatch: BatchForQrGeneration = batch || (batchQuery.data ? {
-    batchId: batchQuery.data.batchId,
-    batchCode: batchQuery.data.batchCode || batchCode || '',
-    sku: batchQuery.data.sku,
-    productName: batchQuery.data.productName,
-    warehouseId: batchQuery.data.warehouseId,
-    warehouseCode: batchQuery.data.warehouseCode,
-    warehouseName: batchQuery.data.warehouseName,
-    expirationDate: batchQuery.data.expirationDate,
-    onHandQuantity: batchQuery.data.onHandQuantity,
-    availableQuantity: batchQuery.data.availableQuantity,
-    expiryStatus: batchQuery.data.expiryStatus,
-  } : {
-    batchId,
-    batchCode: batchCode || '',
-    sku: labels[0]?.sku || '',
-    productName: labels[0]?.productName || '',
-    warehouseCode: labels[0]?.warehouseCode,
-    expirationDate: labels[0]?.expirationDate,
-  });
-
-  const isKeeper = user?.role === 'WarehouseKeeper';
-  const assignedWhIds = user?.scope?.warehouseIds ?? [];
-  const assignedWhCode = user?.warehouseCode;
-
-  const isWarehouseScoped =
-    !isKeeper ||
-    (resolvedBatch.warehouseId ? assignedWhIds.includes(resolvedBatch.warehouseId) : false) ||
-    (resolvedBatch.warehouseCode ? resolvedBatch.warehouseCode === assignedWhCode : false) ||
-    assignedWhIds.length === 0;
-
-  const canGenerate = can(user, 'qr.generate') && isWarehouseScoped;
-
+  // QR labels are generated automatically for every received carton when the goods receipt is
+  // approved, so this panel only lists, prints and inspects them (no manual generation).
   const canPrint = can(user, 'qr.print');
-
-  const isDisposed = batch?.expiryStatus === 'Disposed' || resolvedBatch.expiryStatus === 'Disposed';
-
-  const batchInfo: BatchForQrGeneration = resolvedBatch;
 
   return (
     <section className="card" style={{ padding: 16 }}>
@@ -97,7 +60,7 @@ function AuthorizedQrLabelsPanel({
           </h2>
 
           <div className="muted small">
-            In lại dùng mã tem hiện có, không tạo thêm hàng tồn.
+            Tem QR được tự sinh cho toàn bộ hàng khi duyệt phiếu nhập kho. In lại dùng mã tem hiện có, không tạo thêm hàng tồn.
             {' '}Tem đã tách giữ số lượng ban đầu để lưu lịch sử; chỉ dùng và in các tem con mới.
           </div>
         </div>
@@ -109,21 +72,6 @@ function AuthorizedQrLabelsPanel({
             gap: 8,
           }}
         >
-          {canGenerate && (
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={isDisposed || query.isFetching || batchQuery.isFetching}
-              title={
-                isDisposed
-                  ? 'Lô hàng đã bị tiêu hủy nên không thể sinh mã QR.'
-                  : 'Tạo tem QR mới cho lô hàng'
-              }
-              onClick={() => setGenerateOpen(true)}
-            >
-              Sinh mã QR
-            </button>
-          )}
 
           {canPrint && (
             <button
@@ -182,18 +130,8 @@ function AuthorizedQrLabelsPanel({
             className="muted"
             style={{ margin: '0 0 12px 0', fontSize: 14 }}
           >
-            Chưa có mã QR cho lô hàng này.
+            Chưa có mã QR cho lô hàng này. Tem QR sẽ được tự sinh khi phiếu nhập kho của lô được duyệt.
           </p>
-          {canGenerate && (
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={isDisposed}
-              onClick={() => setGenerateOpen(true)}
-            >
-              Sinh mã QR
-            </button>
-          )}
         </div>
       ) : (
         <div className="tbl-wrap">
@@ -298,17 +236,6 @@ function AuthorizedQrLabelsPanel({
             </tbody>
           </table>
         </div>
-      )}
-
-      {/* Generate QR Dialog */}
-      {generateOpen && (
-        <GenerateQrDialog
-          open={generateOpen}
-          batch={batchInfo}
-          existingCount={labels.length}
-          onClose={() => setGenerateOpen(false)}
-          onPrintExisting={() => setTarget({ kind: 'batch', batchId })}
-        />
       )}
 
       {/* Print / Preview Dialog */}
