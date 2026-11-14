@@ -1,7 +1,7 @@
 import type { PortalRole } from '@/shared/auth/roles';
 export interface DashboardFilters { fromDate: string; toDate: string; regionId?: string; warehouseId?: string; salesGroupId?: string }
 export interface DashboardOption { id: string; code: string; name: string; regionId: string | null }
-export interface DashboardCard { key: string; label: string; value: number; unit: 'VND' | 'count' | 'carton' | 'percent'; note: string; tone: string; href?: string | null }
+export interface DashboardCard { key: string; label: string; value: number; unit: 'VND' | 'count' | 'carton' | 'percent'; note: string; tone: string; href?: string | null; previousValue?: number | null }
 export interface DashboardDay { date: string; recognizedRevenue: number; collectedAmount: number }
 export interface DashboardResponse {
   role: PortalRole; asOf: string; fromDate: string; toDate: string;
@@ -14,7 +14,11 @@ export interface DashboardResponse {
   inventory: { id: string; code: string; name: string; onHand: number; reserved: number; locked: number; available: number; nearExpiry: number; expired: number }[];
   expiryRisks: { id: string; batchCode: string; warehouseCode: string; sku: string; expirationDate: string; onHand: number; available: number; status: string }[];
   workItems: { kind: string; id: string; code: string; title: string; status: string; reason: string; since: string; priority: number; href: string | null; amount: number | null }[];
-  customers: { id: string; code: string; name: string; status: string; periodOrders: number; lastOrderAt: string | null; expectedFrequencyPerMonth: number; outstanding: number; overdue: number }[];
-  health: { expiryLastRunAt: string | null; expiryStatus: string | null; pendingEvents: number; failedEvents: number; abandonedAllocations: number } | null;
+  customers: { id: string; code: string; name: string; status: string; periodOrders: number; lastOrderAt: string | null; expectedFrequencyPerMonth: number; outstanding: number; overdue: number; cycleOverdue?: boolean }[];
+  health: { expiryLastRunAt: string | null; expiryStatus: string | null; pendingEvents: number; failedEvents: number; abandonedAllocations?: number } | null;
   unattributedRevenue: number | null; notes: string[];
+  /** All near-expiry / expired batches in scope; `expiryRisks` holds at most the first 200. */
+  expiryRiskTotal?: number;
+  debtAging?: { key: string; label: string; count: number; amount: number }[] | null;
+  stockCover?: { productId: string; sku: string; name: string; regionId: string; regionCode: string; available: number; soldLast30Days: number; daysOfSupply: number | null; shelfLifeDays: number; minimumStock: number; flag: 'BelowMinimum' | 'NoSales' | 'Overstock' }[] | null;
 }

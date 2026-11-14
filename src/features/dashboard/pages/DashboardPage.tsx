@@ -7,7 +7,8 @@ import { formatMoney, formatNumber } from '@/shared/lib';
 import { formatDate, formatInstantDateTime } from '@/shared/lib/dates';
 import { useDashboard } from '../hooks';
 import { RevenueByDayChart } from '../components/RevenueChart';
-import { DASHBOARD_TITLES, dashboardTabs, defaultDashboardDates, visibleCards } from '../dashboardModel';
+import { ExpiryRiskCard } from '../components/ExpiryRiskCard';
+import { DASHBOARD_TITLES, dashboardTabs, defaultDashboardDates, periodChange, visibleCards } from '../dashboardModel';
 import type { DashboardFilters, DashboardResponse } from '../types';
 import './dashboard.css';
 
@@ -60,6 +61,10 @@ export function DashboardContent({ data, tab, onTabChange }: {
   const showStock = !manager && (allowed === 'inventory' || keeper);
   const showWork = ['overview', 'operations', 'finance'].includes(allowed);
   const work = allowed === 'finance' ? data.workItems.filter(w => ['complaint', 'refund'].includes(w.kind)) : data.workItems;
+  const global = data.scope.isGlobal;
+  const coverFlag = {
+    BelowMinimum: ['danger', 'Dưới ngưỡng tồn'], NoSales: ['warn', 'Không bán trong 30 ngày'], Overstock: ['warn', 'Dư so với hạn dùng'],
+  } as const;
   return <>
     <div className="dashboard-scope">
       <Chip tone={data.scope.isGlobal ? 'info' : 'success'}>{data.scope.description}</Chip>
@@ -70,9 +75,9 @@ export function DashboardContent({ data, tab, onTabChange }: {
     <Tabs items={tabs} value={allowed} onChange={onTabChange} />
     <div className="dashboard-kpis">{cards.map(c => {
       const value = c.unit === 'VND' ? formatMoney(c.value) : `${formatNumber(c.value)}${c.unit === 'carton' ? ' thùng' : c.unit === 'percent' ? '%' : ''}`;
-      return <div key={c.key}><Stat label={c.label}
+      return <div key={c.key} className="card dashboard-kpi"><Stat label={c.label}
         value={<span className="dashboard-stat-number" style={{ '--value-characters': value.length } as CSSProperties}>{value}</span>}
-        note={c.note} color={c.tone === 'danger' ? 'var(--c-danger)' : c.tone === 'warn' ? '#ad6a16' : c.tone === 'success' ? '#14655b' : undefined} />
+        note={<>{c.note}{periodChange(c.value, c.previousValue) && <><br /><strong>{periodChange(c.value, c.previousValue)}</strong></>}</>} color={c.tone === 'danger' ? 'var(--c-danger)' : c.tone === 'warn' ? '#ad6a16' : c.tone === 'success' ? '#14655b' : undefined} />
         {c.href && <Button size="sm" onClick={() => navigate(c.href!)}>Mở danh sách</Button>}</div>;
     })}</div>
     {financial && <div className="dashboard-pair">
@@ -83,6 +88,23 @@ export function DashboardContent({ data, tab, onTabChange }: {
           <StatusChip domain="order" value={s.status} /><div className="dashboard-status-bar"><div style={{ width: `${s.count / Math.max(1, ...data.ordersByStatus.map(x => x.count)) * 100}%` }} /></div><strong>{formatNumber(s.count)}</strong>
         </div>)}
       </Card>
+    </div>}
+    {allowed === 'finance' && !!data.debtAging?.length && <div className="dashboard-pair">
+      <Card title="Tuổi nợ công nợ · số hiện tại">
+        <SimpleTable compact rows={data.debtAging} columns={[
+          { header: 'Nhóm', cell: b => <Chip tone={b.key === 'current' ? 'info' : b.key === 'd1_7' ? 'warn' : 'danger'}>{b.label}</Chip> },
+          { header: 'Số đơn', align: 'right', cell: b => formatNumber(b.count) },
+          { header: 'Còn phải thu', align: 'right', cell: b => <strong>{formatMoney(b.amount)}</strong> },
+        ]} />
+      </Card>
+      {global && <Card title="Điểm bán nợ nhiều nhất · 10 điểm ưu tiên theo quá hạn">
+        <SimpleTable compact rows={data.customers.filter(r => r.outstanding > 0).slice(0, 10)} empty="Không có điểm bán còn công nợ." columns={[
+          { header: 'Điểm bán', cell: r => <>{r.code}<br /><strong>{r.name}</strong></> },
+          { header: 'Còn phải thu', align: 'right', cell: r => formatMoney(r.outstanding) },
+          { header: 'Quá hạn', align: 'right', cell: r => <strong style={{ color: r.overdue > 0 ? 'var(--c-danger)' : undefined }}>{formatMoney(r.overdue)}</strong> },
+          { header: '', cell: r => <Button size="sm" onClick={() => navigate(`/retailers/${r.id}`)}>Xem</Button> },
+        ]} />
+      </Card>}
     </div>}
     {showWork && <Card title="Việc cần xử lý · tối đa 30 mục ưu tiên">
       <SimpleTable compact rows={work} empty="Không có công việc chờ trong phạm vi này."
@@ -107,16 +129,19 @@ export function DashboardContent({ data, tab, onTabChange }: {
           { header: 'Hết hạn', align: 'right', cell: w => formatNumber(w.expired) },
         ]} />
       </Card>
-      <Card title="Batch cần chú ý · 15 batch ưu tiên theo hạn sử dụng">
-        <SimpleTable rows={data.expiryRisks} empty="Không có batch cận hạn/hết hạn còn tồn." columns={[
-          { header: 'Batch / kho', cell: b => <>{b.batchCode}<br />{b.warehouseCode}</> },
-          { header: 'SKU', cell: b => b.sku }, { header: 'Hết hạn', cell: b => formatDate(b.expirationDate) },
-          { header: 'Tồn vật lý', align: 'right', cell: b => formatNumber(b.onHand) },
-          { header: 'Khả dụng', align: 'right', cell: b => formatNumber(b.available) },
-          { header: 'Cảnh báo', cell: b => <Chip tone={b.status === 'Expired' ? 'danger' : 'warn'}>{b.status === 'Expired' ? 'Hết hạn' : 'Cận hạn'}</Chip> },
-          { header: '', cell: b => <Button size="sm" onClick={() => navigate(`/batches/${encodeURIComponent(b.batchCode)}`)}>Xem batch</Button> },
+      <Card title="SKU cần chú ý về tồn · theo khu vực, tốc độ bán 30 ngày và hạn dùng">
+        <SimpleTable rows={data.stockCover ?? []} empty="Không có SKU dưới ngưỡng, không bán hoặc tồn dư trong phạm vi đã chọn." columns={[
+          { header: 'Khu vực', cell: s => s.regionCode },
+          { header: 'SKU', cell: s => <>{s.sku}<br /><span className="muted small">{s.name}</span></> },
+          { header: 'Khả dụng', align: 'right', cell: s => <strong>{formatNumber(s.available)}</strong> },
+          { header: 'Ngưỡng', align: 'right', cell: s => formatNumber(s.minimumStock) },
+          { header: 'Bán 30 ngày', align: 'right', cell: s => formatNumber(s.soldLast30Days) },
+          { header: 'Đủ bán', align: 'right', cell: s => s.daysOfSupply == null ? '—' : `${formatNumber(s.daysOfSupply)} ngày` },
+          { header: 'Hạn dùng', align: 'right', cell: s => `${formatNumber(s.shelfLifeDays)} ngày` },
+          { header: 'Cảnh báo', cell: s => <Chip tone={coverFlag[s.flag][0]}>{coverFlag[s.flag][1]}</Chip> },
         ]} />
       </Card>
+      <ExpiryRiskCard rows={data.expiryRisks} total={data.expiryRiskTotal} />
     </>}
     {allowed === 'sales' && <>
       <Card title="Thành viên Sales · gồm người chưa có đơn hoàn tất">
@@ -143,7 +168,7 @@ export function DashboardContent({ data, tab, onTabChange }: {
         { header: 'Điểm bán', cell: r => <>{r.code}<br /><strong>{r.name}</strong></> },
         { header: 'Trạng thái', cell: r => r.status }, { header: 'Đơn trong kỳ', align: 'right', cell: r => formatNumber(r.periodOrders) },
         { header: 'Mua gần nhất', cell: r => r.lastOrderAt ? formatInstantDateTime(r.lastOrderAt) : 'Chưa có đơn' },
-        { header: 'Tần suất dự kiến', cell: r => `${r.expectedFrequencyPerMonth} lần/tháng` },
+        { header: 'Tần suất dự kiến', cell: r => <>{r.expectedFrequencyPerMonth} lần/tháng{r.cycleOverdue && <><br /><Chip tone="warn">Quá chu kỳ mua</Chip></>}</> },
         { header: 'Còn phải thu', align: 'right', cell: r => formatMoney(r.outstanding) },
         { header: 'Quá hạn', align: 'right', cell: r => <strong style={{ color: r.overdue > 0 ? 'var(--c-danger)' : undefined }}>{formatMoney(r.overdue)}</strong> },
       ]} />
@@ -153,7 +178,6 @@ export function DashboardContent({ data, tab, onTabChange }: {
         <Stat label="Theo dõi HSD chạy gần nhất" value={data.health.expiryLastRunAt ? formatInstantDateTime(data.health.expiryLastRunAt) : 'Chưa ghi nhận'} note={data.health.expiryStatus ?? 'Chưa có lượt chạy'} />
         <Stat label="Sự kiện chờ xử lý" value={formatNumber(data.health.pendingEvents)} />
         <Stat label="Sự kiện lỗi" value={formatNumber(data.health.failedEvents)} />
-        <Stat label="SO đang phân bổ quá 2 phút" value={formatNumber(data.health.abandonedAllocations)} />
       </div>
     </Card>}
     <div>{data.notes.map(note => <p key={note} className="dashboard-note">{note}</p>)}</div>
