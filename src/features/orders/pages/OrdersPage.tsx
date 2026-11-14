@@ -1,4 +1,7 @@
 import {
+  useMemo,
+} from 'react';
+import {
   useNavigate,
 } from '@/shared/router/compat';
 import { useDateParam } from '@/shared/router/listState';
@@ -26,6 +29,9 @@ import {
 import type {
   OrderSummary,
 } from '../types';
+import {
+  useOrderSales,
+} from '../orderSales';
 
 export function OrdersPage() {
   const navigate = useNavigate();
@@ -43,6 +49,25 @@ export function OrdersPage() {
         from,
   );
 
+  const creatorIds = useMemo(
+    () => rows.map((order) => order.createdByUserId),
+    [rows],
+  );
+  const { salesNameOf, salesSearchTextOf } = useOrderSales(creatorIds);
+
+  const salesFilterOptions = useMemo(() => {
+    const options = new Set<string>();
+    for (const order of rows) {
+      const name = salesNameOf(order.createdByUserId);
+      if (name && name !== '…') {
+        options.add(name);
+      }
+    }
+    return [...options].sort((a, b) =>
+      a.localeCompare(b, 'vi-VN'),
+    );
+  }, [rows, salesNameOf]);
+
   const statusOptions = [
     ...new Set(
       Object.values(
@@ -56,7 +81,7 @@ export function OrdersPage() {
       {
         key: 'orderCode',
         header: 'Mã đơn',
-        width: '112px',
+        width: '104px',
         render: (order) => (
           <span className="bold">
             {order.orderCode}
@@ -66,7 +91,6 @@ export function OrdersPage() {
       {
         key: 'retailer',
         header: 'Retailer',
-        width: '180px',
         text: (order) =>
           `${order.retailerCode} ${order.retailerName}`,
         render: (order) => (
@@ -81,9 +105,24 @@ export function OrdersPage() {
         ),
       },
       {
+        key: 'sales',
+        header: 'Người đặt đơn',
+        width: '135px',
+        text: (order) =>
+          salesSearchTextOf(order.createdByUserId),
+        render: (order) => (
+          <div
+            className="strong"
+            title={salesNameOf(order.createdByUserId)}
+          >
+            {salesNameOf(order.createdByUserId)}
+          </div>
+        ),
+      },
+      {
         key: 'lines',
         header: 'Đơn hàng',
-        width: '130px',
+        width: '95px',
         text: (order) =>
           `${order.lineCount} SKU ${order.totalCartons} thùng`,
         render: (order) => (
@@ -98,7 +137,7 @@ export function OrdersPage() {
       {
         key: 'createdAt',
         header: 'Server nhận',
-        width: '125px',
+        width: '105px',
         text: (order) =>
           formatShortDateTime(
             order.createdAt,
@@ -107,7 +146,7 @@ export function OrdersPage() {
       {
         key: 'source',
         header: 'Nguồn',
-        width: '82px',
+        width: '78px',
         render: (order) => (
           <StatusChip
             domain="channel"
@@ -123,7 +162,7 @@ export function OrdersPage() {
       {
         key: 'payment',
         header: 'Thanh toán',
-        width: '120px',
+        width: '105px',
         text: (order) =>
           paymentLabel(
             order.paymentMethod,
@@ -132,7 +171,7 @@ export function OrdersPage() {
       {
         key: 'amount',
         header: 'Giá trị',
-        width: '138px',
+        width: '115px',
         align: 'right',
         render: (order) => (
           <>
@@ -153,7 +192,7 @@ export function OrdersPage() {
       {
         key: 'status',
         header: 'Trạng thái',
-        width: '210px',
+        width: '150px',
         render: (order) => (
           <div className="order-status-cell">
             <StatusChip
@@ -166,7 +205,7 @@ export function OrdersPage() {
       {
         key: 'progress',
         header: 'Phân bổ / giao',
-        width: '145px',
+        width: '110px',
         text: (order) =>
           `${order.allocationResult ?? order.allocationState} ${order.shipmentCount}`,
         render: (order) => (
@@ -218,7 +257,7 @@ export function OrdersPage() {
               order.id
             }
             columns={columns}
-            searchPlaceholder="Mã đơn, retailer, trạng thái…"
+            searchPlaceholder="Mã đơn, retailer, người đặt, trạng thái…"
             filters={[
               {
                 label:
@@ -230,6 +269,14 @@ export function OrdersPage() {
                     'order',
                     order.status,
                   ),
+              },
+              {
+                label: 'Người đặt đơn',
+                param: 'sales',
+                searchable: true,
+                options: salesFilterOptions,
+                value: (order) =>
+                  salesNameOf(order.createdByUserId),
               },
               {
                 label: 'Nguồn',
@@ -267,7 +314,7 @@ export function OrdersPage() {
                 `/orders/${order.id}`,
               )
             }
-            rowActionsWidth="220px"
+            rowActionsWidth="165px"
             rowActions={(
               order,
             ) => (

@@ -31,6 +31,7 @@ import {
   statusLabel,
 } from '@/shared/lib';
 import { useOrder } from '../hooks';
+import { useOrderSales } from '../orderSales';
 import {
   AllocationTraceDialog,
 } from '../components/AllocationTraceDialog';
@@ -333,6 +334,7 @@ function OrderBody({
   order: OrderDetail;
 }) {
   const { user } = useAuth();
+  const { salesNameOf } = useOrderSales([order.createdByUserId]);
 
   const [trace, setTrace] =
     useState(false);
@@ -442,67 +444,77 @@ function OrderBody({
                   label:
                     'Địa chỉ giao',
                   value:
-                    order.deliveryAddress,
+                    order.deliveryAddress || '—',
                 },
                 {
                   label:
                     'Ngày yêu cầu nhận',
                   value:
-                    formatDate(
-                      order.requestedDeliveryDate,
-                    ),
+                    order.requestedDeliveryDate
+                      ? formatDate(
+                          order.requestedDeliveryDate,
+                        )
+                      : '—',
                 },
                 {
                   label: 'Nguồn',
                   value:
-                    order.source ===
-                    'Offline'
-                      ? 'Offline gửi thủ công'
-                      : 'Sales tạo online',
+                    order.source === 'Offline'
+                      ? 'Offline'
+                      : 'Online',
                 },
                 {
                   label:
                     'Thanh toán',
                   value:
-                    paymentLabel(
-                      order.paymentMethod,
-                      order.creditTermDays,
-                    ),
+                    order.paymentMethod
+                      ? paymentLabel(
+                          order.paymentMethod,
+                          order.creditTermDays,
+                        )
+                      : '—',
                 },
-                ...(order.paymentMethod === 'Credit'
-                  ? [
-                      {
-                        label: 'Kỳ hạn snapshot',
-                        value: `${order.creditTermDays} ngày`,
-                      },
-                      {
-                        label: 'Hạn thanh toán',
-                        value: order.payment?.dueDate
+                {
+                  label:
+                    'Kỳ hạn snapshot',
+                  value:
+                    order.paymentMethod === 'Credit' && order.creditTermDays != null
+                      ? `${order.creditTermDays} ngày`
+                      : '—',
+                },
+                {
+                  label:
+                    'Hạn thanh toán',
+                  value:
+                    order.paymentMethod === 'Credit'
+                      ? (order.payment?.dueDate
                           ? formatDate(order.payment.dueDate)
-                          : `Sau khi nhận đủ + ${order.creditTermDays} ngày`,
-                      },
-                    ]
-                  : []),
+                          : (order.creditTermDays != null
+                              ? `Sau khi nhận đủ + ${order.creditTermDays} ngày`
+                              : '—'))
+                      : '—',
+                },
                 {
                   label:
                     'Lần phân bổ',
                   value:
                     order.allocationRunCode ??
                     order.allocationRunId ??
-                    'Chưa có mã lần xử lý',
+                    '—',
                 },
                 {
                   label:
                     'Kết quả phân bổ',
                   value:
                     order.allocationResult ??
-                    order.allocationState,
+                    order.allocationState ??
+                    '—',
                 },
                 {
                   label:
-                    'Người tạo',
+                    'Người đặt đơn',
                   value:
-                    order.createdByUserId,
+                    salesNameOf(order.createdByUserId) || '—',
                 },
               ]}
             />
