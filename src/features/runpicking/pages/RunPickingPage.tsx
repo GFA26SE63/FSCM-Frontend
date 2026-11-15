@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, Chip, PageHeader, QueryState, Select, SimpleTable, Stat, type Tone } from '@/shared/ui';
 import { formatCases, formatNumber, formatPercent } from '@/shared/lib';
-import { formatInstantDateTime } from '@/shared/lib/dates';
+import { formatDate, formatInstantDateTime } from '@/shared/lib/dates';
 import { usePickingLists, useWarehouseOptions } from '../hooks';
 import type { PickingItem, PickingList, PickingStatus } from '../types';
 
@@ -76,7 +76,7 @@ function PickingCard({ list, open, onToggle }: { list: PickingList; open: boolea
   const meta = STATUS[list.status] ?? { tone: 'neutral' as Tone, label: list.status };
   const columns = [
     { header: 'SKU / sản phẩm', cell: (item: PickingItem) => <><strong>{item.sku}</strong><br /><span className="muted small">{item.productName}</span></> },
-    { header: 'Batch', cell: (item: PickingItem) => <strong>{item.batchCode}</strong> },
+    { header: 'Batch / HSD', cell: (item: PickingItem) => <><strong>{item.batchCode}</strong><br /><span className="muted small">{formatDate(item.expirationDate)}</span></> },
     { header: 'Cần soạn', align: 'right' as const, cell: (item: PickingItem) => formatCases(item.requestedQuantity) },
     { header: 'Đã soạn', align: 'right' as const, cell: (item: PickingItem) => formatCases(item.pickedQuantity) },
     { header: 'Còn lại', align: 'right' as const, cell: (item: PickingItem) => formatCases(item.remainingQuantity) },
@@ -84,12 +84,12 @@ function PickingCard({ list, open, onToggle }: { list: PickingList; open: boolea
   ];
   return (
     <Card
-      title={`${list.pickingCode} · ${list.warehouseCode}`}
+      title={`${list.pickingCode} · ${list.warehouseName || list.warehouseCode}`}
       actions={<button type="button" className="btn btn-sm" onClick={onToggle}>{open ? 'Thu gọn' : 'Xem chi tiết'}</button>}
     >
       <div className="row-wrap" style={{ gap: 20, alignItems: 'center' }}>
         <Chip tone={meta.tone}>{meta.label}</Chip>
-        <span>Đơn <strong>{list.orderCode}</strong></span>
+        <span>Đơn <strong>{list.orderCode}</strong> · {list.retailerCode} {list.retailerName}</span>
         <span>Tiến độ <strong>{formatCases(picked)}</strong> / {formatCases(required)} {required > 0 && `(${formatPercent(picked / required * 100, 1)})`}</span>
         {list.startedAt && <span>Bắt đầu {formatInstantDateTime(list.startedAt)}</span>}
         {list.confirmedAt && <span>Hoàn tất {formatInstantDateTime(list.confirmedAt)}</span>}

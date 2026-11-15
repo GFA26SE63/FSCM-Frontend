@@ -13,5 +13,5 @@ export const usePublishTransitTable = () => useApiMutation(transitApi.publish, {
 
 export const useRunSchedule = () => useQuery({ queryKey: ['run-schedule'], queryFn: runScheduleApi.current });
 export const usePublishRunSchedule = () => useApiMutation(runScheduleApi.publish, {
-  success: 'Đã lưu lịch chạy đợt. Đợt kế tiếp và ETA báo cho khách đều dùng giờ chốt này.',
+  success: 'Đã lưu cấu hình ETA cho luồng allocation real-time.',
 });

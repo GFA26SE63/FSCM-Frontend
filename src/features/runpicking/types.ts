@@ -7,6 +7,7 @@ export interface PickingItem {
   productName: string;
   batchId: string;
   batchCode: string;
+  expirationDate: string;
   requestedQuantity: number;
   pickedQuantity: number;
   remainingQuantity: number;
@@ -20,6 +21,9 @@ export interface PickingList {
   orderCode: string;
   warehouseId: string;
   warehouseCode: string;
+  warehouseName: string;
+  retailerCode: string;
+  retailerName: string;
   assignedToUserId: string | null;
   status: PickingStatus;
   version: number;

@@ -2,19 +2,28 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
 import { Button } from '@/shared/ui';
 import { formatShortDateTime } from '@/shared/lib/dates';
-import { useMarkRead, useNotifications } from '../hooks';
+import { useMarkAllRead, useMarkRead, useNotifications } from '../hooks';
+
+const portalLink = (deepLink: string | null) => {
+  if (!deepLink) return null;
+  const batchPrefix = '/inventory/batches/';
+  return deepLink.startsWith(batchPrefix)
+    ? `/batches/${deepLink.slice(batchPrefix.length)}`
+    : deepLink;
+};
 
 /** Bell in the top bar: unread counter + dropdown with latest in-app notifications using common UI components. */
 export function NotificationBell() {
   const { data = [] } = useNotifications();
   const markRead = useMarkRead();
+  const markAllRead = useMarkAllRead();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<'all' | 'unread'>('all');
   const ref = useRef<HTMLDivElement>(null);
 
-  const unreadCount = data.filter((n) => !n.read).length;
-  const filtered = tab === 'unread' ? data.filter((n) => !n.read) : data;
+  const unreadCount = data.filter((n) => !n.isRead).length;
+  const filtered = tab === 'unread' ? data.filter((n) => !n.isRead) : data;
 
   useEffect(() => {
     if (!open) return;
@@ -27,9 +36,7 @@ export function NotificationBell() {
     return () => document.removeEventListener('mousedown', h);
   }, [open]);
 
-  const handleMarkAll = () => {
-    data.filter((n) => !n.read).forEach((n) => markRead.mutate(n.id));
-  };
+  const handleMarkAll = () => markAllRead.mutate(undefined);
 
   return (
     <div className="bell" ref={ref}>
@@ -95,18 +102,19 @@ export function NotificationBell() {
                 <button
                   key={n.id}
                   type="button"
-                  className={`bell-item${n.read ? '' : ' unread'}`}
+                  className={`bell-item${n.isRead ? '' : ' unread'}`}
                   onClick={() => {
-                    if (!n.read) markRead.mutate(n.id);
+                    if (!n.isRead) markRead.mutate(n.id);
                     setOpen(false);
-                    if (n.link) navigate(n.link);
+                    const target = portalLink(n.deepLink);
+                    if (target) navigate(target);
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                     <span className="bold">{n.title}</span>
-                    {!n.read && <span className="menu-dot" style={{ background: 'var(--c-primary)' }} />}
+                    {!n.isRead && <span className="menu-dot" style={{ background: 'var(--c-primary)' }} />}
                   </div>
-                  <span className="small muted">{n.body}</span>
+                  <span className="small muted">{n.message}</span>
                   <span className="small muted">{formatShortDateTime(n.createdAt)}</span>
                 </button>
               ))

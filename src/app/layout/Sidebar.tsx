@@ -1,14 +1,12 @@
 import { NavLink } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { roleLabel } from '@/shared/auth/roles';
-import { useMenuBadges } from '@/features/notifications';
 import { APP_ROUTES } from '../routes';
 
 const initials = (name: string) => name.split(' ').slice(-2).map((s) => s[0]).join('');
 
 export function Sidebar() {
   const { user, logout } = useAuth();
-  const { data: badges } = useMenuBadges();
   if (!user) return null;
   const items = APP_ROUTES.filter((r) => !r.hidden && r.roles.includes(user.role));
 
@@ -30,12 +28,10 @@ export function Sidebar() {
 
       <nav className="menu-list" aria-label="Menu">
         {items.map((r) => {
-          const n = r.badge && badges ? badges[r.badge] : 0;
           return (
             <NavLink key={r.key} to={`/${r.key}`} className={({ isActive }) => `menu${isActive ? ' active' : ''}`}>
               <span className="menu-dot" />
               <span style={{ flex: 1 }}>{r.label}</span>
-              {n > 0 && <span className="menu-badge">{n}</span>}
             </NavLink>
           );
         })}

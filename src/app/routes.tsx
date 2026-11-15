@@ -1,6 +1,7 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
 import type { PortalRole } from '@/shared/auth/roles';
-import type { MenuBadges } from '@/features/notifications';
+
+type MenuBadgeKey = 'orders' | 'debts' | 'retailers' | 'redeem' | 'complaints' | 'disposal';
 
 /** lazy() for a named export of a feature barrel (each feature becomes one async chunk). */
 function page<M extends Record<string, unknown>>(loader: () => Promise<M>, name: keyof M) {
@@ -12,7 +13,8 @@ export interface AppRoute {
   key: string;
   label: string;
   roles: PortalRole[];
-  badge?: keyof MenuBadges;
+  /** Reserved for a future dedicated menu-summary endpoint. */
+  badge?: MenuBadgeKey;
   /** Hidden from sidebar menu (e.g. preserved routes not in prototype prod sidebar). */
   hidden?: boolean;
   list: LazyExoticComponent<ComponentType>;
