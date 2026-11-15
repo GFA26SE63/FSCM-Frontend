@@ -12,14 +12,19 @@ export function DisposalFormPage() {
   const create = useCreateDisposal();
   const [picked, setPicked] = useState<string[]>([]);
   const [method, setMethod] = useState<Disposal['method']>('Tiêu hủy tại kho');
-  const toggle = (c: string, on: boolean) => setPicked((p) => (on ? [...p, c] : p.filter((x) => x !== c)));
+  const [operationId, setOperationId] = useState(() => crypto.randomUUID());
+  const toggle = (c: string, on: boolean) => {
+    if (create.isPending) return;
+    setPicked((p) => (on ? [...p, c] : p.filter((x) => x !== c)));
+    setOperationId(crypto.randomUUID());
+  };
   return (
     <>
-      <PageHeader back="/disposal" title="Lập phiếu hủy hàng hết hạn" subtitle="Chọn các batch đã hết hạn cần hủy." />
+      <PageHeader back="/disposal" title="Lập phiếu hủy hàng hết hạn" subtitle="Chọn batch quá HSD còn tồn, không còn giữ chỗ hoặc đang soạn. Mỗi kho tạo một phiếu." />
       <QueryState query={query}>
         {(rows) => (
           <>
-            {rows.length === 0 && <Callout tone="ok">Không có batch hết hạn nào còn tồn kho.</Callout>}
+            {rows.length === 0 && <Callout>Không có batch đủ điều kiện xử lý. Batch còn giữ chỗ, đang soạn hoặc có khóa cần giải quyết sẽ chưa được đưa vào danh sách.</Callout>}
             <Card flush>
               <SimpleTable<DisposalCandidate>
                 rows={rows}
@@ -37,7 +42,11 @@ export function DisposalFormPage() {
             </Card>
             <Card>
               <div className="form-grid cols-2">
-                <FormField label="Hình thức xử lý"><Select value={method} onChange={(e) => setMethod(e.target.value as Disposal['method'])} options={['Tiêu hủy tại kho', 'Trả nhà cung cấp']} /></FormField>
+                <FormField label="Hình thức xử lý"><Select value={method} onChange={(e) => {
+                  if (create.isPending) return;
+                  setMethod(e.target.value as Disposal['method']);
+                  setOperationId(crypto.randomUUID());
+                }} options={['Tiêu hủy tại kho', 'Trả nhà cung cấp']} /></FormField>
               </div>
             </Card>
             <div className="row" style={{ justifyContent: 'flex-end' }}>
@@ -47,8 +56,8 @@ export function DisposalFormPage() {
                 disabled={picked.length === 0}
                 loading={create.isPending}
                 onClick={async () => {
-                  const r = await create.mutateAsync({ batchCodes: picked, method });
-                  navigate(`/disposal/${r.items[0].code}`);
+                  const r = await create.mutateAsync({ batchCodes: picked, method, operationId });
+                  if (r.items[0]) navigate(`/disposal/${r.items[0].code}`);
                 }}
               >
                 Lập phiếu hủy ({picked.length} batch)
