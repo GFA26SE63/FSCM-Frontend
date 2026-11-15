@@ -16,6 +16,7 @@ import {
 import {
   formatMoney,
   formatShortDateTime,
+  vietnamDate,
   paymentLabel,
   statusLabel,
   statusLabels,
@@ -45,7 +46,7 @@ export function OrdersPage() {
   ).filter(
     (order) =>
       !from ||
-      order.createdAt.slice(0, 10) >=
+      vietnamDate(order.createdAt) >=
         from,
   );
 
