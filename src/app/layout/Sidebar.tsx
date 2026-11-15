@@ -10,7 +10,7 @@ const initials = (name: string) => name.split(' ').slice(-2).map((s) => s[0]).jo
 const MENU_GROUPS: { key: string; label: string; keys: string[] }[] = [
   { key: 'overview', label: 'Tổng quan', keys: ['dashboard', 'reports', 'kpi'] },
   { key: 'sales', label: 'Bán hàng & Tài chính', keys: ['orders', 'allocation', 'debts', 'refunds', 'complaints'] },
-  { key: 'warehouse', label: 'Kho vận', keys: ['runpicking', 'readiness', 'receipts', 'batches', 'batchpromo', 'disposal', 'whtransfer', 'rotation', 'fleet'] },
+  { key: 'warehouse', label: 'Kho vận', keys: ['inventory', 'warehouse-work', 'factory-traceability', 'runpicking', 'readiness', 'receipts', 'batches', 'batchpromo', 'disposal', 'whtransfer', 'rotation', 'fleet'] },
   { key: 'customer', label: 'Khách hàng & Khuyến mãi', keys: ['retailers', 'promos', 'loyalty', 'redeem', 'gifts'] },
   { key: 'catalog', label: 'Danh mục', keys: ['regions', 'cats', 'skus', 'whs'] },
   { key: 'system', label: 'Hệ thống', keys: ['users', 'config'] },

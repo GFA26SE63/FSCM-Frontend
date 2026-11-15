@@ -60,6 +60,9 @@ const reports = () => import('@/features/reports');
 
 /** Single source for routing + sidebar menu (matching prototype prod menuAll order and roles). */
 export const APP_ROUTES: AppRoute[] = [
+  { key: 'inventory', label: 'Inventory · QR nhà máy', roles: [A, WK, OP], list: page(() => import('@/features/inventory'), 'InventoryPage') },
+  { key: 'factory-traceability', label: 'Nhà máy · Traceability', roles: [A], list: page(() => import('@/features/factory-traceability'), 'FactoryTraceabilityPage') },
+  { key: 'warehouse-work', label: 'Phiếu nhập · xuất · luân chuyển', roles: [A, WK], list: page(() => import('@/features/warehouse-work'), 'WarehouseWorkPage') },
   { key: 'dashboard', label: 'Tổng quan & báo cáo', roles: [A, OP, WK, SM], list: page(dashboard, 'DashboardPage') },
   { key: 'reports', label: 'Báo cáo đổi quà & chương trình', roles: [A, OP], list: page(reports, 'OperationsReportsPage'), menuLinks: [
     { key: 'report-redemptions', label: 'Báo cáo đổi quà', to: '/reports?kind=redemptions' },
@@ -70,11 +73,11 @@ export const APP_ROUTES: AppRoute[] = [
   { key: 'allocation', label: 'Allocation real-time', roles: [A, OP], list: page(allocation, 'AllocationRunPage') },
   { key: 'debts', label: 'Công nợ', roles: [A, OP], badge: 'debts', list: page(debts, 'DebtsPage') },
   { key: 'refunds', label: 'Hoàn tiền', roles: [A, OP], list: page(refunds, 'RefundsPage'), sub: [{ path: ':id', element: page(refunds, 'RefundDetailPage') }] },
-  { key: 'runpicking', label: 'Phiếu soạn hàng', roles: [A, OP, WK], list: page(runpicking, 'RunPickingPage') },
-  { key: 'readiness', label: 'Xuất kho', roles: [A, OP, WK], list: page(shipments, 'OrderReadinessPage') },
+  { key: 'runpicking', label: 'Phiếu soạn hàng', roles: [A, OP, WK], hidden: true, list: page(runpicking, 'RunPickingPage') },
+  { key: 'readiness', label: 'Điều phối giao hàng', roles: [A, OP], list: page(shipments, 'OrderReadinessPage') },
   {
-    key: 'receipts', label: 'Nhập kho', roles: [A, WK], list: page(receipts, 'ReceiptsPage'),
-    sub: [{ path: 'new', element: page(receipts, 'ReceiptFormPage') }, { path: ':code', element: page(receipts, 'ReceiptDetailPage') }],
+    key: 'receipts', label: 'Nhập kho', roles: [A, WK], hidden: true, list: page(receipts, 'ReceiptsPage'),
+    sub: [{ path: 'new', element: page(() => import('@/features/warehouse-work'), 'WarehouseWorkPage') }, { path: ':code', element: page(receipts, 'ReceiptDetailPage') }],
   },
   { key: 'batches', label: 'Quản lý batch', roles: [A, WK, OP], list: page(batches, 'BatchesPage'), sub: [{ path: ':code', element: page(batches, 'BatchDetailPage') }] },
   { key: 'batchpromo', label: 'Giảm giá theo HSD', roles: [A], list: page(batchpromo, 'BatchPromoPage'), sub: [{ path: 'scan', element: page(batchpromo, 'BatchPromoScanPage') }] },
