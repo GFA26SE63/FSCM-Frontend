@@ -103,7 +103,8 @@ export function buildMapDoc({
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <style>
-  html,body,#m{height:100%;margin:0;padding:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#EEF2EC}
+  html,body,#m{height:100%;margin:0;padding:0;font-family:Arial,sans-serif;background:#EEF2EC}
+  .leaflet-container,.leaflet-popup-content,.leaflet-tooltip{font-family:Arial,sans-serif}
   .lg{position:absolute;bottom:10px;left:10px;z-index:999;background:rgba(255,255,255,0.96);padding:6px 12px;border-radius:6px;border:1px solid #CBD5E1;font-size:11.5px;box-shadow:0 1px 3px rgba(0,0,0,.1);display:flex;gap:12px;align-items:center;flex-wrap:wrap;color:#1E293B}
   .pick-hint{color:#0D9488;font-weight:600}
   .st{position:absolute;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;text-align:center;padding:16px;font-size:13px;color:#475569;background:#F1F5F9}

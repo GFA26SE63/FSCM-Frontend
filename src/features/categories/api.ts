@@ -12,6 +12,9 @@ interface BackendCategory {
   productCount?: number;
   createdAt?: string;
   updatedAt?: string;
+  defaultMlorRatio?: number | null;
+  defaultMlorVersion?: number;
+  defaultMlorUpdatedAt?: string | null;
 }
 
 interface BackendCategoryDetail extends BackendCategory {
@@ -46,6 +49,9 @@ const mapCategory = (raw: BackendCategory): Category => {
     productCount: raw.productCount ?? 0,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
+    defaultMlorRatio: raw.defaultMlorRatio ?? null,
+    defaultMlorVersion: raw.defaultMlorVersion ?? 0,
+    defaultMlorUpdatedAt: raw.defaultMlorUpdatedAt ?? null,
   };
 };
 
@@ -357,5 +363,11 @@ export const categoryApi = {
     }
     return del<{ categoryId: string; deleted: boolean; inactivated: boolean }>(`/categories/${id}`);
   },
+  /**
+   * PUT /api/v1/categories/{categoryId}/default-mlor
+   * Body: { minimumLifeRatio: number | null } (null clears the category default)
+   * Write: Admin
+   */
+  setDefaultMlor: async (id: string, minimumLifeRatio: number | null): Promise<Category> =>
+    mapCategory(await put<BackendCategory>(`/categories/${id}/default-mlor`, { minimumLifeRatio })),
 };
-
