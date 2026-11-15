@@ -39,14 +39,16 @@
   --c-chart-4: #a7b8b3;
   --radius: 10px;
   --radius-sm: 8px;
-  --font: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font: Arial, sans-serif;
   --shadow-lg: 0 20px 50px rgba(20, 24, 22, 0.25);
 }
 
 * { box-sizing: border-box; }
-html, body, #root { height: 100%; }
+html, body, #root { height: 100%; font-family: var(--font); }
 body { margin: 0; background: var(--c-bg); color: var(--c-text); font-family: var(--font); font-size: 13.5px; -webkit-font-smoothing: antialiased; }
 button, input, select, textarea { font-family: inherit; }
+code, pre, kbd, samp, svg text, svg tspan { font-family: var(--font); }
+html [data-sonner-toaster], html [data-sonner-toast] { font-family: var(--font); }
 a { color: var(--c-primary); }
 a:hover { color: var(--c-primary-dark); }
 h1, h2, h3 { margin: 0; }

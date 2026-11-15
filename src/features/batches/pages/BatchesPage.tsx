@@ -127,7 +127,7 @@ export function BatchesPage() {
       header: 'SKU',
       width: '95px',
       render: (b) => (
-        <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{b.sku}</span>
+        <span style={{ fontFamily: 'Arial, sans-serif', fontWeight: 600 }}>{b.sku}</span>
       ),
       text: (b) => b.sku,
     },

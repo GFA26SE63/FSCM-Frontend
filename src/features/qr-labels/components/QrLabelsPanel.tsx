@@ -157,7 +157,7 @@ function AuthorizedQrLabelsPanel({
                   <tr key={label.id}>
                     <td
                       style={{
-                        fontFamily: 'monospace',
+                        fontFamily: 'Arial, sans-serif',
                         fontWeight: 700,
                       }}
                     >
@@ -302,7 +302,7 @@ function AuthorizedQrLabelsPanel({
                 <span className="muted" style={{ display: 'block', fontSize: 11.5 }}>
                   Mã tem (QR Code):
                 </span>
-                <strong style={{ fontFamily: 'monospace' }}>{detailLabel.qrCode}</strong>
+                <strong style={{ fontFamily: 'Arial, sans-serif' }}>{detailLabel.qrCode}</strong>
               </div>
               <div>
                 <span className="muted" style={{ display: 'block', fontSize: 11.5 }}>
@@ -351,7 +351,7 @@ function AuthorizedQrLabelsPanel({
                   <span className="muted" style={{ display: 'block', fontSize: 11.5 }}>
                     Mã tem cha:
                   </span>
-                  <span style={{ fontFamily: 'monospace' }}>{detailLabel.parentQrCode}</span>
+                  <span style={{ fontFamily: 'Arial, sans-serif' }}>{detailLabel.parentQrCode}</span>
                 </div>
               )}
               {detailLabel.rootQrCode && (
@@ -359,7 +359,7 @@ function AuthorizedQrLabelsPanel({
                   <span className="muted" style={{ display: 'block', fontSize: 11.5 }}>
                     Mã tem gốc:
                   </span>
-                  <span style={{ fontFamily: 'monospace' }}>{detailLabel.rootQrCode}</span>
+                  <span style={{ fontFamily: 'Arial, sans-serif' }}>{detailLabel.rootQrCode}</span>
                 </div>
               )}
             </div>
@@ -373,7 +373,7 @@ function AuthorizedQrLabelsPanel({
                   padding: '10px 12px',
                   background: '#F1F5F9',
                   borderRadius: 6,
-                  fontFamily: 'monospace',
+                  fontFamily: 'Arial, sans-serif',
                   fontSize: 12,
                   wordBreak: 'break-all',
                   border: '1px solid #CBD5E1',
