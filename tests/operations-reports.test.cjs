@@ -40,3 +40,17 @@ test('report export refuses duplicate or changed pages rather than downloading m
       ? { totalCount: 2, items: [{ id: 'a' }] } : second), /Dữ liệu thay đổi/);
   }
 });
+test('report summary tiles fill one row, or two even rows when there are many', () => {
+  const layoutFile = path.resolve(__dirname, '../src/features/reports/reportLayout.ts');
+  const layoutCode = ts.transpileModule(fs.readFileSync(layoutFile, 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const layout = { exports: {} };
+  new Function('exports', layoutCode)(layout.exports);
+  const { summaryColumns, REPORT_TITLES } = layout.exports;
+  assert.equal(summaryColumns(6), 6);   // đổi quà: 1 hàng
+  assert.equal(summaryColumns(7), 4);   // khuyến mãi: 4 + 3
+  assert.equal(summaryColumns(11), 6);  // loyalty: 6 + 5
+  assert.equal(summaryColumns(0), 1);
+  assert.deepEqual(Object.keys(REPORT_TITLES), ['redemptions', 'loyalty', 'promotions']);
+});

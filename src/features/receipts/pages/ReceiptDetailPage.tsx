@@ -16,12 +16,14 @@ import {
 } from '@/shared/ui';
 import { formatCases, formatDate, formatDateTime } from '@/shared/lib';
 import { useApproveReceipt, useReceipt } from '../hooks';
+import { useReceiptUserNames } from '../userNames';
 
 export function ReceiptDetailPage() {
   const { code = '' } = useParams();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const query = useReceipt(code);
+  const users = useReceiptUserNames([query.data?.createdByUserId, query.data?.approvedByUserId]);
   const approveMutation = useApproveReceipt();
 
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -146,11 +148,11 @@ export function ReceiptDetailPage() {
                   },
                   {
                     label: 'Người tạo phiếu',
-                    value: receipt.createdByUserId,
+                    value: users.nameOf(receipt.createdByUserId),
                   },
                   {
                     label: 'Người phê duyệt',
-                    value: receipt.approvedByUserId || '—',
+                    value: users.approverOf(receipt),
                   },
                   {
                     label: 'Thời gian duyệt',

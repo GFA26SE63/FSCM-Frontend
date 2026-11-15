@@ -1,8 +1,20 @@
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
-import { FormDialog } from '@/shared/ui';
+import { FormDialog, FormField, TextArea } from '@/shared/ui';
 import { useComplaint, useDecideComplaint } from '../hooks';
 import type { ComplaintDecision } from '../api';
+
+const MIN_REASON_LENGTH = 5;
+
+const reasonLabel = (decision: string) =>
+  decision === 'reject' ? 'Lý do từ chối'
+    : decision === 'requestEvidence' ? 'Bằng chứng cần bổ sung'
+    : 'Căn cứ chấp nhận / ghi chú';
+
+const reasonPlaceholder = (decision: string) =>
+  decision === 'reject' ? 'Nêu rõ lý do từ chối khiếu nại'
+    : decision === 'requestEvidence' ? 'Nêu rõ bằng chứng Retailer cần bổ sung (ảnh tem, biên bản giao nhận…)'
+    : 'Nêu căn cứ chấp nhận khiếu nại';
 
 /**
  * F62 review dialog. Admin approves (settled in money) or rejects; Operator can only ask the
@@ -48,10 +60,28 @@ export function ResolveDialog({ code, onClose }: { code: string | null; onClose:
         { key: 'waiverReason', type: 'textarea', required: true, label: 'Lý do miễn xử lý hàng', visible: v => v.decision === 'approve' && !!v.waive },
         {
           key: 'result',
-          type: 'textarea',
+          type: 'custom',
           required: true,
           label: 'Lý do / ghi chú',
-          placeholder: 'Nêu rõ bằng chứng cần bổ sung, căn cứ chấp nhận hoặc lý do từ chối',
+          // Custom so the message names what is missing for the chosen decision, and so a
+          // whitespace-only or one-word reason is not accepted.
+          validate: (value, v) => {
+            const text = String(value ?? '').trim();
+            if (text.length >= MIN_REASON_LENGTH) return undefined;
+            const what = v.decision === 'reject' ? 'lý do từ chối'
+              : v.decision === 'requestEvidence' ? 'nội dung bằng chứng cần bổ sung'
+              : 'căn cứ chấp nhận';
+            return text.length === 0
+              ? `Vui lòng nhập ${what}.`
+              : `Vui lòng nhập ${what} rõ ràng (tối thiểu ${MIN_REASON_LENGTH} ký tự).`;
+          },
+          render: (v, set, error) => (
+            <FormField label={reasonLabel(String(v.decision))} required error={error}
+              hint={!error ? 'Nội dung này được gửi cho Retailer và lưu vào lịch sử xử lý.' : undefined}>
+              <TextArea value={v.result ?? ''} invalid={!!error} onChange={(e) => set('result', e.target.value)}
+                placeholder={reasonPlaceholder(String(v.decision))} />
+            </FormField>
+          ),
         },
       ]}
       onClose={onClose}

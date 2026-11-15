@@ -300,18 +300,51 @@ export function LoginPage() {
           void submitPassword();
         }}
       >
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '4px' }}>
           <div
-            className="bold"
-            style={{ fontSize: 24 }}
+            className="brand-logo"
+            style={{
+              width: '46px',
+              height: '46px',
+              borderRadius: '11px',
+              background: 'var(--c-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+              flexShrink: 0,
+              padding: '4px',
+            }}
           >
-            FSCM Portal
+            <img
+              src="/src/assets/branding/fscm-logo.png"
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (target.src !== window.location.origin + '/fscm-logo.png') {
+                  target.src = '/fscm-logo.png';
+                }
+              }}
+              alt="FSCM Logo"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                display: 'block',
+              }}
+            />
           </div>
+          <div>
+            <div
+              className="bold"
+              style={{ fontSize: 24, lineHeight: 1.2 }}
+            >
+              FSCM Portal
+            </div>
 
-          <p className="muted">
-            Đăng nhập bằng tài khoản FSCM
-            hoặc Google.
-          </p>
+            <p className="muted" style={{ margin: '4px 0 0 0', fontSize: 13 }}>
+              Đăng nhập bằng tài khoản FSCM hoặc Google.
+            </p>
+          </div>
         </div>
 
         {sessionMessage && (

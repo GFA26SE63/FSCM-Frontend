@@ -25,13 +25,40 @@ test('dashboard defaults to Vietnam calendar date across UTC month rollover', ()
   assert.deepEqual(model.defaultDashboardDates(new Date('2026-10-31T18:00:00Z')), { fromDate:'2026-11-01', toDate:'2026-11-01' });
 });
 test('Admin and Operator see all report tabs; Keeper and Manager see their own reports', () => {
-  assert.deepEqual(model.dashboardTabs('Operator'), model.dashboardTabs('Admin'));
+  // Background-job health is Admin-only; Operator gets every other tab in the same order.
+  assert.deepEqual(model.dashboardTabs('Operator'), model.dashboardTabs('Admin').filter(t => t.key !== 'health'));
+  assert.equal(model.dashboardTabs('Admin').at(-1).key, 'health');
+  assert.ok(model.dashboardTabs('Admin').some(t => t.key === 'quality'));
   assert.deepEqual(model.dashboardTabs('WarehouseKeeper').map(x=>x.key), ['overview','inventory']);
   assert.deepEqual(model.dashboardTabs('SalesManager').map(x=>x.key), ['overview','sales','customers']);
   const cards=['revenue','allocationIssues','receiptPending','expired'].map(key=>({key}));
   assert.deepEqual(model.visibleCards(cards,'WarehouseKeeper','overview').map(c=>c.key),['receiptPending','expired']);
   assert.deepEqual(model.visibleCards(cards,'Operator','overview').map(c=>c.key),['allocationIssues']);
   assert.deepEqual(model.visibleCards(cards,'Admin','overview').map(c=>c.key),['revenue']);
+});
+test('duplicate tiles are gone and each tab gets its own card set', () => {
+  const cards=['shipmentsReady','prepaid','revenue','fillRate','cycleOverdue','lowStock'].map(key=>({key}));
+  assert.deepEqual(model.visibleCards(cards,'Admin','operations').map(c=>c.key),['prepaid','shipmentsReady']);
+  assert.deepEqual(model.visibleCards(cards,'Admin','quality').map(c=>c.key),['fillRate']);
+  assert.deepEqual(model.visibleCards(cards,'SalesManager','customers').map(c=>c.key),['cycleOverdue']);
+  // Low-stock and write-off tiles are not part of the inventory tab.
+  assert.deepEqual(model.visibleCards([...cards,{key:'wasteQuantity'}],'WarehouseKeeper','overview').map(c=>c.key),['shipmentsReady']);
+  assert.deepEqual(model.visibleCards(cards,'Admin','inventory').map(c=>c.key),['shipmentsReady']);
+});
+test('expiry list pages 10 batches at a time and never past what was loaded', () => {
+  const {nextVisible,EXPIRY_PAGE_SIZE}=source('features/dashboard/components/ExpiryRiskCard.tsx',{
+    '@/shared/router/compat':{useNavigate:()=>()=>{}},'@/shared/ui':{},'@/shared/lib':{},'@/shared/lib/dates':{},
+  });
+  assert.equal(EXPIRY_PAGE_SIZE,10);
+  assert.equal(nextVisible(10,35),20);
+  assert.equal(nextVisible(30,35),35);
+  assert.equal(nextVisible(35,35),35);
+});
+test('period comparison wording', () => {
+  assert.equal(model.periodChange(120,100),'▲ 20.0% so với kỳ trước');
+  assert.equal(model.periodChange(80,100),'▼ 20.0% so với kỳ trước');
+  assert.equal(model.periodChange(5,0),'Kỳ trước chưa có số liệu');
+  assert.equal(model.periodChange(5,null),null);
 });
 test('API forwards real dates and scope filters without accepting actor or role from the client', async () => {
   let request;

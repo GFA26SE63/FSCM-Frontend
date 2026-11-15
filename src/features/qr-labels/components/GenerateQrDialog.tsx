@@ -214,7 +214,7 @@ export function GenerateQrDialog({
             <span className="muted" style={{ display: 'block', fontSize: 11.5 }}>
               Mã lô hàng:
             </span>
-            <strong style={{ fontFamily: 'monospace' }}>{batch.batchCode}</strong>
+            <strong style={{ fontFamily: 'Arial, sans-serif' }}>{batch.batchCode}</strong>
           </div>
           <div>
             <span className="muted" style={{ display: 'block', fontSize: 11.5 }}>

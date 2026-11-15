@@ -1,6 +1,7 @@
-﻿import { useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
+import { useEnumParam } from '@/shared/router/listState';
 import { get } from '@/shared/api/http';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
@@ -8,11 +9,18 @@ import {
   Button,
   DataTable,
   PageHeader,
+  Select,
   StatusChip,
   type Column,
 } from '@/shared/ui';
 import { RetailerFormDialog } from '../components/RetailerFormDialog';
 import { RetailerReviewDialog } from '../components/RetailerReviewDialog';
+import {
+  SORT_OPTIONS,
+  SORT_SELECT_OPTIONS,
+  sortRetailers,
+  type RetailerSort,
+} from '../retailerSort';
 
 type Retailer = {
   id: string;
@@ -25,6 +33,8 @@ type Retailer = {
   retailerType: string;
   salesGroupCode: string;
   creditTermDays: number;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 type RetailerPage = { items: Retailer[]; totalCount: number };
@@ -44,13 +54,20 @@ export function RetailersPage() {
   const { user } = useAuth();
   const [reviewing, setReviewing] = useState<Retailer | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [sort, setSort] = useEnumParam<RetailerSort>(
+    'sort',
+    SORT_OPTIONS,
+    'newest',
+    { resets: ['page'] },
+  );
 
   const query = useQuery({
     queryKey: ['retailers', 'portal'],
     queryFn: () => get<RetailerPage>('/retailers', { page: 1, pageSize: 100 }),
   });
 
-  const rows = useMemo(() => query.data?.items ?? [], [query.data?.items]);
+  const rawRows = useMemo(() => query.data?.items ?? [], [query.data?.items]);
+  const rows = useMemo(() => sortRetailers(rawRows, sort), [rawRows, sort]);
 
   const groups = useMemo(() => {
     const set = new Set<string>();
@@ -122,6 +139,16 @@ export function RetailersPage() {
               ]
             : []),
         ]}
+        filterExtra={
+          <label className="lbl">
+            Sắp xếp theo
+            <Select
+              value={sort}
+              options={SORT_SELECT_OPTIONS}
+              onChange={(e) => setSort(e.target.value as RetailerSort)}
+            />
+          </label>
+        }
         rowActionHeader="Thao tác"
         rowActionsWidth="170px"
         rowActions={(row) => (

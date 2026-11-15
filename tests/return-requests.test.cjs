@@ -52,10 +52,13 @@ test('review blocks fractional and excessive approval quantities and preserves a
   assert.equal(form.fields.find(f=>f.key==='settlementMethod').options.some(o=>o.value==='None'),false);
   assert.equal(review('Admin',{requestType:'DamagedCollection'}).fields.find(f=>f.key==='settlementMethod').options.some(o=>o.value==='None'),true);
 });
-test('physical confirmation accepts zero, blocks excess/future values and retains sub-minute timestamp', () => {
+test('physical confirmation accepts zero, blocks excess/future values and retains sub-minute timestamp', async () => {
+  const dates = source('shared/lib/dates.ts', {});
+  const sent = [];
   const Component = source('features/complaints/components/CompleteHandlingDialog.tsx', {
     react:{useState:initializer=>[initializer(),()=>{}]},
-    '@/shared/ui':{FormDialog:()=>null},'../hooks':{useCompleteRequestHandling:()=>({mutateAsync:async()=>{}})}
+    '@/shared/lib/dates': dates,
+    '@/shared/ui':{FormDialog:()=>null},'../hooks':{useCompleteRequestHandling:()=>({mutateAsync:async value=>{sent.push(value);}})}
   }).CompleteHandlingDialog;
   const form = Component({claim:{id:'id',code:'KN-1',approvedQuantity:2,version:5},onClose(){}}).props;
   const qty = form.fields.find(f=>f.key==='quantity');
@@ -64,5 +67,10 @@ test('physical confirmation accepts zero, blocks excess/future values and retain
   const at = form.fields.find(f=>f.key==='at');
   assert.equal(at.step,'any');
   assert.ok(at.validate(new Date(Date.now()+86400000).toISOString()));
+  assert.ok(at.validate(dates.toVietnamDateTimeInput(new Date(Date.now()+86400000))));
+  assert.equal(at.validate('2026-01-01T07:02:03.456'), undefined);
   assert.equal(form.initial.at.length,23);
+  await form.onSubmit({quantity:1,at:'2026-01-01T07:02:03.456',note:'Handled',evidence:'receipt'});
+  assert.deepEqual(sent[0], {id:'id',expectedVersion:5,actualQuantity:1,
+    completedAt:'2026-01-01T00:02:03.456Z',note:'Handled',evidenceReference:'receipt'});
 });
