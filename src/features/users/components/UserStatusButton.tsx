@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Modal } from '@/shared/ui';
+import { Button, Callout, Modal } from '@/shared/ui';
 import { errorMessage } from '@/shared/api/errors';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { useSetUserStatus } from '../hooks';
@@ -82,6 +82,13 @@ export function UserStatusButton({
         <p>
           {user.fullName} · {user.email}
         </p>
+
+        {user.isActive && (
+          <Callout tone="warn">
+            Chưa có kiểm tra tự động các đơn hàng, phiếu soạn, giao hàng và thanh toán đang xử lý của tài khoản này.
+            Hãy đối chiếu và bàn giao công việc trước khi khóa. Thao tác hiện tại chưa ghi nhận lý do khóa.
+          </Callout>
+        )}
 
         <p>
           {user.isActive

@@ -56,6 +56,22 @@ export interface UserFilters {
   pageSize: number;
 }
 
+export interface UserAuditEntry {
+  id: string;
+  userAccountId: string | null;
+  action: string;
+  reason: string | null;
+  createdAt: string;
+}
+
+export interface UserAuditPage {
+  nodes: UserAuditEntry[];
+  pageInfo: {
+    endCursor: string | null;
+    hasNextPage: boolean;
+  };
+}
+
 export interface CreateUserInput {
   email: string;
   fullName: string;
@@ -111,7 +127,7 @@ export const roleOptions: {
 
 export const assignmentKinds: Record<CreatableRole, ScopeKind[]> = {
   Operator: [],
-  WarehouseKeeper: ['warehouses'],
+  WarehouseKeeper: ['warehouses', 'regions'],
   SalesManager: ['regions', 'sales-groups'],
   Sales: ['sales-groups'],
   Retailer: ['retailers'],

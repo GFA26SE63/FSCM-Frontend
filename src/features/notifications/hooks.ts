@@ -6,5 +6,5 @@ export const notificationKeys = { all: ['notifications'] as const, badges: ['not
 
 export const useNotifications = () => useQuery({ queryKey: notificationKeys.all, queryFn: notificationApi.list, refetchInterval: 60_000 });
 export const useMenuBadges = () => useQuery({ queryKey: notificationKeys.badges, queryFn: notificationApi.badges, retry: false, refetchInterval: 60_000 });
-export const useMarkRead = () => useApiMutation(notificationApi.markRead);
-export const useMarkAllRead = () => useApiMutation(notificationApi.markAllRead);
+export const useMarkRead = () => useApiMutation(notificationApi.markRead, { notify: false });
+export const useMarkAllRead = () => useApiMutation(notificationApi.markAllRead, { notify: false });

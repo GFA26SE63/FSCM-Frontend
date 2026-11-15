@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { minimumTableWidth } from './tableLayout';
 
 export interface SimpleColumn<T> {
   header: string;
@@ -11,7 +12,7 @@ export interface SimpleColumn<T> {
 export function SimpleTable<T>({ columns, rows, empty = 'Không có dữ liệu.', compact }: { columns: SimpleColumn<T>[]; rows: T[]; empty?: string; compact?: boolean }) {
   return (
     <div className="tbl-wrap">
-      <table className={`tbl${compact ? ' compact' : ''}`}>
+      <table className={`tbl${compact ? ' compact' : ''}`} style={{ minWidth: minimumTableWidth(columns) }}>
         <colgroup>
           {columns.map((c, i) => (
             <col key={i} style={c.width ? { width: c.width } : undefined} />
@@ -20,7 +21,7 @@ export function SimpleTable<T>({ columns, rows, empty = 'Không có dữ liệu.
         <thead>
           <tr>
             {columns.map((c, i) => (
-              <th key={i} style={{ textAlign: c.align ?? 'left' }}>
+              <th key={i} style={{ textAlign: c.align ?? 'left' }} title={c.header}>
                 {c.header}
               </th>
             ))}

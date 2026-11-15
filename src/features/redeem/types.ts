@@ -1,7 +1,8 @@
 export type RedemptionStatus = 'Requested' | 'Approved' | 'Delivered' | 'Done' | 'Rejected';
 export interface Redemption {
   code: string; retailerCode: string; retailerName: string; giftCode: string; giftName: string; points: number; requestedAt: string;
-  status: RedemptionStatus; handledNote: string; balance: number; held: number; available: number;
+  status: RedemptionStatus; handledNote: string; balance: number; held: number | null; available: number; quantity: number | null; updatedAt: string;
+  regionId?: string | null; salesGroupIds?: string[];
 }
 export type RedeemStep = 'approve' | 'reject' | 'deliver' | 'complete';
 
@@ -17,6 +18,10 @@ export interface RedemptionApi {
   rewardCode: string;
   rewardName: string;
   quantity: number;
+  heldPoints?: number | null;
+  quantityIsEstimated?: boolean;
+  regionId?: string | null;
+  salesGroupIds?: string[] | null;
   redeemedPoints: number;
   status: string;
   balanceAfter: number;

@@ -4,15 +4,16 @@ import { useAuth } from '@/shared/auth/AuthContext';
 import { assertPermission, can } from '@/shared/auth/permissions';
 import { useNavigate, useParams } from '@/shared/router/compat';
 import { Button, Callout, Card, FormField, Input, PageHeader, QueryState, Select } from '@/shared/ui';
-import { useCategoryOptions, useCreateProduct, useCreateReplacement, useProduct, useSaveProductDraft } from '../hooks';
+import { useCategoryOptions, useCloneProduct, useCreateProduct, useCreateReplacement, useProduct, useSaveProductDraft } from '../hooks';
 import { dayError, daysToHours, numberValue, priceError, productFormError, skuError } from '../utils';
 import type { CategoryOption, Product } from '../types';
 
-type Mode = 'create' | 'edit' | 'replacement';
+type Mode = 'create' | 'edit' | 'replacement' | 'clone';
 
 export const ProductCreatePage = () => <ProductFormPage mode="create" />;
 export const ProductEditPage = () => <ProductFormPage mode="edit" />;
 export const ProductReplacementPage = () => <ProductFormPage mode="replacement" />;
+export const ProductClonePage = () => <ProductFormPage mode="clone" />;
 
 function ProductFormPage({ mode }: { mode: Mode }) {
   const { sku = '' } = useParams();
@@ -41,6 +42,7 @@ function ProductEditor({ mode, product, categories }: {
   const client = useQueryClient();
   const create = useCreateProduct();
   const replace = useCreateReplacement();
+  const clone = useCloneProduct();
   const save = useSaveProductDraft();
   const lock = useRef(false);
   const [values, setValues] = useState({
@@ -53,10 +55,11 @@ function ProductEditor({ mode, product, categories }: {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [failure, setFailure] = useState('');
-  const busy = create.isPending || replace.isPending || save.isPending;
+  const busy = create.isPending || replace.isPending || clone.isPending || save.isPending;
   const back = product ? '/skus/' + product.id : '/skus';
   const title = mode === 'create' ? 'Thêm sản phẩm (bản nháp)' :
-    mode === 'edit' ? 'Sửa bản nháp ' + product?.sku : 'Tạo bản mới từ ' + product?.sku;
+    mode === 'edit' ? 'Sửa bản nháp ' + product?.sku :
+    mode === 'clone' ? 'Tạo bản mới từ ' + product?.sku : 'Tạo bản thay thế cho ' + product?.sku;
   const blocked = (mode === 'edit' && product?.status !== 'Draft') ||
     (mode === 'replacement' && product?.status !== 'Published');
   const set = (key: keyof typeof values, value: string) => {
@@ -73,7 +76,7 @@ function ProductEditor({ mode, product, categories }: {
     }
     const invalidSku = skuError(values.sku);
     if (invalidSku) next.sku = invalidSku;
-    if (mode === 'replacement' && values.sku.trim().toUpperCase() === product?.sku) next.sku = 'SKU mới phải khác SKU nguồn.';
+    if ((mode === 'replacement' || mode === 'clone') && values.sku.trim().toUpperCase() === product?.sku) next.sku = 'SKU mới phải khác SKU nguồn.';
     if (values.name.trim().length > 200) next.name = 'Tối đa 200 ký tự.';
     if (values.unit.trim().length > 50) next.unit = 'Tối đa 50 ký tự.';
     if (!categories.some((c) => c.id === values.productCategoryId && c.isActive)) next.productCategoryId = 'Chọn danh mục đang hoạt động.';
@@ -99,7 +102,9 @@ function ProductEditor({ mode, product, categories }: {
         saved = await save.mutateAsync({ id: product!.id, ...fields, unitPrice: numberValue(values.unitPrice) });
       } else {
         const input = { ...fields, sku: values.sku.trim().toUpperCase(), initialUnitPrice: numberValue(values.unitPrice) };
-        if (mode === 'replacement') {
+        if (mode === 'clone') {
+          saved = await clone.mutateAsync({ id: product!.id, ...input });
+        } else if (mode === 'replacement') {
           saved = await replace.mutateAsync({
             id: product!.id, sku: input.sku, name: input.name, unit: input.unit,
             shelfLifeHours: input.shelfLifeHours, nearDateThresholdHours: input.nearDateThresholdHours,
@@ -126,6 +131,7 @@ function ProductEditor({ mode, product, categories }: {
     {blocked ? <Callout tone="danger">Không thể mở form này với trạng thái hiện tại. Thông tin và giá đã đăng bán được khóa trên Portal.</Callout> : (
       <form onSubmit={(event) => void submit(event)} noValidate className="stack">
         {failure && <div className="callout callout-danger" role="alert">{failure}</div>}
+        {mode === 'clone' && <Callout tone="info">Điền sẵn từ {product?.sku}. Nhập SKU mới và chỉnh thông tin trước khi lưu thành bản nháp độc lập. Sản phẩm nguồn giữ nguyên trạng thái; tồn kho, batch và giao dịch không được sao chép.</Callout>}
         {mode === 'replacement' && <Callout tone="info">Điền sẵn từ {product?.sku}. Bản nguồn vẫn đang bán; khi đăng bán bản mới, bản nguồn sẽ ngừng bán. Danh mục được kế thừa từ bản nguồn.</Callout>}
         <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           <Card title="Thông tin sản phẩm">

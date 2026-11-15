@@ -19,6 +19,8 @@ export const useOrdersReadiness = (orderIds: string[]) =>
       loading: results.some((result) => result.isPending),
       /** First failure, if any: a missing readiness is worth saying out loud, not hiding. */
       error: results.find((result) => result.isError)?.error ?? null,
+      failedIds: results.flatMap((result, index) => result.isError ? [orderIds[index]] : []),
+      refetch: () => Promise.all(results.map(result => result.refetch())),
       data: results
         .map((result) => result.data)
         .filter((item): item is OrderShipmentReadiness => !!item),

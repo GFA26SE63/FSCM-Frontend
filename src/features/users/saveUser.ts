@@ -66,7 +66,7 @@ export async function finishUserSave(input: SaveInput) {
 
   const kinds: ScopeKind[] =
     input.role === 'WarehouseKeeper'
-      ? ['warehouses']
+      ? ['regions', 'warehouses']
       : input.role === 'Sales'
         ? ['sales-groups']
         : input.role === 'SalesManager'

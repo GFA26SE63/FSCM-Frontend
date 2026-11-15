@@ -10,21 +10,43 @@ export const statusLabels = {
   vehicle: { Active: 'Hoạt động', Maintenance: 'Bảo trì' },
   driver: { Active: 'Hoạt động', OnLeave: 'Tạm nghỉ' },
   active: { Active: 'Hoạt động', Inactive: 'Inactive', Locked: 'Đã khóa', Paused: 'Tạm ngừng' },
-  promotion: { Running: 'Đang chạy', Paused: 'Tạm dừng', Ended: 'Hết hiệu lực' },
+  promotion: { Scheduled: 'Chưa đến thời gian áp dụng', Running: 'Đang chạy', Paused: 'Tạm dừng', Ended: 'Hết hiệu lực' },
   batchDiscount: { Active: 'Đang áp dụng', Ended: 'Hết hiệu lực' },
-  expiry: { Normal: 'Bình thường', NearExpiry: 'Cận hạn', Expired: 'Hết hạn', Disposed: 'Đã tiêu hủy' },
+  expiry: { Normal: 'Còn hạn', 'Near-date': 'Cận hạn', NearExpiry: 'Cận hạn', Expired: 'Hết hạn', Disposed: 'Đã tiêu hủy' },
   picking: { NotPicked: 'Chưa pick', Picking: 'Đang pick', Shipped: 'Đã xuất' },
-  complaint: { Open: 'Chờ xử lý', Approved: 'Đã chấp nhận', Rejected: 'Đã từ chối', Resolved: 'Đã xử lý' },
+  complaint: { Open: 'Chờ xử lý', Submitted: 'Chờ xử lý', UnderReview: 'Cần bổ sung / đang xem xét', Approved: 'Đã chấp nhận', Rejected: 'Đã từ chối', Resolved: 'Đã xử lý', Cancelled: 'Retailer đã hủy' },
   registration: { Pending: 'Chờ duyệt', Approved: 'Đã duyệt', Rejected: 'Bị từ chối' },
-  receipt: { Posted: 'Đã nhập' },
+  receipt: { Pending: 'Chờ duyệt', Received: 'Đã nhập kho', Posted: 'Đã nhập kho' },
   disposal: { Disposed: 'Đã tiêu hủy' },
   kpi: { Achieved: 'Đạt', NotAchieved: 'Chưa đạt' },
   channel: { Online: 'Online', Offline: 'Offline' },
   warehouseType: { Central: 'Kho tổng', Regional: 'Kho vùng' },
   loyaltyProgram: { Running: 'Đang chạy', Paused: 'Tạm dừng' },
+  inventoryLockReason: {
+    Expired: 'Hết hạn sử dụng',
+    Damaged: 'Hàng bị hư hỏng',
+    QualityHold: 'Chờ kiểm tra chất lượng',
+    Recall: 'Thu hồi hàng',
+    Other: 'Lý do khác',
+  },
 } as const;
 
 export type StatusDomain = keyof typeof statusLabels;
+export type InventoryLockReason = 'Expired' | 'Damaged' | 'QualityHold' | 'Recall' | 'Other';
+
+export const INVENTORY_LOCK_REASONS = [
+  { value: 'Expired', label: 'Hết hạn sử dụng' },
+  { value: 'Damaged', label: 'Hàng bị hư hỏng' },
+  { value: 'QualityHold', label: 'Chờ kiểm tra chất lượng' },
+  { value: 'Recall', label: 'Thu hồi hàng' },
+  { value: 'Other', label: 'Lý do khác' },
+] as const;
+
+export function formatLockReason(reason?: string | null): string {
+  if (!reason) return 'Chưa xác định';
+  const map = statusLabels.inventoryLockReason as Record<string, string>;
+  return map[reason] ?? reason;
+}
 
 export function statusLabel(domain: StatusDomain, code: string): string {
   const map = statusLabels[domain] as Record<string, string>;

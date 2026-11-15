@@ -1,64 +1,172 @@
 import { useState } from 'react';
+import { useAuth } from '@/shared/auth/AuthContext';
 import { useNavigate } from '@/shared/router/compat';
-import { Button, Card, DataTable, PageHeader, SimpleTable, Stat, StatusChip, Tabs, type Column } from '@/shared/ui';
-import { formatMoney, formatNumber, statusLabel } from '@/shared/lib';
-import { useKpiSales, useProductRanking } from '../hooks';
-import type { KpiRow } from '../types';
+import {
+  Button,
+  Callout,
+  PageHeader,
+  QueryState,
+  Tabs,
+} from '@/shared/ui';
 
-/** "KPI Sales" – ranking by revenue after promotion vs target, plus the product ranking. */
+import { canManageKpi, canReadRankings } from '../api';
+import {
+  useProductRanking,
+  useRankingFilters,
+  useSalesKpi,
+  useSalesRanking,
+} from '../hooks';
+import { RankingFilters } from '../components/RankingFilters';
+import { SalesKpiTable } from '../components/SalesKpiTable';
+import { SalesRankingTable } from '../components/SalesRankingTable';
+import { ProductRankingTable } from '../components/ProductRankingTable';
+import { KpiOrderBreakdownDialog } from '../components/KpiOrderBreakdownDialog';
+import { KpiConfigDialog } from '../components/KpiConfigDialog';
+import { reportSearch } from '../filters';
+import type { SalesKpiEntry } from '../types';
+
 export function KpiPage() {
+  const { user } = useAuth();
+
+  // Reset phần giao diện khi thay tài khoản hoặc scope.
+  const identity = JSON.stringify([
+    user?.id,
+    user?.role,
+    user?.scope,
+  ]);
+
+  if (!canReadRankings(user)) {
+    return (
+      <Callout tone="danger">
+        Bạn không có quyền xem báo cáo KPI và xếp hạng kinh doanh.
+      </Callout>
+    );
+  }
+
+  return <RankingPageContent key={identity} />;
+}
+
+function RankingPageContent() {
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<'sales' | 'products'>('sales');
-  const kpi = useKpiSales();
-  const products = useProductRanking();
-  const rows = kpi.data?.items ?? [];
-  const columns: Column<KpiRow>[] = [
-    { key: 'rank', header: '#', width: '50px', align: 'right', text: (r) => r.rank },
-    { key: 'name', header: 'Sales', render: (r) => <span className="strong">{r.name}</span> },
-    { key: 'group', header: 'Nhóm', width: '90px', text: (r) => r.group },
-    { key: 'after', header: 'Doanh thu sau KM', width: '150px', align: 'right', text: (r) => formatMoney(r.after) },
-    { key: 'target', header: 'Mục tiêu', width: '140px', align: 'right', text: (r) => formatMoney(r.target) },
-    { key: 'pct', header: '% đạt', width: '80px', align: 'right', text: (r) => `${r.achievedPct}%` },
-    { key: 'orders', header: 'Đơn', width: '70px', align: 'right', text: (r) => r.orders },
-    { key: 'stores', header: 'Điểm bán', width: '90px', align: 'right', text: (r) => `${r.stores} (+${r.newStores})` },
-    { key: 'result', header: 'Kết quả', width: '110px', render: (r) => <StatusChip domain="kpi" value={r.result} /> },
-  ];
+  const {
+    filters,
+    tab,
+    updateFilters,
+    setTab,
+    validationError,
+  } = useRankingFilters();
+
+  const [selectedEntry, setSelectedEntry] = useState<SalesKpiEntry | null>(null);
+  const [configOpen, setConfigOpen] = useState<boolean>(false);
+
+  const kpi = useSalesKpi(filters, tab === 'kpi');
+  const sales = useSalesRanking(filters, tab === 'sales');
+  const products = useProductRanking(filters, tab === 'products');
+
+  const activeQuery = tab === 'kpi' ? kpi : tab === 'sales' ? sales : products;
+  const canConfig = canManageKpi(user);
+
   return (
     <>
-      <PageHeader title="KPI Sales" subtitle={`Kỳ ${kpi.data?.period ?? '—'} – xếp hạng theo doanh thu sau khuyến mãi so với mục tiêu.`} />
-      <div className="grid-3">
-        <Stat label="Tổng doanh thu sau KM" value={formatMoney(rows.reduce((a, r) => a + r.after, 0))} />
-        <Stat label="Sales đạt KPI" value={`${rows.filter((r) => r.result === 'Achieved').length} / ${rows.length}`} />
-        <Stat label="Điểm bán mới" value={rows.reduce((a, r) => a + r.newStores, 0)} />
-      </div>
-      <Tabs value={tab} onChange={setTab} items={[{ key: 'sales', label: 'Xếp hạng Sales' }, { key: 'products', label: 'Xếp hạng sản phẩm' }]} />
-      {tab === 'sales' ? (
-        <DataTable
-          title="Xếp hạng Sales"
-          rows={rows}
-          loading={kpi.isLoading}
-          error={kpi.error}
-          rowKey={(r) => r.name}
-          columns={columns}
-          searchPlaceholder="Tên Sales, nhóm…"
-          filters={[{ label: 'Kết quả', options: ['Đạt', 'Chưa đạt'], value: (r) => statusLabel('kpi', r.result) }]}
-          onRowClick={(r) => navigate(`/kpi/${encodeURIComponent(r.name)}`)}
-          rowActionsWidth="90px"
-          rowActions={(r) => <Button size="sm" onClick={() => navigate(`/kpi/${encodeURIComponent(r.name)}`)}>Xem</Button>}
+      <PageHeader
+        title="Quản lý KPI & Xếp hạng kinh doanh"
+        subtitle="Theo dõi chỉ tiêu, tiến độ hoàn thành và các đơn hàng ghi nhận doanh thu."
+        actions={
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {canConfig && (
+              <Button
+                onClick={() => setConfigOpen(true)}
+              >
+                Cấu hình trọng số KPI
+              </Button>
+            )}
+            <Button
+              disabled={Boolean(validationError) || activeQuery.isFetching}
+              onClick={() => void activeQuery.refetch()}
+            >
+              {activeQuery.isFetching ? 'Đang tải…' : 'Tải lại'}
+            </Button>
+          </div>
+        }
+      />
+
+      <RankingFilters
+        value={filters}
+        productMode={tab === 'products'}
+        error={validationError}
+        onChange={updateFilters}
+      />
+
+      <Tabs
+        value={tab}
+        onChange={setTab}
+        items={[
+          { key: 'kpi', label: 'Chỉ tiêu KPI Sales' },
+          { key: 'sales', label: 'Xếp hạng Sales' },
+          { key: 'products', label: 'Sản phẩm bán chạy' },
+        ]}
+      />
+
+      {!validationError && (
+        tab === 'kpi' ? (
+          <QueryState query={kpi}>
+            {(report) => (
+              <>
+                <SalesKpiTable
+                  rows={report.entries}
+                  filters={filters}
+                  onOpenOrders={(entry) => setSelectedEntry(entry)}
+                  onOpenDetail={(entry) =>
+                    navigate(
+                      `/kpi/sales/${entry.salesUserId}/${entry.salesGroupId}${reportSearch(
+                        filters,
+                        'kpi',
+                      )}`,
+                    )
+                  }
+                />
+
+                <KpiOrderBreakdownDialog
+                  open={Boolean(selectedEntry)}
+                  entry={selectedEntry}
+                  fromDate={report.fromDate}
+                  toDate={report.toDate}
+                  recognitionRule={report.recognitionRule}
+                  onClose={() => setSelectedEntry(null)}
+                />
+              </>
+            )}
+          </QueryState>
+        ) : tab === 'sales' ? (
+          <QueryState query={sales}>
+            {(report) => (
+              <SalesRankingTable
+                rows={report.entries}
+                filters={filters}
+              />
+            )}
+          </QueryState>
+        ) : (
+          <QueryState query={products}>
+            {(report) => (
+              <ProductRankingTable
+                rows={report.entries}
+                quantityUnit={report.quantityUnit}
+              />
+            )}
+          </QueryState>
+        )
+      )}
+
+      {canConfig && (
+        <KpiConfigDialog
+          open={configOpen}
+          onClose={() => setConfigOpen(false)}
+          onSaved={() => {
+            void kpi.refetch();
+          }}
         />
-      ) : (
-        <Card title="Sản phẩm bán chạy" flush>
-          <SimpleTable
-            rows={products.data?.items ?? []}
-            columns={[
-              { header: '#', width: '50px', cell: (p) => p.rank },
-              { header: 'SKU', cell: (p) => p.sku },
-              { header: 'Sản phẩm', cell: (p) => p.productName },
-              { header: 'Số lượng (thùng)', align: 'right', cell: (p) => formatNumber(p.qty) },
-              { header: 'Doanh thu sau KM', align: 'right', cell: (p) => formatMoney(p.revenueAfterPromo) },
-            ]}
-          />
-        </Card>
       )}
     </>
   );

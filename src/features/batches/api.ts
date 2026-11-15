@@ -42,11 +42,11 @@ function normalizeBatch(raw: Record<string, unknown>): BatchInventoryItem {
   const shelfLifeDays = Number(raw.shelfLifeDays ?? 365);
   const remainingPct = shelfLifeDays > 0 ? Math.round((remaining / shelfLifeDays) * 100) : 0;
 
-  let expiryStatus: ExpiryStatus = (raw.expiryStatus as ExpiryStatus) ?? 'Normal';
-  if (!raw.expiryStatus) {
-    if (remaining <= 0) expiryStatus = 'Expired';
-    else if (remaining <= 45) expiryStatus = 'NearExpiry';
-    else expiryStatus = 'Normal';
+  // FR-03: Use persisted backend status, do not classify unknown status as Normal or create local transitions
+  const rawStatus = raw.expiryStatus != null ? String(raw.expiryStatus).trim() : '';
+  let expiryStatus: ExpiryStatus = rawStatus;
+  if (rawStatus === 'NearDate' || rawStatus === 'Near-date') {
+    expiryStatus = 'NearExpiry';
   }
 
   return {

@@ -42,13 +42,14 @@ export function ProductActions({ p, size = 'sm', onDeleted }: {
     finally { saving.current = false; }
   };
   return <>
+    <Button size={size} disabled={busy} onClick={() => navigate('/skus/' + p.id + '/clone')}>Tạo bản mới</Button>
     {p.status === 'Draft' && <>
       <Button size={size} disabled={busy} onClick={() => navigate('/skus/' + p.id + '/edit')}>Sửa nháp / giá</Button>
       <Button size={size} variant="primary" disabled={busy} onClick={() => choose('publish')}>Đăng bán</Button>
       <Button size={size} variant="danger" disabled={busy} onClick={() => choose('delete')}>Xóa</Button>
     </>}
     {p.status === 'Published' && <>
-      <Button size={size} disabled={busy} onClick={() => navigate('/skus/' + p.id + '/new-version')}>Tạo bản mới</Button>
+      <Button size={size} disabled={busy} onClick={() => navigate('/skus/' + p.id + '/new-version')}>Tạo bản thay thế</Button>
       <Button size={size} variant="danger" disabled={busy} onClick={() => choose('inactivate')}>Ngừng bán</Button>
     </>}
     {action && <ConfirmDialog open title={copy[action].title + ' · ' + p.sku}

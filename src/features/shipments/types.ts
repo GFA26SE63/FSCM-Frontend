@@ -38,10 +38,18 @@ export interface OrderShipmentReadiness {
   parts: ShipmentReadinessPart[];
 }
 
+/** Lightweight metadata for ordering the export list by actual order creation time. */
+export interface ExportOrder {
+  id: string;
+  orderCode: string;
+  createdAt: string;
+}
+
 /** Statuses that mean the goods have physically left that warehouse. */
 export const HAS_LEFT: ShipmentPartStatus[] = ['Issued', 'Delivering', 'Received'];
 
 export interface Shipment {
+  exceptionReason?: string | null;
   id: string;
   orderId: string;
   orderCode: string;
@@ -50,6 +58,7 @@ export interface Shipment {
   shipmentCode: string;
   status: ShipmentPartStatus;
   version: number;
+  totalQuantity: number;
   driverId: string | null;
   driverName: string | null;
   vehicleId: string | null;
@@ -69,5 +78,6 @@ export interface DeliveryVehicle {
   warehouseId: string;
   plateNumber: string;
   vehicleType: string;
+  capacity: number;
   isActive: boolean;
 }

@@ -20,3 +20,8 @@ export const useUpdateCategoryStatus = () =>
     { success: (_, { isActive }) => `Đã chuyển danh mục sang ${isActive ? 'Hoạt động' : 'Ngừng hoạt động'}.` },
   );
 
+
+export const useDeleteCategory = () =>
+  useApiMutation((idOrCode: string) => categoryApi.delete(idOrCode), {
+    success: () => 'Đã xóa danh mục thành công.',
+  });

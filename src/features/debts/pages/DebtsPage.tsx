@@ -3,7 +3,7 @@ import { can } from '@/shared/auth/permissions';
 import { useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
 import { Button, Callout, DataTable, FormDialog, PageHeader, Stat, StatusChip, type Column } from '@/shared/ui';
-import { formatDate, formatMoney, statusLabel } from '@/shared/lib';
+import { formatDate, formatMoney, statusLabel, toIsoDateTime, vietnamDateTimeToIso } from '@/shared/lib';
 import { useCollectReceivable, useReceivables } from '../hooks';
 import type { Receivable } from '../types';
 import {
@@ -14,7 +14,7 @@ import {
   type Refund,
 } from '../refunds';
 
-/** "Công nợ" – Unpaid / Paid / Overdue, one full collection per order (no partial payments, no credit limit). */
+/** Staff monitoring and alternate confirmed-collection workflow. Retailer PayOS settlement lives on Mobile. */
 export function DebtsPage() {
   const { user } = useAuth();
   const mayCollect = can(user, 'payments.collect');
@@ -47,7 +47,7 @@ export function DebtsPage() {
 
   return (
     <>
-      <PageHeader title="Công nợ" subtitle="Đơn trả sau của retailer. Thu một lần đủ số tiền; không có thu từng phần, không có hạn mức công nợ." />
+      <PageHeader title="Công nợ" subtitle="Theo dõi số dư từng đơn sau các lần cấn tự động. Retailer thanh toán một hoặc nhiều khoản qua PayOS trên Mobile." />
       <div className="grid-3">
         <Stat label="Chưa thu (trong hạn)" value={formatMoney(sum('Unpaid'))} />
         <Stat label="Quá hạn" value={formatMoney(sum('Overdue'))} color="var(--c-danger)" note={`${rows.filter((r) => r.status === 'Overdue').length} đơn`} />
@@ -112,6 +112,7 @@ export function DebtsPage() {
         }}
       />
       <DataTable
+        stateKey="refunds"
         title="Phiếu hoàn tiền"
         rows={refunds.data ?? []}
         loading={refunds.isLoading}
@@ -170,9 +171,14 @@ export function DebtsPage() {
         columns={1}
         title={`Bằng chứng hoàn tiền · ${evidenceTarget?.orderCode ?? ''}`}
         submitLabel="Gửi Admin xác minh"
-        initial={{ transferredAt: new Date().toISOString().slice(0, 16), transactionReference: '', evidenceReference: '' }}
+        initial={{ transferredAt: toIsoDateTime(new Date()), transactionReference: '', evidenceReference: '' }}
         fields={[
-          { key: 'transferredAt', type: 'datetime-local', required: true, label: 'Thời điểm chuyển' },
+          { key: 'transferredAt', type: 'datetime-local', required: true, label: 'Thời điểm chuyển (giờ Việt Nam)',
+            validate: value => {
+              try {
+                return Date.parse(vietnamDateTimeToIso(String(value))) > Date.now() ? 'Thời điểm chuyển không được ở tương lai.' : undefined;
+              } catch { return 'Nhập ngày và giờ hợp lệ.'; }
+            } },
           { key: 'transactionReference', required: true, label: 'Mã giao dịch' },
           { key: 'evidenceReference', required: true, label: 'Link / mã bằng chứng' },
         ]}
@@ -182,7 +188,7 @@ export function DebtsPage() {
           await submitEvidence.mutateAsync({
             id: evidenceTarget.id,
             expectedVersion: evidenceTarget.version,
-            transferredAt: new Date(values.transferredAt).toISOString(),
+            transferredAt: vietnamDateTimeToIso(values.transferredAt),
             transactionReference: values.transactionReference,
             evidenceReference: values.evidenceReference,
             operationKey: crypto.randomUUID(),

@@ -1,8 +1,8 @@
 import {
   Link,
-  useNavigate,
   useParams,
 } from '@/shared/router/compat';
+import { useReturnToList } from '@/shared/router/listState';
 
 import {
   Button,
@@ -23,7 +23,7 @@ import { lifeText, priceText } from '../utils';
 export function ProductDetailPage() {
   const { sku: productId = '' } = useParams();
 
-  const navigate = useNavigate();
+  const returnToList = useReturnToList();
   const query = useProduct(productId);
 
   return (
@@ -31,7 +31,7 @@ export function ProductDetailPage() {
       {query.error && (
         <div className="row-wrap">
           <Button
-            onClick={() => navigate('/skus')}
+            onClick={() => returnToList('/skus')}
           >
             Về danh sách
           </Button>
@@ -63,7 +63,7 @@ export function ProductDetailPage() {
                   size="md"
 
                   onDeleted={() =>
-                    navigate('/skus')
+                    returnToList('/skus')
                   }
                 />
               }
@@ -73,7 +73,8 @@ export function ProductDetailPage() {
               <Callout tone="neutral">
                 Thông tin sản phẩm đã khóa.
                 Dùng “Tạo bản mới” để tạo một
-                bản nháp thay thế. Giá và
+                bản nháp độc lập, hoặc “Tạo bản thay thế”
+                để thay SKU nguồn khi công bố. Giá và
                 thông tin không được sửa sau khi
                 đăng bán.
               </Callout>

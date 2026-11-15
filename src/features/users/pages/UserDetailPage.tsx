@@ -12,6 +12,7 @@ import { useAuth } from '@/shared/auth/AuthContext';
 import { useUser } from '../hooks';
 import { UserDialog } from '../components/UserDialog';
 import { AssignmentPicker } from '../components/AssignmentPicker';
+import { UserAuditPanel } from '../components/UserAuditPanel';
 import type { ScopeKind } from '../types';
 
 export function UserDetailPage() {
@@ -120,6 +121,8 @@ export function UserDetailPage() {
                 )}
               </div>
             </Card>
+
+            <UserAuditPanel key={user.id} userId={user.id} />
 
             {user.role === 'Admin' && (
               <Card>

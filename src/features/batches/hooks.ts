@@ -62,7 +62,7 @@ export const useReleaseInventoryLock = () => {
       input: ReleaseInventoryLockInput;
     }) => batchApi.releaseLock(lockId, input),
     {
-      permission: 'inventory.lock',
+      permission: 'inventory.unlock',
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['batches'] });
         queryClient.invalidateQueries({ queryKey: ['inventory-locks'] });

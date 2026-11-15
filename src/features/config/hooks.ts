@@ -3,7 +3,7 @@ import { useApiMutation } from '@/shared/hooks';
 import { configApi, runScheduleApi, transitApi } from './api';
 
 export const useSettings = () => useQuery({ queryKey: ['config', 'settings'], queryFn: configApi.settings });
-export const useSaveConfig = () => useApiMutation(configApi.save, { success: 'Đã lưu cấu hình hệ thống. Đơn mới và job luân chuyển kế tiếp dùng giá trị này.' });
+export const useSaveConfig = () => useApiMutation(configApi.save, { success: 'Đã lưu cấu hình. Đơn mới dùng điều kiện vừa công bố.' });
 
 export const useTransitTable = () => useQuery({ queryKey: ['transit', 'current'], queryFn: transitApi.current });
 export const useTransitHistory = () => useQuery({ queryKey: ['transit', 'history'], queryFn: transitApi.history });

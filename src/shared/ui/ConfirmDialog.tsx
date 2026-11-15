@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Modal } from './Modal';
-import { Button } from './Button';
+import { Button, type ButtonVariant } from './Button';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -8,12 +8,23 @@ interface ConfirmDialogProps {
   message?: ReactNode;
   confirmLabel?: string;
   danger?: boolean;
+  confirmVariant?: ButtonVariant;
   onClose: () => void;
   onConfirm: () => Promise<unknown> | void;
 }
 
-export function ConfirmDialog({ open, title, message, confirmLabel = 'Xác nhận', danger, onClose, onConfirm }: ConfirmDialogProps) {
+export function ConfirmDialog({
+  open,
+  title,
+  message,
+  confirmLabel = 'Xác nhận',
+  danger,
+  confirmVariant,
+  onClose,
+  onConfirm,
+}: ConfirmDialogProps) {
   const [busy, setBusy] = useState(false);
+  const variant: ButtonVariant = confirmVariant ?? (danger ? 'danger-solid' : 'primary');
   return (
     <Modal
       open={open}
@@ -24,7 +35,7 @@ export function ConfirmDialog({ open, title, message, confirmLabel = 'Xác nhậ
         <>
           <Button onClick={onClose}>Hủy</Button>
           <Button
-            variant={danger ? 'danger-solid' : 'primary'}
+            variant={variant}
             loading={busy}
             onClick={async () => {
               setBusy(true);

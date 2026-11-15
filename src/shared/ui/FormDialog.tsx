@@ -3,6 +3,7 @@ import { Modal } from './Modal';
 import { Button } from './Button';
 import { Checkbox, FormField, Input, Select, TextArea, type SelectOption } from './FormField';
 import { toApiError } from '../api/errors';
+import { SearchSelect } from './SearchSelect';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type FormValues = Record<string, any>;
@@ -10,18 +11,21 @@ export type FormValues = Record<string, any>;
 export interface FormFieldDef {
   key: string;
   label: string;
-  type?: 'text' | 'number' | 'date' | 'datetime-local' | 'select' | 'textarea' | 'check' | 'chips' | 'info';
+  type?: 'text' | 'number' | 'date' | 'datetime-local' | 'select' | 'search' | 'textarea' | 'check' | 'chips' | 'info' | 'custom';
   required?: boolean;
   placeholder?: string;
   hint?: ReactNode;
   span?: 1 | 2 | 3;
   options?: (string | SelectOption)[];
   readOnly?: boolean;
+  step?: number | 'any';
   /** Return a message to flag the value as invalid (only called when the field has a value). */
   validate?: (value: unknown, values: FormValues) => string | undefined | false;
   /** Read-only computed text for type "info". */
   info?: (values: FormValues) => ReactNode;
   visible?: (values: FormValues) => boolean;
+  /** Custom render function for type 'custom' or bespoke field UI */
+  render?: (values: FormValues, set: (key: string, v: unknown) => void, error?: string) => ReactNode;
 }
 
 interface FormDialogProps {
@@ -66,6 +70,9 @@ export function FormDialog({ open, title, subtitle, fields, initial, submitLabel
   const errorOf = (f: FormFieldDef): string | undefined => {
     if (f.type === 'info' || f.type === 'check') return undefined;
     const v = values[f.key];
+    if (f.type === 'custom' && f.validate) {
+      return f.validate(v, values) || undefined;
+    }
     if (f.required && isEmpty(v)) return 'Bắt buộc nhập.';
     if (isEmpty(v)) return undefined;
     if (f.type === 'number' && Number.isNaN(Number(String(v).replace(',', '.')))) return 'Phải là số.';
@@ -124,6 +131,16 @@ export function FormDialog({ open, title, subtitle, fields, initial, submitLabel
           const err = (tried || serverErrors[f.key] ? errors[f.key] : undefined) ?? serverErrors[f.key];
           const span = Math.min(f.span ?? 1, columns) as 1 | 2 | 3;
           const type = f.type ?? 'text';
+          if (type === 'custom' || f.render)
+            return (
+              <div
+                key={f.key}
+                className={span > 1 ? `span-${span}` : undefined}
+                style={span > 1 ? { gridColumn: `span ${span}` } : undefined}
+              >
+                {f.render ? f.render(values, set, err) : null}
+              </div>
+            );
           if (type === 'info')
             return (
               <div key={f.key} className={`fv${span > 1 ? ` span-${span}` : ''}`}>
@@ -162,7 +179,9 @@ export function FormDialog({ open, title, subtitle, fields, initial, submitLabel
           }
           return (
             <FormField key={f.key} label={f.label} required={f.required} error={err} hint={f.hint} span={span}>
-              {type === 'select' ? (
+              {type === 'search' ? (
+                <SearchSelect value={values[f.key] ?? ''} options={f.options ?? []} invalid={!!err} disabled={f.readOnly} placeholder={f.placeholder} onChange={(v) => set(f.key, v)} />
+              ) : type === 'select' ? (
                 <Select value={values[f.key] ?? ''} options={f.options ?? []} invalid={!!err} disabled={f.readOnly} onChange={(e) => set(f.key, e.target.value)} />
               ) : type === 'textarea' ? (
                 <TextArea value={values[f.key] ?? ''} placeholder={f.placeholder} invalid={!!err} readOnly={f.readOnly} onChange={(e) => set(f.key, e.target.value)} />
@@ -170,6 +189,7 @@ export function FormDialog({ open, title, subtitle, fields, initial, submitLabel
                 <Input
                   type={type === 'number' ? 'text' : type}
                   inputMode={type === 'number' ? 'decimal' : undefined}
+                  step={f.step}
                   value={values[f.key] ?? ''}
                   placeholder={f.placeholder}
                   invalid={!!err}

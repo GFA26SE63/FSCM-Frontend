@@ -53,7 +53,7 @@ export function RequireRole({
     );
   }
 
-  if (!user || !roles.includes(user.role)) {
+  if (!user || (user.role !== 'Admin' && !roles.includes(user.role))) {
     return (
       <EmptyState
         title="403 – Không có quyền truy cập"

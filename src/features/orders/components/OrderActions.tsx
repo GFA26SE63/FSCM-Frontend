@@ -1,7 +1,25 @@
-import { useState, type ReactNode } from 'react';
-import { Button } from '@/shared/ui';
-import type { OrderStatus } from '../types';
-import { ReasonDialog } from './OrderDialogs';
+import {
+  useState,
+  type ReactNode,
+} from 'react';
+
+import {
+  useAuth,
+} from '@/shared/auth/AuthContext';
+import {
+  Button,
+} from '@/shared/ui';
+import {
+  canWithdrawOrder,
+} from '../orderAccess';
+import type {
+  OrderStatus,
+} from '../types';
+import {
+  WithdrawOrderDialog,
+} from './OrderDialogs';
+import { useApiMutation } from '@/shared/hooks/useApiMutation';
+import { orderApi } from '../api';
 
 export interface OrderActionTarget {
   id: string;
@@ -11,26 +29,74 @@ export interface OrderActionTarget {
 }
 
 interface Props {
-  children: (api: { buttons: (order: OrderActionTarget, size?: 'sm' | 'md') => ReactNode; dialogs: ReactNode }) => ReactNode;
+  children: (api: {
+    buttons: (
+      order: OrderActionTarget,
+      size?: 'sm' | 'md',
+    ) => ReactNode;
+
+    dialogs: ReactNode;
+  }) => ReactNode;
 }
 
-/** Pre-cutoff review commands use the immutable order GUID and optimistic version. */
-export function OrderActions({ children }: Props) {
-  const [reason, setReason] = useState<{ order: OrderActionTarget; mode: 'cancel' } | null>(null);
+export function OrderActions({
+  children,
+}: Props) {
+  const { user } = useAuth();
+  const retry = useApiMutation(orderApi.retryAllocation, { success: 'Đã thử phân bổ lại đơn.' });
 
-  const buttons = (order: OrderActionTarget, size: 'sm' | 'md' = 'sm') => (
-    <>
-      {(['Allocating', 'Quoted', 'PaymentPending'] as OrderStatus[]).includes(order.status) && (
-        <Button size={size} variant="danger" onClick={() => setReason({ order, mode: 'cancel' })}>Hủy đơn</Button>
-      )}
-    </>
-  );
+  const [
+    selectedOrder,
+    setSelectedOrder,
+  ] = useState<
+    OrderActionTarget | null
+  >(null);
+
+  const buttons = (
+    order: OrderActionTarget,
+    size: 'sm' | 'md' = 'sm',
+  ) => {
+    if (user && ['Admin', 'Operator', 'Sales', 'Retailer'].includes(user.role) &&
+      ['AllocationFailed', 'AllocationConflict'].includes(order.status)) {
+      return <Button size={size} loading={retry.isPending} onClick={() => retry.mutate(order)}>Thử phân bổ lại</Button>;
+    }
+    if (
+      !canWithdrawOrder(
+        user,
+        order,
+      )
+    ) {
+      return null;
+    }
+
+    return (
+      <Button
+        size={size}
+        variant="danger"
+        onClick={() =>
+          setSelectedOrder(order)
+        }
+      >
+        Rút yêu cầu
+      </Button>
+    );
+  };
 
   const dialogs = (
-    <>
-      <ReasonDialog order={reason?.order ?? null} mode="cancel" onClose={() => setReason(null)} />
-    </>
+    <WithdrawOrderDialog
+      order={selectedOrder}
+      onClose={() =>
+        setSelectedOrder(null)
+      }
+    />
   );
 
-  return <>{children({ buttons, dialogs })}</>;
+  return (
+    <>
+      {children({
+        buttons,
+        dialogs,
+      })}
+    </>
+  );
 }

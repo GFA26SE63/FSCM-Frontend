@@ -30,7 +30,7 @@ const defaultTitles: Record<number, string> = {
   0: 'Không kết nối được máy chủ',
   400: 'Dữ liệu không hợp lệ',
   401: 'Phiên đăng nhập đã hết hạn',
-  403: 'Bạn không có quyền thực hiện thao tác này',
+  403: 'Bạn chưa được cấp quyền thực hiện thao tác này',
   404: 'Không tìm thấy dữ liệu',
   409: 'Dữ liệu đã bị thay đổi bởi người khác',
   422: 'Vi phạm quy tắc nghiệp vụ',

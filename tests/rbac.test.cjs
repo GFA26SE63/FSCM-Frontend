@@ -37,11 +37,43 @@ const permissions = source('shared/auth/permissions.ts', {
 const roles = ['Admin', 'Operator', 'WarehouseKeeper', 'SalesManager'];
 const user = (role) => ({ id: 'user-' + role, role, name: role, email: role + '@example.com' });
 
-test('only Admin manages groups and loyalty; collection stays Operator-only', () => {
+test('overview offers three report links and highlights only the selected report for authorized roles', () => {
+  const { MemoryRouter } = require('react-router-dom');
+  const router = source('shared/router/compat.tsx');
+  const routes = source('app/routes.tsx');
+  let role = 'Admin';
+  const { Sidebar } = source('app/layout/Sidebar.tsx', {
+    '@/shared/router/compat': router,
+    '@/shared/auth/AuthContext': { useAuth: () => ({ user: user(role), logout() {} }) },
+    '@/shared/auth/roles': source('shared/auth/roles.ts'),
+    '../routes': routes,
+  });
+  for (role of ['Admin', 'Operator']) {
+    for (const kind of ['redemptions', 'loyalty', 'promotions']) {
+      const html = renderToStaticMarkup(React.createElement(MemoryRouter, {
+        initialEntries: [`/reports?kind=${kind}`],
+      }, React.createElement(Sidebar)));
+      assert.match(html, /Tổng quan<\/span>/);
+      for (const report of ['redemptions', 'loyalty', 'promotions'])
+        assert.ok(html.includes(`href="/reports?kind=${report}"`));
+      assert.equal((html.match(/class="menu menu-sub active(?: active)?"/g) ?? []).length, 1);
+      assert.match(html, new RegExp(`class="menu menu-sub active(?: active)?"[^>]*href="/reports\\?kind=${kind}"`));
+      assert.ok(!html.includes('Báo cáo đổi quà &amp; chương trình'));
+    }
+  }
+  for (role of ['WarehouseKeeper', 'SalesManager']) {
+    const html = renderToStaticMarkup(React.createElement(MemoryRouter, {
+      initialEntries: ['/dashboard'],
+    }, React.createElement(Sidebar)));
+    assert.ok(!html.includes('href="/reports'));
+  }
+});
+
+test('Admin has every portal capability while delegated roles stay scoped', () => {
   for (const role of roles) {
     assert.equal(permissions.can(user(role), 'salesGroups.manage'), role === 'Admin');
     assert.equal(permissions.can(user(role), 'loyalty.manage'), role === 'Admin');
-    assert.equal(permissions.can(user(role), 'payments.collect'), role === 'Operator');
+    assert.equal(permissions.can(user(role), 'payments.collect'), ['Admin', 'Operator'].includes(role));
     assert.equal(permissions.can(user(role), 'territory.assign'), ['Admin', 'SalesManager'].includes(role));
   }
   assert.throws(() => permissions.assertPermission(null, 'users.manage'), { status: 401 });
@@ -61,6 +93,7 @@ test('sidebar and direct URL guard handle all Portal roles, loading and anonymou
     Navigate: () => React.createElement('p', null, 'LOGIN') };
   const { Sidebar } = source('app/layout/Sidebar.tsx', {
     '@/shared/router/compat': router,
+    '@/shared/hooks': { useCurrentTime: () => Date.now() },
     '@/shared/auth/AuthContext': auth,
     '@/shared/auth/roles': source('shared/auth/roles.ts'),
     '@/shared/lib/env': { env: { useMock: false } },
@@ -77,9 +110,6 @@ test('sidebar and direct URL guard handle all Portal roles, loading and anonymou
     session = { status: 'authenticated', user: user(role) };
     const menu = renderToStaticMarkup(React.createElement(Sidebar));
     assert.equal(menu.includes('href="/users"'), role === 'Admin');
-    assert.equal(menu.includes('href="/debts"'), ['Admin', 'Operator'].includes(role));
-    assert.equal(menu.includes('href="/regions"'), ['Admin', 'SalesManager'].includes(role));
-    assert.equal(menu.includes('href="/runpicking"'), role !== 'SalesManager');
     const direct = renderToStaticMarkup(React.createElement(RequireRole, { roles: ['Admin'] }, 'SECRET'));
     assert.equal(direct.includes('SECRET'), role === 'Admin');
     assert.equal(direct.includes('403'), role !== 'Admin');
@@ -90,43 +120,60 @@ test('sidebar and direct URL guard handle all Portal roles, loading and anonymou
   assert.match(renderToStaticMarkup(React.createElement(RequireAuth, null, 'SECRET')), /LOGIN/);
 });
 
-test('Operator can view loyalty but cannot open its edit form or run update mutation', async () => {
+test('Operator can view loyalty but cannot open its edit form or run program mutations', async () => {
   let current = user('Operator');
   let writes = 0;
   const auth = { useAuth: () => ({ user: current }) };
   const hookMocks = {
     '@tanstack/react-query': { useQuery() {} },
+    '@/shared/auth/AuthContext': auth,
     '@/shared/hooks': {
       useApiMutation: (fn, options) => ({ mutateAsync: async (input) => {
         permissions.assertPermission(current, options.permission);
         return fn(input);
       } }),
     },
-    './api': { loyaltyApi: { updateProgram: async () => { writes += 1; } } },
+    './api': { loyaltyApi: {
+      updateProgram: async () => { writes += 1; },
+      createProgram: async () => { writes += 1; },
+      setProgramActive: async () => { writes += 1; },
+    } },
   };
   const mutationHooks = source('features/loyalty/hooks.ts', hookMocks);
-  await assert.rejects(mutationHooks.useUpdateProgram().mutateAsync({}), { status: 403 });
+  for (const hook of ['useUpdateProgram', 'useCreateProgram', 'useSetProgramActive']) {
+    await assert.rejects(mutationHooks[hook]().mutateAsync({}), { status: 403 });
+  }
   assert.equal(writes, 0);
+  const fixture = { id: 'p1', code: 'LP-001', name: 'Program', spendAmountPerPoint: 100000,
+    minimumRedeemPoints: 0, retailerIds: ['r1'], isActive: true,
+    startAt: '2026-01-01T00:00:00Z', endAt: '2099-01-01T00:00:00Z' };
   const Wrapper = ({ children, actions }) => React.createElement('div', null, actions, children);
-  const { LoyaltyPage } = source('features/loyalty/pages/LoyaltyPage.tsx', {
+  const ui = {
+    Button: ({ children, onClick }) => React.createElement('button', { onClick }, children),
+    Card: Wrapper, Modal: () => null, Fields: () => null, Chip: Wrapper,
+    DataTable: ({ rows, rowActions, actions }) => React.createElement('div', null,
+      actions, rows?.map((r) => React.createElement('div', { key: r.id }, rowActions(r)))),
+  };
+  const { LoyaltyProgramsPanel } = source('features/loyalty/components/LoyaltyProgramsPanel.tsx', {
     '@/shared/auth/AuthContext': auth,
     '@/shared/auth/permissions': permissions,
-    '@/shared/router/compat': { useNavigate: () => () => {} },
-    '@/shared/ui': {
-      Button: ({ children, onClick }) => React.createElement('button', { onClick }, children),
-      Card: Wrapper, PageHeader: Wrapper, Fields: () => null, DataTable: () => null,
-      StatusChip: () => null,
-      FormDialog: ({ open }) => open ? React.createElement('p', null, 'EDIT FORM') : null,
-    },
-    '@/shared/lib': { formatDate: String, formatMoney: String, formatNumber: String },
-    '../hooks': {
-      useProgram: () => ({ data: { code: 'L1', name: 'Program', status: 'Running' } }),
-      useBalances: () => ({}), useUpdateProgram: () => ({}),
-    },
+    '@/shared/api/errors': { errorMessage: String },
+    '@/shared/ui': ui,
+    '@/shared/lib': { formatInstantDateTime: String, formatMoney: String, formatNumber: String },
+    '../hooks': { usePrograms: () => ({ data: [fixture] }), useSetProgramActive: () => ({}) },
+    '../programForm': { programStatus: () => 'Running' },
+    './ProgramDialog': { ProgramDialog: () => React.createElement('p', null, 'EDIT FORM') },
   });
-  assert.ok(!renderToStaticMarkup(React.createElement(LoyaltyPage)).includes('Sửa'));
+  const operator = renderToStaticMarkup(React.createElement(LoyaltyProgramsPanel));
+  assert.match(operator, /Xem/);
+  for (const action of ['Sửa', 'Tạo chương trình', 'Tạm dừng', 'EDIT FORM']) {
+    assert.ok(!operator.includes(action));
+  }
   current = user('Admin');
-  assert.match(renderToStaticMarkup(React.createElement(LoyaltyPage)), /Sửa/);
+  const admin = renderToStaticMarkup(React.createElement(LoyaltyProgramsPanel));
+  assert.match(admin, /Sửa/);
+  assert.match(admin, /Tạo chương trình/);
+  assert.match(admin, /Tạm dừng/);
   await mutationHooks.useUpdateProgram().mutateAsync({});
   assert.equal(writes, 1);
 });
@@ -177,7 +224,15 @@ test('revoked manager scope errors propagate instead of becoming an empty succes
 test('REST and GraphQL distinguish forbidden operations from expired sessions', async () => {
   let unauthorized = 0;
   let rejectResponse;
-  const tokenStore = { get: () => 'test-token', onUnauthorized: () => { unauthorized += 1; } };
+  const tokenStore = {
+    get: () => 'test-token',
+
+    getSession: () => null,
+
+    onUnauthorized: () => {
+      unauthorized += 1;
+    },
+  };
   source('shared/api/http.ts', {
     axios: { __esModule: true, default: { create: () => ({
       interceptors: {

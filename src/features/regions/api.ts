@@ -1,4 +1,4 @@
-import { get, getAll, patch, post, put } from '@/shared/api/http';
+import { del, get, getAll, patch, post, put } from '@/shared/api/http';
 import type {
   Area,
   AreaInput,
@@ -21,7 +21,7 @@ interface RegionResult {
 }
 
 // OpenAPI SalesGroupResult
-interface SalesGroupResult {
+export interface SalesGroupResult {
   id: string;
   regionId: string;
   regionCode: string | null;
@@ -245,6 +245,42 @@ export const regionApi = {
   async updateAreaStatus(idOrCode: string, isActive: boolean): Promise<void> {
     const target = await resolveRegionId(idOrCode);
     await patch(`/regions/${target}/status`, { isActive });
+  },
+
+  /**
+   * DELETE /api/v1/regions/{regionId}
+   * Dispatches DELETE request via del(). Note: OpenAPI spec (api.json) does not explicitly list DELETE for regions.
+   */
+  async deleteArea(idOrCode: string): Promise<void> {
+    const target = await resolveRegionId(idOrCode);
+    await del(`/regions/${target}`);
+  },
+
+  /**
+   * Fetches fresh sales groups belonging to a region (including inactive groups)
+   * for mandatory region deactivation validation.
+   */
+  async getSalesGroupsForRegion(idOrCode: string): Promise<{
+    activeGroups: SalesGroupResult[];
+    allGroups: SalesGroupResult[];
+  }> {
+    const targetId = await resolveRegionId(idOrCode);
+    const codeUpper = idOrCode.trim().toUpperCase();
+    const allGroups = await getAll<SalesGroupResult>('/sales-groups', { includeInactive: true });
+
+    const regionGroups = allGroups.filter((g) => {
+      const matchId = targetId && isUuid(targetId) && g.regionId && g.regionId.toLowerCase() === targetId.toLowerCase();
+      const matchCode = (g.regionCode && g.regionCode.trim().toUpperCase() === codeUpper) ||
+                        (targetId && g.regionCode && g.regionCode.trim().toUpperCase() === targetId.trim().toUpperCase());
+      return Boolean(matchId || matchCode);
+    });
+
+    const activeGroups = regionGroups.filter((g) => g.isActive !== false);
+
+    return {
+      activeGroups,
+      allGroups: regionGroups,
+    };
   },
 
   /**
@@ -528,6 +564,15 @@ export const regionApi = {
   },
 
   /**
+   * DELETE /api/v1/sales-groups/{salesGroupId}
+   * Dispatches DELETE request via del(). Note: OpenAPI spec (api.json) does not explicitly list DELETE for sales-groups.
+   */
+  async deleteGroup(idOrCode: string): Promise<void> {
+    const target = await resolveGroupId(idOrCode);
+    await del(`/sales-groups/${target}`);
+  },
+
+  /**
    * Real Sales staff directory:
    * 1. GET /api/v1/users?role=Sales (all Sales users in system)
    * 2. GET /api/v1/territory-assignments/sales (current group assignments)
@@ -537,29 +582,51 @@ export const regionApi = {
     const users = await getAll<UserSummary>('/users', { role: 'Sales' });
 
     // 2. Fetch current territory assignments
-    let assigns: SalesGroupMembershipResult[] = [];
+    // Note: Do not swallow API errors here. If the assignment API fails,
+    // we must not assume that all users are unassigned (Rule 5).
+    const assigns = await getAll<SalesGroupMembershipResult>('/territory-assignments/sales', {
+      includeInactive: false,
+    });
+
+    // 3. Map group IDs to group codes to ensure groupCode is reliably present even if backend omitted it
+    const groupMap = new Map<string, string>();
     try {
-      assigns = await getAll<SalesGroupMembershipResult>('/territory-assignments/sales', {
-        includeInactive: false,
+      const rawGroups = await getAll<SalesGroupResult>('/sales-groups', { includeInactive: true });
+      rawGroups.forEach((g) => {
+        if (g.id && g.code) {
+          groupMap.set(g.id.toLowerCase(), g.code);
+          groupCodeToId.set(g.code.toUpperCase(), g.id);
+        }
       });
     } catch {
-      // Ignore
+      // Non-critical if sales-groups list fails
     }
 
-    return users.map((u) => {
-      const name = u.fullName || u.email || '—';
-      staffNameToId.set(name, u.id);
+    return users
+      .filter((u) => u.isActive !== false)
+      .map((u) => {
+        const name = u.fullName || u.email || '—';
+        staffNameToId.set(name, u.id);
+        if (u.email) staffNameToId.set(u.email, u.id);
+        staffNameToId.set(u.id, u.id);
 
-      const matchedAssign = assigns.find((a) => a.userId === u.id);
+        const matchedAssign = assigns.find(
+          (a) => a.userId === u.id && a.isActive !== false && !a.unassignedAt,
+        );
 
-      return {
-        userId: u.id,
-        name,
-        email: u.email ?? undefined,
-        groupCode: matchedAssign?.salesGroupCode ?? null,
-        groupId: matchedAssign?.salesGroupId ?? null,
-      };
-    });
+        const resolvedGroupCode =
+          matchedAssign?.salesGroupCode ||
+          (matchedAssign?.salesGroupId ? groupMap.get(matchedAssign.salesGroupId.toLowerCase()) : null) ||
+          null;
+
+        return {
+          userId: u.id,
+          name,
+          email: u.email ?? undefined,
+          groupCode: resolvedGroupCode,
+          groupId: matchedAssign?.salesGroupId ?? null,
+        };
+      });
   },
 
   /**

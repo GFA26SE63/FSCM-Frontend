@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useCurrentTime } from '@/shared/hooks';
+import { useState } from 'react';
 import { Button, Callout, Chip, Input, SimpleTable } from '@/shared/ui';
-import { formatInstantDate, formatMoney } from '@/shared/lib';
+import { formatInstantDate, formatMoney, minimumVersionDate } from '@/shared/lib';
+import { validMinutes, validKilometers, validMoney } from '../validation';
 import { usePublishTransitTable, useTransitHistory } from '../hooks';
 import type { TransitBand, TransitTable } from '../types';
 
@@ -28,13 +30,13 @@ const num = (v: string) => (v.trim() === '' ? Number.NaN : Number(v));
  * Mirrors the backend rules so the editor explains the problem before a failed save:
  * bands start at 0, meet end to end with the upper bound exclusive, and cover the serving distance.
  */
-function validate(draft: BandDraft[], servingKm: string, effectiveFrom: string, currentFrom: string): string[] {
+export function validateTransitTable(draft: BandDraft[], servingKm: string, effectiveFrom: string, currentFrom: string): string[] {
   const errors: string[] = [];
   const serving = num(servingKm);
-  if (!(serving > 0)) errors.push('Bán kính phục vụ phải lớn hơn 0.');
+  if (!(serving > 0) || !validKilometers(serving)) errors.push('Bán kính phục vụ phải lớn hơn 0.');
   if (!effectiveFrom) errors.push('Chưa chọn ngày hiệu lực.');
-  else if (effectiveFrom <= currentFrom.slice(0, 10)) {
-    errors.push(`Ngày hiệu lực phải sau phiên bản hiện tại (${formatInstantDate(currentFrom)}).`);
+  else if (effectiveFrom < minimumVersionDate(currentFrom)) {
+    errors.push(`Ngày hiệu lực sớm nhất là ${formatInstantDate(`${minimumVersionDate(currentFrom)}T00:00:00+07:00`)} (giờ Việt Nam), sau phiên bản mới nhất.`);
   }
   if (draft.length === 0) errors.push('Cần ít nhất một khoảng km.');
 
@@ -42,11 +44,12 @@ function validate(draft: BandDraft[], servingKm: string, effectiveFrom: string, 
     const min = num(b.minKm);
     const max = num(b.maxKm);
     const row = `Dòng ${i + 1}`;
-    if (Number.isNaN(min) || Number.isNaN(max)) errors.push(`${row}: thiếu khoảng km.`);
+    if (!validKilometers(min) || !validKilometers(max)) errors.push(`${row}: thiếu khoảng km.`);
     else if (max <= min) errors.push(`${row}: km kết thúc phải lớn hơn km bắt đầu.`);
-    if (!(num(b.handlingMinutes) >= 0)) errors.push(`${row}: thời gian soạn không hợp lệ.`);
-    if (!(num(b.transitMinutes) >= 0)) errors.push(`${row}: thời gian vận chuyển không hợp lệ.`);
-    if (!(num(b.cost) >= 0)) errors.push(`${row}: chi phí không hợp lệ.`);
+    if (!validMinutes(b.handlingMinutes)) errors.push(`${row}: thời gian soạn không hợp lệ.`);
+    if (num(b.handlingMinutes) + num(b.transitMinutes) > 2147483647) errors.push(`${row}: tổng thời gian vượt giới hạn hỗ trợ.`);
+    if (!validMinutes(b.transitMinutes)) errors.push(`${row}: thời gian vận chuyển không hợp lệ.`);
+    if (!validMoney(num(b.cost))) errors.push(`${row}: chi phí không hợp lệ.`);
   });
 
   const ordered = [...draft].sort((a, b) => num(a.minKm) - num(b.minKm));
@@ -67,6 +70,7 @@ function validate(draft: BandDraft[], servingKm: string, effectiveFrom: string, 
 }
 
 export function TransitTableSection({ current }: { current: TransitTable }) {
+  const now = useCurrentTime();
   const [draft, setDraft] = useState<BandDraft[]>(() => toDraft(current.bands));
   const [servingKm, setServingKm] = useState(String(current.maxServingDistanceMeters / 1000));
   const [effectiveFrom, setEffectiveFrom] = useState('');
@@ -75,10 +79,8 @@ export function TransitTableSection({ current }: { current: TransitTable }) {
   const publish = usePublishTransitTable();
   const history = useTransitHistory();
 
-  const errors = useMemo(
-    () => validate(draft, servingKm, effectiveFrom, current.effectiveFrom),
-    [draft, servingKm, effectiveFrom, current.effectiveFrom],
-  );
+  const errors = validateTransitTable(draft, servingKm, effectiveFrom, current.effectiveFrom);
+  if (note.trim().length > 500) errors.push('Ghi chú tối đa 500 ký tự.');
 
   const set = (i: number, patch: Partial<BandDraft>) =>
     setDraft(draft.map((d, j) => (j === i ? { ...d, ...patch } : d)));
@@ -89,6 +91,7 @@ export function TransitTableSection({ current }: { current: TransitTable }) {
   };
 
   const onPublish = async () => {
+    if (errors.length || publish.isPending) return;
     await publish.mutateAsync({
       maxServingDistanceMeters: Math.round(num(servingKm) * 1000),
       effectiveFrom: new Date(`${effectiveFrom}T00:00:00+07:00`).toISOString(),
@@ -110,7 +113,7 @@ export function TransitTableSection({ current }: { current: TransitTable }) {
   return (
     <div className="stack-sm">
       <div className="row gap-sm items-center">
-        <Chip tone="ok">Phiên bản {current.version}</Chip>
+        <Chip tone="ok">Phiên bản {current.version} · {new Date(current.effectiveFrom).getTime() > now ? 'Chờ hiệu lực' : 'Đang áp dụng'}</Chip>
         <span className="muted small">Hiệu lực từ {formatInstantDate(current.effectiveFrom)}</span>
         <Button size="sm" variant="ghost" onClick={() => setShowHistory(!showHistory)}>
           {showHistory ? 'Ẩn lịch sử' : 'Xem lịch sử'}
@@ -123,7 +126,7 @@ export function TransitTableSection({ current }: { current: TransitTable }) {
           columns={[
             { header: 'Phiên bản', cell: (t) => `v${t.version}` },
             { header: 'Hiệu lực từ', cell: (t) => formatInstantDate(t.effectiveFrom) },
-            { header: 'Đến', cell: (t) => (t.effectiveTo ? formatInstantDate(t.effectiveTo) : 'đang áp dụng') },
+            { header: 'Đến', cell: (t) => (t.effectiveTo ? formatInstantDate(t.effectiveTo) : new Date(t.effectiveFrom).getTime() > now ? 'Chờ hiệu lực' : 'Đang áp dụng') },
             { header: 'Số khoảng', cell: (t) => t.bands.length },
             { header: 'Ghi chú', cell: (t) => t.note ?? '—' },
           ]}
@@ -170,11 +173,11 @@ export function TransitTableSection({ current }: { current: TransitTable }) {
         </label>
         <label className="stack-xs small">
           Ngày hiệu lực
-          <Input className="inp-sm" type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
+          <Input className="inp-sm" type="date" min={minimumVersionDate(current.effectiveFrom)} value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
         </label>
         <label className="stack-xs small" style={{ flex: 1 }}>
           Ghi chú
-          <Input className="inp-sm" value={note} onChange={(e) => setNote(e.target.value)} />
+          <Input className="inp-sm" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
         </label>
       </div>
 
@@ -196,7 +199,7 @@ export function TransitTableSection({ current }: { current: TransitTable }) {
 
       {current.bands.length > 0 && (
         <span className="muted small">
-          Đang áp dụng: {current.bands.map((b) => `${b.minDistanceMeters / 1000}–${b.maxDistanceMeters / 1000} km · ${b.transitMinutes} phút · ${formatMoney(b.estimatedCostAmount)}`).join('  |  ')}
+          Nội dung phiên bản mới nhất: {current.bands.map((b) => `${b.minDistanceMeters / 1000}–${b.maxDistanceMeters / 1000} km · ${b.transitMinutes} phút · ${formatMoney(b.estimatedCostAmount)}`).join('  |  ')}
         </span>
       )}
     </div>

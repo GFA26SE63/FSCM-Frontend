@@ -1,4 +1,4 @@
-import { get, patch, post, put } from '@/shared/api/http';
+import { del, get, patch, post, put } from '@/shared/api/http';
 import type { Category, CategoryDetail, CategoryInput, CategoryProduct } from './types';
 
 interface BackendCategory {
@@ -12,6 +12,9 @@ interface BackendCategory {
   productCount?: number;
   createdAt?: string;
   updatedAt?: string;
+  defaultMlorRatio?: number | null;
+  defaultMlorVersion?: number;
+  defaultMlorUpdatedAt?: string | null;
 }
 
 interface BackendCategoryDetail extends BackendCategory {
@@ -46,6 +49,9 @@ const mapCategory = (raw: BackendCategory): Category => {
     productCount: raw.productCount ?? 0,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
+    defaultMlorRatio: raw.defaultMlorRatio ?? null,
+    defaultMlorVersion: raw.defaultMlorVersion ?? 0,
+    defaultMlorUpdatedAt: raw.defaultMlorUpdatedAt ?? null,
   };
 };
 
@@ -343,6 +349,25 @@ export const categoryApi = {
       if (found?.id) id = found.id;
     }
     await patch(`/categories/${id}/status`, { isActive });
-  },
-};
+  },
 
+  /**
+   * DELETE /api/v1/categories/{categoryId}
+   */
+  delete: async (idOrCode: string): Promise<{ categoryId: string; deleted: boolean; inactivated: boolean }> => {
+    let id = idOrCode;
+    if (!isGuid(idOrCode)) {
+      const all = await categoryApi.list(true);
+      const found = all.find((c) => c.code.toLowerCase() === idOrCode.toLowerCase());
+      if (found?.id) id = found.id;
+    }
+    return del<{ categoryId: string; deleted: boolean; inactivated: boolean }>(`/categories/${id}`);
+  },
+  /**
+   * PUT /api/v1/categories/{categoryId}/default-mlor
+   * Body: { minimumLifeRatio: number | null } (null clears the category default)
+   * Write: Admin
+   */
+  setDefaultMlor: async (id: string, minimumLifeRatio: number | null): Promise<Category> =>
+    mapCategory(await put<BackendCategory>(`/categories/${id}/default-mlor`, { minimumLifeRatio })),
+};

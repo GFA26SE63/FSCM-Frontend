@@ -1,73 +1,104 @@
-import type { CurrentUser } from "./authApi";
-import type { PortalRole } from "./roles";
-import { ApiError } from "../api/errors";
+import type { CurrentUser } from './authApi';
+import type { PortalRole } from './roles';
+import { ApiError } from '../api/errors';
 
 export const ACTION_ROLES = {
-  "users.manage": ["Admin"],
+  'users.manage': ['Admin'],
 
-  "regions.manage": ["Admin"],
-  "salesGroups.manage": ["Admin"],
-  "territory.assign": ["Admin", "SalesManager"],
+  'regions.manage': ['Admin'],
+  'salesGroups.manage': ['Admin'],
+  'territory.assign': ['Admin', 'SalesManager'],
 
-  "products.manage": ["Admin"],
-  "loyalty.manage": ["Admin"],
-  "categories.manage": ["Admin"],
-  "warehouses.manage": ["Admin"],
+  'products.manage': ['Admin'],
+  'loyalty.manage': ['Admin'],
+  'categories.manage': ['Admin'],
+  'warehouses.manage': ['Admin'],
 
-  "orders.approve": ["Admin", "Operator"],
-  "orders.reject": ["Admin", "Operator"],
-  "orders.cancel": ["Admin", "Operator"],
-  "orders.dispatch": ["Admin", "Operator"],
+  // SO chỉ được rút trước khi allocation hoàn tất.
+  // Trạng thái cụ thể được kiểm tra tại orderAccess.ts
+  // và được backend kiểm tra lại.
+  'orders.withdraw': ['Admin', 'Operator'],
 
-  // Endpoint collect của BE không cho Admin.
-  "payments.collect": ["Operator"],
-  "payments.adjust": ["Admin", "Operator"],
+  // Allocation real-time là màn theo dõi.
+  'allocation.view': ['Admin', 'Operator'],
 
-  "receipts.create": ["Admin", "WarehouseKeeper"],
-  "receipts.approve": ["Admin", "WarehouseKeeper"],
+  // Portal chỉ có Operator trong các role được collect.
+  'payments.collect': ['Operator'],
+  'payments.adjust': ['Admin', 'Operator'],
+  // F101: create refund records and submit transfer proof; only Admin verifies it.
+  'refunds.manage': ['Admin', 'Operator'],
+  'refunds.verify': ['Admin'],
 
-  // Admin được xem picking nhưng không được quét/hoàn tất.
-  "picking.scan": ["WarehouseKeeper"],
-  "picking.complete": ["WarehouseKeeper"],
-  "picking.viewPrice": ["Admin", "Operator"],
+  'receipts.create': ['Admin', 'WarehouseKeeper'],
+  'receipts.approve': ['Admin', 'WarehouseKeeper'],
 
-  "fleet.manage": ["Admin", "Operator"],
-  "redeem.manage": ["Admin", "Operator"],
-  "complaints.resolve": ["Admin", "Operator"],
+  'picking.scan': ['WarehouseKeeper'],
+  'picking.complete': ['WarehouseKeeper'],
+  'picking.viewPrice': ['Admin', 'Operator'],
 
-  "inventory.lock": ["Admin", "WarehouseKeeper", "Operator"],
-  "inventory.viewHistory": ["Admin", "WarehouseKeeper", "Operator"],
+  'fleet.manage': ['Admin', 'Operator'],
+  'redeem.manage': ['Admin', 'Operator'],
 
-  "retailers.review": ["Admin", "Operator"],
-  "retailers.status": ["Admin"],
+  // Operator may request more evidence; only Admin approves/rejects (F62).
+  'complaints.resolve': ['Admin', 'Operator'],
+  'complaints.decide': ['Admin'],
 
-  // MlorConfigurationsController hiện yêu cầu Admin.
-  "mlor.read": ["Admin"],
-  "mlor.manage": ["Admin"],
+  'inventory.lock': [
+    'Admin',
+    'WarehouseKeeper',
+    'Operator',
+  ],
+  'inventory.unlock': [
+    'Admin',
+  ],
+  'inventory.viewHistory': [
+    'Admin',
+    'WarehouseKeeper',
+    'Operator',
+  ],
 
-  "allocation.approve": ["Admin"],
-  "allocation.recalculate": ["Admin"],
-  "allocation.issuePicking": ["Admin", "Operator"],
+  'retailers.review': ['Admin', 'Operator'],
+  'retailers.status': ['Admin'],
 
-  // UI tạo/sửa retailer tổng quát hiện dùng API prototype.
-  // BE hiện chỉ có khai báo/sửa khai báo bởi Sales,
-  // review/status bởi Admin.
-  "retailers.create": [],
-  "retailers.edit": [],
+  // Endpoint /mlor-configurations hỗ trợ quản trị và vận hành.
+  'mlor.read': ['Admin', 'Operator'],
+  'mlor.manage': ['Admin', 'Operator'],
 
-  // Controller điều chuyển hiện đã bị tắt.
-  "transfers.manage": [],
-  "transfers.receive": [],
-} as const satisfies Record<string, readonly PortalRole[]>;
+  // Chỉnh sửa hồ sơ retailer theo khai báo/xét duyệt.
+  'retailers.create': ['Admin'],
+  'retailers.edit': ['Admin', 'Operator'],
 
-export type Permission = keyof typeof ACTION_ROLES;
+  // Quản lý và in tem QR lô hàng kho.
+  'qr.view': ['Admin', 'WarehouseKeeper', 'Operator'],
+  'qr.generate': ['Admin', 'WarehouseKeeper', 'Operator'],
+  'qr.print': ['Admin', 'WarehouseKeeper', 'Operator'],
 
-export function can(user: CurrentUser | null, permission: Permission): boolean {
+  // InternalTransfersController hiện có [NonController].
+  'transfers.manage': [],
+  'transfers.receive': [],
+} as const satisfies Record<
+  string,
+  readonly PortalRole[]
+>;
+
+export type Permission =
+  keyof typeof ACTION_ROLES;
+
+export function can(
+  user: CurrentUser | null,
+  permission: Permission,
+): boolean {
   if (!user) return false;
 
-  const roles: readonly PortalRole[] = ACTION_ROLES[permission];
+  // Admin is the system-wide operator. Individual permission matrices still
+  // document delegated roles, but must never hide an Admin capability.
+  if (user.role === 'Admin') return true;
 
-  return roles.includes(user.role);
+  const roles:
+    | readonly PortalRole[]
+    | undefined = ACTION_ROLES[permission];
+
+  return roles?.includes(user.role) ?? false;
 }
 
 export function assertPermission(
@@ -75,14 +106,17 @@ export function assertPermission(
   permission: Permission,
 ): void {
   if (!user) {
-    throw new ApiError(401, "Bạn cần đăng nhập để tiếp tục");
+    throw new ApiError(
+      401,
+      'Bạn cần đăng nhập để tiếp tục',
+    );
   }
 
   if (!can(user, permission)) {
     throw new ApiError(
       403,
-      "Không đủ quyền thực hiện thao tác",
-      "Tài khoản hiện tại không được phép thực hiện thao tác này.",
+      'Bạn chưa được cấp quyền thực hiện thao tác này',
+      'Tài khoản hiện tại chưa được cấp quyền thực hiện thao tác này.',
     );
   }
 }

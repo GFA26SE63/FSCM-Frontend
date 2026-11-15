@@ -42,6 +42,7 @@ export function UserDialog({ user, onClose }: Props) {
   const [email, setEmail] = useState(user?.email ?? '');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<CreatableRole>(
     isCreatableRole(user?.role)
       ? user.role
@@ -139,11 +140,11 @@ export function UserDialog({ user, onClose }: Props) {
     if (
       !user &&
       role !== 'Retailer' &&
-      (password.length < 12 ||
-        !/[A-Z]/.test(password) ||
-        !/[a-z]/.test(password) ||
-        !/\d/.test(password) ||
-        !/[^A-Za-z0-9]/.test(password))
+      (password.trim().length < 12 ||
+        !/[A-Z]/.test(password.trim()) ||
+        !/[a-z]/.test(password.trim()) ||
+        !/\d/.test(password.trim()) ||
+        !/[^A-Za-z0-9]/.test(password.trim()))
     ) {
       next.password =
         'Mật khẩu tối thiểu 12 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.';
@@ -151,9 +152,9 @@ export function UserDialog({ user, onClose }: Props) {
 
     if (
       role === 'WarehouseKeeper' &&
-      assignments.warehouses.length === 0
+      assignments.warehouses.length === 0 && assignments.regions.length === 0
     ) {
-      next.warehouses = 'Chọn ít nhất một kho.';
+      next.warehouses = 'Chọn ít nhất một kho hoặc khu vực.';
     }
 
     if (
@@ -207,7 +208,7 @@ export function UserDialog({ user, onClose }: Props) {
             email: email.trim().toLowerCase(),
             role,
             phone: phone.trim(),
-            password,
+            password: password.trim(),
           });
 
           // Ghi nhớ ngay sau POST thành công.
@@ -466,25 +467,37 @@ export function UserDialog({ user, onClose }: Props) {
                   required={role !== 'Retailer'}
                   error={errors.password}
                 >
-                  <Input
-                    type="password"
-                    autoComplete="new-password"
-                    value={password}
-                    readOnly={identityLocked || role === 'Retailer'}
-                    placeholder={role === 'Retailer' ? 'Retailer tự tạo mật khẩu sau khi xác minh OTP' : undefined}
-                    onChange={(event) =>
-                      setPassword(event.target.value)
-                    }
-                  />
+                  <div className="password-input">
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      value={password}
+                      readOnly={identityLocked || role === 'Retailer'}
+                      placeholder={role === 'Retailer' ? 'Retailer tự tạo mật khẩu sau khi xác minh OTP' : undefined}
+                      onChange={(event) =>
+                        setPassword(event.target.value)
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle"
+                      aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                      aria-pressed={showPassword}
+                      disabled={identityLocked || role === 'Retailer'}
+                      onClick={() => setShowPassword((visible) => !visible)}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </FormField>
               </>
             )}
 
-            {user?.role === 'SalesManager' && (
+            {(user?.role === 'SalesManager' || user?.role === 'WarehouseKeeper') && (
               <>
                 <AssignmentPicker
                   kind="regions"
-                  label="Khu vực đang có quyền — gồm quyền kế thừa từ nhóm"
+                  label="Khu vực đang có quyền — gồm phạm vi từ kho/nhóm"
                   value={user.scope.regionIds}
                   onChange={() => undefined}
                   readOnly

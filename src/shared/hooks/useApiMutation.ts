@@ -15,6 +15,8 @@ import { useToast } from '../ui/Toast';
 
 interface Options<TData, TVars> {
   permission?: Permission;
+  /** Opt in only when this mutation has no clearer inline/page feedback. */
+  notify?: boolean;
   success?: string | ((data: TData, vars: TVars) => string);
   onSuccess?: (data: TData, vars: TVars) => void;
 }
@@ -51,13 +53,18 @@ export function useApiMutation<
           ? options.success(data, vars)
           : options.success;
 
-      if (message) toast.show(message);
+      // Network code never owns user feedback. A feature must explicitly opt
+      // in with a success message (or notify: true) when its UI does not
+      // already acknowledge the result inline or by updating the page.
+      const shouldNotify = options.notify ?? message !== undefined;
+      if (shouldNotify) toast.mutationSuccess(message);
 
       options.onSuccess?.(data, vars);
     },
 
     onError: (error) => {
-      toast.error(error);
+      const shouldNotify = options.notify ?? options.success !== undefined;
+      if (shouldNotify) toast.mutationError(error);
     },
   });
 }

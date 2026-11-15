@@ -32,3 +32,6 @@ test-results/
 *.sw?
 
 docs/design
+.agents
+graphify-out
+CLAUDE.md
