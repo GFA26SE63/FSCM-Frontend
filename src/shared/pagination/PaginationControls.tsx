@@ -44,6 +44,7 @@ export function PaginationControls({ mode, restPaging, cursorPaging, extra }: Pa
       totalPages,
       onNext,
       onPrev,
+      onFirstPage,
       onPageSizeChange,
       pageSizeOptions = DEFAULT_PAGE_SIZES,
       loading = false,
@@ -54,13 +55,39 @@ export function PaginationControls({ mode, restPaging, cursorPaging, extra }: Pa
     const from = hasTotal && totalCount === 0 ? 0 : (currentPage - 1) * size + 1;
     const to = hasTotal ? Math.min(totalCount, currentPage * size) : undefined;
 
+    // Build page indicators using only cursors we actually have.
+    // Cursor pagination cannot jump to arbitrary pages — only prev/next/first are safe.
+    interface CursorPageIndicator {
+      page: number;
+      onClick: (() => void) | undefined; // undefined = not navigable (shown disabled)
+      active: boolean;
+    }
+    const indicators: CursorPageIndicator[] = [];
+
+    // Page 1 — always reachable via onFirstPage
+    if (currentPage > 1) {
+      indicators.push({ page: 1, onClick: onFirstPage, active: false });
+    }
+    // currentPage-1 — reachable via onPrev (only when it's not already page 1)
+    if (currentPage > 2 && pageInfo.hasPreviousPage) {
+      indicators.push({ page: currentPage - 1, onClick: onPrev, active: false });
+    }
+    // Current page — always shown as active
+    indicators.push({ page: currentPage, onClick: undefined, active: true });
+    // currentPage+1 — reachable via onNext
+    if (pageInfo.hasNextPage) {
+      indicators.push({ page: currentPage + 1, onClick: onNext, active: false });
+    }
+    // Last page — shown as a non-navigable indicator when known and not already shown
+    if (totalPages && currentPage + 1 < totalPages) {
+      indicators.push({ page: totalPages, onClick: undefined, active: false });
+    }
+
     return (
       <div className="pager" role="navigation" aria-label="Phân trang dữ liệu">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span>
-            {hasTotal
-              ? `Hiển thị ${from}–${to} / ${totalCount}${totalPages ? ` · Trang ${currentPage} / ${totalPages}` : ` · Trang ${currentPage}`}`
-              : `Trang ${currentPage}`}
+            {hasTotal ? `Hiển thị ${from}–${to} / ${totalCount}` : `Trang ${currentPage}`}
           </span>
           {extra}
         </div>
@@ -84,16 +111,22 @@ export function PaginationControls({ mode, restPaging, cursorPaging, extra }: Pa
             Trước
           </Button>
 
-          <span
-            style={{
-              padding: '0 8px',
-              fontSize: '13px',
-              fontWeight: 600,
-              color: 'var(--color-text, #333)',
-            }}
-          >
-            Trang {currentPage}
-          </span>
+          {indicators.map((ind, i) => (
+            <span key={ind.page} style={{ display: 'inline-flex', gap: 6 }}>
+              {i > 0 && ind.page - indicators[i - 1].page > 1 && (
+                <span style={{ alignSelf: 'center', fontSize: 13, color: 'var(--color-text, #333)' }}>…</span>
+              )}
+              <Button
+                size="sm"
+                variant={ind.active ? 'primary' : 'default'}
+                disabled={loading || (!ind.onClick && !ind.active)}
+                onClick={ind.onClick}
+                aria-current={ind.active ? 'page' : undefined}
+              >
+                {ind.page}
+              </Button>
+            </span>
+          ))}
 
           <Button
             size="sm"

@@ -18,6 +18,7 @@ import {
 import type {
   OrderStatus,
 } from './types';
+import { fetchOrdersPage, type OrdersPageQuery } from './ordersGraphql';
 
 export const orderKeys = {
   all: ['orders'] as const,
@@ -26,6 +27,9 @@ export const orderKeys = {
     'orders',
     'list',
   ] as const,
+
+  page: (q: OrdersPageQuery) =>
+    ['orders', 'cursor-page', q] as const,
 
   detail: (orderId: string) =>
     [
@@ -39,6 +43,16 @@ export const useOrders = () =>
   useQuery({
     queryKey: orderKeys.list,
     queryFn: orderApi.list,
+  });
+
+/** Server-side cursor-paginated orders via GraphQL entities.salesOrders. */
+export const useOrdersPage = (q: OrdersPageQuery) =>
+  useQuery({
+    queryKey: orderKeys.page(q),
+    queryFn: () => fetchOrdersPage(q),
+    placeholderData: (prev) => prev,
+    retry: false,
+    staleTime: 15_000,
   });
 
 export const useOrder = (
