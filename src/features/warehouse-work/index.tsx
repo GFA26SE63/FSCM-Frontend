@@ -37,6 +37,7 @@ export function WarehouseWorkPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [trace, setTrace] = useState('');
+  const [cartonEdit, setCartonEdit] = useState<{ documentId: string; cartonCode: string; replace: boolean; replacementCode: string; reason: string } | null>(null);
   const scanInput = useRef<HTMLInputElement>(null);
   const operation = useRef<{ fingerprint: string; key: string } | null>(null);
   const inFlight = useRef(false);
@@ -45,6 +46,8 @@ export function WarehouseWorkPage() {
   const pickings = useQuery({ queryKey: ['warehouse-work', 'picking', wh], queryFn: () => pickingApi.lists(wh), enabled: admin && !!wh });
   const batches = useQuery({ queryKey: ['warehouse-work', 'batches', wh], queryFn: () => get<BatchInventoryItem[]>('/inventory', { warehouseId: wh }), enabled: admin && !!wh && reason === 'Transfer' });
   const active = docs.data?.find(x => x.document.id === selected);
+  const executionWarehouses = warehouses.data?.filter(w => w.isActive &&
+    (admin || user?.scope?.warehouseIds.includes(w.id)));
   const whName = (id: string | null) => warehouses.data?.find(w => w.id === id)?.name ?? id ?? '—';
   const selectable = (pickings.data ?? []).filter(p => p.status === 'Pending' && !docs.data?.some(d => d.document.kind === 'Request' && d.document.status !== 'Cancelled' && d.lines.some(l => l.orderCode === p.orderCode) && d.document.warehouseId === wh));
   async function act(path: string, payload?: unknown, idempotent = false) {
@@ -63,6 +66,7 @@ export function WarehouseWorkPage() {
       await client.invalidateQueries({ queryKey: ['batches'] });
       await client.invalidateQueries({ queryKey: ['qr-labels'] });
       setSelected(data.document.id); setScan(''); setNotice('Đã lưu chứng từ.');
+      setCartonEdit(null);
     } catch (e) {
       setError(errorMessage(e));
       // Refresh versions after concurrent changes or a lost response; keep scanner input
@@ -105,7 +109,7 @@ export function WarehouseWorkPage() {
     <Card title={admin ? 'Phát hành yêu cầu kho' : 'Tạo phiếu nhập từ nhà máy'}>
       <form onSubmit={e => { e.preventDefault(); void act(admin ? `${base}/requests` : `${base}/factory-receipts`, admin ? { warehouseId: wh, destinationWarehouseId: reason === 'Transfer' ? destination : null, reason, orderIds: reason === 'Order' ? orderIds : [], lines: reason === 'Transfer' ? transferLines : [], note } : { warehouseId: wh, note }, true); }}>
         <div className="row-wrap" style={{ gap: 12, marginBottom: 12 }}>
-          <label>Kho thực hiện <select required value={wh} onChange={e => { setWh(e.target.value); setOrderIds([]); setTransferLines([]); }}><option value="">Chọn kho</option>{warehouses.data?.filter(w => w.isActive).map(w => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select></label>
+          <label>Kho thực hiện <select required value={wh} onChange={e => { setWh(e.target.value); setOrderIds([]); setTransferLines([]); }}><option value="">Chọn kho</option>{executionWarehouses?.map(w => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select></label>
           {admin && <label>Lý do <select value={reason} onChange={e => setReason(e.target.value as typeof reason)}><option value="Order">Xuất cho đơn hàng</option><option value="Transfer">Xuất luân chuyển</option></select></label>}
           {admin && reason === 'Transfer' && <label>Kho nhận <select required value={destination} onChange={e => setDestination(e.target.value)}><option value="">Chọn kho nhận</option>{warehouses.data?.filter(w => w.id !== wh && w.isActive).map(w => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select></label>}
         </div>
@@ -119,14 +123,14 @@ export function WarehouseWorkPage() {
           { header: 'Khả dụng', cell: b => b.availableQuantity },
           { header: 'Carton chuyển', cell: b => <input aria-label={`Số carton ${b.batchCode}`} type="number" min={0} max={b.availableQuantity} step={1} value={transferLines.find(l => l.batchId === b.batchId)?.quantity ?? 0} onChange={e => setTransferLines([...transferLines.filter(l => l.batchId !== b.batchId), ...(Number(e.target.value) > 0 ? [{ batchId: b.batchId, quantity: Number(e.target.value) }] : [])])} /> },
         ]} /></>}
-        {!admin && <p>Chọn kho nhận và tạo phiếu. Quét mã pallet đã được nhà máy phát hành đến kho này để tự động nhận toàn bộ carton/SKU. Mỗi lần quét hợp lệ cộng tồn ngay; quét trùng không cộng lại.</p>}
+        {!admin && <p>Chọn kho được phân công và tạo phiếu. Quét pallet để mở kiểm đếm, đánh dấu từng carton đạt, hỏng hoặc thiếu rồi xác nhận nhận. Chỉ carton đạt được cộng vào tồn bán được; quét trùng không cộng lại.</p>}
         <div className="row-wrap" style={{ gap: 12, marginTop: 12 }}><label>Ghi chú / chứng từ nhà máy <input value={note} onChange={e => setNote(e.target.value)} /></label><button className="btn btn-primary" disabled={busy || !wh || admin && (reason === 'Order' ? !orderIds.length : !transferLines.length)}>{admin ? 'Phát hành yêu cầu' : 'Tạo phiếu nhập từ nhà máy'}</button></div>
       </form>
     </Card>
     <Card title="Danh sách chứng từ"><QueryState query={docs}>{rows => <SimpleTable rows={rows} columns={[
       { header: 'Chứng từ', cell: w => <button className="btn btn-sm" onClick={() => { setSelected(w.document.id); setError(''); }}>{w.document.code}</button> },
       { header: 'Loại / lý do', cell: w => `${kinds[w.document.kind]} · ${reasons[w.document.reason]}` },
-      { header: 'Kho', cell: w => `${whName(w.document.warehouseId)}${w.document.destinationWarehouseId ? ' → ' + whName(w.document.destinationWarehouseId) : ''}` },
+      { header: 'Kho', cell: w => `${whName(w.document.warehouseId)}${w.document.destinationWarehouseId && w.document.destinationWarehouseId !== w.document.warehouseId ? ' → ' + whName(w.document.destinationWarehouseId) : ''}` },
       { header: 'Đơn / carton', cell: w => `${new Set(w.lines.map(l => l.orderCode).filter(Boolean)).size} đơn · ${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
       { header: 'Trạng thái', cell: w => statuses[w.document.status] ?? w.document.status },
     ]} />}</QueryState></Card>
@@ -159,11 +163,23 @@ export function WarehouseWorkPage() {
           <button className="btn" disabled={busy || !scan.trim() || d.status !== 'Open'}>Ghi nhận carton</button>
           <button type="button" className="btn btn-primary" disabled={busy || active.cartons.length === 0 || active.cartons.filter(c => c.scannedAt).length !== active.lines.reduce((s, l) => s + l.quantity, 0)} onClick={() => void act(`${base}/${d.id}/post`, { expectedVersion: d.version })}>Xác nhận {d.kind === 'Picking' || d.kind === 'Issue' ? 'xuất và lập PXK' : 'nhập'} kho</button>
         </form>}
+        {cartonEdit?.documentId === d.id && !admin && d.kind === 'Picking' && ['Open', 'Prepared'].includes(d.status) && <form aria-label="Sửa carton đang soạn" onSubmit={e => {
+          e.preventDefault();
+          if (!cartonEdit.reason.trim() || cartonEdit.replace && !cartonEdit.replacementCode.trim()) return;
+          void act(`${base}/${d.id}/remove-carton`, { cartonCode: cartonEdit.cartonCode, reason: cartonEdit.reason.trim(), expectedVersion: d.version,
+            ...(cartonEdit.replace ? { replacementCode: cartonEdit.replacementCode.trim() } : {}) });
+        }}>
+          <p>{cartonEdit.replace ? 'Đổi' : 'Bỏ'} carton: {cartonEdit.cartonCode}</p>
+          {cartonEdit.replace && <label>CID thay thế cùng batch <input required disabled={busy} value={cartonEdit.replacementCode} onChange={e => setCartonEdit({ ...cartonEdit, replacementCode: e.target.value })} /></label>}
+          <label>Lý do sửa carton <input required disabled={busy} value={cartonEdit.reason} onChange={e => setCartonEdit({ ...cartonEdit, reason: e.target.value })} /></label>
+          <button className="btn" disabled={busy}>Xác nhận sửa carton</button>
+          <button className="btn" type="button" disabled={busy} onClick={() => setCartonEdit(null)}>Hủy sửa carton</button>
+        </form>}
         <SimpleTable rows={active.cartons} columns={[
           { header: 'Carton ID / QR', cell: c => c.cartonId },
           { header: 'Sửa khi đang soạn', cell: c => !admin && d.kind === 'Picking' && ['Open', 'Prepared'].includes(d.status) ? <div className="row-wrap">
-            <button className="btn btn-sm" disabled={busy} onClick={() => { const reason = window.prompt('Lý do bỏ carton khỏi phiếu soạn:'); if (reason?.trim()) void act(`${base}/${d.id}/remove-carton`, { cartonCode: c.cartonId, reason, expectedVersion: d.version }); }}>Bỏ carton</button>
-            <button className="btn btn-sm" disabled={busy} onClick={() => { const replacementCode = window.prompt('Quét/nhập CID thay thế cùng batch:'); if (!replacementCode?.trim()) return; const reason = window.prompt('Lý do đổi carton:'); if (reason?.trim()) void act(`${base}/${d.id}/remove-carton`, { cartonCode: c.cartonId, replacementCode, reason, expectedVersion: d.version }); }}>Đổi carton</button>
+            <button className="btn btn-sm" disabled={busy} onClick={() => setCartonEdit({ documentId: d.id, cartonCode: c.cartonId, replace: false, replacementCode: '', reason: '' })}>Bỏ carton</button>
+            <button className="btn btn-sm" disabled={busy} onClick={() => setCartonEdit({ documentId: d.id, cartonCode: c.cartonId, replace: true, replacementCode: '', reason: '' })}>Đổi carton</button>
           </div> : 'Đã khóa / không áp dụng' }, { header: 'Pallet gốc / sản phẩm trong carton', cell: c => { const m = active.pallets?.find(p => p.cartonCode === c.cartonId); return m ? `${m.palletCode} · ${m.unitsPerCarton} sản phẩm` : 'Hàng tồn cũ'; } }, { header: 'SKU', cell: c => active.lines.find(l => l.id === c.lineId)?.sku },
           { header: 'Quét lúc', cell: c => c.scannedAt ? formatInstantDateTime(c.scannedAt) : 'Chờ quét' },
         ]} />
