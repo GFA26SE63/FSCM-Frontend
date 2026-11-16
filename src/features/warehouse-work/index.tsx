@@ -1,4 +1,5 @@
 import { PalletReceiving } from "./PalletReceiving";
+import './warehouse-work.css';
 import { useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/shared/auth/AuthContext';
@@ -100,7 +101,7 @@ export function WarehouseWorkPage() {
     {admin && <p><Link className="btn" to="/factory-traceability">Mô phỏng nhà máy · tạo batch, pallet, carton và serial</Link></p>}
     <TraceLookup />
     <Card title="Lịch sử carton trong chứng từ kho"><label>Carton ID <input value={trace} onChange={e => setTrace(e.target.value)} placeholder="Quét hoặc nhập carton_id để xem hành trình" /></label>{trace.trim() && <SimpleTable rows={(docs.data ?? []).flatMap(w => w.cartons.filter(c => c.cartonId === trace.trim()).map(c => ({ w, c, l: w.lines.find(l => l.id === c.lineId)! })))} columns={[
-      { header: 'Chứng từ', cell: x => <button className="btn btn-sm" onClick={() => setSelected(x.w.document.id)}>{x.w.document.code}</button> },
+      { header: 'Chứng từ', width: '320px', cell: x => <button className="btn btn-sm warehouse-document-code" onClick={() => setSelected(x.w.document.id)}><span>{x.w.document.code}</span></button> },
       { header: 'Nghiệp vụ / kho', cell: x => `${kinds[x.w.document.kind]} · ${whName(x.w.document.warehouseId)}` },
       { header: 'Batch / SKU / đơn', cell: x => `${x.l.batchCode ?? x.l.sourceLotCode} · ${x.l.sku} · ${x.l.orderCode ?? '—'}` },
       { header: 'Quét lúc', cell: x => x.c.scannedAt ? formatInstantDateTime(x.c.scannedAt) : 'Chưa quét' },
@@ -128,15 +129,15 @@ export function WarehouseWorkPage() {
       </form>
     </Card>
     <Card title="Danh sách chứng từ"><QueryState query={docs}>{rows => <SimpleTable rows={rows} columns={[
-      { header: 'Chứng từ', cell: w => <button className="btn btn-sm" onClick={() => { setSelected(w.document.id); setError(''); }}>{w.document.code}</button> },
-      { header: 'Loại / lý do', cell: w => `${kinds[w.document.kind]} · ${reasons[w.document.reason]}` },
-      { header: 'Kho', cell: w => `${whName(w.document.warehouseId)}${w.document.destinationWarehouseId && w.document.destinationWarehouseId !== w.document.warehouseId ? ' → ' + whName(w.document.destinationWarehouseId) : ''}` },
-      { header: 'Đơn / carton', cell: w => `${new Set(w.lines.map(l => l.orderCode).filter(Boolean)).size} đơn · ${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
-      { header: 'Trạng thái', cell: w => statuses[w.document.status] ?? w.document.status },
+      { header: 'Chứng từ', width: '320px', cell: w => <button className="btn btn-sm warehouse-document-code" onClick={() => { setSelected(w.document.id); setError(''); }}><span>{w.document.code}</span></button> },
+      { header: 'Loại / lý do', width: '220px', cell: w => `${kinds[w.document.kind]} · ${reasons[w.document.reason]}` },
+      { header: 'Kho', width: '220px', cell: w => `${whName(w.document.warehouseId)}${w.document.destinationWarehouseId && w.document.destinationWarehouseId !== w.document.warehouseId ? ' → ' + whName(w.document.destinationWarehouseId) : ''}` },
+      { header: 'Đơn / carton', width: '130px', cell: w => `${new Set(w.lines.map(l => l.orderCode).filter(Boolean)).size} đơn · ${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
+      { header: 'Trạng thái', width: '150px', cell: w => statuses[w.document.status] ?? w.document.status },
     ]} />}</QueryState></Card>
     {active && d && <Card title={`${kinds[d.kind]} · ${d.code}`}>
       <p>{reasons[d.reason]} · {whName(d.warehouseId)} · {statuses[d.status]} · {formatInstantDateTime(d.createdAt)}</p>
-      {d.sourceDocumentId && <p>Chứng từ nguồn: <button className="btn btn-sm" onClick={() => setSelected(d.sourceDocumentId!)}>{docs.data?.find(w => w.document.id === d.sourceDocumentId)?.document.code}</button></p>}
+      {d.sourceDocumentId && <p>Chứng từ nguồn: <button className="btn btn-sm warehouse-document-code" onClick={() => setSelected(d.sourceDocumentId!)}><span>{docs.data?.find(w => w.document.id === d.sourceDocumentId)?.document.code}</span></button></p>}
       {d.note && <p>{d.note}</p>}
       <h3>Tổng hợp lấy hàng theo SKU / batch</h3>
       <SimpleTable rows={Object.values(active.lines.reduce<Record<string, { sku: string; batch: string; expiry: string; required: number; scanned: number }>>((result, line) => {
