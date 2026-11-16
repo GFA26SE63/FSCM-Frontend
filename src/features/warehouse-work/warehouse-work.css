@@ -16,6 +16,8 @@
   word-break: break-all;
 }
 
+.warehouse-pallet-code { overflow-wrap: anywhere; }
+
 .warehouse-work-filters {
   display: grid;
   grid-template-columns: minmax(240px, 2fr) repeat(2, minmax(160px, 1fr));

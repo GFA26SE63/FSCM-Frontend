@@ -16,6 +16,7 @@ function page(states, docs = [], post = async () => ({ data: { document: { id: '
   }).outputText;
   const mocks = {
     './PalletReceiving': { PalletReceiving: 'inspection' },
+    './FactoryPending': { FactoryPending: 'pending' },
     './workflow': workflowModule.exports,
     './warehouse-work.css': {},
     react: { useState: () => [states[stateIndex++], () => {}], useRef: value => ({ current: value }) },
@@ -43,16 +44,18 @@ function all(node, predicate) {
 }
 function states(scan = '') { return ['warehouse', '', [], [], 'delivery note', scan, false, '', '', '', '', '', '', null]; }
 
-test('factory receipt creation sends warehouse and note without invented batch, dates, SKU or labels', async () => {
+test('factory receipt starts from the selected pallet without sending a warehouse chosen by the keeper', async () => {
   const writes = [];
-  const tree = page(states(), [], async (...args) => { writes.push(args); return { data: { document: { id: 'receipt', reason: 'Factory' } } }; });
-  all(tree, n => n.type === 'form')[0].props.onSubmit({ preventDefault() {} });
+  const navigations = [];
+  const tree = page(states(), [], async (...args) => { writes.push(args); return { data: { document: { id: 'receipt', reason: 'Factory' } } }; }, { search: '', push: path => navigations.push(path) });
+  const pending = all(tree, n => n.type === 'query')[0].props.children();
+  pending.props.onOpen({ palletCode: 'PID-1', destinationWarehouseId: 'factory-selected-warehouse' });
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(writes.length, 1);
-  assert.equal(writes[0][0], '/warehouse-documents/factory-receipts');
-  assert.deepEqual(writes[0][1], { warehouseId: 'warehouse', note: 'delivery note' });
-  assert.ok(writes[0][2].headers['Idempotency-Key']);
-  assert.equal(all(tree, n => n.type === 'input' && n.props.type === 'date').length, 0);
+  assert.equal(writes[0][0], '/warehouse-documents/factory-receipts/from-pallet');
+  assert.deepEqual(writes[0][1], { palletCode: 'PID-1' });
+  assert.equal(navigations[0], '/warehouse-inbound/receipt?pallet=PID-1');
+  assert.equal(all(tree, n => n.type === 'form').length, 0);
 });
 
 test('warehouse lists isolate factory, order and transfer documents with separate detail links', () => {
@@ -62,7 +65,7 @@ test('warehouse lists isolate factory, order and transfer documents with separat
     const tree = page(states(), docs, undefined, { workflow, search: '', push: path => navigations.push(path) });
     assert.equal(all(tree, n => n.type === 'form').length, 0, 'list must not expose a creation form');
     assert.equal(all(tree, n => n.type === 'trace').length, 0, 'tracing belongs on its own page');
-    const table = all(tree, n => n.type === 'query')[0].props.children();
+    const table = all(tree, n => n.type === 'query').find(n => n.props.query.data === docs).props.children();
     assert.deepEqual(table.props.rows.map(w => w.document.reason), [reason]);
     const button = table.props.columns[0].cell(table.props.rows[0]);
     button.props.onClick();
@@ -74,7 +77,7 @@ test('creation controls follow each workflow and keep existing warehouse role bo
   for (const role of ['Admin', 'WarehouseKeeper']) {
     for (const workflow of ['inbound', 'outbound', 'transfer']) {
       const tree = page(states(), [], undefined, { workflow, role });
-      assert.equal(all(tree, n => n.type === 'form').length, Number(workflow === 'inbound' ? role === 'WarehouseKeeper' : role === 'Admin'));
+      assert.equal(all(tree, n => n.type === 'form').length, Number(workflow !== 'inbound' && role === 'Admin'));
     }
   }
 });
@@ -110,7 +113,7 @@ test('transfer receipts stay in the transfer workflow and cross-workflow details
 });
 
 
-function inspection(states, { reports = [], post = async () => {}, get = async () => ({ pallet: { code: 'PID-1' }, cartons: [] }) } = {}) {
+function inspection(states, { reports = [], post = async () => {}, get = async () => ({ pallet: { code: 'PID-1' }, cartons: [] }), initialCode = '' } = {}) {
   let index = 0;
   const code = ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/features/warehouse-work/PalletReceiving.tsx'), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX },
@@ -124,8 +127,15 @@ function inspection(states, { reports = [], post = async () => {}, get = async (
   };
   const mod = { exports: {} };
   new Function('require', 'exports', 'module', code)(name => Object.hasOwn(mocks, name) ? mocks[name] : require(name), mod.exports, mod);
-  return mod.exports.PalletReceiving({ documentId: 'receipt', version: 3, editable: true });
+  return mod.exports.PalletReceiving({ documentId: 'receipt', version: 3, editable: true, initialCode });
 }
+
+test('pallet chosen from arrivals is fixed on the receipt inspection form', () => {
+  const tree = inspection(['PID-1', undefined, [], '', false], { initialCode: 'PID-1' });
+  const input = all(tree, n => n.type === 'input')[0];
+  assert.equal(input.props.value, 'PID-1');
+  assert.equal(input.props.readOnly, true);
+});
 
 test('pallet preview is read-only and suppresses double scanner submission', async () => {
   const reads = [], writes = [];
