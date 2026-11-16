@@ -50,7 +50,7 @@ export function FactoryTraceabilityPage() {
     <Card title="Mở ứng dụng traceability"><QueryState query={application}>{data => <>
       <p>Tạo batch, đóng carton, xếp pallet, in QR và phát hành đến kho trên ứng dụng nhà máy.</p>
       <a className="btn btn-primary" href={data.url} target="_blank" rel="noopener noreferrer">Mở hệ thống traceability</a>
-      <p><Link to="/warehouse-work">Mở phiếu nhập / xuất của FSCM</Link></p>
+      <p><Link to="/warehouse-inbound">Mở màn hình nhập kho của FSCM</Link></p>
     </>}</QueryState></Card>
     <TraceLookup />
   </>;
