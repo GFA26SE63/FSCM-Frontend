@@ -238,15 +238,13 @@ test('QrLabelsPanel: exact section name "Mã QR lô hàng", Vietnamese empty sta
   assert.ok(panelCode.includes('Chưa có mã QR cho lô hàng này.'));
 
   // Permission checks
-  assert.ok(panelCode.includes("can(user, 'qr.generate')"));
+  assert.ok(!panelCode.includes("can(user, 'qr.generate')"));
   assert.ok(panelCode.includes("can(user, 'qr.print')"));
   assert.ok(panelCode.includes("can(user, 'qr.view')"));
 
-  // Disposed batch cannot generate QR
-  assert.ok(panelCode.includes("batch?.expiryStatus === 'Disposed'"));
-
-  // Generation dialog integration
-  assert.ok(panelCode.includes('<GenerateQrDialog'));
+  // Receipt approval owns generation; this panel only reads and prints existing labels.
+  assert.ok(panelCode.includes('Tem QR sẽ được tự sinh khi phiếu nhập kho của lô được duyệt.'));
+  assert.ok(!panelCode.includes('<GenerateQrDialog'));
   assert.ok(panelCode.includes('<LabelPrintDialog'));
 });
 
@@ -287,14 +285,14 @@ test('BatchesPage: displays QR column with real counts, and includes QR actions'
   assert.ok(pageCode.includes("tem"));
 
   // Row actions
-  assert.ok(pageCode.includes("'Sinh mã QR'"));
+  assert.ok(!pageCode.includes("'Sinh mã QR'"));
   assert.ok(pageCode.includes("'In tem QR'"));
 
   // Direct [Xem] button preserved
   assert.ok(pageCode.includes('<span>Xem</span>'));
 
   // Dialogs integrated
-  assert.ok(pageCode.includes('<GenerateQrDialog'));
+  assert.ok(!pageCode.includes('<GenerateQrDialog'));
   assert.ok(pageCode.includes('<LabelPrintDialog'));
 });
 
@@ -315,22 +313,19 @@ test('UI Quality & No Mock Data: zero fake QR identifiers, sample QR codes or te
   assert.ok(!dialogFile.includes('API endpoint'));
 });
 
-test('Issue 1 Fix: QrLabelsPanel integrates useBatchInventory to resolve real inventory from Goods Receipt', () => {
+test('QrLabelsPanel reads receipt-generated labels with a user-specific query cache', () => {
   const panelFile = path.resolve(__dirname, '../src/features/qr-labels/components/QrLabelsPanel.tsx');
   const panelCode = fs.readFileSync(panelFile, 'utf8');
   const hooksFile = path.resolve(__dirname, '../src/features/qr-labels/hooks.ts');
   const hooksCode = fs.readFileSync(hooksFile, 'utf8');
 
-  // Integrates useBatchInventory to resolve inventory without circular dependency
-  assert.ok(panelCode.includes('useBatchInventory'));
-  assert.ok(panelCode.includes('const batchQuery = useBatchInventory(batchId, !batch)'));
-  assert.ok(hooksCode.includes('export function useBatchInventory'));
-  assert.ok(panelCode.includes('resolvedBatch'));
-  assert.ok(panelCode.includes('batchQuery.data.onHandQuantity'));
-  assert.ok(panelCode.includes('batchQuery.data.availableQuantity'));
-
-  // Disables while fetching batch inventory data to avoid premature zero-inventory error
-  assert.ok(panelCode.includes('batchQuery.isFetching'));
+  assert.ok(panelCode.includes('useBatchQrLabels(ownerId, batchId)'));
+  assert.ok(panelCode.includes('ownerId={user.id}'));
+  assert.ok(panelCode.includes('key={`${user.id}:${props.batchId}`}'));
+  assert.ok(hooksCode.includes('enabled: Boolean(ownerId && batchId)'));
+  assert.ok(hooksCode.includes('queryFn: () => qrLabelApi.listByBatch(batchId)'));
+  assert.ok(panelCode.includes('query.isFetching'));
+  assert.ok(!panelCode.includes('useBatchInventory'));
 });
 
 test('Issue 2 Fix: useGenerateQrLabel adheres to useApiMutation with qr.generate and 403 standard error', () => {
@@ -419,9 +414,9 @@ test('Warehouse Keeper Scoped vs Admin Global Batch QR Generation logic', () => 
   const dialogFile = path.resolve(__dirname, '../src/features/qr-labels/components/GenerateQrDialog.tsx');
   const dialogCode = fs.readFileSync(dialogFile, 'utf8');
 
-  // Both components verify isKeeper, assignedWhIds and assignedWhCode
-  assert.ok(panelCode.includes("user?.role === 'WarehouseKeeper'"));
-  assert.ok(panelCode.includes("isWarehouseScoped"));
+  // The read-only panel uses server authorization; the legacy generation dialog retains its guard.
+  assert.ok(panelCode.includes("!can(user, 'qr.view')"));
+  assert.ok(!panelCode.includes('<GenerateQrDialog'));
   assert.ok(dialogCode.includes("user?.role === 'WarehouseKeeper'"));
   assert.ok(dialogCode.includes("isWarehouseScoped"));
 

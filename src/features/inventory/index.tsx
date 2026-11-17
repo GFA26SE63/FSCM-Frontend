@@ -40,12 +40,12 @@ export function InventoryPage() {
     setFilters(current => ({ ...current, [name]: value, page: 1 }));
   return <>
     <PageHeader title="Inventory · QR từ nhà máy" subtitle="Theo dõi từng carton đã nhận vào FSCM, mapping pallet / batch / SKU và xác nhận nhập về Traceability." />
-    <p className="row-wrap" style={{ gap: 12 }}><Link className="btn" to="/batches">Tồn và reservation theo batch</Link>{user?.role !== 'Operator' && <Link className="btn" to="/warehouse-work">Phiếu nhập · xuất kho</Link>}</p>
+    <p className="row-wrap" style={{ gap: 12 }}><Link className="btn" to="/batches">Tồn và reservation theo batch</Link>{user?.role !== 'Operator' && <Link className="btn" to="/warehouse-inbound">Nhập kho</Link>}</p>
     <Card title="Danh sách QR đã nhận">
       <p>Mỗi dòng là một carton. Pallet là pallet đóng gói gốc; kho và trạng thái QR phản ánh vị trí hiện tại hoặc kho xuất khi đang vận chuyển.</p>
       <p className="muted">Allocation giữ số lượng theo batch; QR “Sẵn sàng” chưa được soạn nhưng có thể thuộc batch đang giữ cho đơn. Xem tồn khả dụng ở bảng batch. Trạng thái xác nhận nhà máy không làm thay đổi tồn đã nhập.</p>
       <form className="row-wrap" style={{ gap: 12, marginBottom: 16 }} onSubmit={e => { e.preventDefault(); setFilters(current => ({ ...current, search: search.trim(), page: 1 })); }}>
-        <label>Kho <select value={filters.warehouseId} onChange={e => changeFilter('warehouseId', e.target.value)}><option value="">Tất cả kho được phép</option>{warehouses.data?.map(w => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select></label>
+        <label>Kho <select value={filters.warehouseId} onChange={e => changeFilter('warehouseId', e.target.value)}><option value="">Tất cả kho được phép</option>{warehouses.data?.filter(w => user?.role !== 'WarehouseKeeper' || user.scope?.warehouseIds.includes(w.id)).map(w => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select></label>
         <label>Trạng thái QR <select value={filters.status} onChange={e => changeFilter('status', e.target.value)}><option value="">Tất cả</option>{['Available', 'Picked', 'InTransit', 'Delivered', 'Invalidated', 'Split'].map(s => <option key={s} value={s}>{labelStatusText(s)}</option>)}</select></label>
         <label>Xác nhận về nhà máy <select value={filters.syncStatus} onChange={e => changeFilter('syncStatus', e.target.value)}><option value="">Tất cả</option><option value="Pending">Chờ gửi / đang thử lại</option><option value="Synced">Đã xác nhận</option><option value="Legacy">Dữ liệu cũ chưa có ACK</option></select></label>
         <label>Tìm QR / pallet / batch / SKU <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Quét CID, PID hoặc nhập mã" /></label>
