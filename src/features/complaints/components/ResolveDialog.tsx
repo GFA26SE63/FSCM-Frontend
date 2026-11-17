@@ -13,7 +13,7 @@ const reasonLabel = (decision: string) =>
 
 const reasonPlaceholder = (decision: string) =>
   decision === 'reject' ? 'Nêu rõ lý do từ chối khiếu nại'
-    : decision === 'requestEvidence' ? 'Nêu rõ bằng chứng Retailer cần bổ sung (ảnh tem, biên bản giao nhận…)'
+    : decision === 'requestEvidence' ? 'Nêu rõ bằng chứng điểm bán cần bổ sung (ảnh tem, biên bản giao nhận…)'
     : 'Nêu căn cứ chấp nhận khiếu nại';
 
 /**
@@ -29,10 +29,10 @@ export function ResolveDialog({ code, onClose }: { code: string | null; onClose:
   if (!code || !claim) return null;
   if (claim.status === 'Approved' && !mayDecide) return null;
   const options = claim?.status === 'Approved' ? [{value:'approve',label:'Chốt tài chính cho yêu cầu đã duyệt'}] : [
-    { value: 'requestEvidence', label: 'Yêu cầu Retailer bổ sung bằng chứng' },
+    { value: 'requestEvidence', label: 'Yêu cầu điểm bán bổ sung bằng chứng' },
     ...(mayDecide
       ? [
-          { value: 'approve', label: 'Chấp nhận – hoàn tiền / điều chỉnh tài chính (theo giá net của batch)' },
+          { value: 'approve', label: 'Chấp nhận – hoàn tiền / điều chỉnh tài chính (theo giá sau giảm giá của lô hàng)' },
           { value: 'reject', label: 'Từ chối khiếu nại (bắt buộc nêu lý do)' },
         ]
       : []),
@@ -77,7 +77,7 @@ export function ResolveDialog({ code, onClose }: { code: string | null; onClose:
           },
           render: (v, set, error) => (
             <FormField label={reasonLabel(String(v.decision))} required error={error}
-              hint={!error ? 'Nội dung này được gửi cho Retailer và lưu vào lịch sử xử lý.' : undefined}>
+              hint={!error ? 'Nội dung này được gửi cho điểm bán và lưu vào lịch sử xử lý.' : undefined}>
               <TextArea value={v.result ?? ''} invalid={!!error} onChange={(e) => set('result', e.target.value)}
                 placeholder={reasonPlaceholder(String(v.decision))} />
             </FormField>

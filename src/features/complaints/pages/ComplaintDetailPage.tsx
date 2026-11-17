@@ -30,7 +30,7 @@ export function ComplaintDetailPage() {
           <Card>
             <Fields cols={3} items={[
               { label: 'Đơn hàng', value: <a href={`/orders/${c.salesOrderId}`} onClick={(e) => { e.preventDefault(); navigate(`/orders/${c.salesOrderId}`); }}>{c.orderCode}</a> },
-              { label: 'Retailer', value: `${c.retailerName} (${c.retailerCode})` },
+              { label: 'Điểm bán', value: `${c.retailerName} (${c.retailerCode})` },
               { label: 'Thời gian gửi', value: formatDateTime(c.createdAt) },
             ]} />
           </Card>
@@ -52,11 +52,11 @@ export function ComplaintDetailPage() {
           </Card>
           {c.reviewStatus === 'UnderReview' && <Callout tone="warn"><b>Đã yêu cầu bổ sung bằng chứng:</b> {c.evidenceRequestReason ?? '—'}</Callout>}
           {c.status === 'Approved' && !c.physicalHandlingCompleted && <Callout tone="warn">Đã duyệt phương án, đang chờ xử lý hàng thực tế. Chưa điều chỉnh công nợ hoặc tạo phiếu hoàn tiền.</Callout>}
-          {c.status === 'Approved' && c.physicalHandlingCompleted && !c.financialAdjustmentApplied && <Callout tone="warn">Đã xác nhận xử lý hàng, đang chờ chốt tài chính. Nếu đơn còn phần giao chưa đối soát, hoàn tất phần giao trước rồi Admin chọn Chốt tài chính.</Callout>}
+          {c.status === 'Approved' && c.physicalHandlingCompleted && !c.financialAdjustmentApplied && <Callout tone="warn">Đã xác nhận xử lý hàng, đang chờ chốt tài chính. Nếu đơn còn phần giao chưa đối soát, hoàn tất phần giao trước rồi quản trị viên chọn Chốt tài chính.</Callout>}
           {c.documents && c.documents.length > 0 && <Card title="Phiếu trả hàng / thu hồi">
             {c.documents.map(d => <div key={d.id} style={{padding:'10px 0',borderBottom:'1px solid var(--border)'}}>
               <b>{d.kind === 'ReturnOrder' ? 'Phiếu trả hàng' : 'Phiếu thu hồi'} · {d.code}</b>
-              <div>{d.status === 'Pending' ? 'Chờ xử lý ngoài hệ thống' : d.status === 'Waived' ? 'Admin miễn xử lý hàng' : 'Đã xác nhận xử lý'} · Duyệt {d.approvedQuantity} thùng · Thực tế {d.actualQuantity ?? '—'}</div>
+              <div>{d.status === 'Pending' ? 'Chờ xử lý ngoài hệ thống' : d.status === 'Waived' ? 'Quản trị viên miễn xử lý hàng' : 'Đã xác nhận xử lý'} · Duyệt {d.approvedQuantity} thùng · Thực tế {d.actualQuantity ?? '—'}</div>
               {d.note && <div>{d.note}</div>}{d.evidenceReference && <div>Bằng chứng: {d.evidenceReference}</div>}
               {d.completedAt && <div>{formatDateTime(d.completedAt)}</div>}
             </div>)}
@@ -70,7 +70,7 @@ export function ComplaintDetailPage() {
               {mayRefund && c.refundId && <> · <a href="/refunds" onClick={(e) => { e.preventDefault(); navigate('/refunds'); }}>Xem phiếu hoàn tiền đã tạo</a></>}
             </Callout>
           )}
-          {c.status === 'Cancelled' && <Callout tone="neutral">Retailer đã hủy khiếu nại này.</Callout>}
+          {c.status === 'Cancelled' && <Callout tone="neutral">Điểm bán đã hủy khiếu nại này.</Callout>}
           <Card title="Bằng chứng đã gửi">
             {evidence.isLoading ? 'Đang tải…' : (evidence.data ?? []).length === 0 && !c.evidenceUrl ? 'Chưa có bằng chứng.' : (
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>

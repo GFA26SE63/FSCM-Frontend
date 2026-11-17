@@ -51,11 +51,11 @@ export function RefundsPage() {
     <>
       <PageHeader
         title="Hoàn tiền"
-        subtitle="Hồ sơ hoàn tiền thủ công. Hệ thống không chuyển tiền: người có quyền chuyển ngoài hệ thống, nộp bằng chứng, rồi Admin xác minh."
+        subtitle="Hồ sơ hoàn tiền thủ công. Hệ thống không chuyển tiền: người có quyền chuyển ngoài hệ thống, nộp bằng chứng, rồi quản trị viên xác minh."
       />
       <div className="grid-3">
         <Stat label="Hồ sơ đang mở" value={String(open.length)} note={formatMoney(sum(open))} />
-        <Stat label="Chờ Admin xác minh" value={String(rows.filter((r) => r.status === 'AwaitingVerification').length)} />
+        <Stat label="Chờ quản trị viên xác minh" value={String(rows.filter((r) => r.status === 'AwaitingVerification').length)} />
         <Stat label="Đã hoàn (đã xác minh)" value={formatMoney(sum(rows.filter((r) => r.status === 'Refunded')))} />
       </div>
 
@@ -73,7 +73,7 @@ export function RefundsPage() {
               emptyText="Không có khoản nào đã thu vượt mức phải thu mà chưa có hồ sơ hoàn."
               columns={[
                 { key: 'order', header: 'Đơn', width: '110px', render: (r: RefundObligation) => <span className="bold">{r.orderCode}</span>, text: (r: RefundObligation) => r.orderCode },
-                { key: 'retailer', header: 'Retailer', text: (r: RefundObligation) => r.retailerName },
+                { key: 'retailer', header: 'Điểm bán', text: (r: RefundObligation) => r.retailerName },
                 { key: 'confirmed', header: 'Đã thu', width: '120px', align: 'right', text: (r: RefundObligation) => formatMoney(r.confirmedAmount) },
                 { key: 'adjusted', header: 'Phải thu sau điều chỉnh', width: '170px', align: 'right', text: (r: RefundObligation) => formatMoney(r.adjustedAmount) },
                 { key: 'refunded', header: 'Đã hoàn', width: '110px', align: 'right', text: (r: RefundObligation) => formatMoney(r.refundedAmount) },
@@ -145,7 +145,7 @@ export function RefundsPage() {
             visible: () => (target?.claimIds.length ?? 0) > 0,
           },
         ]}
-        note="Tạo hồ sơ không có nghĩa là đã chuyển tiền. Khoản chỉ được tính là đã hoàn sau khi có bằng chứng và Admin xác minh."
+        note="Tạo hồ sơ không có nghĩa là đã chuyển tiền. Khoản chỉ được tính là đã hoàn sau khi có bằng chứng và quản trị viên xác minh."
         onClose={() => setTarget(null)}
         onSubmit={async (values) => {
           if (!target) return;
