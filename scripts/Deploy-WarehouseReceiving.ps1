@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param()
+param([switch]$InventoryLayout)
 
 $ErrorActionPreference = 'Stop'
 if ($PSVersionTable.PSVersion.Major -lt 7) { throw 'Run this script in PowerShell 7.' }
@@ -117,6 +117,28 @@ function Wait-Vercel([ValidatePattern('^[0-9a-fA-F]{40}$')][string]$Sha) {
 }
 
 Invoke-Gh @('auth', 'status', '--hostname', 'github.com') | Out-Host
+if ($InventoryLayout) {
+    $change = @{
+        Repo = 'GFA26SE63/FSCM-Frontend'; Directory = 'FSCM-Frontend'; Branch = 'fix/inventory-carton-detail-layout-20261117'
+        Title = 'fix(inventory): contain long codes and show carton details immediately'
+        Body = 'Long carton, pallet, batch and receipt codes stay within fixed-width columns with wrapping. Filters adapt to narrow screens. Clicking a carton opens its history and source trace in a drawer instead of below the full list. Validation: build, lint, 265 frontend tests passed; local fixture UI verified code wrapping and opening/closing details.'
+    }
+    $sha = Publish-Release $change
+    Wait-Vercel $sha
+    $site = 'https://fscm-frontend.vercel.app'
+    $html = [string](Invoke-WebRequest -Uri $site -TimeoutSec 30).Content
+    $entry = [regex]::Match($html, 'src="([^\"]*/assets/index-[^\"]+\.js)"')
+    if (-not $entry.Success) { throw 'Could not identify the production entry bundle.' }
+    $bundle = [string](Invoke-WebRequest -Uri ([Uri]::new([Uri]$site, $entry.Groups[1].Value).AbsoluteUri) -TimeoutSec 30).Content
+    $feature = [regex]::Match($bundle, '(?<![A-Za-z0-9_-])inventory-[A-Za-z0-9_-]+\.js')
+    if (-not $feature.Success) { throw 'Could not identify the inventory bundle.' }
+    $inventory = [string](Invoke-WebRequest -Uri "$site/assets/$($feature.Value)" -TimeoutSec 30).Content
+    if (-not $inventory.Contains('inventory-code') -or -not $inventory.Contains('Chi tiết carton') -or -not $inventory.Contains('Danh sách carton trong kho')) {
+        throw 'Production does not serve the inventory layout and detail drawer fix yet.'
+    }
+    Write-Host "DEPLOYED AND VERIFIED: Inventory layout and carton details at $site"
+    return
+}
 $trace = @{
     Repo = 'GFA26SE63/FSCM-Traceability'; Directory = 'FSCM-Traceability'; Branch = 'release/factory-dispatches-20261117'
     Title = 'release: expose dispatched factory pallets for assigned warehouse receiving'
