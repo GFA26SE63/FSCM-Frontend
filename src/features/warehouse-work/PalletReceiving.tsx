@@ -10,9 +10,9 @@ interface Report { palletCode: string; cartons: Inspection[] }
 interface Manifest { pallet: { code: string }; sku: string; cartons: { code: string }[] }
 const labels = { Accepted: 'Đạt', Damaged: 'Hỏng · cách ly', Missing: 'Thiếu', '': 'Chưa kiểm' };
 
-export function PalletReceiving({ documentId, version, editable, receivedCount = 0 }: { documentId: string; version: number; editable: boolean; receivedCount?: number }) {
+export function PalletReceiving({ documentId, version, editable, receivedCount = 0, initialCode = '' }: { documentId: string; version: number; editable: boolean; receivedCount?: number; initialCode?: string }) {
   const client = useQueryClient();
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(initialCode);
   const [manifest, setManifest] = useState<Manifest>();
   const [rows, setRows] = useState<Inspection[]>([]);
   const [error, setError] = useState('');
@@ -41,7 +41,7 @@ export function PalletReceiving({ documentId, version, editable, receivedCount =
     finally { running.current = false; setBusy(false); }
   }
   async function refresh() {
-    await Promise.all(['receipt-inspection', 'warehouse-documents', 'inventory', 'qr-inventory', 'batches', 'qr-labels'].map(key => client.invalidateQueries({ queryKey: [key] })));
+    await Promise.all(['receipt-inspection', 'warehouse-documents', 'factory-pending', 'inventory', 'qr-inventory', 'batches', 'qr-labels'].map(key => client.invalidateQueries({ queryKey: [key] })));
   }
   async function close() {
     if (running.current) return;
@@ -59,7 +59,7 @@ export function PalletReceiving({ documentId, version, editable, receivedCount =
     {reports.isError && <p role="alert">{errorMessage(reports.error)}</p>}
     {editable && <>
       <form className="row-wrap" onSubmit={e => { e.preventDefault(); void preview(); }}>
-        <label>Mã pallet <input value={code} disabled={busy || !!manifest} onChange={e => setCode(e.target.value)} /></label>
+        <label>Mã pallet <input value={code} readOnly={!!initialCode} disabled={busy || !!manifest} onChange={e => setCode(e.target.value)} /></label>
         <button className="btn" disabled={busy || !code.trim() || !!manifest}>Mở kiểm đếm</button>
       </form>
       {manifest && <>
@@ -82,6 +82,6 @@ export function PalletReceiving({ documentId, version, editable, receivedCount =
       { header: 'Kết quả nhận', cell: r => labels[r.disposition] },
       { header: 'Lý do', cell: r => r.reason || '—' },
       { header: 'Vị trí cách ly', cell: r => r.quarantineLocation || '—' },
-    ]} empty="Chưa có biên bản kiểm đếm. Phiếu cũ có thể chỉ có mapping nhận hàng phía dưới." />
+    ]} empty="Chưa xác nhận kiểm đếm pallet." />
   </section>;
 }
