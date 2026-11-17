@@ -115,12 +115,12 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
     }
     finally { inFlight.current = false; setBusy(false); scanInput.current?.focus(); }
   }
-  async function printLabels(stock = false) {
+  async function printLabels(stock = false, receipt = false) {
     if (!active) return;
     const win = window.open('', '_blank');
     if (!win) { setError('Cho phép mở cửa sổ để in nhãn.'); return; }
     try {
-      const { data } = await http.get<string>(`${base}/${active.document.id}/${stock ? 'stock-labels' : 'labels'}`, { responseType: 'text' });
+      const { data } = await http.get<string>(`${base}/${active.document.id}/${receipt ? 'receipt-print' : stock ? 'stock-labels' : 'labels'}`, { responseType: 'text' });
       win.document.open(); win.document.write(data); win.document.close();
     } catch (e) { win.close(); setError(errorMessage(e)); }
   }
@@ -186,6 +186,7 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
       <p>{reasons[d.reason]} · {whName(d.warehouseId)} · {statuses[d.status]} · {formatInstantDateTime(d.createdAt)}</p>
       {d.sourceDocumentId && <p>Chứng từ nguồn: <button className="btn btn-sm warehouse-document-code" onClick={() => setSelected(d.sourceDocumentId!)}><span>{docs.data?.find(w => w.document.id === d.sourceDocumentId)?.document.code}</span></button></p>}
       {d.note && <p>{d.note}</p>}
+      {d.kind === 'Receipt' && <button className="btn" onClick={() => void printLabels(false, true)}>In / Lưu PDF phiếu nhập kho</button>}
       {d.reason !== 'Factory' && <><h3>Tổng hợp lấy hàng theo SKU / batch</h3>
       <SimpleTable rows={Object.values(active.lines.reduce<Record<string, { sku: string; batch: string; expiry: string; required: number; scanned: number }>>((result, line) => {
         const key = `${line.sku}:${line.batchCode ?? line.sourceLotCode}:${line.expirationDate}`;
