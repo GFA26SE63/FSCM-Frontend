@@ -13,7 +13,8 @@ import type {
 const path = (id: string) =>
   '/products/' + encodeURIComponent(id);
 
-async function list(): Promise<Product[]> {
+/** Fetch all products via sequential page loop. Used by consumers that need the complete collection (MLOR, SKU redirect). */
+async function listAll(): Promise<Product[]> {
   const products: Product[] = [];
 
   for (let page = 1; ; page += 1) {
@@ -35,15 +36,33 @@ async function list(): Promise<Product[]> {
   return products;
 }
 
+/** Fetch a single page of products. Used by the Products list screen for server-side pagination. */
+async function listPage(params: {
+  page: number;
+  pageSize: number;
+  search?: string;
+  status?: string;
+  categoryId?: string;
+}): Promise<ProductPage> {
+  return get<ProductPage>('/products', {
+    page: params.page,
+    pageSize: params.pageSize,
+    ...(params.search ? { search: params.search } : {}),
+    ...(params.status ? { status: params.status } : {}),
+    ...(params.categoryId ? { categoryId: params.categoryId } : {}),
+  });
+}
+
 export const productApi = {
-  list,
+  listAll,
+  listPage,
 
   get: async (identifier: string): Promise<Product> => {
     let id = identifier;
 
     // Giữ tương thích các link cũ từ màn danh mục.
     if (/^SKU[0-9]{3}$/i.test(identifier)) {
-      const product = (await list()).find(
+      const product = (await listAll()).find(
         (p) => p.sku === identifier.toUpperCase(),
       );
 

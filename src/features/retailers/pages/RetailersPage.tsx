@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
 import { useEnumParam } from '@/shared/router/listState';
-import { get } from '@/shared/api/http';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
+import { useRestPagination, paginationQueryKeys } from '@/shared/pagination';
 import {
   Button,
   DataTable,
@@ -13,31 +13,10 @@ import {
   StatusChip,
   type Column,
 } from '@/shared/ui';
+import { retailerApi } from '../api';
+import type { Retailer } from '../types';
 import { RetailerFormDialog } from '../components/RetailerFormDialog';
 import { RetailerReviewDialog } from '../components/RetailerReviewDialog';
-import {
-  SORT_OPTIONS,
-  SORT_SELECT_OPTIONS,
-  sortRetailers,
-  type RetailerSort,
-} from '../retailerSort';
-
-type Retailer = {
-  id: string;
-  code: string;
-  name: string;
-  contactName?: string;
-  phone?: string;
-  address?: string;
-  status: 'Draft' | 'PendingApproval' | 'Active' | 'Rejected' | 'Inactive' | 'Locked' | string;
-  retailerType: string;
-  salesGroupCode: string;
-  creditTermDays: number;
-  createdAt?: string;
-  updatedAt?: string;
-};
-
-type RetailerPage = { items: Retailer[]; totalCount: number };
 
 const statusLabel: Record<string, string> = {
   Draft: 'Bản nháp',
@@ -48,34 +27,58 @@ const statusLabel: Record<string, string> = {
   Locked: 'Đã khóa',
 };
 
+const STATUS_VALUES = ['', 'Draft', 'PendingApproval', 'Active', 'Rejected', 'Inactive', 'Locked'] as const;
+type StatusValue = (typeof STATUS_VALUES)[number];
+
+const STATUS_FILTER_OPTIONS = [
+  { label: 'Tất cả', value: '' },
+  ...Object.entries(statusLabel).map(([value, label]) => ({ label, value })),
+];
+
 /** Operational retailer queue backed by the current Retailers API. */
 export function RetailersPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [reviewing, setReviewing] = useState<Retailer | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [sort, setSort] = useEnumParam<RetailerSort>(
-    'sort',
-    SORT_OPTIONS,
-    'newest',
+
+  // Status filter — synced to URL, resets page on change
+  const [statusFilter, setStatusFilter] = useEnumParam<StatusValue>(
+    'status',
+    STATUS_VALUES,
+    '',
     { resets: ['page'] },
   );
 
-  const query = useQuery({
-    queryKey: ['retailers', 'portal'],
-    queryFn: () => get<RetailerPage>('/retailers', { page: 1, pageSize: 100 }),
+  // Phase 0 REST pagination hook — manages page/size/search from URL
+  // total starts at 0; patched with real totalCount once query data arrives
+  const { page, pageSize, search, pagingProps: basePagingProps } = useRestPagination({
+    defaultPageSize: 20,
+    pageSizeOptions: [10, 20, 50],
+    urlState: true,
   });
 
-  const rawRows = useMemo(() => query.data?.items ?? [], [query.data?.items]);
-  const rows = useMemo(() => sortRetailers(rawRows, sort), [rawRows, sort]);
+  const query = useQuery({
+    queryKey: paginationQueryKeys.restPage('retailers', {
+      page,
+      size: pageSize,
+      search,
+      filters: { status: statusFilter },
+    }),
+    queryFn: () =>
+      retailerApi.list({
+        page,
+        pageSize,
+        search: search || undefined,
+        status: statusFilter || undefined,
+      }),
+    placeholderData: (prev) => prev,
+  });
 
-  const groups = useMemo(() => {
-    const set = new Set<string>();
-    rows.forEach((r) => {
-      if (r.salesGroupCode) set.add(r.salesGroupCode);
-    });
-    return Array.from(set).sort();
-  }, [rows]);
+  // Patch pagingProps with real total so DataTable shows correct page count
+  const totalCount = query.data?.totalCount ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const pagingProps = { ...basePagingProps, total: totalCount, totalPages };
 
   const columns: Column<Retailer>[] = [
     { key: 'code', header: 'Mã', width: '120px', text: (row) => row.code },
@@ -116,36 +119,21 @@ export function RetailersPage() {
       />
       <DataTable
         title="Danh sách retailer"
-        rows={rows}
-        loading={query.isLoading}
-        error={query.error}
-        rowKey={(row) => row.id}
+        rows={query.data?.items}
+        loading={query.isLoading || query.isPlaceholderData}
+        error={query.isPlaceholderData ? undefined : query.error}
+        rowKey={(row) => row.id ?? row.code}
         columns={columns}
         onRowClick={(row) => navigate(`/retailers/${row.id || row.code}`)}
         searchPlaceholder="Mã, tên điểm bán, người liên hệ, SĐT..."
-        filters={[
-          {
-            label: 'Trạng thái',
-            options: Object.values(statusLabel),
-            value: (row) => statusLabel[row.status] || row.status,
-          },
-          ...(groups.length > 0
-            ? [
-                {
-                  label: 'Nhóm Sales',
-                  options: groups,
-                  value: (row: Retailer) => row.salesGroupCode || '—',
-                },
-              ]
-            : []),
-        ]}
+        server={pagingProps}
         filterExtra={
           <label className="lbl">
-            Sắp xếp theo
+            Trạng thái
             <Select
-              value={sort}
-              options={SORT_SELECT_OPTIONS}
-              onChange={(e) => setSort(e.target.value as RetailerSort)}
+              value={statusFilter}
+              options={STATUS_FILTER_OPTIONS}
+              onChange={(e) => setStatusFilter(e.target.value as StatusValue)}
             />
           </label>
         }
@@ -172,10 +160,8 @@ export function RetailersPage() {
           </div>
         )}
       />
-      {reviewing && <RetailerReviewDialog retailer={reviewing} onClose={() => setReviewing(null)} />}
+      {reviewing && reviewing.id && <RetailerReviewDialog retailer={reviewing as Retailer & { id: string }} onClose={() => setReviewing(null)} />}
       {createOpen && <RetailerFormDialog open retailer={null} onClose={() => setCreateOpen(false)} />}
     </>
   );
 }
-
-
