@@ -77,13 +77,12 @@ export function RetailerFormDialog({
   }
 
   const fields: FormFieldDef[] = [
+    // The 8-digit code is issued by the system, so it is only shown (read-only) when editing.
     {
       key: 'code',
-      label: 'Mã điểm bán (8 chữ số)',
-      required: true,
-      readOnly: edit,
-      validate: (v) =>
-        !IdFormat.isRetailerCode(String(v)) ? 'Mã gồm đúng 8 chữ số.' : undefined,
+      label: 'Mã điểm bán',
+      readOnly: true,
+      visible: () => edit,
     },
     { key: 'name', label: 'Tên điểm bán', required: true, span: 2 },
     { key: 'contactName', label: 'Người liên hệ', required: true },
@@ -174,6 +173,8 @@ export function RetailerFormDialog({
       key: 'creditTermDays',
       label: 'Kỳ hạn công nợ đề xuất',
       type: 'select',
+      // A new retailer gets its credit term when Admin approves it.
+      visible: () => edit,
       options: [
         { value: '0', label: 'Không công nợ (chỉ trả trước)' },
         { value: '7', label: '7 ngày' },
@@ -186,6 +187,8 @@ export function RetailerFormDialog({
       label: 'Trạng thái hoạt động',
       type: 'select',
       readOnly: edit,
+      // A new retailer always starts as PendingApproval.
+      visible: () => edit,
       options: [
         { value: 'Active', label: 'Hoạt động' },
         { value: 'Locked', label: 'Đã khóa' },
@@ -262,6 +265,7 @@ export function RetailerFormDialog({
       columns={3}
       title={edit ? `Sửa thông tin hồ sơ ${retailer!.code}` : 'Tạo mới điểm bán'}
       submitLabel={edit ? 'Lưu thay đổi' : 'Tạo điểm bán'}
+      note={edit ? undefined : 'Mã điểm bán do hệ thống tự cấp. Điểm bán mới ở trạng thái Chờ duyệt như khai báo của Sales; kỳ hạn công nợ và tài khoản Retailer được tạo khi duyệt. Cần khai báo ít nhất 1 MLOR ở tab Yêu cầu hạn sử dụng trước khi duyệt.'}
       initial={initialValues}
       fields={fields}
       onClose={onClose}
@@ -290,7 +294,6 @@ export function RetailerFormDialog({
           const selectedRegion = rawAreas.find((a) => a.code === v.areaCode || a.id === v.areaCode);
           const selectedGroup = rawGroups.find((g) => g.code === v.groupCode || g.id === v.groupCode);
           await create.mutateAsync({
-            code: String(v.code).trim(),
             name: String(v.name).trim(),
             contact: String(v.contactName).trim(),
             contactName: String(v.contactName).trim(),
@@ -314,6 +317,7 @@ export function RetailerFormDialog({
             purchasingCapacity: capacity,
             orderFrequency: `${frequency} lần/tháng`,
             purchaseFrequencyPerMonth: frequency,
+            assessmentNote: v.assessmentNote ? String(v.assessmentNote).trim() : undefined,
             creditTermDays: creditDays,
             requestedCreditTermDays: creditDays,
             status: String(v.status || 'Active'),
