@@ -131,7 +131,7 @@ function ProductEditor({ mode, product, categories }: {
     {blocked ? <Callout tone="danger">Không thể mở form này với trạng thái hiện tại. Thông tin và giá đã đăng bán được khóa trên Portal.</Callout> : (
       <form onSubmit={(event) => void submit(event)} noValidate className="stack">
         {failure && <div className="callout callout-danger" role="alert">{failure}</div>}
-        {mode === 'clone' && <Callout tone="info">Điền sẵn từ {product?.sku}. Nhập SKU mới và chỉnh thông tin trước khi lưu thành bản nháp độc lập. Sản phẩm nguồn giữ nguyên trạng thái; tồn kho, batch và giao dịch không được sao chép.</Callout>}
+        {mode === 'clone' && <Callout tone="info">Điền sẵn từ {product?.sku}. Nhập SKU mới và chỉnh thông tin trước khi lưu thành bản nháp độc lập. Sản phẩm nguồn giữ nguyên trạng thái; tồn kho, lô hàng và giao dịch không được sao chép.</Callout>}
         {mode === 'replacement' && <Callout tone="info">Điền sẵn từ {product?.sku}. Bản nguồn vẫn đang bán; khi đăng bán bản mới, bản nguồn sẽ ngừng bán. Danh mục được kế thừa từ bản nguồn.</Callout>}
         <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           <Card title="Thông tin sản phẩm">

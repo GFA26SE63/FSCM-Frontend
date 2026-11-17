@@ -9,4 +9,4 @@ export const useStopBatchDiscount = () => useApiMutation(batchPromoApi.stop, { s
 export const scanLabel = batchPromoApi.label;
 export const useShelfLifeCurrent = () => useQuery({ queryKey: ['shelf-life-discounts', 'current'], queryFn: batchPromoApi.shelfLifeCurrent });
 export const useShelfLifeHistory = () => useQuery({ queryKey: ['shelf-life-discounts', 'history'], queryFn: batchPromoApi.shelfLifeHistory });
-export const usePublishShelfLife = () => useApiMutation(batchPromoApi.publishShelfLife, { success: (r) => `Đã publish bảng giảm HSD phiên bản ${r.version}.` });
+export const usePublishShelfLife = () => useApiMutation(batchPromoApi.publishShelfLife, { success: (r) => `Đã công bố bảng giảm HSD phiên bản ${r.version}.` });
