@@ -129,7 +129,7 @@ test('Source Code Integrity: RetailersPage integrates sort control and preserves
 
   // Existing table and filter integrations must be preserved
   assert.ok(pageCode.includes("label: 'Trạng thái'"), 'Status filter must be preserved');
-  assert.ok(pageCode.includes("label: 'Nhóm Sales'"), 'Sales group filter must be preserved');
+  assert.ok(pageCode.includes("label: 'Nhóm bán hàng'"), 'Sales group filter must be preserved');
   assert.ok(pageCode.includes('searchPlaceholder="Mã, tên điểm bán, người liên hệ, SĐT..."'), 'Search placeholder preserved');
   assert.ok(pageCode.includes('rowActionHeader="Thao tác"'), 'Row action header preserved');
   assert.ok(pageCode.includes('onRowClick={(row) => navigate(`/retailers/${row.id || row.code}`)}'), 'Row navigation preserved');

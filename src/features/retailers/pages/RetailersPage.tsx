@@ -85,7 +85,7 @@ export function RetailersPage() {
       header: 'Liên hệ',
       text: (row) => `${row.contactName ?? '—'} · ${row.phone ?? '—'}`,
     },
-    { key: 'salesGroup', header: 'Nhóm Sales', width: '130px', text: (row) => row.salesGroupCode },
+    { key: 'salesGroup', header: 'Nhóm bán hàng', width: '130px', text: (row) => row.salesGroupCode },
     { key: 'type', header: 'Loại hình', text: (row) => row.retailerType },
     {
       key: 'credit',
@@ -104,18 +104,18 @@ export function RetailersPage() {
   return (
     <>
       <PageHeader
-        title="Retailer"
-        subtitle="Theo dõi khai báo từ Sales, duyệt retailer và quản lý hồ sơ điểm bán."
+        title="Điểm bán"
+        subtitle="Theo dõi khai báo từ nhân viên bán hàng, duyệt điểm bán và quản lý hồ sơ điểm bán."
         actions={
           can(user, 'retailers.create') ? (
             <Button variant="primary" onClick={() => setCreateOpen(true)}>
-              + Tạo retailer
+              + Tạo điểm bán
             </Button>
           ) : undefined
         }
       />
       <DataTable
-        title="Danh sách retailer"
+        title="Danh sách điểm bán"
         rows={rows}
         loading={query.isLoading}
         error={query.error}
@@ -132,7 +132,7 @@ export function RetailersPage() {
           ...(groups.length > 0
             ? [
                 {
-                  label: 'Nhóm Sales',
+                  label: 'Nhóm bán hàng',
                   options: groups,
                   value: (row: Retailer) => row.salesGroupCode || '—',
                 },

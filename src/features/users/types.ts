@@ -136,8 +136,8 @@ export const assignmentKinds: Record<CreatableRole, ScopeKind[]> = {
 export const assignmentLabels: Record<ScopeKind, string> = {
   warehouses: 'Kho phụ trách',
   regions: 'Khu vực phụ trách',
-  'sales-groups': 'Nhóm Sales',
-  retailers: 'Retailer',
+  'sales-groups': 'Nhóm bán hàng',
+  retailers: 'Điểm bán phụ trách',
 };
 
 export const emptyAssignments = (): Assignments => ({

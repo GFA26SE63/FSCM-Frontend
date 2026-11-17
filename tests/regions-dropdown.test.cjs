@@ -29,10 +29,10 @@ test('Rule 1 & 4 & 5: Create Region form does not auto-select manager even if 1 
     regionDialogsCode.includes("setManagerId('');"),
     'AreaDialog must initialize managerId to empty string in create mode',
   );
-  // Must have placeholder "Chọn Sales Manager..."
+  // Must have placeholder "Chọn quản lý bán hàng..."
   assert.ok(
-    regionDialogsCode.includes('placeholder="Chọn Sales Manager..."'),
-    'AreaDialog Select must have placeholder "Chọn Sales Manager..."',
+    regionDialogsCode.includes('placeholder="Chọn quản lý bán hàng..."'),
+    'AreaDialog Select must have placeholder "Chọn quản lý bán hàng..."',
   );
 });
 
@@ -54,10 +54,10 @@ test('Rule 2 & 4 & 5: Create Sales Group form does not auto-select Region even i
     regionDialogsCode.includes('placeholder="Chọn vùng hoạt động..."'),
     'GroupDialog Select must have placeholder "Chọn vùng hoạt động..."',
   );
-  // Must have placeholder "Chọn Sales Manager..."
+  // Must have placeholder "Chọn quản lý bán hàng..."
   assert.ok(
-    regionDialogsCode.includes('placeholder="Chọn Sales Manager..."'),
-    'GroupDialog Select must have placeholder "Chọn Sales Manager..."',
+    regionDialogsCode.includes('placeholder="Chọn quản lý bán hàng..."'),
+    'GroupDialog Select must have placeholder "Chọn quản lý bán hàng..."',
   );
 });
 
@@ -77,12 +77,12 @@ test('Rule 3 & 4 & 5: Sales staff transfer does not auto-select employees or des
   );
   // Placeholders
   assert.ok(
-    regionDialogsCode.includes('placeholder="Chọn nhân viên Sales..."'),
-    'TransferStaffDialog must have placeholder "Chọn nhân viên Sales..."',
+    regionDialogsCode.includes('placeholder="Chọn nhân viên bán hàng..."'),
+    'TransferStaffDialog must have placeholder "Chọn nhân viên bán hàng..."',
   );
   assert.ok(
-    regionDialogsCode.includes('placeholder="Chọn nhóm Sales..."'),
-    'TransferStaffDialog must have placeholder "Chọn nhóm Sales..."',
+    regionDialogsCode.includes('placeholder="Chọn nhóm bán hàng..."'),
+    'TransferStaffDialog must have placeholder "Chọn nhóm bán hàng..."',
   );
 });
 
@@ -146,22 +146,22 @@ test('Rule 12: Form validations enforce natural Vietnamese messages', () => {
     'GroupDialog must reject inactive/invalid area with "Vùng hoạt động đã chọn không còn phù hợp."',
   );
   assert.ok(
-    regionDialogsCode.includes('Nhân viên này đã thuộc một nhóm Sales khác.'),
-    'GroupDialog must reject staff from other groups with "Nhân viên này đã thuộc một nhóm Sales khác."',
+    regionDialogsCode.includes('Nhân viên này đã thuộc một nhóm bán hàng khác.'),
+    'GroupDialog must reject staff from other groups with "Nhân viên này đã thuộc một nhóm bán hàng khác."',
   );
   assert.ok(
-    regionDialogsCode.includes('Vui lòng chọn nhân viên Sales.'),
-    'TransferStaffDialog must validate staff with "Vui lòng chọn nhân viên Sales."',
+    regionDialogsCode.includes('Vui lòng chọn nhân viên bán hàng.'),
+    'TransferStaffDialog must validate staff with "Vui lòng chọn nhân viên bán hàng."',
   );
   assert.ok(
-    regionDialogsCode.includes('Vui lòng chọn nhóm Sales.'),
-    'TransferStaffDialog must validate destination group with "Vui lòng chọn nhóm Sales."',
+    regionDialogsCode.includes('Vui lòng chọn nhóm bán hàng.'),
+    'TransferStaffDialog must validate destination group with "Vui lòng chọn nhóm bán hàng."',
   );
 });
 
 test('Rule 13: Region deactivation business rule restriction is preserved', () => {
   assert.ok(
-    regionsPageCode.includes('Không thể ngừng hoạt động khu vực này vì vẫn còn nhóm Sales đang hoạt động.'),
+    regionsPageCode.includes('Không thể ngừng hoạt động khu vực này vì vẫn còn nhóm bán hàng đang hoạt động.'),
     'RegionsPage must block region deactivation if it has active sales groups',
   );
 });

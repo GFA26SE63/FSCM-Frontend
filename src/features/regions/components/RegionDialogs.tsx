@@ -195,14 +195,14 @@ export function AreaDialog({
           )}
         </FormField>
 
-        <FormField label="Sales Manager phụ trách">
+        <FormField label="Quản lý bán hàng phụ trách">
           {readOnly ? (
             <div className="inp readonly">
               {managerOptions.find((m) => m.value === managerId)?.label || (managerId ? managerId : '— Chưa phân công —')}
             </div>
           ) : (
             <Select
-              placeholder="Chọn Sales Manager..."
+              placeholder="Chọn quản lý bán hàng..."
               value={managerId}
               options={managerOptions}
               onChange={(e) => setManagerId(e.target.value)}
@@ -433,7 +433,7 @@ export function GroupDialog({
         return Boolean(s.groupId || s.groupCode);
       });
       if (invalidMembers.length > 0) {
-        err.members = ['Nhân viên này đã thuộc một nhóm Sales khác.'];
+        err.members = ['Nhân viên này đã thuộc một nhóm bán hàng khác.'];
       }
     }
     setErrors(err);
@@ -484,7 +484,7 @@ export function GroupDialog({
       footer={
         <>
           <span className="muted small spacer">
-            Đã chọn <b>{selectedMembers.length}</b> Sales
+            Đã chọn <b>{selectedMembers.length}</b> Nhân viên bán hàng
           </span>
           <Button onClick={onClose} disabled={busy}>
             Hủy
@@ -545,9 +545,9 @@ export function GroupDialog({
           </FormField>
         </div>
 
-        <FormField label="Sales Manager phụ trách">
+        <FormField label="Quản lý bán hàng phụ trách">
           <Select
-            placeholder="Chọn Sales Manager..."
+            placeholder="Chọn quản lý bán hàng..."
             disabled={!areaCode}
             value={managerId}
             options={managerOptions}
@@ -583,7 +583,7 @@ export function GroupDialog({
             >
               {currentGroupMembersList.length === 0 ? (
                 <div className="muted" style={{ padding: 10, textAlign: 'center', fontSize: 13 }}>
-                  Nhóm hiện chưa có nhân viên Sales nào.
+                  Nhóm hiện chưa có nhân viên bán hàng nào.
                 </div>
               ) : (
                 currentGroupMembersList.map((m) => {
@@ -811,11 +811,11 @@ export function TransferStaffDialog({
     setError('');
 
     if (!current) {
-      setError('Vui lòng chọn nhân viên Sales.');
+      setError('Vui lòng chọn nhân viên bán hàng.');
       return;
     }
     if (!destination?.id) {
-      setError('Vui lòng chọn nhóm Sales.');
+      setError('Vui lòng chọn nhóm bán hàng.');
       return;
     }
 
@@ -855,16 +855,16 @@ export function TransferStaffDialog({
       {loadError && <Callout tone="danger">{errorMessage(loadError)}</Callout>}
       {error && <Callout tone="danger">{error}</Callout>}
       {!loading && !loadError && staff.length === 0 && <Callout tone="info">
-        Chưa có nhân viên Sales trong phạm vi được phân công.
+        Chưa có nhân viên bán hàng trong phạm vi được phân công.
       </Callout>}
       {!loading && !loadError && current && destinations.length === 0 && <Callout tone="info">
-        Chưa có nhóm đích khác được phép điều chuyển. Liên hệ Admin để kiểm tra phân công.
+        Chưa có nhóm đích khác được phép điều chuyển. Liên hệ quản trị viên để kiểm tra phân công.
       </Callout>}
       <fieldset disabled={loading || Boolean(loadError) || transfer.isPending}
         style={{ border: 0, padding: 0, margin: 0, display: 'grid', gap: 14, minWidth: 0 }}>
-        <FormField label="Nhân viên Sales" required>
+        <FormField label="Nhân viên bán hàng" required>
           <Select
-            placeholder="Chọn nhân viên Sales..."
+            placeholder="Chọn nhân viên bán hàng..."
             value={userId}
             options={staff.map((s) => ({
               value: s.userId,
@@ -882,7 +882,7 @@ export function TransferStaffDialog({
         </FormField>
         <FormField label="Nhóm đích" required>
           <Select
-            placeholder="Chọn nhóm Sales..."
+            placeholder="Chọn nhóm bán hàng..."
             disabled={!current || destinations.length === 0}
             value={groupId}
             options={destinations.map((g) => ({

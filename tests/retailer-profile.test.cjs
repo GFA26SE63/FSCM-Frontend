@@ -188,7 +188,7 @@ test('Source Code Integrity: RetailersPage implements standardized Thao tác, di
 
   // Filtering and searching
   assert.ok(pageCode.includes("label: 'Trạng thái'"));
-  assert.ok(pageCode.includes("label: 'Nhóm Sales'"));
+  assert.ok(pageCode.includes("label: 'Nhóm bán hàng'"));
   assert.ok(pageCode.includes('searchPlaceholder="Mã, tên điểm bán, người liên hệ, SĐT..."'));
 });
 
@@ -233,7 +233,7 @@ test('Source Code Integrity: RetailerMlorTab implements F22-FE Category & SKU ML
   );
 
   // Hierarchy rules and Vietnamese terminology
-  assert.ok(mlorTabCode.includes('Quy tắc thứ tự ưu tiên hạn sử dụng (MLOR)'));
+  assert.ok(mlorTabCode.includes('Quy tắc thứ tự ưu tiên hạn sử dụng (yêu cầu HSD tối thiểu)'));
   assert.ok(mlorTabCode.includes('1. Áp dụng theo danh mục'));
   assert.ok(mlorTabCode.includes('2. Yêu cầu riêng theo sản phẩm'));
   assert.ok(mlorTabCode.includes('3. Tra cứu yêu cầu đang áp dụng'));

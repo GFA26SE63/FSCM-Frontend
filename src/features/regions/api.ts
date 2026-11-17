@@ -700,7 +700,7 @@ export const regionApi = {
     }
 
     if (!userId || !isUuid(userId)) {
-      throw new Error(`Không xác định được mã nhân viên (userId) của Sales "${v.name}".`);
+      throw new Error(`Không xác định được mã nhân viên (userId) của nhân viên bán hàng "${v.name}".`);
     }
 
     const destGroupId = v.destinationSalesGroupId || (await resolveGroupId(v.toGroup));
