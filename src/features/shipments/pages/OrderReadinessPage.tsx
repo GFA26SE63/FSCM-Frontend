@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Callout, PageHeader, QueryState, Select, Stat } from '@/shared/ui';
+import { Pagination } from '@/shared/pagination';
 import { usePickingLists } from '@/features/runpicking/hooks';
 import { shipmentsApi } from '../api';
 import { useOrdersReadiness } from '../hooks';
 import { ExportOrderCard } from '../components/ExportOrderCard';
-import { EXPORT_PAGE_SIZE, exportStatus, sortExportOrders, type ExportOrderSort, type ShipmentSort } from '../exportList';
+import { exportStatus, sortExportOrders, type ExportOrderSort, type ShipmentSort } from '../exportList';
 import type { ExportOrder } from '../types';
 
 export function OrderReadinessPage() {
@@ -30,10 +31,11 @@ function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; picking
   const [sort, setSort] = useState<ExportOrderSort>('newest');
   const [shipmentSort, setShipmentSort] = useState<ShipmentSort>('asc');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const sorted = useMemo(() => sortExportOrders(orders, sort), [orders, sort]);
-  const totalPages = Math.max(1, Math.ceil(sorted.length / EXPORT_PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const visible = sorted.slice((currentPage - 1) * EXPORT_PAGE_SIZE, currentPage * EXPORT_PAGE_SIZE);
+  const visible = sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const readiness = useOrdersReadiness(visible.map(order => order.id));
   const byId = new Map(readiness.data.map(item => [item.salesOrderId, item]));
   const countsKnown = !readiness.loading && !readiness.error;
@@ -65,11 +67,20 @@ function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; picking
     {visible.map(order => <ExportOrderCard key={order.id} order={order} readiness={byId.get(order.id)}
       loading={readiness.loading && !byId.has(order.id)} failed={readiness.failedIds.includes(order.id)}
       sort={shipmentSort} retry={() => { void readiness.refetch(); }} />)}
-    <nav aria-label="Phân trang xuất kho" className="row-wrap" style={{ gap: 12, justifyContent: 'flex-end' }}>
-      <span>{orders.length ? (currentPage - 1) * EXPORT_PAGE_SIZE + 1 : 0}–{Math.min(currentPage * EXPORT_PAGE_SIZE, orders.length)} / {orders.length} đơn · 10 đơn/trang</span>
-      <Button disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}>Trước</Button>
-      <span>Trang {currentPage}/{totalPages}</span>
-      <Button disabled={currentPage >= totalPages} onClick={() => setPage(currentPage + 1)}>Sau</Button>
-    </nav>
+    {/* Common Pagination Foundation — client-side (server-side is a BACKEND DEPENDENCY:
+        GET /api/v1/picking-lists does not support page/pageSize params). */}
+    <Pagination
+      currentPage={currentPage}
+      totalPages={totalPages}
+      totalCount={orders.length}
+      pageSize={pageSize}
+      pageSizeOptions={[10, 20, 50]}
+      hasPrev={currentPage > 1}
+      hasNext={currentPage < totalPages}
+      onPage={setPage}
+      onPrev={() => setPage(currentPage - 1)}
+      onNext={() => setPage(currentPage + 1)}
+      onPageSizeChange={size => { setPageSize(size); setPage(1); }}
+    />
   </div>;
 }
