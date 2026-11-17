@@ -25,7 +25,7 @@ function Wait-Route([string]$Url, [int]$ExpectedStatus, [int]$Minutes = 15) {
     } while ([DateTimeOffset]::UtcNow -lt $deadline)
     throw "Deployment was not verified: $Url did not return HTTP $ExpectedStatus. Check Azure pipeline/environment approvals."
 }
-function Wait-Mirror([string]$Repo, [string]$Sha) {
+function Wait-Mirror([string]$Repo, [ValidatePattern('^[0-9a-fA-F]{40}$')][string]$Sha) {
     for ($attempt = 0; $attempt -lt 18; $attempt++) {
         $runs = @(Invoke-Gh @('run', 'list', '--repo', $Repo, '--branch', 'main', '--commit', $Sha,
             '--workflow', 'mirror-to-azure.yml', '--json', 'databaseId,status,conclusion,url') | ConvertFrom-Json)
@@ -41,7 +41,7 @@ function Wait-Mirror([string]$Repo, [string]$Sha) {
     throw "No Azure mirror run found for $Repo at $Sha."
 }
 function Wait-ReleaseChecks([string]$Repo, [string]$Number) {
-    & $ghExe pr checks $Number --repo $Repo --watch --fail-fast --interval 10
+    & $ghExe pr checks $Number --repo $Repo --watch --fail-fast --interval 10 | Out-Host
     if ($LASTEXITCODE -eq 0) { return }
     $detail = Invoke-Gh @('pr', 'view', $Number, '--repo', $Repo, '--json', 'statusCheckRollup') | ConvertFrom-Json
     $failed = @($detail.statusCheckRollup | Where-Object { $_.conclusion -in @('FAILURE', 'TIMED_OUT', 'ACTION_REQUIRED', 'CANCELLED') -or $_.state -in @('FAILURE', 'ERROR') })
@@ -89,15 +89,16 @@ function Publish-Release($Change) {
             Start-Sleep -Seconds 10
         }
         if (-not $checksFound) { throw 'CI checks did not appear. No unchecked merge was performed.' }
-        Wait-ReleaseChecks $Change.Repo ([string]$pr.number)
+        Wait-ReleaseChecks $Change.Repo ([string]$pr.number) | Out-Host
         # Normal merge only: required reviews, branch protections and failing checks remain enforced.
         Invoke-Gh @('pr', 'merge', [string]$pr.number, '--repo', $Change.Repo, '--merge', '--match-head-commit', $headSha) | Out-Host
     }
     $merged = Invoke-Gh @('pr', 'view', [string]$pr.number, '--repo', $Change.Repo, '--json', 'state,mergeCommit,url') | ConvertFrom-Json
     if ($merged.state -ne 'MERGED' -or -not $merged.mergeCommit.oid) { throw "Release not merged: $($merged.url)" }
+    if ($merged.mergeCommit.oid -notmatch '^[0-9a-fA-F]{40}$') { throw 'GitHub did not return a valid merge commit SHA.' }
     return $merged.mergeCommit.oid
 }
-function Wait-Vercel([string]$Sha) {
+function Wait-Vercel([ValidatePattern('^[0-9a-fA-F]{40}$')][string]$Sha) {
     $deadline = [DateTimeOffset]::UtcNow.AddMinutes(15)
     do {
         $deployments = @(Invoke-Gh @('api', "repos/GFA26SE63/FSCM-Frontend/deployments?sha=$Sha&per_page=10") | ConvertFrom-Json)
