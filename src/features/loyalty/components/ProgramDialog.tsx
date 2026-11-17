@@ -28,7 +28,7 @@ export function ProgramDialog({ program, onClose }: Props) {
       required: true, validate: validate('endAt') },
     { key: 'pointsExpireAt', label: 'Điểm hết hạn lúc (giờ Việt Nam)', type: 'datetime-local',
       span: 2, validate: validate('pointsExpireAt'), hint: 'Để trống nếu không đặt hạn điểm.' },
-    { key: 'retailerIds', label: 'Retailer áp dụng', type: 'custom', span: 2,
+    { key: 'retailerIds', label: 'Điểm bán áp dụng', type: 'custom', span: 2,
       validate: validate('retailerIds'),
       render: (values, set, error) => <ProgramRetailerPicker value={values.retailerIds}
         onChange={(ids) => set('retailerIds', ids)} options={retailers.data}
@@ -36,7 +36,7 @@ export function ProgramDialog({ program, onClose }: Props) {
         onRetry={() => void retailers.refetch()} validationError={error} /> },
   ];
 
-  return <FormDialog open width={780} title={program ? `Sửa chương trình ${program.code}` : 'Tạo chương trình loyalty'}
+  return <FormDialog open width={780} title={program ? `Sửa chương trình ${program.code}` : 'Tạo chương trình tích điểm'}
     subtitle="Ngày giờ nhập theo Việt Nam (UTC+7)."
     submitLabel={program ? 'Lưu thay đổi' : 'Tạo chương trình'}
     initial={programInitial(program)} fields={fields}

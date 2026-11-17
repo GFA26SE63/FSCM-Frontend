@@ -21,7 +21,7 @@ export function RedeemPage() {
     (!aged || ['Requested', 'Approved', 'Delivered'].includes(x.status) && Date.parse(x.updatedAt) < openedAt - 3 * 86400000));
   const columns: Column<Redemption>[] = [
     { key: 'code', header: 'Mã yêu cầu', width: '130px', render: (x) => <span className="bold">{x.code}</span> },
-    { key: 'retailer', header: 'Retailer', text: (x) => `${x.retailerName} ${x.retailerCode}`, render: (x) => (<><div className="strong">{x.retailerName}</div><div className="muted small">{x.retailerCode}</div></>) },
+    { key: 'retailer', header: 'Điểm bán', text: (x) => `${x.retailerName} ${x.retailerCode}`, render: (x) => (<><div className="strong">{x.retailerName}</div><div className="muted small">{x.retailerCode}</div></>) },
     { key: 'gift', header: 'Quà', text: (x) => `${x.giftCode} ${x.giftName}` },
     { key: 'quantity', header: 'Số lượng', align: 'right', text: (x) => x.quantity == null ? '—' : formatNumber(x.quantity) },
     { key: 'points', header: 'Điểm', width: '90px', align: 'right', text: (x) => formatNumber(x.points) },
@@ -40,7 +40,7 @@ export function RedeemPage() {
         error={query.error}
         rowKey={(x) => x.code}
         columns={columns}
-        searchPlaceholder="Mã yêu cầu, retailer, quà…"
+        searchPlaceholder="Mã yêu cầu, điểm bán, quà…"
         filters={[{ label: 'Trạng thái', options: Object.values(statusLabels.gift), value: (x) => statusLabel('gift', x.status) }]}
         onRowClick={(x) => navigate(`/redeem/${x.code}`)}
         rowActionsWidth="240px"

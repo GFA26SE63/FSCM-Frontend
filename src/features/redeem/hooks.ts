@@ -4,8 +4,8 @@ import { redeemApi } from './api';
 import type { RedeemStep } from './types';
 
 const done: Record<RedeemStep, string> = {
-  approve: 'Đã duyệt: trừ điểm retailer và trừ tồn quà.',
-  reject: 'Đã từ chối: điểm đang giữ được trả lại retailer.',
+  approve: 'Đã duyệt: trừ điểm điểm bán và trừ tồn quà.',
+  reject: 'Đã từ chối: điểm đang giữ được trả lại điểm bán.',
   deliver: 'Đã chuyển sang Đang giao quà.',
   complete: 'Đã hoàn tất đổi quà.',
 };
