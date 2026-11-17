@@ -59,6 +59,8 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
   const [search, setSearch] = useStringParam('q');
   const [statusFilter, setStatusFilter] = useStringParam('status');
   const [warehouseFilter, setWarehouseFilter] = useStringParam('warehouse');
+  const [operationSource, setOperationSource] = useStringParam('source');
+  const operationReason = operationSource === 'Transfer' ? 'Transfer' : workflow === 'inbound' ? 'Factory' : 'Order';
   const [cartonEdit, setCartonEdit] = useState<{ documentId: string; cartonCode: string; replace: boolean; replacementCode: string; reason: string } | null>(null);
   const scanInput = useRef<HTMLInputElement>(null);
   const operation = useRef<{ fingerprint: string; key: string } | null>(null);
@@ -69,7 +71,7 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
   const pickings = useQuery({ queryKey: ['warehouse-work', 'picking', wh], queryFn: () => pickingApi.lists(wh), enabled: admin && workflow === 'outbound' && creating && !!wh });
   const batches = useQuery({ queryKey: ['warehouse-work', 'batches', wh], queryFn: () => get<BatchInventoryItem[]>('/inventory', { warehouseId: wh }), enabled: admin && creating && !!wh && reason === 'Transfer' });
   const active = docs.data?.find(x => x.document.id === selected && belongsToWorkflow(x.document, workflow));
-  const canCreate = admin && (workflow === 'outbound' || workflow === 'transfer');
+  const canCreate = admin && (workflow === 'outbound' && operationReason === 'Order' || workflow === 'transfer');
   const executionWarehouses = warehouses.data?.filter(w => w.isActive &&
     (admin || user?.scope?.warehouseIds.includes(w.id)));
   const whName = (id: string | null) => warehouses.data?.find(w => w.id === id)?.name ?? id ?? '—';
@@ -77,7 +79,10 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
     const work = docs.data?.find(w => w.document.id === id);
     if (work) history.push(warehouseDocumentPath(work.document));
   };
-  const workflowRows = (docs.data ?? []).filter(w => belongsToWorkflow(w.document, workflow));
+  const workflowRows = (docs.data ?? []).filter(w => belongsToWorkflow(w.document, workflow) && (!['inbound', 'outbound'].includes(workflow) || w.document.reason === operationReason));
+  const transferArrivals = (docs.data ?? []).filter(w => w.document.reason === 'Transfer' && w.document.kind === 'Issue' && w.document.status === 'Posted'
+    && (admin || user?.scope?.warehouseIds.includes(w.document.destinationWarehouseId ?? ''))
+    && !docs.data?.some(r => r.document.kind === 'Receipt' && r.document.sourceDocumentId === w.document.id));
   const visibleRows = workflowRows.filter(w => {
     const text = [w.document.code, w.document.note, ...w.lines.flatMap(l => [l.sku, l.batchCode, l.orderCode])].join(' ').toLocaleLowerCase('vi');
     return (!search.trim() || text.includes(search.trim().toLocaleLowerCase('vi')))
@@ -128,8 +133,20 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
   const canCreateChild = d && !admin && ((d.kind === 'Request' && d.status === 'Open') || (d.kind === 'Issue' && d.reason === 'Transfer' && d.status === 'Posted')) && !docs.data?.some(x => x.document.sourceDocumentId === d.id);
   return <>
     <PageHeader title={selected ? `Chi tiết ${screen.title.toLocaleLowerCase('vi')}` : creating ? screen.create : screen.title} subtitle={screen.description}
-      back={selected || creating ? screen.path : undefined}
+      back={selected || creating ? screen.path + (d?.reason === 'Transfer' && workflow !== 'transfer' ? '?source=Transfer' : '') : undefined}
       actions={!selected && !creating && canCreate ? <Link className="btn btn-primary" to={`${screen.path}/new`}>{screen.create}</Link> : undefined} />
+    {!selected && !creating && (workflow === 'inbound' || workflow === 'outbound') && <div className="row-wrap" role="group" aria-label="Loại nghiệp vụ kho" style={{ gap: 12, marginBottom: 16 }}>
+      <button className={`btn ${operationReason !== 'Transfer' ? 'btn-primary' : ''}`} aria-pressed={operationReason !== 'Transfer'} onClick={() => setOperationSource('')}>{workflow === 'inbound' ? 'Nhập từ nhà máy' : 'Xuất bán hàng'}</button>
+      <button className={`btn ${operationReason === 'Transfer' ? 'btn-primary' : ''}`} aria-pressed={operationReason === 'Transfer'} onClick={() => setOperationSource('Transfer')}>{workflow === 'inbound' ? 'Nhập luân chuyển' : 'Xuất luân chuyển'}</button>
+    </div>}
+    {!selected && !creating && workflow === 'inbound' && operationReason === 'Transfer' && <Card title="Hàng luân chuyển chờ nhận">
+      <p>Kho gửi phải xác nhận xuất trước. Mở phiếu nhập tại kho đích, quét từng carton và xác nhận nhập mới cộng tồn.</p>
+      <SimpleTable rows={transferArrivals} columns={[
+        { header: 'Phiếu xuất', width: '300px', cell: w => w.document.code },
+        { header: 'Kho gửi → kho nhận', width: '280px', cell: w => `${whName(w.document.warehouseId)} → ${whName(w.document.destinationWarehouseId)}` },
+        { header: 'Thao tác', width: '200px', cell: w => admin ? 'Chờ thủ kho nhận' : <button className="btn" disabled={busy} onClick={() => void act(`${base}/${w.document.id}/create-document`, undefined, true)}>Mở phiếu nhập luân chuyển</button> },
+      ]} empty="Không có hàng luân chuyển chờ nhận tại kho của bạn." />
+    </Card>}
     {workflow === 'trace' && <>
     <TraceLookup />
     <Card title="Lịch sử carton trong chứng từ kho"><label>Carton ID <input value={trace} onChange={e => setTrace(e.target.value)} placeholder="Quét hoặc nhập carton_id để xem hành trình" /></label><QueryState query={docs}>{() => trace.trim() ? <SimpleTable rows={(docs.data ?? []).flatMap(w => w.cartons.filter(c => c.cartonId === trace.trim()).map(c => ({ w, c, l: w.lines.find(l => l.id === c.lineId) })))} columns={[
@@ -140,7 +157,7 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
     ]} empty="Không tìm thấy carton trong các chứng từ thuộc phạm vi của bạn." /> : <p className="muted">Nhập mã carton để xem các lần nhập, xuất và luân chuyển.</p>}</QueryState></Card>
     </>}
     {error && <p role="alert" className="danger">{error}</p>}{notice && <p role="status">{notice}</p>}
-    {workflow === 'inbound' && !selected && <QueryState query={warehouses}>{() => <FactoryPending query={incoming} warehouses={executionWarehouses ?? []} admin={admin} busy={busy}
+    {workflow === 'inbound' && operationReason === 'Factory' && !selected && <QueryState query={warehouses}>{() => <FactoryPending query={incoming} warehouses={executionWarehouses ?? []} admin={admin} busy={busy}
       refresh={() => { void incoming.refetch(); }} onOpen={pallet => {
         if (admin && pallet.receiptDocumentId) history.push(`${screen.path}/${encodeURIComponent(pallet.receiptDocumentId)}?pallet=${encodeURIComponent(pallet.palletCode)}`);
         else if (!admin) void act(`${base}/factory-receipts/from-pallet`, { palletCode: pallet.palletCode }, false, pallet.palletCode);
