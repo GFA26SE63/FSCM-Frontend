@@ -10,6 +10,7 @@ import { labelStatusText } from '@/features/qr-labels/types';
 import { TraceLookup } from '@/features/factory-traceability';
 import { formatDate, formatInstantDateTime } from '@/shared/lib/dates';
 import { useAuth } from '@/shared/auth/AuthContext';
+import { statusLabel } from '@/shared/lib/status';
 
 interface QrStock {
   cartonCode: string; palletCode: string; productionBatchCode: string;
@@ -48,14 +49,14 @@ export function InventoryPage() {
       <form className="inventory-filters" onSubmit={e => { e.preventDefault(); setFilters(current => ({ ...current, search: search.trim(), page: 1 })); }}>
         <label>Kho <select value={filters.warehouseId} onChange={e => changeFilter('warehouseId', e.target.value)}><option value="">Tất cả kho được phép</option>{warehouses.data?.filter(w => user?.role !== 'WarehouseKeeper' || user.scope?.warehouseIds.includes(w.id)).map(w => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select></label>
         <label>Trạng thái QR <select value={filters.status} onChange={e => changeFilter('status', e.target.value)}><option value="">Tất cả</option>{['Available', 'Picked', 'InTransit', 'Delivered', 'Invalidated', 'Split'].map(s => <option key={s} value={s}>{labelStatusText(s)}</option>)}</select></label>
-        <label>Xác nhận về nhà máy <select value={filters.syncStatus} onChange={e => changeFilter('syncStatus', e.target.value)}><option value="">Tất cả</option><option value="Pending">Chờ gửi / đang thử lại</option><option value="Synced">Đã xác nhận</option><option value="Legacy">Dữ liệu cũ chưa có ACK</option></select></label>
-        <label>Tìm QR / pallet / batch / SKU <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Quét CID, PID hoặc nhập mã" /></label>
+        <label>Xác nhận về nhà máy <select value={filters.syncStatus} onChange={e => changeFilter('syncStatus', e.target.value)}><option value="">Tất cả</option><option value="Pending">Chờ gửi / đang thử lại</option><option value="Synced">Đã xác nhận</option><option value="Legacy">Dữ liệu cũ chưa có xác nhận</option></select></label>
+        <label>Tìm QR / pallet / lô hàng / SKU <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Quét CID, PID hoặc nhập mã" /></label>
         <button className="btn" type="submit">Tìm kiếm</button>
         <button className="btn" type="button" disabled={inventory.isFetching} onClick={() => { void inventory.refetch(); if (selectedCode) void detail.refetch(); }}>Làm mới</button>
       </form>
       {warehouses.isError && <p role="alert">Không tải được danh sách kho. Bảng QR vẫn giới hạn theo quyền của bạn.</p>}
       <QueryState query={inventory}>{data => <>
-        <p>{data.totalCount} carton khớp bộ lọc · Trang {data.page}</p>
+        <p>{data.totalCount} thùng khớp bộ lọc · Trang {data.page}</p>
         <SimpleTable rows={data.items} columns={[
           { header: 'Carton / QR', width: '260px', cell: r => <button className="btn btn-sm inventory-code" aria-label={`Xem chi tiết carton ${r.cartonCode}`} onClick={() => setSelectedCode(r.cartonCode)}><span>{r.cartonCode}</span></button> },
           { header: 'Pallet gốc / batch nhà máy', width: '240px', cell: r => <>{r.palletCode}<br />{r.productionBatchCode}</> },
@@ -79,7 +80,7 @@ export function InventoryPage() {
           <p>{data.label.sku} · {data.label.warehouseCode} · {labelStatusText(data.label.status)}</p>
           <SimpleTable rows={data.events} columns={[
             { header: 'Thời gian', cell: e => formatInstantDateTime(e.occurredAt) },
-            { header: 'Kho / sự kiện', cell: e => `${e.warehouseCode} · ${e.eventType}` },
+            { header: 'Kho / sự kiện', cell: e => `${e.warehouseCode} · ${statusLabel('qrEvent', e.eventType)}` },
             { header: 'Trạng thái', cell: e => `${labelStatusText(e.fromStatus)} → ${labelStatusText(e.toStatus)}` },
             { header: 'Chứng từ', cell: e => e.referenceCode ?? '—' },
           ]} />

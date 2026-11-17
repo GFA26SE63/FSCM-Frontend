@@ -22,7 +22,7 @@ export function RetailerAuditTimeline({ retailer }: RetailerAuditTimelineProps) 
     events.push({
       title: 'Khai báo hồ sơ điểm bán',
       timestamp: retailer.createdAt,
-      actor: retailer.declaredByUserId ? 'Nhân viên kinh doanh (Sales)' : (retailer.source || 'Nhân viên kinh doanh (Sales)'),
+      actor: retailer.declaredByUserId ? 'Nhân viên bán hàng' : (retailer.source || 'Nhân viên bán hàng'),
       description: `Khởi tạo hồ sơ điểm bán ${retailer.name} (${retailer.code}) với loại hình ${retailer.retailerType || retailer.kind || 'Điểm bán'}.`,
       statusChip: 'Draft',
     });
@@ -62,7 +62,7 @@ export function RetailerAuditTimeline({ retailer }: RetailerAuditTimelineProps) 
         <div style={{ display: 'grid', gap: '6px' }}>
           <strong>Lịch sử thay đổi điểm bán:</strong>
           <div>
-            Theo dõi toàn bộ các mốc quan trọng trong quá trình hoạt động của điểm bán, bao gồm thời điểm khai báo ban đầu từ Sales, kết quả xét duyệt và các lần cập nhật thông tin gần nhất.
+            Theo dõi toàn bộ các mốc quan trọng trong quá trình hoạt động của điểm bán, bao gồm thời điểm khai báo ban đầu từ nhân viên bán hàng, kết quả xét duyệt và các lần cập nhật thông tin gần nhất.
           </div>
         </div>
       </Callout>

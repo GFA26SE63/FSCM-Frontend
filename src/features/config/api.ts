@@ -6,7 +6,7 @@ export const configApi = {
     const rows = await get<{ key: string; value: unknown }[]>('/configurations');
     const values = new Map(rows.map((r) => [r.key, r.value]));
     const weights = values.get('allocation.weights') as { expiry: number; distance: number; coverage: number } | undefined;
-    if (!weights || !values.has('allocation.service_radius_meters')) throw new Error('Chưa có cấu hình allocation được công bố.');
+    if (!weights || !values.has('allocation.service_radius_meters')) throw new Error('Chưa có cấu hình phân bổ được công bố.');
     return { allocation: { wE: weights.expiry, wD: weights.distance, wQ: weights.coverage },
       dmaxRetailerKm: Number(values.get('allocation.service_radius_meters')) / 1000,
       orderStepCartons: Number(values.get('order.order_step_cartons') ?? 1),

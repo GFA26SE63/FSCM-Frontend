@@ -22,9 +22,9 @@ export function TransferDialog({ open, initial, onClose }: { open: boolean; init
         { key: 'fromWarehouse', type: 'select', required: true, label: 'Kho đi', options: whs.map((w) => ({ value: w.code, label: w.name })) },
         { key: 'toWarehouse', type: 'select', required: true, label: 'Kho đến', options: whs.map((w) => ({ value: w.code, label: w.name })), validate: (v, all) => (v === all.fromWarehouse ? 'Kho đến phải khác kho đi.' : undefined) },
         {
-          key: 'sourceBatch', type: 'search', required: true, span: 2, label: 'Batch (tìm mã hoặc tên sản phẩm)',
+          key: 'sourceBatch', type: 'search', required: true, span: 2, label: 'Lô hàng (tìm mã hoặc tên sản phẩm)',
           options: batches.data.filter((b) => b.available > 0).map((b) => ({ value: b.code, label: `${b.code} · ${b.productName} · HSD ${formatDate(b.expiry)} · khả dụng ${b.available}` })),
-          validate: (v, all) => (batches.data!.find((b) => b.code === v)?.warehouseCode !== all.fromWarehouse ? 'Batch không thuộc kho đi.' : undefined),
+          validate: (v, all) => (batches.data!.find((b) => b.code === v)?.warehouseCode !== all.fromWarehouse ? 'Lô hàng không thuộc kho đi.' : undefined),
         },
         { key: 'qty', type: 'number', required: true, label: 'Số thùng', validate: (v, all) => { const b = batches.data!.find((x) => x.code === all.sourceBatch); return b && Number(v) > b.available ? `Vượt khả dụng ${b.available} thùng.` : undefined; } },
         { key: 'note', label: 'Ghi chú' },

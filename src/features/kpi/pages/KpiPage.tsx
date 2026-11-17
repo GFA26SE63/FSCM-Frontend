@@ -102,8 +102,8 @@ function RankingPageContent() {
         value={tab}
         onChange={setTab}
         items={[
-          { key: 'kpi', label: 'Chỉ tiêu KPI Sales' },
-          { key: 'sales', label: 'Xếp hạng Sales' },
+          { key: 'kpi', label: 'Chỉ tiêu KPI bán hàng' },
+          { key: 'sales', label: 'Xếp hạng nhân viên bán hàng' },
           { key: 'products', label: 'Sản phẩm bán chạy' },
         ]}
       />

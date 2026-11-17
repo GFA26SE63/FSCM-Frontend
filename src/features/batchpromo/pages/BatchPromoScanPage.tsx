@@ -17,7 +17,7 @@ export function BatchPromoScanPage() {
 
   const find = async () => {
     const value = code.trim();
-    if (!value) return toast.show('Nhập mã tem (TEM-000205) hoặc mã batch.');
+    if (!value) return toast.show('Nhập mã tem (TEM-000205) hoặc mã lô hàng.');
     let batchCode = value;
     setLabel(null);
     if (/^TEM-/i.test(value)) {
@@ -32,16 +32,16 @@ export function BatchPromoScanPage() {
     }
     const s = suggestions.data?.find((x) => x.batchCode === batchCode) ?? null;
     setMatch(s);
-    if (!s) toast.show('Không tìm thấy batch còn hạn và còn hàng với mã này.');
+    if (!s) toast.show('Không tìm thấy lô hàng còn hạn và còn hàng với mã này.');
   };
 
   return (
     <>
-      <PageHeader back="/batchpromo" title="Quét tem batch" subtitle="Thủ kho / Admin quét tem để chọn nhanh batch cần giảm giá theo HSD." />
+      <PageHeader back="/batchpromo" title="Quét tem lô hàng" subtitle="Thủ kho / quản trị viên quét tem để chọn nhanh lô hàng cần giảm giá theo HSD." />
       <Card>
         <div className="row" style={{ alignItems: 'flex-end' }}>
-          <div className="spacer"><FormField label="Mã tem hoặc mã batch"><Input value={code} placeholder="TEM-000205 hoặc WH-TA-SKU001-31102026" onChange={(e) => setCode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void find()} /></FormField></div>
-          <Button variant="primary" onClick={() => void find()}>Tìm batch</Button>
+          <div className="spacer"><FormField label="Mã tem hoặc mã lô hàng"><Input value={code} placeholder="TEM-000205 hoặc WH-TA-SKU001-31102026" onChange={(e) => setCode(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void find()} /></FormField></div>
+          <Button variant="primary" onClick={() => void find()}>Tìm lô hàng</Button>
         </div>
       </Card>
       {label && <Callout tone="info">Tem {label.code} thuộc phiếu điều chuyển {label.transferCode}: {label.qty} thùng {label.productName}, HSD {formatDate(label.expiry)}.</Callout>}

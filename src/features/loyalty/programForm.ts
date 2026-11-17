@@ -72,7 +72,7 @@ export function validateProgram(values: ProgramFormValues): Record<string, strin
   }
   if (!Array.isArray(values.retailerIds) || values.retailerIds.length === 0 ||
       values.retailerIds.some((id) => !uuid.test(id))) {
-    errors.retailerIds = 'Chọn ít nhất một retailer có ID hợp lệ.';
+    errors.retailerIds = 'Chọn ít nhất một điểm bán có ID hợp lệ.';
   }
   return errors;
 }

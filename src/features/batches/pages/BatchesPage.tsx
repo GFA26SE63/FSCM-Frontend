@@ -5,6 +5,8 @@ import {
   ActionDropdown,
   Button,
   DataTable,
+  Input,
+  Select,
   useToast,
   type ActionDropdownItem,
   type Column,
@@ -13,6 +15,8 @@ import { formatDate } from '@/shared/lib';
 import { formatLockReason } from '@/shared/lib/status';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
+import { useEnumParam, useQueryParams, useStringParam } from '@/shared/router/listState';
+import { useRestPagination } from '@/shared/pagination';
 import { useWarehouses } from '@/features/warehouses/hooks';
 import {
   LabelPrintDialog,
@@ -27,6 +31,18 @@ import {
 } from '../components/BatchLockDialog';
 import type { BatchInventoryItem, InventoryLockItem } from '../types';
 
+// Status filter values must match the display labels used in the status column text() function
+const BATCH_STATUS_OPTIONS = ['', 'Còn hạn', 'Cận hạn', 'Hết hạn', 'Có hàng khóa', 'Đã tiêu hủy'] as const;
+type BatchStatusFilter = (typeof BATCH_STATUS_OPTIONS)[number];
+
+function batchStatusLabel(b: BatchInventoryItem): string {
+  if (b.expiryStatus === 'Disposed') return 'Đã tiêu hủy';
+  if (b.lockedQuantity > 0) return 'Có hàng khóa';
+  if (b.expiryStatus === 'Expired') return 'Hết hạn';
+  if (b.expiryStatus === 'NearExpiry' || b.expiryStatus === 'Near-date') return 'Cận hạn';
+  return 'Còn hạn';
+}
+
 export function BatchesPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -39,6 +55,23 @@ export function BatchesPage() {
   const isKeeper = user?.role === 'WarehouseKeeper';
   const assignedWhIds = useMemo(() => user?.scope?.warehouseIds ?? [], [user]);
   const assignedWhCode = user?.warehouseCode;
+
+  // URL-persisted pagination state (client-side — GET /api/v1/inventory returns flat array)
+  const { page, pageSize, search, setSearch, pagingProps: basePagingProps } = useRestPagination({
+    defaultPageSize: 20,
+    pageSizeOptions: [10, 20, 50],
+    urlState: true,
+  });
+  const [statusFilter, setStatusFilter] = useEnumParam<BatchStatusFilter>(
+    'status', BATCH_STATUS_OPTIONS, '', { resets: ['page'] },
+  );
+  // URL-persisted free-text filters; invalid/unavailable values fall back to '' (show all)
+  const [warehouseFilter, setWarehouseFilter] = useStringParam('wh', { resets: ['page'] });
+  const [skuFilter, setSkuFilter] = useStringParam('sku', { resets: ['page'] });
+
+  const { setParams } = useQueryParams();
+  const hasActiveFilters = !!(search || statusFilter || warehouseFilter || skuFilter);
+  const clearFilters = () => setParams({ status: null, wh: null, sku: null, search: null, page: null });
 
   // Real backend queries - loads all active batches and expired items
   const { data: warehouses = [] } = useWarehouses();
@@ -70,7 +103,7 @@ export function BatchesPage() {
   }, [allActiveLocks]);
 
   // Restrict Warehouse Keeper to assigned warehouse if applicable
-  const rows = useMemo(() => {
+  const scopedRows = useMemo(() => {
     const raw = query.data ?? [];
     if (!isKeeper || (assignedWhIds.length === 0 && !assignedWhCode)) {
       return raw;
@@ -93,13 +126,60 @@ export function BatchesPage() {
   const [releaseTarget, setReleaseTarget] = useState<InventoryLockItem | null>(null);
   const [printTarget, setPrintTarget] = useState<PrintTarget | null>(null);
 
-  // Dynamic warehouse filter options
+  // Filter options derived from scoped data
   const warehouseOptions = useMemo(() => {
     const set = new Set<string>();
     warehouses.forEach((w) => w.name && set.add(w.name));
-    rows.forEach((r) => r.warehouseName && set.add(r.warehouseName));
-    return Array.from(set);
-  }, [warehouses, rows]);
+    scopedRows.forEach((r) => r.warehouseName && set.add(r.warehouseName));
+    return Array.from(set).sort();
+  }, [warehouses, scopedRows]);
+
+  const productOptions = useMemo(() => {
+    const labels = new Map<string, string>();
+    scopedRows.forEach((r) => r.sku && labels.set(r.sku, `${r.sku} · ${r.productName}`));
+    return Array.from(labels, ([value, label]) => ({ value, label }));
+  }, [scopedRows]);
+
+  // Client-side filtering across the full scoped dataset
+  const filtered = useMemo(() => {
+    let result = scopedRows;
+    if (search) {
+      const q = search.toLowerCase().trim();
+      result = result.filter(
+        (b) =>
+          b.batchCode.toLowerCase().includes(q) ||
+          b.sku.toLowerCase().includes(q) ||
+          b.productName.toLowerCase().includes(q) ||
+          b.warehouseName.toLowerCase().includes(q),
+      );
+    }
+    if (warehouseFilter) {
+      result = result.filter((b) => b.warehouseName === warehouseFilter);
+    }
+    if (skuFilter) {
+      result = result.filter((b) => b.sku === skuFilter);
+    }
+    if (statusFilter) {
+      result = result.filter((b) => batchStatusLabel(b) === statusFilter);
+    }
+    return result;
+  }, [scopedRows, search, warehouseFilter, skuFilter, statusFilter]);
+
+  // In-stock priority: batches with availableQuantity > 0 appear first.
+  // Stable sort — relative order within each group is preserved.
+  // Applied after scope + filters, before pagination, so in-stock priority spans the full dataset.
+  const sorted = useMemo(() => {
+    const inStock = filtered.filter(b => b.availableQuantity > 0);
+    const outOfStock = filtered.filter(b => b.availableQuantity <= 0);
+    return [...inStock, ...outOfStock];
+  }, [filtered]);
+
+  // Client-side pagination on sorted+filtered results
+  const totalCount = sorted.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageRows = sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const pagingProps = { ...basePagingProps, total: totalCount, totalPages };
 
   const handleExportExcel = () => {
     toast.show('Đã xuất danh sách lô hàng ra file Excel.');
@@ -108,11 +188,6 @@ export function BatchesPage() {
   const handleDisposalNotice = () => {
     toast.show('Chức năng này hiện chưa sử dụng được.');
   };
-  const productOptions = useMemo(() => {
-    const labels = new Map<string, string>();
-    rows.forEach((r) => r.sku && labels.set(r.sku, `${r.sku} · ${r.productName}`));
-    return Array.from(labels, ([value, label]) => ({ value, label }));
-  }, [rows]);
 
   const columns: Column<BatchInventoryItem>[] = [
     {
@@ -245,13 +320,7 @@ export function BatchesPage() {
           </span>
         );
       },
-      text: (b) => {
-        if (b.expiryStatus === 'Disposed') return 'Đã tiêu hủy';
-        if (b.lockedQuantity > 0) return 'Có hàng khóa';
-        if (b.expiryStatus === 'Expired') return 'Hết hạn';
-        if (b.expiryStatus === 'NearExpiry' || b.expiryStatus === 'Near-date') return 'Cận hạn';
-        return 'Còn hạn';
-      },
+      text: (b) => batchStatusLabel(b),
     },
     {
       key: 'qr',
@@ -301,39 +370,71 @@ export function BatchesPage() {
 
   return (
     <>
+      {/* Unified filter bar — all four filters in one row (client-side, Backend returns flat array) */}
+      <div className="row-wrap" style={{ gap: 12, marginBottom: 12, alignItems: 'flex-end' }}>
+        <label className="lbl">Tìm kiếm
+          <Input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Mã lô hàng, SKU, tên sản phẩm…"
+            style={{ minWidth: 220 }}
+          />
+        </label>
+        <label className="lbl">Trạng thái
+          <Select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value as BatchStatusFilter)}
+            options={[
+              { value: '', label: 'Tất cả trạng thái' },
+              { value: 'Còn hạn', label: 'Còn hạn' },
+              { value: 'Cận hạn', label: 'Cận hạn' },
+              { value: 'Hết hạn', label: 'Hết hạn' },
+              { value: 'Có hàng khóa', label: 'Có hàng khóa' },
+              { value: 'Đã tiêu hủy', label: 'Đã tiêu hủy' },
+            ]}
+          />
+        </label>
+        <label className="lbl">Kho
+          <Select
+            value={warehouseFilter}
+            onChange={e => setWarehouseFilter(e.target.value)}
+            options={[
+              { value: '', label: 'Tất cả kho' },
+              ...warehouseOptions.map(w => ({ value: w, label: w })),
+            ]}
+          />
+        </label>
+        <label className="lbl">Sản phẩm (SKU)
+          <Select
+            value={skuFilter}
+            onChange={e => setSkuFilter(e.target.value)}
+            options={[
+              { value: '', label: 'Tất cả sản phẩm' },
+              ...productOptions,
+            ]}
+          />
+        </label>
+        {hasActiveFilters && (
+          <Button
+            variant="default"
+            size="sm"
+            onClick={clearFilters}
+            style={{ alignSelf: 'flex-end', marginBottom: 2 }}
+          >
+            Xóa bộ lọc
+          </Button>
+        )}
+      </div>
+
       <DataTable
         title="Quản lý lô hàng"
         subtitle="Theo dõi số lượng tồn kho và tình trạng hạn sử dụng của từng lô hàng."
-        rows={rows}
+        rows={pageRows}
         loading={query.isLoading}
         error={query.error}
         rowKey={(b) => b.batchId || b.batchCode}
         columns={columns}
-        searchPlaceholder="Mã lô hàng, SKU, tên sản phẩm…"
-        filters={[
-          {
-            label: 'Kho',
-            options: warehouseOptions,
-            value: (b) => b.warehouseName,
-          },
-          {
-            label: 'Sản phẩm (SKU)',
-            searchable: true,
-            options: productOptions,
-            value: (b) => b.sku,
-          },
-          {
-            label: 'Trạng thái',
-            options: ['Còn hạn', 'Cận hạn', 'Hết hạn', 'Có hàng khóa'],
-            value: (b) => {
-              if (b.expiryStatus === 'Disposed') return 'Đã tiêu hủy';
-              if (b.lockedQuantity > 0) return 'Có hàng khóa';
-              if (b.expiryStatus === 'Expired') return 'Hết hạn';
-              if (b.expiryStatus === 'NearExpiry' || b.expiryStatus === 'Near-date') return 'Cận hạn';
-              return 'Còn hạn';
-            },
-          },
-        ]}
+        server={pagingProps}
         actions={
           <Button onClick={handleExportExcel}>
             Xuất Excel

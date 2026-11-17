@@ -13,7 +13,7 @@ export function RotationPage() {
   const rows = query.data?.items ?? [];
 
   const columns: Column<RotationProposal>[] = [
-    { key: 'batch', header: 'Batch nguồn', width: '200px', render: (p) => (<><div className="bold">{p.batchCode}</div><div className="muted small">{p.productName}</div></>), text: (p) => `${p.batchCode} ${p.productName}` },
+    { key: 'batch', header: 'Lô hàng nguồn', width: '200px', render: (p) => (<><div className="bold">{p.batchCode}</div><div className="muted small">{p.productName}</div></>), text: (p) => `${p.batchCode} ${p.productName}` },
     { key: 'from', header: 'Kho nguồn', width: '130px', text: (p) => p.fromWarehouseName },
     { key: 'expiry', header: 'HSD', width: '95px', text: (p) => formatDate(p.expiry) },
     { key: 'excess', header: 'Dư ước tính', width: '100px', align: 'right', text: (p) => formatCases(p.excess) },
@@ -25,7 +25,7 @@ export function RotationPage() {
   ];
   return (
     <>
-      <PageHeader title="Luân chuyển cận hạn" subtitle={`Job chạy lúc ${formatDateTime(query.data?.jobRanAt)} – điểm S = wE·fE + wD·fD + wQ·fQ; đề xuất chờ Admin duyệt.`} actions={<Button loading={run.isPending} onClick={() => run.mutate()}>Chạy lại job</Button>} />
+      <PageHeader title="Luân chuyển cận hạn" subtitle={`Job chạy lúc ${formatDateTime(query.data?.jobRanAt)} – điểm S = wE·fE + wD·fD + wQ·fQ; đề xuất chờ quản trị viên duyệt.`} actions={<Button loading={run.isPending} onClick={() => run.mutate()}>Chạy lại job</Button>} />
       <div className="grid-3">
         <Stat label="Chờ duyệt" value={rows.filter((p) => p.status === 'Proposed').length} />
         <Stat label="Đã duyệt / bỏ qua" value={`${rows.filter((p) => p.status === 'Approved').length} / ${rows.filter((p) => p.status === 'Skipped').length}`} />
@@ -39,7 +39,7 @@ export function RotationPage() {
         error={query.error}
         rowKey={(p) => p.id}
         columns={columns}
-        searchPlaceholder="Batch, sản phẩm, kho…"
+        searchPlaceholder="Lô hàng, sản phẩm, kho…"
         filters={[
           { label: 'Trạng thái', options: Object.values(statusLabels.rotation), value: (p) => statusLabel('rotation', p.status) },
           { label: 'Kho nguồn', options: [...new Set(rows.map((p) => p.fromWarehouseName))], value: (p) => p.fromWarehouseName },

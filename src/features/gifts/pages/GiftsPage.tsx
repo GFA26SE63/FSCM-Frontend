@@ -22,7 +22,7 @@ export function GiftsPage() {
   ];
   return (
     <>
-      <PageHeader title="Quà đổi điểm" subtitle="Danh mục quà tặng. Tồn kho giảm khi Admin / Operator duyệt yêu cầu đổi quà." />
+      <PageHeader title="Quà đổi điểm" subtitle="Danh mục quà tặng. Tồn kho giảm khi quản trị viên / nhân viên vận hành duyệt yêu cầu đổi quà." />
       <DataTable
         title="Danh sách quà"
         rows={query.data}
@@ -55,7 +55,7 @@ export function GiftsPage() {
           onClose={() => setDlg(null)}
           onSubmit={async (v) => {
             const input = { name: v.name, description: v.description || null, imageUrl: v.imageUrl || null, points: Number(v.points), stock: Number(v.stock), status: v.status, loyaltyProgramId: program.data?.id ?? '' };
-            if (!dlg.gift && !input.loyaltyProgramId) throw new Error('Chưa có chương trình loyalty đang chọn.');
+            if (!dlg.gift && !input.loyaltyProgramId) throw new Error('Chưa có chương trình tích điểm đang chọn.');
             await (dlg.gift ? update.mutateAsync({ ...input, id: dlg.gift.id }) : create.mutateAsync(input));
             setDlg(null);
           }}

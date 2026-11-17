@@ -196,7 +196,7 @@ export const kpiApi = {
 
   getKpiConfig: async (user: CurrentUser): Promise<KpiConfigPayload | null> => {
     if (!canManageKpi(user)) {
-      throw new ApiError(403, 'Chỉ Admin mới có quyền cấu hình KPI.');
+      throw new ApiError(403, 'Chỉ quản trị viên mới có quyền cấu hình KPI.');
     }
 
     try {
@@ -213,7 +213,7 @@ export const kpiApi = {
     user: CurrentUser,
   ): Promise<void> => {
     if (!canManageKpi(user)) {
-      throw new ApiError(403, 'Chỉ Admin mới có quyền lưu cấu hình KPI.');
+      throw new ApiError(403, 'Chỉ quản trị viên mới có quyền lưu cấu hình KPI.');
     }
 
     await put('/configurations/kpi.weights', {

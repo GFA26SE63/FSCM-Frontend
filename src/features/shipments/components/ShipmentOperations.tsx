@@ -36,8 +36,8 @@ export function ShipmentOperations({ orderId, sort }: { orderId: string; sort: S
   });
 
   if (shipments.isPending) return <p className="muted small">Đang tải thao tác vận hành…</p>;
-  if (shipments.isError) return <Callout tone="danger">Không tải được shipment của đơn.</Callout>;
-  if (!shipments.data?.length) return <p className="muted small">Chưa có shipment được tạo cho đơn này.</p>;
+  if (shipments.isError) return <Callout tone="danger">Không tải được phiếu giao hàng của đơn.</Callout>;
+  if (!shipments.data?.length) return <p className="muted small">Chưa có phiếu giao hàng được tạo cho đơn này.</p>;
 
   return (
     <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
@@ -80,9 +80,9 @@ export function ShipmentActionRow({
   const resolve = useApiMutation(shipmentsApi.resolveException, { success: 'Đã xử lý ngoại lệ và cập nhật trạng thái đơn.', onSuccess: () => setResolutionReason('') });
   const selectedDriver = warehouseDrivers.find((item) => item.id === driverId);
   const selectedVehicle = warehouseVehicles.find((item) => item.id === vehicleId);
-  const issue = useApiMutation(shipmentsApi.issue, { success: 'Đã xác nhận shipment rời kho; tồn thực tế đã được trừ.' });
+  const issue = useApiMutation(shipmentsApi.issue, { success: 'Đã xác nhận phiếu giao hàng rời kho; tồn thực tế đã được trừ.' });
   const assign = useApiMutation(shipmentsApi.assign, { success: 'Đã gán tài xế và xe.' });
-  const dispatch = useApiMutation(shipmentsApi.dispatch, { success: 'Shipment đã bắt đầu giao; tem đã chuyển InTransit.' });
+  const dispatch = useApiMutation(shipmentsApi.dispatch, { success: 'Phiếu giao hàng đã bắt đầu giao; tem đã chuyển InTransit.' });
 
   return (
     <div className="card" style={{ padding: 12 }}>
