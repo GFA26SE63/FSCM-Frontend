@@ -92,7 +92,7 @@ function AuthorizedQrLabelsPanel({
                 setTarget({ kind: 'batch', batchId });
               }}
             >
-              Xem / in cả batch
+              Xem / in cả lô hàng
             </button>
           )}
 
@@ -139,7 +139,7 @@ function AuthorizedQrLabelsPanel({
             <thead>
               <tr>
                 <th>Mã tem</th>
-                <th>Sản phẩm / batch</th>
+                <th>Sản phẩm / lô hàng</th>
                 <th>Kho</th>
                 <th style={{ textAlign: 'right' }}>Số lượng</th>
                 <th>HSD</th>
@@ -300,7 +300,7 @@ function AuthorizedQrLabelsPanel({
             >
               <div>
                 <span className="muted" style={{ display: 'block', fontSize: 11.5 }}>
-                  Mã tem (QR Code):
+                  Mã tem (QR):
                 </span>
                 <strong style={{ fontFamily: 'Arial, sans-serif' }}>{detailLabel.qrCode}</strong>
               </div>
@@ -366,7 +366,7 @@ function AuthorizedQrLabelsPanel({
 
             <div>
               <span style={{ display: 'block', fontSize: 12.5, fontWeight: 600, marginBottom: 4 }}>
-                Nội dung mã hóa (QR Payload):
+                Nội dung mã QR:
               </span>
               <div
                 style={{

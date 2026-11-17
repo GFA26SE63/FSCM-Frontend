@@ -54,7 +54,7 @@ export function PalletReceiving({ documentId, version, editable, receivedCount =
   const update = (code: string, value: Partial<Inspection>) => setRows(items => items.map(r => r.cartonCode === code ? { ...r, ...value } : r));
   return <section>
     <h3>Kiểm đếm pallet và sổ hàng cách ly</h3>
-    <p>Quét pallet chỉ mở danh sách kiểm đếm. Xác nhận nhận mới cộng carton đạt vào tồn. Hàng hỏng giữ tại vị trí cách ly, không có QR khả dụng để soạn; hàng thiếu không cộng tồn. Kết quả đã nhận không sửa trực tiếp.</p>
+    <p>Quét pallet chỉ mở danh sách kiểm đếm. Xác nhận nhận mới cộng thùng đạt vào tồn. Hàng hỏng giữ tại vị trí cách ly, không có QR khả dụng để soạn; hàng thiếu không cộng tồn. Kết quả đã nhận không sửa trực tiếp.</p>
     {error && <p role="alert" className="danger">{error}</p>}
     {reports.isError && <p role="alert">{errorMessage(reports.error)}</p>}
     {editable && <>
@@ -63,8 +63,8 @@ export function PalletReceiving({ documentId, version, editable, receivedCount =
         <button className="btn" disabled={busy || !code.trim() || !!manifest}>Mở kiểm đếm</button>
       </form>
       {manifest && <>
-        <p>{manifest.pallet.code} · {manifest.sku} · {rows.length} carton</p>
-        <button className="btn" disabled={busy} onClick={() => setRows(items => items.map(r => r.disposition ? r : { ...r, disposition: 'Accepted' }))}>Đánh dấu các carton chưa kiểm là đạt</button>
+        <p>{manifest.pallet.code} · {manifest.sku} · {rows.length} thùng</p>
+        <button className="btn" disabled={busy} onClick={() => setRows(items => items.map(r => r.disposition ? r : { ...r, disposition: 'Accepted' }))}>Đánh dấu các thùng chưa kiểm là đạt</button>
         <SimpleTable rows={rows} columns={[
           { header: 'CID', cell: r => r.cartonCode },
           { header: 'Kiểm đếm', cell: r => <select disabled={busy} aria-label={`Kết quả ${r.cartonCode}`} value={r.disposition} onChange={e => update(r.cartonCode, { disposition: e.target.value as Inspection['disposition'] })}>{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select> },

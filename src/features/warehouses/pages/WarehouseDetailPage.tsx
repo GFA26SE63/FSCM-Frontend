@@ -198,8 +198,8 @@ export function WarehouseDetailPage() {
                   value: `${whData.minStock ?? 30} thùng / SKU – cảnh báo khi có thể cấp thấp hơn`,
                 },
                 {
-                  label: 'Số batch đang có',
-                  value: `${whData.batchCount} batch (${whData.capacityPallets} pallet)`,
+                  label: 'Số lô hàng đang có',
+                  value: `${whData.batchCount} lô hàng (${whData.capacityPallets} pallet)`,
                 },
               ]}
             />
@@ -226,14 +226,14 @@ export function WarehouseDetailPage() {
           </Card>
 
           <Card
-            title={`Khoảng cách đường bộ tới retailer (Dijkstra) · Bảng vận chuyển ${
+            title={`Khoảng cách đường bộ tới điểm bán (Dijkstra) · Bảng vận chuyển ${
               whData.transitTableVersion ? `v${whData.transitTableVersion}` : 'active'
             }`}
           >
             <SimpleTable
               columns={[
                 {
-                  header: 'Retailer',
+                  header: 'Điểm bán',
                   cell: (r) => (
                     <b>
                       {r.retailerCode} · {r.retailerName}
@@ -266,15 +266,15 @@ export function WarehouseDetailPage() {
                 },
               ]}
               rows={whData.retailerDistances ?? []}
-              empty="Chưa có dữ liệu khoảng cách tới retailer."
+              empty="Chưa có dữ liệu khoảng cách tới điểm bán."
             />
           </Card>
 
           {canViewInventory && (
-            <Card title="Tồn kho theo lô hàng (Batch)">
+            <Card title="Tồn kho theo lô hàng (lô hàng)">
               <SimpleTable
                 columns={[
-                  { header: 'Mã batch', cell: (b) => <b>{b.code}</b> },
+                  { header: 'Mã lô hàng', cell: (b) => <b>{b.code}</b> },
                   { header: 'SKU / Tên sản phẩm', cell: (b) => `${b.sku} · ${b.productName}` },
                   {
                     header: 'Hạn sử dụng',

@@ -22,16 +22,16 @@ export function FactoryPending({ query, warehouses, admin, busy, onOpen, refresh
   return <Card title="Hàng chờ nhận từ nhà máy">
     <p>Kho nhận đã được nhà máy chỉ định. Chọn pallet để mở phiếu kiểm đếm; mở phiếu chưa cộng tồn kho.</p>
     <div className="warehouse-work-filters">
-      <label>Tìm hàng chờ nhận<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã pallet, batch hoặc SKU" /></label>
+      <label>Tìm hàng chờ nhận<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã pallet, lô hàng hoặc SKU" /></label>
       {warehouses.length > 1 ? <label>Lọc kho nhận<select value={effectiveWarehouse} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho được phân công</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
         : <p>Kho nhận: <b>{warehouses[0]?.name ?? 'Chưa được phân công kho'}</b></p>}
       <button className="btn" type="button" disabled={busy} onClick={refresh}>Làm mới hàng chờ nhận</button>
     </div>
     <QueryState query={query}>{() => <SimpleTable rows={visible} columns={[
       { header: 'Pallet / ngày xuất', width: '280px', cell: p => <><b className="warehouse-pallet-code">{p.palletCode}</b><div className="muted">{p.dispatchedAt ? formatInstantDateTime(p.dispatchedAt) : '—'}</div></> },
-      { header: 'Sản phẩm / batch', width: '240px', cell: p => <>{p.sku} · {p.productName}<div className="muted">{p.batchCode} · HSD {formatDate(p.expirationDate)}</div></> },
+      { header: 'Sản phẩm / lô hàng', width: '240px', cell: p => <>{p.sku} · {p.productName}<div className="muted">{p.batchCode} · HSD {formatDate(p.expirationDate)}</div></> },
       { header: 'Kho nhận cố định', width: '180px', cell: p => warehouses.find(w => w.id === p.destinationWarehouseId)?.name ?? p.destinationWarehouseId },
-      { header: 'Carton', width: '100px', cell: p => p.cartonCount },
+      { header: 'Thùng', width: '100px', cell: p => p.cartonCount },
       { header: 'Thao tác', width: '190px', cell: p => admin && !p.receiptDocumentId ? 'Chờ thủ kho kiểm đếm' : <button className="btn btn-sm" disabled={busy} onClick={() => onOpen(p)}>{admin ? 'Xem phiếu nhập' : p.receiptDocumentId ? 'Tiếp tục kiểm đếm' : 'Chọn pallet'}</button> },
     ]} empty="Không có pallet chờ nhận tại các kho được phân công." />}</QueryState>
   </Card>;
