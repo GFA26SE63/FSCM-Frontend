@@ -17,14 +17,14 @@ export function TransfersPage() {
     { key: 'kind', header: 'Loại', width: '160px', render: (t) => <StatusChip domain="transferKind" value={t.kind} /> , text: (t) => statusLabel('transferKind', t.kind) },
     { key: 'route', header: 'Tuyến', text: (t) => `${t.fromWarehouseName} → ${t.toWarehouseName}` },
     { key: 'product', header: 'Sản phẩm', text: (t) => `${t.sku} · ${t.productName}` },
-    { key: 'batch', header: 'Batch nguồn', text: (t) => t.sourceBatch },
+    { key: 'batch', header: 'Lô hàng nguồn', text: (t) => t.sourceBatch },
     { key: 'qty', header: 'Số lượng', width: '100px', align: 'right', text: (t) => formatCases(t.qty) },
     { key: 'status', header: 'Trạng thái', width: '140px', render: (t) => <StatusChip domain="transfer" value={t.status} /> },
   ];
   const sug = suggestions.data ?? [];
   return (
     <>
-      <PageHeader title="Điều chuyển kho" subtitle="Bổ sung tồn từ kho tổng cho kho vùng và các phiếu luân chuyển cận hạn đã được Admin duyệt." />
+      <PageHeader title="Điều chuyển kho" subtitle="Bổ sung tồn từ kho tổng cho kho vùng và các phiếu luân chuyển cận hạn đã được quản trị viên duyệt." />
       {sug.length > 0 && (
         <Card title="Gợi ý bổ sung tồn kho vùng" flush>
           <SimpleTable<ReplenishmentSuggestion>
@@ -47,7 +47,7 @@ export function TransfersPage() {
         error={query.error}
         rowKey={(t) => t.code}
         columns={columns}
-        searchPlaceholder="Mã phiếu, kho, SKU, batch…"
+        searchPlaceholder="Mã phiếu, kho, SKU, lô hàng…"
         filters={[
           { label: 'Loại', options: ['Bổ sung', 'Luân chuyển cận hạn'], value: (t) => statusLabel('transferKind', t.kind) },
           { label: 'Trạng thái', options: ['Đang vận chuyển', 'Đã nhận', 'Đã hủy'], value: (t) => statusLabel('transfer', t.status) },

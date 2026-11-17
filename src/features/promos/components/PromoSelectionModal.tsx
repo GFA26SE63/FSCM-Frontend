@@ -21,8 +21,8 @@ export function PromoSelectionModal<T extends { id: string }>({
   const [draft, setDraft] = useState(() => [...new Set(selectedIds)]);
   return <Modal open title={title} width={1100} onClose={onCancel}
     subtitle={`Đã chọn ${draft.length}. Chỉ cập nhật danh sách sau khi nhấn Apply.`}
-    footer={<><Button onClick={onCancel}>Cancel</Button>
-      <Button variant="primary" disabled={loading || !!error || rows === undefined} onClick={() => onApply(draft)}>Apply</Button></>}>
+    footer={<><Button onClick={onCancel}>Hủy</Button>
+      <Button variant="primary" disabled={loading || !!error || rows === undefined} onClick={() => onApply(draft)}>Áp dụng</Button></>}>
     <DataTable urlState={false} title="Tìm kiếm và chọn" rows={rows} loading={loading} error={error}
       rowKey={row => row.id} pageSize={5} searchPlaceholder={searchPlaceholder}
       emptyText="Không tìm thấy mục phù hợp."

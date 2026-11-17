@@ -58,7 +58,7 @@ test('allocation explanation shows rejected candidates and per-iteration scores 
     ] },
   } }));
   assert.match(html, /REJECTED-BATCH/);
-  assert.match(html, /Không đạt MLOR tại ETA/);
+  assert.match(html, /Không đạt yêu cầu HSD tối thiểu tại thời gian nhận dự kiến/);
   assert.match(html, /SELECTED-BATCH/);
   assert.match(html, /Cấp 4/);
   assert.match(html, /35 km/);

@@ -14,10 +14,10 @@ const actionLabels: Record<string, string> = {
   WarehouseUnassigned: 'Bỏ gán kho',
   RegionAssigned: 'Gán khu vực',
   RegionUnassigned: 'Bỏ gán khu vực',
-  SalesGroupAssigned: 'Gán nhóm Sales',
-  SalesGroupUnassigned: 'Bỏ gán nhóm Sales',
-  RetailerAssigned: 'Gán retailer',
-  RetailerUnassigned: 'Bỏ gán retailer',
+  SalesGroupAssigned: 'Gán nhóm bán hàng',
+  SalesGroupUnassigned: 'Bỏ gán nhóm bán hàng',
+  RetailerAssigned: 'Gán điểm bán',
+  RetailerUnassigned: 'Bỏ gán điểm bán',
 };
 
 export function UserAuditPanel({ userId }: { userId: string }) {

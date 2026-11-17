@@ -31,7 +31,7 @@ const labels: Record<string, string> = {
   Allocating: 'Đang phân bổ', Quoted: 'Chờ xác nhận báo giá', AllocationFailed: 'Phân bổ thất bại',
   OutOfStock: 'Hết hàng', AllocationConflict: 'Xung đột phân bổ', Withdrawn: 'Đã rút đơn',
   QuoteRejected: 'Từ chối báo giá', QuoteExpired: 'Báo giá hết hạn', PaymentPending: 'Chờ thanh toán',
-  ConvertedToPo: 'Đã xác nhận PO', Picking: 'Đang soạn hàng', Issued: 'Đã xuất kho', Delivering: 'Đang giao',
+  ConvertedToPo: 'Đã phát hành đơn thực hiện', Picking: 'Đang soạn hàng', Issued: 'Đã xuất kho', Delivering: 'Đang giao',
 };
 const statuses: Record<Kind, string[]> = {
   redemptions: ['Pending', 'Approved', 'Delivered', 'Completed', 'Rejected', 'Cancelled'],
@@ -43,7 +43,7 @@ const load = (kind: Kind, filters: Filters, page: number, pageSize = 50) => get<
 type Column = { key: keyof Row; label: string; date?: boolean; numeric?: boolean };
 function columns(kind: Kind): Column[] {
   const common: Column[] = [{ key: 'id', label: 'Mã giao dịch / yêu cầu' }, { key: 'at', label: 'Thời gian', date: true },
-    { key: 'retailerCode', label: 'Mã retailer' }, { key: 'retailerName', label: 'Retailer' }, { key: 'regionName', label: 'Khu vực' },
+    { key: 'retailerCode', label: 'Mã điểm bán' }, { key: 'retailerName', label: 'Điểm bán' }, { key: 'regionName', label: 'Khu vực' },
     { key: 'programCode', label: 'Mã chương trình' }, { key: 'programName', label: 'Chương trình' }, { key: 'status', label: 'Trạng thái / nghiệp vụ' }];
   if (kind !== 'loyalty') common.push({ key: 'itemCode', label: kind === 'redemptions' ? 'Mã quà' : 'SKU' }, { key: 'itemName', label: kind === 'redemptions' ? 'Quà' : 'Sản phẩm' }, { key: 'quantity', label: 'Số lượng', numeric: true });
   if (kind === 'promotions') common.push({ key: 'grossAmount', label: 'Trước giảm (đ)', numeric: true },
@@ -58,7 +58,7 @@ function columns(kind: Kind): Column[] {
     { key: 'deliveredByName', label: 'Người giao' }, { key: 'deliveredByUserId', label: 'Người giao (ID)' }, { key: 'deliveredAt', label: 'Ngày giao', date: true },
     { key: 'completedAt', label: 'Xác nhận nhận', date: true }, { key: 'cancelledAt', label: 'Từ chối / hủy', date: true },
     { key: 'transactionId', label: 'Giao dịch điểm liên quan' });
-  common.push({ key: 'note', label: 'Ghi chú / batch' });
+  common.push({ key: 'note', label: 'Ghi chú / lô hàng' });
   return common;
 }
 function display(row: Row, col: Column, kind: Kind): string {
@@ -124,7 +124,7 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
       <label className="lbl">Từ ngày<input required className="inp" type="date" value={draft.fromDate} onChange={e => setDraft(f => ({ ...f, fromDate: e.target.value }))} /></label>
       <label className="lbl">Đến ngày<input required className="inp" type="date" min={draft.fromDate} value={draft.toDate} onChange={e => setDraft(f => ({ ...f, toDate: e.target.value }))} /></label>
       <label className="lbl">Khu vực<select className="inp" value={draft.regionId} onChange={e => setDraft(f => ({ ...f, regionId: e.target.value }))}><option value="">Tất cả khu vực</option>{regions.data?.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
-      <label className="lbl">Retailer<input className="inp" placeholder="Mã hoặc tên retailer" value={draft.retailer} onChange={e => setDraft(f => ({ ...f, retailer: e.target.value }))} /></label>
+      <label className="lbl">Điểm bán<input className="inp" placeholder="Mã hoặc tên điểm bán" value={draft.retailer} onChange={e => setDraft(f => ({ ...f, retailer: e.target.value }))} /></label>
       <label className="lbl">Chương trình<input className="inp" placeholder={kind === 'promotions' ? 'Mã chiến dịch hoặc HSD' : 'Mã hoặc tên chương trình'} value={draft.program} onChange={e => setDraft(f => ({ ...f, program: e.target.value }))} /></label>
       <label className="lbl">Trạng thái / loại<select className="inp" value={draft.status} onChange={e => setDraft(f => ({ ...f, status: e.target.value }))}><option value="">Tất cả</option>{statuses[kind].map(s => <option key={s} value={s}>{kind === 'loyalty' && s === 'Pending' ? 'Điểm chờ cộng (cũ)' : labels[s] ?? s}</option>)}</select></label>
       <Button onClick={() => void query.refetch()} loading={query.isFetching} disabled={!valid}>Làm mới</Button>
@@ -138,7 +138,7 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
       <Card title={`${title} · ${formatNumber(data.totalCount)} bản ghi`}>
         <SimpleTable rows={data.items} columns={[
           { header: 'Mở', cell: row => <>{kind === 'redemptions' ? <Button size="sm" onClick={() => navigate(`/redeem/${row.id}`)}>Yêu cầu</Button> : row.orderId ? <Button size="sm" onClick={() => navigate(`/orders/${row.orderId}`)}>Đơn hàng</Button> : null}
-            {kind === 'loyalty' && <Button size="sm" onClick={() => navigate(`/loyalty/${encodeURIComponent(row.retailerCode)}`)}>Thẻ loyalty</Button>}</> },
+            {kind === 'loyalty' && <Button size="sm" onClick={() => navigate(`/loyalty/${encodeURIComponent(row.retailerCode)}`)}>Thẻ tích điểm</Button>}</> },
           { header: 'Chi tiết', cell: row => <Button size="sm" onClick={() => setSelected(row)}>Chi tiết</Button> },
           ...tableCols.map(col => ({ header: col.label, cell: (row: Row) => display(row, col, kind) })),
         ]} />

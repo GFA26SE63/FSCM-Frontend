@@ -10,7 +10,7 @@ const warehouseDetailPageCode = fs.readFileSync(path.resolve(__dirname, '../src/
 const groupDetailPageCode = fs.readFileSync(path.resolve(__dirname, '../src/features/regions/pages/GroupDetailPage.tsx'), 'utf8');
 
 test('Region deactivation blocking message complies with mandatory business rule', () => {
-  const mandatoryWarning = 'Không thể ngừng hoạt động khu vực này vì vẫn còn nhóm Sales đang hoạt động.';
+  const mandatoryWarning = 'Không thể ngừng hoạt động khu vực này vì vẫn còn nhóm bán hàng đang hoạt động.';
   assert.ok(
     regionsPageCode.includes(mandatoryWarning),
     `RegionsPage.tsx must include exact warning: "${mandatoryWarning}"`

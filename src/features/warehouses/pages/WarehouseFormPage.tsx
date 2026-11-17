@@ -329,13 +329,13 @@ function WarehouseEditor({
       if (edit && initialWarehouse) {
         await update.mutateAsync({ code: initialWarehouse.code, body: payload });
         toast.show(
-          `Đã lưu ${payload.code} và tính lại khoảng cách tới retailer.`,
+          `Đã lưu ${payload.code} và tính lại khoảng cách tới điểm bán.`,
         );
         navigate(`/whs/${payload.code}`);
       } else {
         await create.mutateAsync(payload);
         toast.show(
-          `Đã tạo ${payload.code} và tính lại khoảng cách tới retailer.`,
+          `Đã tạo ${payload.code} và tính lại khoảng cách tới điểm bán.`,
         );
         if (payload.regionId) {
           navigate(`/whs/regions/${payload.regionId}`);

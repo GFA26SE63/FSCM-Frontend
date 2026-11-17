@@ -58,7 +58,7 @@ export function RequireRole({
       <EmptyState
         title="403 – Không có quyền truy cập"
         description={
-          'Tài khoản hiện tại không được phép mở màn hình này. Liên hệ Admin nếu cần cấp quyền.'
+          'Tài khoản hiện tại không được phép mở màn hình này. Liên hệ quản trị viên nếu cần cấp quyền.'
         }
       />
     );

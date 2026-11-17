@@ -60,7 +60,7 @@ export interface RefundEvidenceFile {
 
 export const REFUND_STATUS_LABEL: Record<RefundStatus, string> = {
   PendingRefund: 'Chờ hoàn',
-  AwaitingVerification: 'Chờ Admin xác minh',
+  AwaitingVerification: 'Chờ quản trị viên xác minh',
   EvidenceRejected: 'Bằng chứng bị trả lại',
   Refunded: 'Đã hoàn',
 };

@@ -39,7 +39,7 @@ export function SalesKpiTable({ rows, onOpenOrders, onOpenDetail }: Props) {
     },
     {
       key: 'salesUserName',
-      header: 'Sales',
+      header: 'Nhân viên bán hàng',
       text: (row) => row.salesUserName,
       render: (row) => (
         <div>
@@ -49,7 +49,7 @@ export function SalesKpiTable({ rows, onOpenOrders, onOpenDetail }: Props) {
     },
     {
       key: 'group',
-      header: 'Nhóm Sales',
+      header: 'Nhóm bán hàng',
       text: (row) => [row.salesGroupCode, row.salesGroupName].filter(Boolean).join(' · '),
       render: (row) => (
         <span style={{ fontSize: 13 }}>
@@ -191,11 +191,11 @@ export function SalesKpiTable({ rows, onOpenOrders, onOpenDetail }: Props) {
   return (
     <DataTable
       stateKey="kpi"
-      title="Bảng theo dõi KPI Sales"
+      title="Bảng theo dõi KPI bán hàng"
       rows={rows}
       columns={columns}
       rowKey={(row) => `${row.salesUserId}:${row.salesGroupId}`}
-      searchPlaceholder="Tên Sales, mã hoặc tên nhóm…"
+      searchPlaceholder="Tên nhân viên bán hàng, mã hoặc tên nhóm…"
       onRowClick={onOpenDetail || onOpenOrders}
       rowActionsWidth="130px"
       rowActions={(row) => (

@@ -52,13 +52,13 @@ export function RunScheduleSection({ current }: { current: RunSchedule }) {
   return (
     <div className="stack">
       <Callout tone="info">
-        Allocation và tính giá chạy <strong>real-time khi SO được gửi</strong>. ETA không chờ đợt và
-        không chờ Admin duyệt; hệ thống chỉ cộng thời gian soạn, xử lý kho, chờ chuyến xuất tiếp theo,
+        Phân bổ và tính giá chạy <strong>theo thời gian thực khi đơn bán hàng được gửi</strong>. Thời gian nhận dự kiến không chờ đợt và
+        không chờ quản trị viên duyệt; hệ thống chỉ cộng thời gian soạn, xử lý kho, chờ chuyến xuất tiếp theo,
         vận chuyển và thời gian đệm.
       </Callout>
 
       <div className="form-grid cols-2">
-        <FormField label="Thời gian soạn hàng (phút)" hint="Tính từ lúc allocation real-time hoàn tất.">
+        <FormField label="Thời gian soạn hàng (phút)" hint="Tính từ lúc phân bổ theo thời gian thực hoàn tất.">
           <Input
             type="number"
             min={0}
@@ -67,7 +67,7 @@ export function RunScheduleSection({ current }: { current: RunSchedule }) {
             onChange={(event) => setPreparationMinutes(event.target.value)}
           />
         </FormField>
-        <FormField label="Thời gian đệm ETA (phút)" hint="Biên an toàn cộng sau thời gian vận chuyển.">
+        <FormField label="Thời gian đệm khi giao hàng (phút)" hint="Biên an toàn cộng sau thời gian vận chuyển.">
           <Input
             type="number"
             min={0}
@@ -89,7 +89,7 @@ export function RunScheduleSection({ current }: { current: RunSchedule }) {
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
         <Button variant="primary" disabled={errors.length > 0} loading={publish.isPending} onClick={submit}>
-          Lưu cấu hình ETA
+          Lưu cấu hình thời gian nhận dự kiến
         </Button>
         <span style={{ fontSize: 12.5, opacity: 0.75 }}>
           Bản {current.scheduleVersion} · múi giờ {current.timeZone}

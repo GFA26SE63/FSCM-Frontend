@@ -69,7 +69,7 @@ export function KpiConfigDialog({ open, onClose, onSaved }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user || !canManageKpi(user)) {
-      setError('Chỉ Quản trị viên (Admin) mới có quyền cập nhật cấu hình KPI.');
+      setError('Chỉ Quản trị viên mới có quyền cập nhật cấu hình KPI.');
       return;
     }
 
@@ -103,7 +103,7 @@ export function KpiConfigDialog({ open, onClose, onSaved }: Props) {
     return (
       <Modal open={open} title="Phân quyền cấu hình" onClose={onClose}>
         <Callout tone="danger">
-          Bạn không có quyền thực hiện chức năng này. Chỉ Quản trị viên (Admin) mới có thể cấu hình KPI.
+          Bạn không có quyền thực hiện chức năng này. Chỉ Quản trị viên mới có thể cấu hình KPI.
         </Callout>
       </Modal>
     );
@@ -113,7 +113,7 @@ export function KpiConfigDialog({ open, onClose, onSaved }: Props) {
     <Modal
       open={open}
       title="Cấu hình chỉ tiêu & trọng số KPI"
-      subtitle="Thiết lập trọng số tính điểm KPI cho đội ngũ Sales"
+      subtitle="Thiết lập trọng số tính điểm KPI cho đội ngũ bán hàng"
       onClose={onClose}
       width={560}
       footer={

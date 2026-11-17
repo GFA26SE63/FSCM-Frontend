@@ -42,12 +42,12 @@ export function UserDetailPage() {
           },
           {
             kind: 'sales-groups',
-            label: 'Nhóm Sales',
+            label: 'Nhóm bán hàng',
             ids: user.scope.salesGroupIds,
           },
           {
             kind: 'retailers',
-            label: 'Retailer có quyền',
+            label: 'Điểm bán có quyền',
             ids: user.scope.retailerIds,
           },
         ];
@@ -126,7 +126,7 @@ export function UserDetailPage() {
 
             {user.role === 'Admin' && (
               <Card>
-                Admin không được chỉnh sửa hoặc khóa
+                Quản trị viên không được chỉnh sửa hoặc khóa
                 qua màn này.
               </Card>
             )}

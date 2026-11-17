@@ -74,7 +74,7 @@ test('Shared MapDoc: VietMap Street Map tiles with the Maps key only', () => {
   assert.ok(!doc.includes('openstreetmap'), 'no non-VietMap tile fallback');
   assert.ok(!doc.includes('/tiles/st/'), 'satellite style replaced by Street Map');
   assert.ok(doc.includes('Đại lý An Bình'));
-  assert.ok(doc.includes('Điểm bán (Retailer)'));
+  assert.ok(doc.includes('Điểm bán'));
   assert.ok(doc.includes("window.parent.postMessage({type:'mapPick'"));
   assert.ok(doc.includes('Không tải được bản đồ. Vui lòng thử lại sau.'));
 });

@@ -54,7 +54,7 @@ export const retailerApi = {
     if (!match?.id) {
       throw new ApiError(
         404,
-        'Không tìm thấy Retailer này. Thông tin có thể đã được thay đổi hoặc không còn tồn tại.',
+        'Không tìm thấy điểm bán này. Thông tin có thể đã được thay đổi hoặc không còn tồn tại.',
       );
     }
 

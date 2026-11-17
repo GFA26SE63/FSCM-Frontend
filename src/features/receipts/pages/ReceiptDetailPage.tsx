@@ -211,7 +211,7 @@ export function ReceiptDetailPage() {
                     cell: (line) => formatCases(line.receivedQuantity),
                   },
                   {
-                    header: 'Lô hàng (Batch)',
+                    header: 'Lô hàng (lô hàng)',
                     width: '240px',
                     cell: (line) =>
                       line.batchId ? (
@@ -223,12 +223,12 @@ export function ReceiptDetailPage() {
                             {line.batchCode ?? line.batchId}
                           </Link>
                           <span style={{ fontSize: 11.5, color: '#027A48', fontWeight: 500 }}>
-                            Đã liên kết batch
+                            Đã liên kết lô hàng
                           </span>
                         </div>
                       ) : (
                         <span className="muted" style={{ fontSize: 12 }}>
-                          Chưa tạo batch (chờ duyệt)
+                          Chưa tạo lô hàng (chờ duyệt)
                         </span>
                       ),
                   },

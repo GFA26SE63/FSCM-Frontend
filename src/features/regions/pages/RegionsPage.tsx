@@ -93,7 +93,7 @@ export function RegionsPage() {
           open: true,
           title: 'Không thể ngừng hoạt động khu vực',
           message:
-            'Không thể ngừng hoạt động khu vực này vì vẫn còn nhóm Sales đang hoạt động.',
+            'Không thể ngừng hoạt động khu vực này vì vẫn còn nhóm bán hàng đang hoạt động.',
           extraContent: (
             <div
               style={{
@@ -275,7 +275,7 @@ export function RegionsPage() {
     },
     {
       key: 'manager',
-      header: 'Sales Manager',
+      header: 'Quản lý bán hàng',
       width: '160px',
       render: (group) => (
         <div>
@@ -353,7 +353,7 @@ export function RegionsPage() {
     },
     {
       key: 'manager',
-      header: 'Sales Manager',
+      header: 'Quản lý bán hàng',
       width: '160px',
       render: (area) => (
         <div>
@@ -451,7 +451,7 @@ export function RegionsPage() {
           error={groups.error}
           rowKey={(group) => group.code}
           columns={groupColumns}
-          searchPlaceholder="Mã nhóm, khu vực, Sales Manager, tên nhân viên…"
+          searchPlaceholder="Mã nhóm, khu vực, quản lý bán hàng, tên nhân viên…"
           filters={[
             {
               label: 'Khu vực',
@@ -589,7 +589,7 @@ export function RegionsPage() {
           rowKey={(area) => area.code}
           columns={areaColumns}
           onRowClick={(area) => setAreaDlg({ open: true, area, readOnly: true })}
-          searchPlaceholder="Mã, tên vùng, Sales Manager, mô tả…"
+          searchPlaceholder="Mã, tên vùng, quản lý bán hàng, mô tả…"
           filters={[
             {
               label: 'Trạng thái',

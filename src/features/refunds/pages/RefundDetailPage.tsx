@@ -59,18 +59,18 @@ function RefundDetail({ refund }: { refund: Refund }) {
       />
 
       {refund.status === 'Refunded' ? (
-        <Callout tone="ok">Khoản hoàn đã được Admin xác minh là đã chuyển.</Callout>
+        <Callout tone="ok">Khoản hoàn đã được quản trị viên xác minh là đã chuyển.</Callout>
       ) : (
         <Callout tone="info">
-          Chưa có khoản nào được xác nhận là đã chuyển. Hồ sơ chỉ thành “Đã hoàn” sau khi Admin xác minh bằng chứng chuyển tiền.
+          Chưa có khoản nào được xác nhận là đã chuyển. Hồ sơ chỉ thành “Đã hoàn” sau khi quản trị viên xác minh bằng chứng chuyển tiền.
         </Callout>
       )}
       {refund.status === 'AwaitingVerification' && mayVerify && submittedByMe && (
-        <Callout tone="warn">Bạn là người nộp bằng chứng này nên không được tự xác minh. Cần một Admin khác.</Callout>
+        <Callout tone="warn">Bạn là người nộp bằng chứng này nên không được tự xác minh. Cần một quản trị viên khác.</Callout>
       )}
       {refund.status === 'EvidenceRejected' && (
         <Callout tone="danger">
-          <b>Admin đã trả bằng chứng:</b> {refund.verificationNote ?? '—'}. Nghĩa vụ hoàn vẫn còn, hãy nộp lại bằng chứng đúng.
+          <b>Quản trị viên đã trả bằng chứng:</b> {refund.verificationNote ?? '—'}. Nghĩa vụ hoàn vẫn còn, hãy nộp lại bằng chứng đúng.
         </Callout>
       )}
 
@@ -271,7 +271,7 @@ function EvidenceModal({ refund, open, onClose }: { refund: Refund; open: boolea
       footer={
         <>
           <Button onClick={onClose} disabled={busy}>Hủy</Button>
-          <Button variant="primary" loading={busy} onClick={() => void send()}>Gửi Admin xác minh</Button>
+          <Button variant="primary" loading={busy} onClick={() => void send()}>Gửi quản trị viên xác minh</Button>
         </>
       }
     >

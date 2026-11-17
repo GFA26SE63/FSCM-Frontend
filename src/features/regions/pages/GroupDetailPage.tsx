@@ -188,7 +188,7 @@ export function GroupDetailPage() {
               items={[
                 { label: 'Mã nhóm', value: g.code },
                 { label: 'Khu vực', value: `${g.areaName} (${g.areaCode})` },
-                { label: 'Sales Manager', value: g.managerName },
+                { label: 'Quản lý bán hàng', value: g.managerName },
                 {
                   label: 'Trạng thái',
                   value: (

@@ -32,6 +32,9 @@ test-results/
 *.sw?
 
 docs/design
+# Audit reports contain findings that may reference unreleased work or internal reviews;
+# kept local so they can be shared selectively rather than committed to the public repo.
+docs/audits
 .agents
 graphify-out
 CLAUDE.md

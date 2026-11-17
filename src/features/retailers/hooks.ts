@@ -42,7 +42,7 @@ export const useSetMlor = (retailerId?: string) => {
     (payload: SetMlorPayload) => retailerApi.setMlor(payload),
     {
       permission: 'mlor.manage',
-      success: 'Đã lưu cấu hình MLOR.',
+      success: 'Đã lưu cấu hình yêu cầu HSD tối thiểu.',
       onSuccess: () => {
         if (retailerId) {
           void queryClient.invalidateQueries({ queryKey: ['retailers', 'mlor-configs', retailerId] });
@@ -59,7 +59,7 @@ export const useDeleteMlor = (retailerId?: string) => {
     (mlorId: string) => retailerApi.deleteMlor(mlorId),
     {
       permission: 'mlor.manage',
-      success: 'Đã xóa cấu hình MLOR.',
+      success: 'Đã xóa cấu hình yêu cầu HSD tối thiểu.',
       onSuccess: () => {
         if (retailerId) {
           void queryClient.invalidateQueries({ queryKey: ['retailers', 'mlor-configs', retailerId] });
@@ -89,7 +89,7 @@ export const useUpdateRetailerDeclaration = () => {
       retailerApi.updateDeclaration(retailerId, payload),
     {
       permission: 'retailers.edit',
-      success: 'Cập nhật thông tin Retailer thành công.',
+      success: 'Cập nhật thông tin điểm bán thành công.',
       onSuccess: () => {
         void queryClient.invalidateQueries({ queryKey: ['retailers'] });
       },
@@ -112,11 +112,11 @@ export const useRetailerLookups = (enabled = true) => ({
   areas: useQuery({ queryKey: ['retailers', 'areas'], queryFn: retailerApi.areas, enabled }),
   groups: useQuery({ queryKey: ['retailers', 'groups'], queryFn: retailerApi.groups, enabled }),
 });
-export const useCreateRetailer = () => useApiMutation(retailerApi.create, { permission: 'retailers.create', success: (r) => `Đã tạo retailer ${r.code} · ${r.name}.` });
-export const useUpdateRetailer = () => useApiMutation(retailerApi.update, { permission: 'retailers.edit', success: (r) => `Đã cập nhật retailer ${r.code}.` });
-export const useApproveRegistration = () => useApiMutation(retailerApi.approve, { permission: 'retailers.review', success: (r) => `Đã duyệt ${r.registration.code}: cấp mã điểm bán ${r.retailer.code} và báo Sales.` });
+export const useCreateRetailer = () => useApiMutation(retailerApi.create, { permission: 'retailers.create', success: (r) => `Đã tạo điểm bán ${r.code} · ${r.name}.` });
+export const useUpdateRetailer = () => useApiMutation(retailerApi.update, { permission: 'retailers.edit', success: (r) => `Đã cập nhật điểm bán ${r.code}.` });
+export const useApproveRegistration = () => useApiMutation(retailerApi.approve, { permission: 'retailers.review', success: (r) => `Đã duyệt ${r.registration.code}: cấp mã điểm bán ${r.retailer.code} và báo nhân viên bán hàng.` });
 export const useRejectRegistration = () => useApiMutation(retailerApi.reject, { permission: 'retailers.review', success: (r) => `Đã từ chối ${r.code}.` });
-export const useSaveMlor = () => useApiMutation(retailerApi.saveMlor, { permission: 'mlor.manage', success: 'Đã lưu MLOR của retailer.' });
+export const useSaveMlor = () => useApiMutation(retailerApi.saveMlor, { permission: 'mlor.manage', success: 'Đã lưu yêu cầu HSD tối thiểu của điểm bán.' });
 export const useRetailerEligibility = (retailerId: string, enabled = true) =>
   useQuery({
     queryKey: ['retailers', 'eligibility', retailerId],

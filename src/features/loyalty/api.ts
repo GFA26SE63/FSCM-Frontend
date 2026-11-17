@@ -15,7 +15,7 @@ function requireProgram(p: LoyaltyProgram): LoyaltyProgram {
       !Number.isFinite(Date.parse(p.startAt)) || !Number.isFinite(Date.parse(p.endAt)) ||
       !Array.isArray(p.retailerIds) || p.retailerIds.some((id) => typeof id !== 'string') ||
       (p.pointsExpireAt != null && !Number.isFinite(Date.parse(p.pointsExpireAt)))) {
-    throw new ApiError(502, 'Phản hồi chương trình loyalty không hợp lệ.');
+    throw new ApiError(502, 'Phản hồi chương trình tích điểm không hợp lệ.');
   }
   return p;
 }
@@ -32,7 +32,7 @@ const toRetailerLoyalty = (card: LoyaltyCardApi): RetailerLoyalty => ({
 export const loyaltyApi = {
   programs: async (): Promise<LoyaltyProgram[]> => {
     const data = await get<LoyaltyProgram[]>('/loyalty/programs', { includeInactive: true });
-    if (!Array.isArray(data)) throw new ApiError(502, 'Thiếu danh sách chương trình loyalty.');
+    if (!Array.isArray(data)) throw new ApiError(502, 'Thiếu danh sách chương trình tích điểm.');
     return data.map(requireProgram);
   },
   createProgram: (v: ProgramInput) => post<LoyaltyProgram>('/loyalty/programs', programBody(v)).then(requireProgram),
@@ -44,10 +44,10 @@ export const loyaltyApi = {
       const data = await get<{ items: ProgramRetailerOption[]; totalCount: number }>('/retailers', { page, pageSize: 100 });
       if (!data || !Array.isArray(data.items) || !Number.isInteger(data.totalCount) || data.totalCount < 0 ||
           data.items.some((r) => !r.id || !r.code || !r.name || typeof r.status !== 'string')) {
-        throw new ApiError(502, 'Phản hồi danh sách retailer không hợp lệ.');
+        throw new ApiError(502, 'Phản hồi danh sách điểm bán không hợp lệ.');
       }
       if (data.items.length === 0 && result.length < data.totalCount) {
-        throw new ApiError(502, 'Danh sách retailer chưa được tải đầy đủ.');
+        throw new ApiError(502, 'Danh sách điểm bán chưa được tải đầy đủ.');
       }
       result.push(...data.items);
       if (result.length >= data.totalCount) return result;

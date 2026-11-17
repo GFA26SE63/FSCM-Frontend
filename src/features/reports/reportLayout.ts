@@ -10,6 +10,6 @@ export function summaryColumns(count: number, perRow = 6) {
 /** Page title per report kind, matching the sidebar entries. */
 export const REPORT_TITLES = {
   redemptions: 'Báo cáo đổi quà',
-  loyalty: 'Báo cáo loyalty',
+  loyalty: 'Báo cáo tích điểm',
   promotions: 'Báo cáo khuyến mãi',
 } as const;

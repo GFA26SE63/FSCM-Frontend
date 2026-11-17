@@ -76,7 +76,7 @@ export function LabelPrintDialog({
       title={
         target.kind === 'label'
           ? `Xem / in tem ${target.qrCode}`
-          : 'Xem / in tem của batch'
+          : 'Xem / in tem của lô hàng'
       }
       subtitle="Bản in tem chính thức từ hệ thống. In lại sẽ sử dụng mã tem hiện có."
       onClose={onClose}

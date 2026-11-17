@@ -23,28 +23,28 @@ export function ExpiryRiskCard({ rows, total }: { rows: DashboardResponse['expir
   const all = total ?? rows.length;
   const capped = all > rows.length;
   return (
-    <Card title={`Batch cần chú ý · ${formatNumber(all)} batch cận hạn / hết hạn, ưu tiên theo hạn sử dụng`}>
-      <SimpleTable rows={shown} empty="Không có batch cận hạn/hết hạn còn tồn." columns={[
-        { header: 'Batch / kho', cell: b => <>{b.batchCode}<br />{b.warehouseCode}</> },
+    <Card title={`Lô hàng cần chú ý · ${formatNumber(all)} lô hàng cận hạn / hết hạn, ưu tiên theo hạn sử dụng`}>
+      <SimpleTable rows={shown} empty="Không có lô hàng cận hạn/hết hạn còn tồn." columns={[
+        { header: 'Lô hàng / kho', cell: b => <>{b.batchCode}<br />{b.warehouseCode}</> },
         { header: 'SKU', cell: b => b.sku }, { header: 'Hết hạn', cell: b => formatDate(b.expirationDate) },
         { header: 'Tồn vật lý', align: 'right', cell: b => formatNumber(b.onHand) },
         { header: 'Khả dụng', align: 'right', cell: b => formatNumber(b.available) },
         { header: 'Cảnh báo', cell: b => <Chip tone={b.status === 'Expired' ? 'danger' : 'warn'}>{b.status === 'Expired' ? 'Hết hạn' : 'Cận hạn'}</Chip> },
-        { header: '', cell: b => <Button size="sm" onClick={() => navigate(`/batches/${encodeURIComponent(b.batchCode)}`)}>Xem batch</Button> },
+        { header: '', cell: b => <Button size="sm" onClick={() => navigate(`/batches/${encodeURIComponent(b.batchCode)}`)}>Xem lô hàng</Button> },
       ]} />
       {rows.length > 0 && (
         <div className="dashboard-more">
           <span className="muted small">
-            Đang hiển thị {formatNumber(shown.length)} / {formatNumber(all)} batch
-            {capped && shown.length === rows.length && ` · xem toàn bộ trong Quản lý batch`}
+            Đang hiển thị {formatNumber(shown.length)} / {formatNumber(all)} lô hàng
+            {capped && shown.length === rows.length && ` · xem toàn bộ trong Quản lý lô hàng`}
           </span>
           {shown.length < rows.length && (
             <Button size="sm" onClick={() => setVisible(v => nextVisible(Math.min(v, rows.length), rows.length))}>
-              Hiện thêm {formatNumber(Math.min(EXPIRY_PAGE_SIZE, rows.length - shown.length))} batch
+              Hiện thêm {formatNumber(Math.min(EXPIRY_PAGE_SIZE, rows.length - shown.length))} lô hàng
             </Button>
           )}
           {capped && shown.length === rows.length && (
-            <Button size="sm" onClick={() => navigate('/batches')}>Mở Quản lý batch</Button>
+            <Button size="sm" onClick={() => navigate('/batches')}>Mở Quản lý lô hàng</Button>
           )}
         </div>
       )}
