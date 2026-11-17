@@ -1,8 +1,9 @@
+import './inventory.css';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { get } from '@/shared/api/http';
-import { Card, PageHeader, QueryState, SimpleTable } from '@/shared/ui';
+import { Card, Drawer, PageHeader, QueryState, SimpleTable } from '@/shared/ui';
 import { receiptApi } from '@/features/receipts/api';
 import { qrLabelApi } from '@/features/qr-labels/api';
 import { labelStatusText } from '@/features/qr-labels/types';
@@ -38,13 +39,13 @@ export function InventoryPage() {
   });
   const changeFilter = (name: 'warehouseId' | 'status' | 'syncStatus', value: string) =>
     setFilters(current => ({ ...current, [name]: value, page: 1 }));
-  return <>
-    <PageHeader title="Inventory · QR từ nhà máy" subtitle="Theo dõi từng carton đã nhận vào FSCM, mapping pallet / batch / SKU và xác nhận nhập về Traceability." />
+  return <div className="carton-inventory">
+    <PageHeader title="Danh sách carton trong kho" subtitle="Theo dõi từng carton đã nhận vào FSCM, mapping pallet / batch / SKU và xác nhận nhập về Traceability." />
     <p className="row-wrap" style={{ gap: 12 }}><Link className="btn" to="/batches">Tồn và reservation theo batch</Link>{user?.role !== 'Operator' && <Link className="btn" to="/warehouse-inbound">Nhập kho</Link>}</p>
     <Card title="Danh sách QR đã nhận">
       <p>Mỗi dòng là một carton. Pallet là pallet đóng gói gốc; kho và trạng thái QR phản ánh vị trí hiện tại hoặc kho xuất khi đang vận chuyển.</p>
       <p className="muted">Allocation giữ số lượng theo batch; QR “Sẵn sàng” chưa được soạn nhưng có thể thuộc batch đang giữ cho đơn. Xem tồn khả dụng ở bảng batch. Trạng thái xác nhận nhà máy không làm thay đổi tồn đã nhập.</p>
-      <form className="row-wrap" style={{ gap: 12, marginBottom: 16 }} onSubmit={e => { e.preventDefault(); setFilters(current => ({ ...current, search: search.trim(), page: 1 })); }}>
+      <form className="inventory-filters" onSubmit={e => { e.preventDefault(); setFilters(current => ({ ...current, search: search.trim(), page: 1 })); }}>
         <label>Kho <select value={filters.warehouseId} onChange={e => changeFilter('warehouseId', e.target.value)}><option value="">Tất cả kho được phép</option>{warehouses.data?.filter(w => user?.role !== 'WarehouseKeeper' || user.scope?.warehouseIds.includes(w.id)).map(w => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select></label>
         <label>Trạng thái QR <select value={filters.status} onChange={e => changeFilter('status', e.target.value)}><option value="">Tất cả</option>{['Available', 'Picked', 'InTransit', 'Delivered', 'Invalidated', 'Split'].map(s => <option key={s} value={s}>{labelStatusText(s)}</option>)}</select></label>
         <label>Xác nhận về nhà máy <select value={filters.syncStatus} onChange={e => changeFilter('syncStatus', e.target.value)}><option value="">Tất cả</option><option value="Pending">Chờ gửi / đang thử lại</option><option value="Synced">Đã xác nhận</option><option value="Legacy">Dữ liệu cũ chưa có ACK</option></select></label>
@@ -56,14 +57,14 @@ export function InventoryPage() {
       <QueryState query={inventory}>{data => <>
         <p>{data.totalCount} carton khớp bộ lọc · Trang {data.page}</p>
         <SimpleTable rows={data.items} columns={[
-          { header: 'Carton / QR', cell: r => <button className="btn btn-sm" onClick={() => setSelectedCode(r.cartonCode)}>{r.cartonCode}</button> },
-          { header: 'Pallet gốc / batch nhà máy', cell: r => <>{r.palletCode}<br />{r.productionBatchCode}</> },
-          { header: 'SKU / sản phẩm', cell: r => <>{r.sku}<br />{r.productName}<br />{r.unitsPerCarton} sản phẩm/carton</> },
-          { header: 'Kho hiện tại / mã tồn', cell: r => <>{r.warehouseCode} · {r.warehouseName}<br /><Link to={`/batches/${encodeURIComponent(r.stockBatchId)}`}>{r.stockBatchCode}</Link></> },
-          { header: 'NSX / HSD', cell: r => <>{formatDate(r.productionDate)}<br />{formatDate(r.expirationDate)}</> },
-          { header: 'Trạng thái QR', cell: r => labelStatusText(r.status) },
-          { header: 'Phiếu nhập nhà máy / nhận lúc', cell: r => <>{r.receiptCode ?? 'Dữ liệu cũ'}<br />{r.receivedAt ? formatInstantDateTime(r.receivedAt) : '—'}</> },
-          { header: 'Xác nhận về Traceability', cell: r => r.syncedAt ? <>Đã xác nhận<br />{formatInstantDateTime(r.syncedAt)}</> : r.hasAcknowledgement ? <>Chờ gửi · {r.syncAttempts} lần thử{r.syncError && <><br />Lỗi lần trước: {r.syncError}</>}</> : 'Dữ liệu cũ chưa có ACK' },
+          { header: 'Carton / QR', width: '260px', cell: r => <button className="btn btn-sm inventory-code" aria-label={`Xem chi tiết carton ${r.cartonCode}`} onClick={() => setSelectedCode(r.cartonCode)}><span>{r.cartonCode}</span></button> },
+          { header: 'Pallet gốc / batch nhà máy', width: '240px', cell: r => <>{r.palletCode}<br />{r.productionBatchCode}</> },
+          { header: 'SKU / sản phẩm', width: '200px', cell: r => <>{r.sku}<br />{r.productName}<br />{r.unitsPerCarton} sản phẩm/carton</> },
+          { header: 'Kho hiện tại / mã tồn', width: '260px', cell: r => <>{r.warehouseCode} · {r.warehouseName}<br /><Link to={`/batches/${encodeURIComponent(r.stockBatchId)}`}>{r.stockBatchCode}</Link></> },
+          { header: 'NSX / HSD', width: '130px', cell: r => <>{formatDate(r.productionDate)}<br />{formatDate(r.expirationDate)}</> },
+          { header: 'Trạng thái QR', width: '150px', cell: r => labelStatusText(r.status) },
+          { header: 'Phiếu nhập nhà máy / nhận lúc', width: '230px', cell: r => <>{r.receiptCode ?? 'Dữ liệu cũ'}<br />{r.receivedAt ? formatInstantDateTime(r.receivedAt) : '—'}</> },
+          { header: 'Xác nhận về Traceability', width: '210px', cell: r => r.syncedAt ? <>Đã xác nhận<br />{formatInstantDateTime(r.syncedAt)}</> : r.hasAcknowledgement ? <>Chờ gửi · {r.syncAttempts} lần thử{r.syncError && <><br />Lỗi lần trước: {r.syncError}</>}</> : 'Dữ liệu cũ chưa có ACK' },
         ]} empty="Chưa có carton từ Traceability trong phạm vi và bộ lọc này. Tạo phiếu nhập và quét pallet đã phát hành để nhận hàng." />
         <div className="row-wrap" style={{ gap: 12, marginTop: 16 }}>
           <button className="btn" disabled={inventory.isFetching || data.page <= 1} onClick={() => setFilters(current => ({ ...current, page: current.page - 1 }))}>Trang trước</button>
@@ -71,7 +72,7 @@ export function InventoryPage() {
         </div>
       </>}</QueryState>
     </Card>
-    {selectedCode && <>
+    {selectedCode && <Drawer open title={`Chi tiết carton · ${selectedCode}`} onClose={() => setSelectedCode('')} width={1080}>
       <Card title={`Lịch sử QR · ${selectedCode}`}>
         <button className="btn" onClick={() => setSelectedCode('')}>Đóng chi tiết</button>
         <QueryState query={detail}>{data => <>
@@ -85,6 +86,6 @@ export function InventoryPage() {
         </>}</QueryState>
       </Card>
       <TraceLookup key={selectedCode} initialCode={selectedCode} />
-    </>}
-  </>;
+    </Drawer>}
+  </div>;
 }
