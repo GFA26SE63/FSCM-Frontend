@@ -127,19 +127,19 @@ Deploy this release before the FSCM receiving backend and portal releases. Valid
 '@
 }
 $backend = @{
-    Repo = 'GFA26SE63/FSCM-Backend'; Directory = 'FSCM-Backend'; Branch = 'release/factory-inbound-20261117'
-    Title = 'release: receive factory pallets using their fixed destination warehouse'
+    Repo = 'GFA26SE63/FSCM-Backend'; Directory = 'FSCM-Backend'; Branch = 'fix/receiving-pallet-camera-20261117'
+    Title = 'fix(receiving): require recorded pallet scans before stock receipt'
     Body = @'
-Adds an assigned-warehouse arrivals queue and opens one receipt per selected factory pallet. The destination is derived from the external manifest; browser requests cannot choose it. Receipt retries reuse the source pallet key. Preview and receipt reject another pallet on a bound document. Locally received pallets are excluded while ACK delivery is pending. No schema migration.
+Records authenticated pallet camera scans against the receipt document, fixed destination, user and server time in the existing audit ledger. Confirmation requires the matching scan and inspection; the old generic scan path cannot post factory stock. Adds printable receipt documents, scan history and inspection details. No schema migration.
 
-Depends on the Traceability dispatch-list release. CI checks out its exact commit and enables the isolated PostgreSQL warehouse workflow tests. Local API/integration build and four directly invoked contract/query/role tests passed; full PostgreSQL verification must pass in CI before merge.
+Depends on the existing Traceability dispatch-list release. CI must pass before merge. Regression coverage includes missing or unrelated scan evidence, stock unchanged by scans and duplicate confirmation protection.
 '@
 }
 $frontend = @{
-    Repo = 'GFA26SE63/FSCM-Frontend'; Directory = 'FSCM-Frontend'; Branch = 'release/warehouse-screens-20261117'
-    Title = 'release: separate warehouse screens and receive only assigned factory arrivals'
+    Repo = 'GFA26SE63/FSCM-Frontend'; Directory = 'FSCM-Frontend'; Branch = 'fix/receiving-pallet-camera-20261117'
+    Title = 'fix(receiving): scan physical pallet QR on mobile receipt documents'
     Body = @'
-Separates inbound, outbound, transfers and carton tracing into distinct menu entries and list/create/detail routes. Inbound starts from pending factory pallets; the destination and selected pallet are fixed. Single-warehouse keepers see a fixed warehouse; multi-warehouse selection filters the queue. Retains inspection, shortage/damage handling and stock posting semantics. Long document codes stay inside table columns. Aligns existing QR regression assertions with receipt-generated labels.
+Replaces prefilled pallet preview confirmation with phone camera QR decoding and a server-recorded scan. Shows scan history and printable/PDF receipt documents. Inspection confirmation submits the scan identifier and server document version; opening the receipt or scanning does not add stock.
 
 Requires the Traceability and backend receiving releases to be deployed first. Validation: local frontend tests, lint, build and browser checks using isolated fixture data. No environment files or credentials are part of the release.
 '@
@@ -153,6 +153,7 @@ Wait-Route 'https://fscm-traceability-ckeke3bwe6fahzhm.southeastasia-01.azureweb
 $backendSha = Publish-Release $backend
 Wait-Mirror $backend.Repo $backendSha
 Wait-Route 'https://app-fmcg-api-dev-e4f6bdg2h2bfehbq.southeastasia-01.azurewebsites.net/api/v1/warehouse-documents/factory-pending' 401
+Wait-Route 'https://app-fmcg-api-dev-e4f6bdg2h2bfehbq.southeastasia-01.azurewebsites.net/api/v1/warehouse-documents/11111111-1111-1111-1111-111111111111/pallet-scans' 401
 Wait-Route 'https://app-fmcg-api-dev-e4f6bdg2h2bfehbq.southeastasia-01.azurewebsites.net/health' 200 2
 
 $frontendSha = Publish-Release $frontend
@@ -168,6 +169,7 @@ $feature = [regex]::Match($bundle, 'warehouse-work-[A-Za-z0-9_-]+\.js')
 if (-not $feature.Success) { throw 'Could not verify the production warehouse chunk.' }
 $featureBundle = [string](Invoke-WebRequest -Uri "$site/assets/$($feature.Value)" -TimeoutSec 30).Content
 if (-not $featureBundle.Contains('factory-pending') -or -not $featureBundle.Contains('from-pallet')) { throw 'Production does not serve the new arrivals workflow.' }
+if (-not $featureBundle.Contains('pallet-scans') -or -not $featureBundle.Contains('receipt-print')) { throw 'Production does not serve camera scan confirmation and printable receipts.' }
 Write-Host "DEPLOYED AND VERIFIED: $site"
 Write-Host 'Traceability dispatch list, backend arrivals route and production portal assets are present.'
 Write-Host 'No live warehouse stock was changed by this deployment verification.'
