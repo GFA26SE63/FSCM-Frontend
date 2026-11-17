@@ -109,28 +109,13 @@ test('Retailer Sorting: handles missing or invalid createdAt safely', () => {
   });
 });
 
-test('Source Code Integrity: RetailersPage integrates sort control and preserves table functionality', () => {
-  const pageCode = fs.readFileSync(
-    path.resolve(__dirname, '../src/features/retailers/pages/RetailersPage.tsx'),
-    'utf8',
-  );
-
-  // Sort control in filterExtra
-  assert.ok(pageCode.includes('filterExtra='), 'Must define filterExtra for DataTable');
-  assert.ok(pageCode.includes('Sắp xếp theo'), 'Must have label "Sắp xếp theo"');
-  assert.ok(pageCode.includes('SORT_SELECT_OPTIONS'), 'Must use SORT_SELECT_OPTIONS');
-  assert.ok(pageCode.includes('useEnumParam<RetailerSort>'), 'Must bind sort to URL via useEnumParam');
-  assert.ok(pageCode.includes("'sort'"), "Must use 'sort' query param");
-  assert.ok(pageCode.includes("resets: ['page']"), 'Changing sort must reset to page 1');
-
-  // Sorting full dataset before table pagination
-  assert.ok(pageCode.includes('sortRetailers(rawRows, sort)'), 'Must sort rawRows before passing to DataTable');
-  assert.ok(pageCode.includes('rows={rows}'), 'DataTable must receive sorted rows');
-
-  // Existing table and filter integrations must be preserved
-  assert.ok(pageCode.includes("label: 'Trạng thái'"), 'Status filter must be preserved');
-  assert.ok(pageCode.includes("label: 'Nhóm bán hàng'"), 'Sales group filter must be preserved');
-  assert.ok(pageCode.includes('searchPlaceholder="Mã, tên điểm bán, người liên hệ, SĐT..."'), 'Search placeholder preserved');
-  assert.ok(pageCode.includes('rowActionHeader="Thao tác"'), 'Row action header preserved');
-  assert.ok(pageCode.includes('onRowClick={(row) => navigate(`/retailers/${row.id || row.code}`)}'), 'Row navigation preserved');
+test('RetailersPage preserves incoming server pagination and review navigation', () => {
+  const pageCode = fs.readFileSync(path.resolve(__dirname, '../src/features/retailers/pages/RetailersPage.tsx'), 'utf8');
+  assert.ok(pageCode.includes('useRestPagination('));
+  assert.ok(pageCode.includes('retailerApi.list({'));
+  assert.ok(pageCode.includes('pageSize,') && pageCode.includes('search: search || undefined'));
+  assert.ok(pageCode.includes('rows={query.data?.items}') && pageCode.includes('server={pagingProps}'));
+  assert.ok(pageCode.includes('STATUS_FILTER_OPTIONS'));
+  assert.ok(pageCode.includes("can(user, 'retailers.review')"));
+  assert.ok(pageCode.includes('onRowClick={(row) => navigate(`/retailers/${row.id || row.code}`)}'));
 });

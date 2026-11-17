@@ -35,7 +35,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
   const configsQuery = useRetailerMlorConfigs(retailerId, mayRead);
   const productsQuery = useQuery({
     queryKey: ['products', 'all-for-mlor'],
-    queryFn: productApi.list,
+    queryFn: productApi.listAll,
     enabled: mayRead,
   });
   const categoriesQuery = useQuery({

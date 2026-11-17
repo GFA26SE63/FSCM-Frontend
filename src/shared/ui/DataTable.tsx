@@ -9,6 +9,10 @@ import { SearchSelect } from './SearchSelect';
 import type { SelectOption } from './FormField';
 import { minimumTableWidth } from './tableLayout';
 import { tableFilterParam, tableFilterValue } from './tableFilterLabels';
+import type { CursorServerPaging, RestServerPaging, ServerPaging, ServerSort, SortDirection } from '../pagination/types';
+import { PaginationControls } from '../pagination/PaginationControls';
+
+export type { ServerPaging, CursorServerPaging, RestServerPaging, ServerSort, SortDirection };
 
 export interface Column<T> {
   key: string;
@@ -20,6 +24,8 @@ export interface Column<T> {
   /** CSS width ("140px", "18%"); columns without width share the rest. */
   width?: string;
   align?: 'left' | 'right' | 'center';
+  /** Whether this column supports server-side sorting via ServerSort. */
+  sortable?: boolean;
 }
 
 export interface FilterDef<T> {
@@ -31,15 +37,6 @@ export interface FilterDef<T> {
   initial?: string;
   /** Tên tham số URL; mặc định suy ra từ label (vd. "Trạng thái" → "trangthai"). */
   param?: string;
-}
-
-export interface ServerPaging {
-  page: number;
-  size: number;
-  total: number;
-  onPageChange: (page: number) => void;
-  search: string;
-  onSearchChange: (search: string) => void;
 }
 
 interface DataTableProps<T> {
@@ -64,8 +61,13 @@ interface DataTableProps<T> {
   /** Extra controls placed in the filter grid (e.g. date inputs). */
   filterExtra?: ReactNode;
   pageSize?: number;
-  /** When set, paging/search are delegated to the server (?page=&size=&search=). Filters still apply client-side. */
-  server?: ServerPaging;
+  pageSizeOptions?: readonly number[];
+  /** When set, paging/search are delegated to REST server (?page=&size=&search=). Filters still apply client-side. */
+  server?: ServerPaging | RestServerPaging;
+  /** When set, paging/search are delegated to GraphQL Relay cursor pagination. */
+  cursor?: CursorServerPaging;
+  /** When set, table headers become sortable triggers integrated with server-side sorting. */
+  serverSort?: ServerSort;
   emptyText?: string;
   /**
    * Namespace tham số URL của bảng. Bắt buộc khi một màn hình có nhiều bảng
@@ -156,19 +158,18 @@ function useTableState<T>(filters: FilterDef<T>[], persist: boolean, namespace: 
 }
 
 /** Ô tìm kiếm phía server: gõ liên tục chỉ gửi một yêu cầu sau khi dừng gõ. */
-function useDebouncedServerSearch(server: ServerPaging | undefined) {
-  const external = server?.search ?? '';
-  const [draft, setDraft] = useState(external);
-  const sent = useRef(external);
-  const onChange = server?.onSearchChange;
+function useDebouncedSearch(external: string | undefined, onChange: ((search: string) => void) | undefined) {
+  const safeExternal = external ?? '';
+  const [draft, setDraft] = useState(safeExternal);
+  const sent = useRef(safeExternal);
 
   // Giá trị đổi từ bên ngoài (Back/Forward, tải lại) → cập nhật ô nhập.
   useEffect(() => {
-    if (external !== sent.current) {
-      sent.current = external;
-      setDraft(external);
+    if (safeExternal !== sent.current) {
+      sent.current = safeExternal;
+      setDraft(safeExternal);
     }
-  }, [external]);
+  }, [safeExternal]);
 
   useEffect(() => {
     if (!onChange || draft === sent.current) return;
@@ -193,7 +194,11 @@ const cellText = <T,>(c: Column<T>, row: T): string => {
 
 /**
  * Generic list table used by every list screen: "Advanced filter" card (search + select filters),
- * title row with record count + actions, sticky-header table, row actions and paging – same layout as the prototype.
+ * title row with record count + actions, sticky-header table, row actions and paging – supporting:
+ * 1. Client-side pagination (default)
+ * 2. REST server-side pagination (`server` prop)
+ * 3. GraphQL cursor pagination (`cursor` prop)
+ * 4. Server-side sorting (`serverSort` prop)
  */
 export function DataTable<T>({
   title,
@@ -201,7 +206,7 @@ export function DataTable<T>({
   columns,
   rows,
   rowKey,
-  loading,
+  loading = false,
   error,
   actions,
   rowActions,
@@ -214,7 +219,10 @@ export function DataTable<T>({
   filters = [],
   filterExtra,
   pageSize = 10,
+  pageSizeOptions,
   server,
+  cursor,
+  serverSort,
   emptyText = 'Không có bản ghi phù hợp bộ lọc.',
   stateKey,
   urlState = true,
@@ -222,42 +230,79 @@ export function DataTable<T>({
   const inUrlScope = useContext(UrlStateScope);
   const state = useTableState(filters, urlState && inUrlScope, stateKey);
   const { search, fv, page } = state;
-  const serverSearch = useDebouncedServerSearch(server);
 
-  const q = (server ? '' : search).trim().toLowerCase();
+  // Active pagination mode
+  const mode: 'client' | 'rest' | 'cursor' = cursor ? 'cursor' : server ? 'rest' : 'client';
+
+  // Server/cursor search debounce
+  const activeSearchValue = cursor ? cursor.search : server?.search;
+  const activeSearchChange = cursor ? cursor.onSearchChange : server?.onSearchChange;
+  const serverSearch = useDebouncedSearch(activeSearchValue, activeSearchChange);
+
+  // Client-side filtering (when not in cursor mode)
+  const q = (mode === 'client' ? search : '').trim().toLowerCase();
   const filtered = useMemo(() => {
     const all = rows ?? [];
+    if (mode === 'cursor') return all; // Cursor mode data is already sliced and filtered by GraphQL
     return all.filter((r) => {
       if (q && !columns.some((c) => cellText(c, r).toLowerCase().includes(q))) return false;
       return filters.every((f) => !fv[f.label] || fv[f.label] === ALL || f.value(r) === fv[f.label]);
     });
-  }, [rows, q, fv, filters, columns]);
+  }, [rows, q, fv, filters, columns, mode]);
 
-  const total = server ? server.total : filtered.length;
-  const size = server ? server.size : pageSize;
-  const pageCount = Math.max(1, Math.ceil(total / size));
+  // Derived totals and page sizes
+  const total = cursor
+    ? cursor.totalCount ?? rows?.length ?? 0
+    : server
+      ? server.total
+      : filtered.length;
+
+  const size = cursor ? cursor.size : server ? server.size : pageSize;
+  const pageCount = Math.max(1, Math.ceil(total / (size || 1)));
   const ready = !loading && rows !== undefined;
-  // Trang đã lưu không còn tồn tại (dữ liệu thay đổi) → hiển thị trang hợp lệ gần nhất.
-  const curPage = server ? server.page : ready ? Math.min(page, pageCount) : page;
+
+  // Ensure current page is within valid range for REST mode
+  const curPage = cursor
+    ? cursor.currentPage
+    : server
+      ? server.page
+      : ready
+        ? Math.min(page, pageCount)
+        : page;
+
   const serverPageChange = server?.onPageChange;
   const serverOutOfRange = !!server && ready && server.total > 0 && server.page > pageCount;
   useEffect(() => {
     if (serverOutOfRange) serverPageChange?.(pageCount);
   }, [serverOutOfRange, serverPageChange, pageCount]);
-  const visible = server ? filtered : filtered.slice((curPage - 1) * size, curPage * size);
-  const from = total === 0 ? 0 : (curPage - 1) * size + 1;
-  const to = Math.min(total, curPage * size);
-  const goto = (p: number) => (server ? server.onPageChange(p) : state.setPage(p));
+
+  // Determine rows to render
+  const visible = mode === 'cursor'
+    ? rows ?? []
+    : mode === 'rest'
+      ? filtered
+      : filtered.slice((curPage - 1) * size, curPage * size);
+
+  const goto = (p: number) => {
+    if (server) server.onPageChange(p);
+    else state.setPage(p);
+  };
 
   const clear = () => {
     state.clear();
-    if (server) {
+    if (cursor) {
       serverSearch.reset();
-      server.onSearchChange('');
+      cursor.onSearchChange?.('');
+      cursor.onFirstPage?.();
+    } else if (server) {
+      serverSearch.reset();
+      server.onSearchChange?.('');
+      server.onPageChange(1);
     }
   };
 
-  const pages = Array.from({ length: pageCount }, (_, i) => i + 1).filter((p) => p === 1 || p === pageCount || Math.abs(p - curPage) <= 2);
+  // Stale cursor: propagated from useCursorPagination only when backend confirms HC0078.
+  const isStaleCursor = cursor?.isStaleCursor ?? false;
 
   return (
     <>
@@ -274,15 +319,20 @@ export function DataTable<T>({
               Tìm kiếm
               <Input
                 placeholder={searchPlaceholder}
-                value={server ? serverSearch.draft : search}
-                onChange={(e) => (server ? serverSearch.setDraft(e.target.value) : state.setSearch(e.target.value))}
+                value={mode !== 'client' ? serverSearch.draft : search}
+                onChange={(e) =>
+                  mode !== 'client' ? serverSearch.setDraft(e.target.value) : state.setSearch(e.target.value)
+                }
               />
             </label>
             {filters.map((f) => (
               <label className="lbl" key={f.label}>
                 {f.label}
-                {f.searchable ? <SearchSelect value={fv[f.label] ?? ALL} options={[ALL, ...f.options]} onChange={(v) => state.setFilter(f.label, v || ALL)} />
-                  : <Select value={fv[f.label] ?? ALL} options={[ALL, ...f.options]} onChange={(e) => state.setFilter(f.label, e.target.value)} />}
+                {f.searchable ? (
+                  <SearchSelect value={fv[f.label] ?? ALL} options={[ALL, ...f.options]} onChange={(v) => state.setFilter(f.label, v || ALL)} />
+                ) : (
+                  <Select value={fv[f.label] ?? ALL} options={[ALL, ...f.options]} onChange={(e) => state.setFilter(f.label, e.target.value)} />
+                )}
               </label>
             ))}
             {filterExtra}
@@ -322,11 +372,46 @@ export function DataTable<T>({
           </colgroup>
           <thead>
             <tr>
-              {columns.map((c) => (
-                <th key={c.key} style={{ textAlign: c.align ?? 'left' }} title={c.header}>
-                  {c.header}
-                </th>
-              ))}
+              {columns.map((c) => {
+                const isSortable = Boolean(
+                  c.sortable || (serverSort?.sortableFields && serverSort.sortableFields.includes(c.key)),
+                );
+                const isCurrentSort = serverSort?.field === c.key;
+                const direction = isCurrentSort ? serverSort?.direction : undefined;
+
+                if (serverSort && isSortable) {
+                  const handleSortToggle = () => {
+                    let nextDir: SortDirection | undefined;
+                    if (!isCurrentSort) nextDir = 'asc';
+                    else if (direction === 'asc') nextDir = 'desc';
+                    else nextDir = undefined;
+                    serverSort.onChange(c.key, nextDir);
+                  };
+
+                  return (
+                    <th
+                      key={c.key}
+                      style={{ textAlign: c.align ?? 'left', cursor: 'pointer', userSelect: 'none' }}
+                      title={`${c.header} (Nhấp để sắp xếp)`}
+                      onClick={handleSortToggle}
+                      aria-sort={direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : 'none'}
+                    >
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        {c.header}
+                        <span style={{ fontSize: '11px', color: direction ? '#14655B' : '#999' }}>
+                          {direction === 'asc' ? '▲' : direction === 'desc' ? '▼' : '⇅'}
+                        </span>
+                      </span>
+                    </th>
+                  );
+                }
+
+                return (
+                  <th key={c.key} style={{ textAlign: c.align ?? 'left' }} title={c.header}>
+                    {c.header}
+                  </th>
+                );
+              })}
               {rowActions && <th style={{ textAlign: 'right' }}>{rowActionHeader}</th>}
             </tr>
           </thead>
@@ -354,40 +439,56 @@ export function DataTable<T>({
             })}
           </tbody>
         </table>
+
         {loading && (
-          <div className="loading">
+          <div className="loading" role="status" aria-live="polite">
             <span className="spinner" /> Đang tải dữ liệu…
           </div>
         )}
-        {!loading && error != null && <EmptyState title="Không tải được dữ liệu" description={errorMessage(error)} />}
-        {!loading && error == null && visible.length === 0 && (
-          <p className="muted" style={{ textAlign: 'center', padding: 30, margin: 0 }}>
-            {emptyText}
-          </p>
+
+        {!loading && isStaleCursor && (
+          <div style={{ textAlign: 'center', padding: '30px 16px' }}>
+            <p className="muted" style={{ margin: 0, marginBottom: 12 }}>
+              Trang đã chọn không còn dữ liệu do hệ thống đã cập nhật.
+            </p>
+            {cursor?.onFirstPage && (
+              <Button size="sm" variant="primary" onClick={cursor.onFirstPage}>
+                Về trang đầu
+              </Button>
+            )}
+          </div>
+        )}
+
+        {!loading && !isStaleCursor && error != null && (
+          <EmptyState title="Không tải được dữ liệu" description={errorMessage(error)} />
+        )}
+
+        {!loading && !isStaleCursor && error == null && visible.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '30px 16px' }}>
+            <p className="muted" style={{ margin: 0 }}>{emptyText}</p>
+          </div>
         )}
       </section>
 
-      <div className="pager">
-        <span>
-          Hiển thị {from}–{to} / {total}
-        </span>
-        <span className="pages">
-          <Button size="sm" disabled={curPage <= 1} onClick={() => goto(curPage - 1)}>
-            Trước
-          </Button>
-          {pages.map((p, i) => (
-            <span key={p} style={{ display: 'inline-flex', gap: 6 }}>
-              {i > 0 && p - pages[i - 1] > 1 && <span style={{ alignSelf: 'center' }}>…</span>}
-              <Button size="sm" variant={p === curPage ? 'primary' : 'default'} onClick={() => goto(p)}>
-                {p}
-              </Button>
-            </span>
-          ))}
-          <Button size="sm" disabled={curPage >= pageCount} onClick={() => goto(curPage + 1)}>
-            Sau
-          </Button>
-        </span>
-      </div>
+      {/* Unified Pagination Controls */}
+      <PaginationControls
+        mode={mode}
+        restPaging={
+          mode !== 'cursor'
+            ? {
+                currentPage: curPage,
+                pageSize: size,
+                total,
+                totalPages: pageCount,
+                onPageChange: goto,
+                onPageSizeChange: server?.onPageSizeChange,
+                pageSizeOptions: server?.pageSizeOptions ?? pageSizeOptions,
+                loading,
+              }
+            : undefined
+        }
+        cursorPaging={cursor}
+      />
     </>
   );
 }

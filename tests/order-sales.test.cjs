@@ -240,7 +240,7 @@ test('OrdersPage: column spacing and rowActions width are optimized to avoid hor
   const { minimumTableWidth } = source('shared/ui/tableLayout.ts');
 
   // Verify compact rowActions width (165px instead of excessive 220px)
-  assert.ok(ordersPageSrc.includes('rowActionsWidth="165px"'));
+  assert.ok(ordersPageSrc.includes('rowActionsWidth="135px"'));
   assert.ok(!ordersPageSrc.includes('rowActionsWidth="220px"'));
 
   // Verify progress column is compact (110px instead of excessive 145px)

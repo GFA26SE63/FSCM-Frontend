@@ -165,7 +165,7 @@ test('Navigation Integrity: RetailersPage always passes row.id to navigate to de
   // Both row click and Xem button pass row.id
   assert.ok(pageCode.includes('onRowClick={(row) => navigate(`/retailers/${row.id || row.code}`)}'));
   assert.ok(pageCode.includes('onClick={() => navigate(`/retailers/${row.id || row.code}`)}'));
-  assert.ok(pageCode.includes('rowKey={(row) => row.id}'));
+  assert.ok(pageCode.includes('rowKey={(row) => row.id ?? row.code}'));
 });
 
 test('Error State Handling: RetailerDetailPage specifies user-friendly Vietnamese messages and retry actions', () => {

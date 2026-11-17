@@ -187,8 +187,8 @@ test('Source Code Integrity: RetailersPage implements standardized Thao tác, di
   assert.ok(pageCode.includes('Xét duyệt'));
 
   // Filtering and searching
-  assert.ok(pageCode.includes("label: 'Trạng thái'"));
-  assert.ok(pageCode.includes("label: 'Nhóm bán hàng'"));
+  assert.ok(pageCode.includes('STATUS_FILTER_OPTIONS'));
+  assert.ok(pageCode.includes("header: 'Nhóm bán hàng'"));
   assert.ok(pageCode.includes('searchPlaceholder="Mã, tên điểm bán, người liên hệ, SĐT..."'));
 });
 
