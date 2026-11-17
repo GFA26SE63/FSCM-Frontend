@@ -40,6 +40,23 @@ function Wait-Mirror([string]$Repo, [string]$Sha) {
     }
     throw "No Azure mirror run found for $Repo at $Sha."
 }
+function Wait-ReleaseChecks([string]$Repo, [string]$Number) {
+    & $ghExe pr checks $Number --repo $Repo --watch --fail-fast --interval 10
+    if ($LASTEXITCODE -eq 0) { return }
+    $detail = Invoke-Gh @('pr', 'view', $Number, '--repo', $Repo, '--json', 'statusCheckRollup') | ConvertFrom-Json
+    $failed = @($detail.statusCheckRollup | Where-Object { $_.conclusion -in @('FAILURE', 'TIMED_OUT', 'ACTION_REQUIRED', 'CANCELLED') -or $_.state -in @('FAILURE', 'ERROR') })
+    $shown = @{}
+    foreach ($check in $failed) {
+        $link = if ($check.detailsUrl) { $check.detailsUrl } else { $check.targetUrl }
+        Write-Host "Failed check: $($check.name) $link"
+        $run = [regex]::Match([string]$link, '/actions/runs/(\d+)')
+        if ($run.Success -and -not $shown.ContainsKey($run.Groups[1].Value)) {
+            $shown[$run.Groups[1].Value] = $true
+            & $ghExe run view $run.Groups[1].Value --repo $Repo --log-failed | Select-Object -Last 80 | Out-Host
+        }
+    }
+    throw "Release PR #$Number has not passed CI. Failure links/logs are printed above; nothing was merged."
+}
 function Publish-Release($Change) {
     $root = Join-Path $packageRoot $Change.Directory
     $expectedRemote = "https://github.com/$($Change.Repo).git"
@@ -72,7 +89,7 @@ function Publish-Release($Change) {
             Start-Sleep -Seconds 10
         }
         if (-not $checksFound) { throw 'CI checks did not appear. No unchecked merge was performed.' }
-        Invoke-Gh @('pr', 'checks', [string]$pr.number, '--repo', $Change.Repo, '--watch', '--fail-fast', '--interval', '10') | Out-Host
+        Wait-ReleaseChecks $Change.Repo ([string]$pr.number)
         # Normal merge only: required reviews, branch protections and failing checks remain enforced.
         Invoke-Gh @('pr', 'merge', [string]$pr.number, '--repo', $Change.Repo, '--merge', '--match-head-commit', $headSha) | Out-Host
     }
