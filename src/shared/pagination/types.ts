@@ -109,6 +109,19 @@ export interface CursorServerPaging {
    * Used to display a friendly prompt to return to the first page.
    */
   isStaleCursor?: boolean;
+  /**
+   * Pages reachable by direct navigation (page 1 always, plus cursor-registered visited pages
+   * and the immediately adjacent prev/next pages).
+   * Populated by useCursorPagination's cursor registry.
+   */
+  availablePages?: number[];
+  /** Navigate to a specific page number. Triggers sequential cursor resolution for unvisited pages. */
+  onPage?: (page: number) => void;
+  /**
+   * True while sequential cursor resolution is in progress (navigating step-by-step to an
+   * unvisited page). Used to show a loading state in the pagination footer.
+   */
+  isResolving?: boolean;
 }
 
 /**

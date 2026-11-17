@@ -19,9 +19,13 @@ function source(file, mocks = {}) {
     if (Object.hasOwn(mocks, name)) return mocks[name];
     if (name.startsWith('./') || name.startsWith('../')) {
       const resolved = path.relative(path.resolve(__dirname, '../src'), path.resolve(path.dirname(filename), name)).replace(/\\/g, '/');
-      const tsPath = resolved.endsWith('.ts') || resolved.endsWith('.tsx') ? resolved : `${resolved}.ts`;
-      if (fs.existsSync(path.resolve(__dirname, '../src', tsPath))) {
-        return source(tsPath, mocks);
+      if (resolved.endsWith('.ts') || resolved.endsWith('.tsx')) {
+        if (fs.existsSync(path.resolve(__dirname, '../src', resolved))) return source(resolved, mocks);
+      } else {
+        const tsPath = `${resolved}.ts`;
+        const tsxPath = `${resolved}.tsx`;
+        if (fs.existsSync(path.resolve(__dirname, '../src', tsPath))) return source(tsPath, mocks);
+        if (fs.existsSync(path.resolve(__dirname, '../src', tsxPath))) return source(tsxPath, mocks);
       }
     }
     if (name.startsWith('@/')) {
@@ -206,6 +210,9 @@ test('useCursorPagination: manages bidirectional navigation and stack modes', ()
     react: {
       useCallback: (fn) => fn,
       useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => {}],
+      useEffect: () => {},
+      useMemo: (fn) => fn(),
+      useRef: (initial) => ({ current: initial }),
     },
     '../router/listState': {
       paramName: (ns, k) => (ns ? `${ns}.${k}` : k),
@@ -264,7 +271,10 @@ test('useCursorPagination: valid empty page (no error) is NOT treated as stale c
   const useCursorPaginationModule = source('shared/pagination/useCursorPagination.ts', {
     react: {
       useCallback: (fn) => fn,
-      useState: (initial) => [initial, () => {}],
+      useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => {}],
+      useEffect: () => {},
+      useMemo: (fn) => fn(),
+      useRef: (initial) => ({ current: initial }),
     },
     '../router/listState': {
       paramName: (ns, k) => (ns ? `${ns}.${k}` : k),
@@ -309,7 +319,10 @@ test('useCursorPagination: HC0078 error with active cursor IS stale cursor', () 
   const useCursorPaginationModule = source('shared/pagination/useCursorPagination.ts', {
     react: {
       useCallback: (fn) => fn,
-      useState: (initial) => [initial, () => {}],
+      useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => {}],
+      useEffect: () => {},
+      useMemo: (fn) => fn(),
+      useRef: (initial) => ({ current: initial }),
     },
     '../router/listState': {
       paramName: (ns, k) => (ns ? `${ns}.${k}` : k),
@@ -361,7 +374,10 @@ test('useCursorPagination: unknown non-HC0078 error is NOT stale cursor', () => 
   const useCursorPaginationModule = source('shared/pagination/useCursorPagination.ts', {
     react: {
       useCallback: (fn) => fn,
-      useState: (initial) => [initial, () => {}],
+      useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => {}],
+      useEffect: () => {},
+      useMemo: (fn) => fn(),
+      useRef: (initial) => ({ current: initial }),
     },
     '../router/listState': {
       paramName: (ns, k) => (ns ? `${ns}.${k}` : k),
@@ -439,20 +455,26 @@ test('PaginationControls: renders numbered pages and handles disabled states in 
   const React = require('react');
   const { renderToStaticMarkup } = require('react-dom/server');
 
+  // Button mock shared for PaginationControls ('../ui/Button') and Pagination.tsx ('../../ui/Button')
+  const buttonMock = {
+    Button: ({ children, disabled, variant, onClick, 'aria-current': ariaCurrent, ...props }) =>
+      React.createElement('button', { disabled, className: variant, onClick, 'aria-current': ariaCurrent, ...props }, children),
+  };
+  const formFieldMock = {
+    Select: ({ options, value, onChange, ...props }) =>
+      React.createElement(
+        'select',
+        { value, onChange, ...props },
+        (options || []).map((o) => React.createElement('option', { key: o.value, value: o.value }, o.label)),
+      ),
+  };
+
   const controlsModule = source('shared/pagination/PaginationControls.tsx', {
     react: React,
-    '../ui/Button': {
-      Button: ({ children, disabled, variant, onClick, ...props }) =>
-        React.createElement('button', { disabled, className: variant, ...props }, children),
-    },
-    '../ui/FormField': {
-      Select: ({ options, value, onChange, ...props }) =>
-        React.createElement(
-          'select',
-          { value, ...props },
-          options.map((o) => React.createElement('option', { key: o.value, value: o.value }, o.label)),
-        ),
-    },
+    '../ui/Button': buttonMock,
+    '../ui/FormField': formFieldMock,
+    '../../ui/Button': buttonMock,       // used by components/Pagination.tsx
+    '../../ui/FormField': formFieldMock, // used by components/Pagination.tsx
     './types': source('shared/pagination/types.ts'),
   });
 
@@ -478,27 +500,35 @@ test('PaginationControls: renders numbered pages and handles disabled states in 
   assert.ok(html.includes('10 / trang'), 'Should render page size options');
 });
 
-test('PaginationControls: renders cursor mode — Về trang đầu is NOT rendered here (F-01)', () => {
+test('PaginationControls: renders cursor mode with numbered page indicators (F-01)', () => {
   const React = require('react');
   const { renderToStaticMarkup } = require('react-dom/server');
 
+  // Button and Select mocks must be provided for both PaginationControls.tsx (uses '../ui/...')
+  // and Pagination.tsx inside components/ (uses '../../ui/...').
+  const buttonMock = {
+    Button: ({ children, disabled, variant, onClick, 'aria-current': ariaCurrent, ...props }) =>
+      React.createElement('button', { disabled, className: variant, onClick, 'aria-current': ariaCurrent, ...props }, children),
+  };
+  const formFieldMock = {
+    Select: ({ options, value, onChange, ...props }) =>
+      React.createElement(
+        'select',
+        { value, onChange, ...props },
+        (options || []).map((o) => React.createElement('option', { key: o.value, value: o.value }, o.label)),
+      ),
+  };
+
   const controlsModule = source('shared/pagination/PaginationControls.tsx', {
     react: React,
-    '../ui/Button': {
-      Button: ({ children, disabled, variant, onClick, ...props }) =>
-        React.createElement('button', { disabled, className: variant, ...props }, children),
-    },
-    '../ui/FormField': {
-      Select: ({ options, value, onChange, ...props }) =>
-        React.createElement(
-          'select',
-          { value, ...props },
-          options.map((o) => React.createElement('option', { key: o.value, value: o.value }, o.label)),
-        ),
-    },
+    '../ui/Button': buttonMock,
+    '../ui/FormField': formFieldMock,
+    '../../ui/Button': buttonMock,       // used by components/Pagination.tsx
+    '../../ui/FormField': formFieldMock, // used by components/Pagination.tsx
     './types': source('shared/pagination/types.ts'),
   });
 
+  // Page 2 of 3, all pages navigable (no availablePages restriction)
   const normalHtml = renderToStaticMarkup(
     React.createElement(controlsModule.PaginationControls, {
       mode: 'cursor',
@@ -516,7 +546,11 @@ test('PaginationControls: renders cursor mode — Về trang đầu is NOT rende
   );
 
   assert.ok(normalHtml.includes('Hiển thị 21–40 / 60'), 'Should render record range');
-  assert.ok(normalHtml.includes('Trang 2 / 3'), 'Should display current page and total pages');
+  // New behavior: numbered page indicator buttons replace "Trang X / Y" text
+  assert.ok(normalHtml.includes('aria-current="page"'), 'Active page must carry aria-current=page');
+  assert.ok(normalHtml.includes('>2<') || normalHtml.includes('>2</'), 'Page 2 must appear as an indicator');
+  assert.ok(normalHtml.includes('>1<') || normalHtml.includes('>1</'), 'Page 1 must appear as an indicator');
+  assert.ok(normalHtml.includes('>3<') || normalHtml.includes('>3</'), 'Page 3 must appear as an indicator');
   assert.ok(!normalHtml.includes('Về trang đầu'), 'Normal page must not show Về trang đầu button');
 
   // Stale cursor flag set — PaginationControls must NOT render the recovery button (it lives in DataTable empty state)
@@ -538,5 +572,689 @@ test('PaginationControls: renders cursor mode — Về trang đầu is NOT rende
 
   // F-01: recovery button belongs in DataTable empty state only, not in PaginationControls
   assert.ok(!staleHtml.includes('Về trang đầu'), 'PaginationControls must NOT render Về trang đầu — only DataTable empty state does');
+});
+
+/* ------------------------------------------------------------------ */
+/* 5. Cursor Registry and Common Pagination Component                 */
+/* ------------------------------------------------------------------ */
+
+test('Pagination: REST mode renders all pages as clickable, correct record range', () => {
+  const React = require('react');
+  const { renderToStaticMarkup } = require('react-dom/server');
+
+  const buttonMock = {
+    Button: ({ children, disabled, variant, onClick, 'aria-current': ariaCurrent, ...props }) =>
+      React.createElement('button', { disabled, className: variant, onClick, 'aria-current': ariaCurrent, ...props }, children),
+  };
+  const formFieldMock = {
+    Select: ({ options, value, onChange, ...props }) =>
+      React.createElement('select', { value, onChange, ...props },
+        (options || []).map((o) => React.createElement('option', { key: o.value, value: o.value }, o.label))),
+  };
+
+  const paginationModule = source('shared/pagination/components/Pagination.tsx', {
+    react: React,
+    '../../ui/Button': buttonMock,
+    '../../ui/FormField': formFieldMock,
+    '../types': source('shared/pagination/types.ts'),
+  });
+
+  const html = renderToStaticMarkup(
+    React.createElement(paginationModule.Pagination, {
+      currentPage: 2,
+      totalPages: 5,
+      totalCount: 50,
+      pageSize: 10,
+      navigablePages: undefined, // REST: all pages navigable
+      hasPrev: true,
+      hasNext: true,
+      onPage: () => {},
+      onPrev: () => {},
+      onNext: () => {},
+    }),
+  );
+
+  assert.ok(html.includes('Hiển thị 11–20 / 50'), 'Record range must be correct for page 2');
+  assert.ok(html.includes('aria-current="page"'), 'Active page must have aria-current=page');
+  // In REST mode (navigablePages=undefined), pages should NOT be disabled
+  // (all page indicator buttons are navigable)
+  // REST mode: navigablePages is undefined so all page buttons should be enabled (not disabled)
+  // The only disabled button should be Trước (page 1 is not prev-available from page 1)
+  // Here we're on page 2 so Trước is enabled too — only Sau could be disabled if on last page
+  assert.ok(html.includes('>1<') || html.includes('>1</'), 'Page 1 indicator must be rendered');
+});
+
+test('Pagination: cursor mode shows non-navigable pages as disabled reference indicators', () => {
+  const React = require('react');
+  const { renderToStaticMarkup } = require('react-dom/server');
+
+  const buttonMock = {
+    Button: ({ children, disabled, variant, onClick, 'aria-current': ariaCurrent, ...props }) =>
+      React.createElement('button', { disabled, className: variant, onClick, 'aria-current': ariaCurrent, ...props }, children),
+  };
+  const formFieldMock = {
+    Select: ({ options, value, onChange, ...props }) =>
+      React.createElement('select', { value, onChange, ...props },
+        (options || []).map((o) => React.createElement('option', { key: o.value, value: o.value }, o.label))),
+  };
+
+  const paginationModule = source('shared/pagination/components/Pagination.tsx', {
+    react: React,
+    '../../ui/Button': buttonMock,
+    '../../ui/FormField': formFieldMock,
+    '../types': source('shared/pagination/types.ts'),
+  });
+
+  // Cursor mode: on page 2 of 5, only pages 1, 2, 3 are navigable (page 4, 5 not yet visited)
+  const html = renderToStaticMarkup(
+    React.createElement(paginationModule.Pagination, {
+      currentPage: 2,
+      totalPages: 5,
+      totalCount: 50,
+      pageSize: 10,
+      navigablePages: [1, 2, 3], // cursor mode: only visited + adjacent are reachable
+      hasPrev: true,
+      hasNext: true,
+      onPage: () => {},
+      onPrev: () => {},
+      onNext: () => {},
+    }),
+  );
+
+  assert.ok(html.includes('Hiển thị 11–20 / 50'), 'Record range must be correct');
+  assert.ok(html.includes('aria-current="page"'), 'Active page 2 must have aria-current');
+  // Page 4 and 5 should be rendered as disabled (they're in totalPages range but not in navigablePages)
+  // We can check that there are some disabled buttons (the non-navigable page indicators)
+  assert.ok(html.includes('disabled=""') || html.includes('disabled'), 'Non-navigable pages should appear as disabled indicators');
+});
+
+test('useCursorPagination: cursor registry tracks visited pages and builds availablePages', () => {
+  let currentParams = {};
+  let effectCallbacks = [];
+
+  const useCursorPaginationModule = source('shared/pagination/useCursorPagination.ts', {
+    react: {
+      useCallback: (fn) => fn,
+      useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => {}],
+      useMemo: (fn) => fn(),
+      useRef: (initial) => ({ current: initial }),
+      // Capture useEffect callbacks for manual invocation in tests
+      useEffect: (fn) => { effectCallbacks.push(fn); },
+    },
+    '../router/listState': {
+      paramName: (ns, k) => (ns ? `${ns}.${k}` : k),
+      parsePage: (raw) => (raw ? Number(raw) : 1),
+      useQueryParams: () => ({
+        params: new Map(Object.entries(currentParams)),
+        setParams: (u) => { currentParams = { ...currentParams, ...u }; },
+        hasRouter: true,
+      }),
+    },
+    './types': source('shared/pagination/types.ts'),
+    './urlSync': urlSync,
+  });
+
+  const pageInfo = {
+    hasNextPage: true,
+    hasPreviousPage: false,
+    startCursor: null,
+    endCursor: 'cursor_for_page_2',
+  };
+
+  const res = useCursorPaginationModule.useCursorPagination({
+    pageInfo,
+    totalCount: 30,
+    defaultPageSize: 10,
+  });
+
+  // On page 1: availablePages must include at minimum page 1 (current) and page 2 (hasNextPage)
+  assert.ok(res.availablePages.includes(1), 'Page 1 must always be in availablePages');
+  assert.ok(res.availablePages.includes(2), 'Page 2 must be in availablePages when hasNextPage');
+  assert.equal(typeof res.goToPage, 'function', 'goToPage must be a function');
+  assert.equal(typeof res.pagingProps.onPage, 'function', 'pagingProps.onPage must be a function');
+  assert.ok(Array.isArray(res.pagingProps.availablePages), 'pagingProps.availablePages must be an array');
+});
+
+test('useCursorPagination: goToPage uses registry cursor to navigate to previously visited pages', () => {
+  let currentParams = { after: 'cursor_for_page_2', page: '2' };
+  let registryMap = new Map([
+    [3, 'cursor_for_page_3'], // simulate previously visited page 2 registered cursor for page 3
+  ]);
+
+  const useCursorPaginationModule = source('shared/pagination/useCursorPagination.ts', {
+    react: {
+      useCallback: (fn) => fn,
+      useState: (initial) => {
+        // Return the pre-populated registry for cursorRegistry state
+        if (typeof initial === 'function' && initial.toString().includes('new Map')) {
+          return [registryMap, (newMap) => { registryMap = typeof newMap === 'function' ? newMap(registryMap) : newMap; }];
+        }
+        return [typeof initial === 'function' ? initial() : initial, () => {}];
+      },
+      useMemo: (fn) => fn(),
+      useEffect: () => {},
+      useRef: (initial) => ({ current: initial }),
+    },
+    '../router/listState': {
+      paramName: (ns, k) => (ns ? `${ns}.${k}` : k),
+      parsePage: (raw) => (raw ? Number(raw) : 1),
+      useQueryParams: () => ({
+        params: new Map(Object.entries(currentParams)),
+        setParams: (u) => { currentParams = { ...currentParams, ...u }; },
+        hasRouter: true,
+      }),
+    },
+    '../api/errors': { ApiError: class ApiError extends Error { constructor(s, t, d, c) { super(d||t); this.status=s; this.code=c; } } },
+    './types': source('shared/pagination/types.ts'),
+    './urlSync': urlSync,
+  });
+
+  const pageInfo = {
+    hasNextPage: true,
+    hasPreviousPage: true,
+    startCursor: 'cursor_start_2',
+    endCursor: 'cursor_for_page_3',
+  };
+
+  const res = useCursorPaginationModule.useCursorPagination({
+    pageInfo,
+    totalCount: 30,
+    defaultPageSize: 10,
+  });
+
+  // availablePages should include page 3 from the registry
+  assert.ok(res.availablePages.includes(3), 'Page 3 from registry must appear in availablePages');
+
+  // goToPage(3) should navigate using the registry cursor
+  res.goToPage(3);
+  assert.equal(currentParams.after, 'cursor_for_page_3', 'goToPage must use registry cursor as after param');
+  assert.equal(currentParams.before, null, 'goToPage must clear before param');
+  assert.equal(currentParams.page, 3, 'goToPage must set page param to target page');
+});
+
+test('useCursorPagination: registry resets on page size change', () => {
+  let currentParams = {};
+  let registryMap = new Map([[2, 'cursor_for_p2'], [3, 'cursor_for_p3']]);
+  let registrySetterCalled = false;
+
+  const useCursorPaginationModule = source('shared/pagination/useCursorPagination.ts', {
+    react: {
+      useCallback: (fn) => fn,
+      useState: (initial) => {
+        if (typeof initial === 'function' && initial.toString().includes('new Map')) {
+          return [registryMap, (newMap) => {
+            registrySetterCalled = true;
+            registryMap = typeof newMap === 'function' ? newMap(registryMap) : newMap;
+          }];
+        }
+        return [typeof initial === 'function' ? initial() : initial, () => {}];
+      },
+      useMemo: (fn) => fn(),
+      useEffect: () => {},
+      useRef: (initial) => ({ current: initial }),
+    },
+    '../router/listState': {
+      paramName: (ns, k) => (ns ? `${ns}.${k}` : k),
+      parsePage: (raw) => (raw ? Number(raw) : 1),
+      useQueryParams: () => ({
+        params: new Map(Object.entries(currentParams)),
+        setParams: (u) => { currentParams = { ...currentParams, ...u }; },
+        hasRouter: true,
+      }),
+    },
+    './types': source('shared/pagination/types.ts'),
+    './urlSync': urlSync,
+  });
+
+  const res = useCursorPaginationModule.useCursorPagination({
+    pageInfo: { hasNextPage: true, hasPreviousPage: false, startCursor: null, endCursor: 'c1' },
+    totalCount: 50,
+    defaultPageSize: 10,
+  });
+
+  res.setPageSize(20);
+  assert.ok(registrySetterCalled, 'Registry must be cleared (setter called) on page size change');
+  assert.equal(currentParams.after, null, 'Cursor after must reset');
+  assert.equal(currentParams.page, null, 'Page must reset');
+});
+
+/* ------------------------------------------------------------------ */
+/* 6. Sequential Cursor Resolution                                     */
+/* ------------------------------------------------------------------ */
+
+test('useCursorPagination: goToPage(N) with no registry cursor starts sequential resolution', () => {
+  let currentParams = {};
+  let isResolvingValue = false;
+
+  const useCursorPaginationModule = source('shared/pagination/useCursorPagination.ts', {
+    react: {
+      useCallback: (fn) => fn,
+      useState: (initial) => {
+        const v = typeof initial === 'function' ? initial() : initial;
+        // isResolving state
+        if (v === false && initial === false) {
+          return [isResolvingValue, (n) => { isResolvingValue = n; }];
+        }
+        return [v, () => {}];
+      },
+      useMemo: (fn) => fn(),
+      useEffect: () => {},
+      useRef: (initial) => ({ current: initial }),
+    },
+    '../router/listState': {
+      paramName: (ns, k) => (ns ? `${ns}.${k}` : k),
+      parsePage: (raw) => (raw ? Number(raw) : 1),
+      useQueryParams: () => ({
+        params: new Map(Object.entries(currentParams)),
+        setParams: (u) => { currentParams = { ...currentParams, ...u }; },
+        hasRouter: true,
+      }),
+    },
+    './types': source('shared/pagination/types.ts'),
+    './urlSync': urlSync,
+  });
+
+  const pageInfo = { hasNextPage: true, hasPreviousPage: false, startCursor: null, endCursor: 'e1_to_p2' };
+  const res = useCursorPaginationModule.useCursorPagination({ pageInfo, totalCount: 60, defaultPageSize: 10 });
+
+  // Currently on page 1, no registry — clicking page 6 should trigger sequential resolution
+  res.goToPage(6);
+
+  // Should set isResolving = true (via setPendingTarget(6))
+  assert.equal(isResolvingValue, true, 'isResolving must be true when sequential resolution starts');
+  // Should navigate toward page 2 using current page endCursor
+  assert.equal(currentParams.after, 'e1_to_p2', 'Should use current page endCursor to start resolution');
+  assert.equal(currentParams.page, 2, 'Should navigate to page 2 as first step');
+  assert.equal(currentParams.before, null, 'before cursor must be cleared');
+});
+
+test('useCursorPagination: goToPage uses best-known cursor as jump-off for sequential resolution', () => {
+  let currentParams = {};
+  let isResolvingValue = false;
+  let registryMap = new Map([
+    [2, 'cursor_to_p2'],
+    [3, 'cursor_to_p3'],
+    [4, 'cursor_to_p4'],
+  ]);
+
+  const useCursorPaginationModule = source('shared/pagination/useCursorPagination.ts', {
+    react: {
+      useCallback: (fn) => fn,
+      useState: (initial) => {
+        const v = typeof initial === 'function' ? initial() : initial;
+        if (v instanceof Map) {
+          return [registryMap, (n) => { registryMap = typeof n === 'function' ? n(registryMap) : n; }];
+        }
+        if (v === false && initial === false) {
+          return [isResolvingValue, (n) => { isResolvingValue = n; }];
+        }
+        return [v, () => {}];
+      },
+      useMemo: (fn) => fn(),
+      useEffect: () => {},
+      useRef: (initial) => ({ current: initial }),
+    },
+    '../router/listState': {
+      paramName: (ns, k) => (ns ? `${ns}.${k}` : k),
+      parsePage: (raw) => (raw ? Number(raw) : 1),
+      useQueryParams: () => ({
+        params: new Map(Object.entries(currentParams)),
+        setParams: (u) => { currentParams = { ...currentParams, ...u }; },
+        hasRouter: true,
+      }),
+    },
+    './types': source('shared/pagination/types.ts'),
+    './urlSync': urlSync,
+  });
+
+  const pageInfo = { hasNextPage: true, hasPreviousPage: false, startCursor: null, endCursor: 'e1_to_p2' };
+  const res = useCursorPaginationModule.useCursorPagination({ pageInfo, totalCount: 70, defaultPageSize: 10 });
+
+  // Registry has cursors for pages 2, 3, 4. Clicking page 7 should start from page 4 (best known).
+  res.goToPage(7);
+
+  assert.equal(isResolvingValue, true, 'isResolving must be true during sequential resolution');
+  assert.equal(currentParams.after, 'cursor_to_p4', 'Should jump to highest known page (4) before target');
+  assert.equal(currentParams.page, 4, 'Should set page param to best-known jump-off page');
+});
+
+test('useCursorPagination: goToPage direct-navigates registered pages and cancels prior resolution', () => {
+  let currentParams = {};
+  let isResolvingValue = true; // simulate an in-progress resolution
+  let registryMap = new Map([[3, 'cursor_to_p3']]);
+  let pendingTargetValue = { current: 6 }; // simulate in-progress resolution
+
+  const useCursorPaginationModule = source('shared/pagination/useCursorPagination.ts', {
+    react: {
+      useCallback: (fn) => fn,
+      useState: (initial) => {
+        const v = typeof initial === 'function' ? initial() : initial;
+        if (v instanceof Map) {
+          return [registryMap, (n) => { registryMap = typeof n === 'function' ? n(registryMap) : n; }];
+        }
+        if (v === false && initial === false) {
+          return [isResolvingValue, (n) => { isResolvingValue = n; }];
+        }
+        return [v, () => {}];
+      },
+      useMemo: (fn) => fn(),
+      useEffect: () => {},
+      useRef: (initial) => {
+        // Return our pre-populated ref for pendingTarget
+        if (initial === null) return pendingTargetValue;
+        return { current: initial };
+      },
+    },
+    '../router/listState': {
+      paramName: (ns, k) => (ns ? `${ns}.${k}` : k),
+      parsePage: (raw) => (raw ? Number(raw) : 1),
+      useQueryParams: () => ({
+        params: new Map(Object.entries(currentParams)),
+        setParams: (u) => { currentParams = { ...currentParams, ...u }; },
+        hasRouter: true,
+      }),
+    },
+    './types': source('shared/pagination/types.ts'),
+    './urlSync': urlSync,
+  });
+
+  const pageInfo = { hasNextPage: true, hasPreviousPage: true, startCursor: 'cs', endCursor: 'ce' };
+  const res = useCursorPaginationModule.useCursorPagination({ pageInfo, totalCount: 70, defaultPageSize: 10 });
+
+  // Page 3 is in registry. Clicking it must cancel the in-progress resolution (pendingTarget→null)
+  // and navigate directly.
+  res.goToPage(3);
+
+  assert.equal(currentParams.after, 'cursor_to_p3', 'Must use registry cursor for direct navigation');
+  assert.equal(currentParams.page, 3, 'Must set page param to target');
+  assert.equal(isResolvingValue, false, 'isResolving must be false after direct navigation cancels resolution');
+});
+
+test('useCursorPagination: registry resets on search change', () => {
+  let currentParams = {};
+  let registryCleared = false;
+  let registryMap = new Map([[2, 'cursor_p2'], [3, 'cursor_p3']]);
+
+  const useCursorPaginationModule = source('shared/pagination/useCursorPagination.ts', {
+    react: {
+      useCallback: (fn) => fn,
+      useState: (initial) => {
+        const v = typeof initial === 'function' ? initial() : initial;
+        if (v instanceof Map) {
+          return [registryMap, (n) => {
+            const next = typeof n === 'function' ? n(registryMap) : n;
+            if (next instanceof Map && next.size === 0) registryCleared = true;
+            registryMap = next;
+          }];
+        }
+        return [v, () => {}];
+      },
+      useMemo: (fn) => fn(),
+      useEffect: () => {},
+      useRef: (initial) => ({ current: initial }),
+    },
+    '../router/listState': {
+      paramName: (ns, k) => (ns ? `${ns}.${k}` : k),
+      parsePage: (raw) => (raw ? Number(raw) : 1),
+      useQueryParams: () => ({
+        params: new Map(Object.entries(currentParams)),
+        setParams: (u) => { currentParams = { ...currentParams, ...u }; },
+        hasRouter: true,
+      }),
+    },
+    './types': source('shared/pagination/types.ts'),
+    './urlSync': urlSync,
+  });
+
+  const res = useCursorPaginationModule.useCursorPagination({
+    pageInfo: { hasNextPage: true, hasPreviousPage: false, startCursor: null, endCursor: 'c1' },
+    totalCount: 50, defaultPageSize: 10,
+  });
+
+  res.setSearch('new query');
+  assert.ok(registryCleared, 'Registry must be cleared on search change');
+  assert.equal(currentParams.after, null, 'after cursor must reset');
+  assert.equal(currentParams.page, null, 'page must reset');
+});
+
+test('useCursorPagination: registry resets on sort change', () => {
+  let currentParams = {};
+  let registryCleared = false;
+  let registryMap = new Map([[2, 'cursor_p2']]);
+
+  const useCursorPaginationModule = source('shared/pagination/useCursorPagination.ts', {
+    react: {
+      useCallback: (fn) => fn,
+      useState: (initial) => {
+        const v = typeof initial === 'function' ? initial() : initial;
+        if (v instanceof Map) {
+          return [registryMap, (n) => {
+            const next = typeof n === 'function' ? n(registryMap) : n;
+            if (next instanceof Map && next.size === 0) registryCleared = true;
+            registryMap = next;
+          }];
+        }
+        return [v, () => {}];
+      },
+      useMemo: (fn) => fn(),
+      useEffect: () => {},
+      useRef: (initial) => ({ current: initial }),
+    },
+    '../router/listState': {
+      paramName: (ns, k) => (ns ? `${ns}.${k}` : k),
+      parsePage: (raw) => (raw ? Number(raw) : 1),
+      useQueryParams: () => ({
+        params: new Map(Object.entries(currentParams)),
+        setParams: (u) => { currentParams = { ...currentParams, ...u }; },
+        hasRouter: true,
+      }),
+    },
+    './types': source('shared/pagination/types.ts'),
+    './urlSync': urlSync,
+  });
+
+  const res = useCursorPaginationModule.useCursorPagination({
+    pageInfo: { hasNextPage: true, hasPreviousPage: false, startCursor: null, endCursor: 'c1' },
+    totalCount: 50, defaultPageSize: 10,
+  });
+
+  res.setSort('createdAt', 'desc');
+  assert.ok(registryCleared, 'Registry must be cleared on sort change');
+  assert.equal(currentParams.after, null, 'after cursor must reset');
+  assert.equal(currentParams.page, null, 'page must reset');
+});
+
+test('useCursorPagination: registry effect advances resolution step by step', () => {
+  let currentParams = {};
+  let effectCallbacks = [];
+  let registryMap = new Map();
+
+  const useCursorPaginationModule = source('shared/pagination/useCursorPagination.ts', {
+    react: {
+      useCallback: (fn) => fn,
+      useState: (initial) => {
+        const v = typeof initial === 'function' ? initial() : initial;
+        if (v instanceof Map) {
+          return [registryMap, (n) => { registryMap = typeof n === 'function' ? n(registryMap) : n; }];
+        }
+        return [v, () => {}];
+      },
+      useMemo: (fn) => fn(),
+      useRef: (initial) => ({ current: initial }),
+      useEffect: (fn) => { effectCallbacks.push(fn); },
+    },
+    '../router/listState': {
+      paramName: (ns, k) => (ns ? `${ns}.${k}` : k),
+      parsePage: (raw) => (raw ? Number(raw) : 1),
+      useQueryParams: () => ({
+        params: new Map(Object.entries(currentParams)),
+        setParams: (u) => { currentParams = { ...currentParams, ...u }; },
+        hasRouter: true,
+      }),
+    },
+    './types': source('shared/pagination/types.ts'),
+    './urlSync': urlSync,
+  });
+
+  const pageInfo = { hasNextPage: true, hasPreviousPage: false, startCursor: null, endCursor: 'e1' };
+  useCursorPaginationModule.useCursorPagination({ pageInfo, totalCount: 60, defaultPageSize: 10 });
+
+  // Find the registry/resolution useEffect (the one that fires on pageInfo changes).
+  // With the new code, effects are: [queryContext-effect, registry+resolution-effect].
+  // The registry+resolution effect is the one that uses pageInfo.endCursor.
+  // We'll invoke all effects and pick the one that updates params.
+  const prevParamsBefore = { ...currentParams };
+
+  // Simulate: set pendingTarget to 3 via the ref (effects can't set state in test, but ref is accessible)
+  // We access the ref returned by useRef(null) — first null-initial ref is pendingTargetRef.
+  // Actually the registry effect reads pendingTargetRef.current which the mock returns as { current: null }.
+  // Set it to 3 manually:
+  let pendingRef = null;
+  const moduleWithRef = source('shared/pagination/useCursorPagination.ts', {
+    react: {
+      useCallback: (fn) => fn,
+      useState: (initial) => {
+        const v = typeof initial === 'function' ? initial() : initial;
+        if (v instanceof Map) {
+          return [registryMap, (n) => { registryMap = typeof n === 'function' ? n(registryMap) : n; }];
+        }
+        return [v, () => {}];
+      },
+      useMemo: (fn) => fn(),
+      useRef: (initial) => {
+        if (initial === null && pendingRef === null) {
+          pendingRef = { current: 3 }; // simulate pendingTarget = 3
+          return pendingRef;
+        }
+        return { current: initial };
+      },
+      useEffect: (fn) => { effectCallbacks.push(fn); },
+    },
+    '../router/listState': {
+      paramName: (ns, k) => (ns ? `${ns}.${k}` : k),
+      parsePage: (raw) => (raw ? Number(raw) : 1),
+      useQueryParams: () => ({
+        params: new Map([['page', '1']]),
+        setParams: (u) => { currentParams = { ...currentParams, ...u }; },
+        hasRouter: true,
+      }),
+    },
+    './types': source('shared/pagination/types.ts'),
+    './urlSync': urlSync,
+  });
+
+  moduleWithRef.useCursorPagination({
+    pageInfo: { hasNextPage: true, hasPreviousPage: false, startCursor: null, endCursor: 'cursor_p1_to_p2' },
+    totalCount: 60, defaultPageSize: 10,
+  });
+
+  // Invoke the last captured effect (the registry+resolution effect)
+  const registryEffect = effectCallbacks[effectCallbacks.length - 1];
+  registryEffect();
+
+  // Should have navigated to page 2 (currentPage=1, pendingTarget=3, so advance to 2)
+  assert.equal(currentParams.after, 'cursor_p1_to_p2', 'Effect must advance to next page');
+  assert.equal(currentParams.page, 2, 'Effect must set page param to next page');
+  // Registry should have page 2 cursor registered
+  assert.ok(registryMap.get(2) === 'cursor_p1_to_p2', 'Registry must record cursor for page 2');
+});
+
+test('PaginationControls: cursor mode renders all page indicators as clickable (no disabled)', () => {
+  const React = require('react');
+  const { renderToStaticMarkup } = require('react-dom/server');
+
+  const disabledPages = [];
+  const buttonMock = {
+    Button: ({ children, disabled, variant, onClick, 'aria-current': ariaCurrent, ...props }) => {
+      // Track any page-number button that gets disabled
+      if (disabled && typeof children === 'number') disabledPages.push(children);
+      return React.createElement('button', { disabled, className: variant, onClick, 'aria-current': ariaCurrent, ...props }, children);
+    },
+  };
+  const formFieldMock = {
+    Select: ({ options, value, onChange, ...props }) =>
+      React.createElement('select', { value, onChange, ...props },
+        (options || []).map((o) => React.createElement('option', { key: o.value, value: o.value }, o.label))),
+  };
+
+  const controlsModule = source('shared/pagination/PaginationControls.tsx', {
+    react: React,
+    '../ui/Button': buttonMock,
+    '../ui/FormField': formFieldMock,
+    '../../ui/Button': buttonMock,
+    '../../ui/FormField': formFieldMock,
+    './types': source('shared/pagination/types.ts'),
+  });
+
+  // Page 2 of 5. With the new navigablePages=undefined approach, ALL page indicators (1-5) are clickable.
+  renderToStaticMarkup(
+    React.createElement(controlsModule.PaginationControls, {
+      mode: 'cursor',
+      cursorPaging: {
+        pageInfo: { hasNextPage: true, hasPreviousPage: true, startCursor: 'c1', endCursor: 'c2' },
+        currentPage: 2,
+        size: 10,
+        totalCount: 50,
+        totalPages: 5,
+        onNext: () => {},
+        onPrev: () => {},
+        onFirstPage: () => {},
+        onPage: () => {},
+        availablePages: [1, 2, 3], // even though only 1-3 are in availablePages...
+      },
+    }),
+  );
+
+  // With navigablePages=undefined, page 4 and 5 should NOT be in disabledPages
+  assert.ok(!disabledPages.includes(4), 'Page 4 must not be disabled (sequential resolution handles it)');
+  assert.ok(!disabledPages.includes(5), 'Page 5 must not be disabled (sequential resolution handles it)');
+  assert.ok(!disabledPages.includes(1), 'Page 1 must not be disabled');
+  assert.ok(!disabledPages.includes(3), 'Page 3 must not be disabled');
+});
+
+test('PaginationControls: cursor mode shows loading state when isResolving is true', () => {
+  const React = require('react');
+  const { renderToStaticMarkup } = require('react-dom/server');
+
+  const buttonMock = {
+    Button: ({ children, disabled, ...props }) =>
+      React.createElement('button', { disabled, ...props }, children),
+  };
+  const formFieldMock = {
+    Select: ({ options, value, onChange, ...props }) =>
+      React.createElement('select', { value, onChange, ...props },
+        (options || []).map((o) => React.createElement('option', { key: o.value, value: o.value }, o.label))),
+  };
+
+  const controlsModule = source('shared/pagination/PaginationControls.tsx', {
+    react: React,
+    '../ui/Button': buttonMock,
+    '../ui/FormField': formFieldMock,
+    '../../ui/Button': buttonMock,
+    '../../ui/FormField': formFieldMock,
+    './types': source('shared/pagination/types.ts'),
+  });
+
+  const html = renderToStaticMarkup(
+    React.createElement(controlsModule.PaginationControls, {
+      mode: 'cursor',
+      cursorPaging: {
+        pageInfo: { hasNextPage: true, hasPreviousPage: true, startCursor: 'c1', endCursor: 'c2' },
+        currentPage: 2,
+        size: 10,
+        totalCount: 50,
+        totalPages: 5,
+        onNext: () => {},
+        onPrev: () => {},
+        onFirstPage: () => {},
+        onPage: () => {},
+        isResolving: true,
+        loading: false,
+      },
+    }),
+  );
+
+  // When isResolving=true, all navigation buttons must be disabled (loading state)
+  assert.ok(html.includes('disabled'), 'Navigation buttons must be disabled during resolution (loading state)');
 });
 

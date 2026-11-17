@@ -9,4 +9,5 @@ export * from './useRestPagination';
 export * from './useCursorPagination';
 export * from './queryKeys';
 export * from './PaginationControls';
+export * from './components/Pagination';
 
