@@ -91,4 +91,29 @@ test.describe('Admin sidebar live smoke', () => {
       expect(findings, `UI placeholders found:\n${findings.join('\n')}`).toEqual([]);
     }
   });
+
+  test('finance and territory read models render business values instead of raw identifiers', async ({ page }) => {
+    await page.goto('/refunds');
+    await expect(page.getByText('Hồ sơ hoàn tiền', { exact: true })).toBeVisible();
+    await expect(page.getByText('Đang tải dữ liệu…')).toHaveCount(0, { timeout: 20_000 });
+    const refundRows = page.locator('table.tbl').last().locator('tbody tr');
+    if (await refundRows.count()) {
+      await expect(refundRows.first()).toContainText(/Khiếu nại|Điều chỉnh công nợ/);
+    }
+
+    await page.goto('/debts');
+    await expect(page.getByText('Danh sách công nợ', { exact: true })).toBeVisible();
+    await expect(page.getByText('Đang tải dữ liệu…')).toHaveCount(0, { timeout: 20_000 });
+    await expect(page.locator('table.tbl tbody tr').first()).toBeVisible({ timeout: 20_000 });
+    const debtsText = await page.locator('main').innerText();
+    expect(debtsText).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+    expect(debtsText).toMatch(/Chưa giao|\d{2}\/\d{2}\/\d{4}/);
+    expect(debtsText).toMatch(/Chưa phát sinh|\d{2}\/\d{2}\/\d{4}/);
+
+    await page.goto('/regions/BD-A');
+    await expect(page.getByText(/Danh sách điểm bán do nhóm BD-A phụ trách/i)).toBeVisible();
+    const retailerTable = page.locator('table').last();
+    await expect(retailerTable).not.toContainText('—');
+    await expect(retailerTable).toContainText(/Bình Dương|Chưa cập nhật địa chỉ/);
+  });
 });
