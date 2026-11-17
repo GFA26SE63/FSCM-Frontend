@@ -26,17 +26,17 @@ export function LoyaltyProgramsPanel() {
     { key: 'code', header: 'Mã', text: (p) => p.code, width: '110px' },
     { key: 'name', header: 'Tên chương trình', text: (p) => p.name },
     { key: 'rate', header: 'Quy đổi', text: (p) => `${formatMoney(p.spendAmountPerPoint)} = 1 điểm` },
-    { key: 'retailers', header: 'Retailer áp dụng', text: (p) => `${p.retailerIds.length} retailer` },
+    { key: 'retailers', header: 'Điểm bán áp dụng', text: (p) => `${p.retailerIds.length} retailer` },
     { key: 'period', header: 'Hiệu lực (VN)', text: (p) => `${formatInstantDateTime(p.startAt)} – ${formatInstantDateTime(p.endAt)}` },
     { key: 'status', header: 'Trạng thái', text: (p) => programStatus(p, now),
       render: (p) => <Chip tone={p.isActive && Date.parse(p.endAt) >= now ? 'ok' : 'warn'}>{programStatus(p, now)}</Chip> },
   ];
 
   return <>
-    <DataTable stateKey="programs" title="Chương trình loyalty" rows={query.data}
+    <DataTable stateKey="programs" title="Chương trình tích điểm" rows={query.data}
       loading={query.isLoading} error={query.error} columns={columns}
       rowKey={(p) => p.id} searchPlaceholder="Mã hoặc tên chương trình…"
-      emptyText="Chưa có chương trình loyalty phù hợp."
+      emptyText="Chưa có chương trình tích điểm phù hợp."
       actions={<>
         <Button size="sm" loading={query.isFetching} onClick={() => void query.refetch()}>Tải lại chương trình</Button>
         {mayManage && <Button variant="primary" onClick={() => setEditing({})}>+ Tạo chương trình</Button>}
@@ -60,7 +60,7 @@ export function LoyaltyProgramsPanel() {
         { label: 'Hiệu lực từ (VN)', value: formatInstantDateTime(detail.startAt) },
         { label: 'Hiệu lực đến (VN)', value: formatInstantDateTime(detail.endAt) },
         { label: 'Điểm hết hạn (VN)', value: detail.pointsExpireAt ? formatInstantDateTime(detail.pointsExpireAt) : 'Không đặt hạn' },
-        { label: 'Retailer áp dụng', value: `${detail.retailerIds.length} retailer` },
+        { label: 'Điểm bán áp dụng', value: `${detail.retailerIds.length} retailer` },
         { label: 'Mô tả', value: detail.description || '—' },
       ]} /></Card>
       <ProgramAudience ids={detail.retailerIds} />
@@ -88,15 +88,15 @@ function ProgramAudience({ ids }: { ids: string[] }) {
   const query = useProgramRetailers();
   const retailers = query.data;
   return <div>
-    <h3>Retailer áp dụng</h3>
-    {query.isLoading && <p>Đang tải thông tin retailer…</p>}
+    <h3>Điểm bán áp dụng</h3>
+    {query.isLoading && <p>Đang tải thông tin điểm bán…</p>}
     {query.error && <div className="callout callout-danger">
-      {errorMessage(query.error)} <Button size="sm" onClick={() => void query.refetch()}>Tải lại retailer</Button>
+      {errorMessage(query.error)} <Button size="sm" onClick={() => void query.refetch()}>Tải lại điểm bán</Button>
     </div>}
     {!query.isLoading && !query.error && retailers && <ul>
       {ids.map((id) => {
         const retailer = retailers.find((r) => r.id === id);
-        return <li key={id}>{retailer ? `${retailer.code} · ${retailer.name}` : `Không tìm thấy thông tin retailer (${id})`}</li>;
+        return <li key={id}>{retailer ? `${retailer.code} · ${retailer.name}` : `Không tìm thấy thông tin điểm bán (${id})`}</li>;
       })}
     </ul>}
   </div>;

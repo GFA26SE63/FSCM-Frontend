@@ -172,11 +172,11 @@ export function validateReportFilters(
   }
 
   if (filters.salesGroupId && !UUID_REGEX.test(filters.salesGroupId)) {
-    return 'Mã nhóm Sales không hợp lệ.';
+    return 'Mã nhóm bán hàng không hợp lệ.';
   }
 
   if (filters.salesUserId && !UUID_REGEX.test(filters.salesUserId)) {
-    return 'Mã nhân viên Sales không hợp lệ.';
+    return 'Mã nhân viên bán hàng không hợp lệ.';
   }
 
   return undefined;

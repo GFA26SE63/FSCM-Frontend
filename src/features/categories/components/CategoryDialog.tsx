@@ -200,7 +200,7 @@ export function CategoryDialog({
 
     // Role restrictions: Operator cannot create root category
     if (!parentId && !isAdmin) {
-      setError('Chỉ Admin được tạo danh mục gốc – vui lòng chọn danh mục cha.');
+      setError('Chỉ quản trị viên được tạo danh mục gốc – vui lòng chọn danh mục cha.');
       return false;
     }
 

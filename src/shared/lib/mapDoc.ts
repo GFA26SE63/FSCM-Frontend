@@ -117,7 +117,7 @@ export function buildMapDoc({
 
 <div class="lg">
   ${hasWh || (!hasWh && !hasRet && !interactivePick) ? '<span><b style="color:#B85C1E">■</b> Kho</span>' : ''}
-  ${hasRet || (!hasWh && !hasRet) ? '<span><b style="color:#1D4ED8">●</b> Điểm bán (Retailer)</span>' : ''}
+  ${hasRet || (!hasWh && !hasRet) ? '<span><b style="color:#1D4ED8">●</b> Điểm bán</span>' : ''}
   ${radiusKm > 0 ? `<span><span style="color:#0D9488;font-weight:700">◯</span> Bán kính ${radiusKm} km</span>` : ''}
   ${interactivePick ? `<span class="pick-hint">· ${escapeHtml(pickHint)}</span>` : ''}
 </div>

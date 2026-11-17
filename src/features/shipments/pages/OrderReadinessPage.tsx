@@ -19,9 +19,9 @@ export function OrderReadinessPage() {
   });
   return <>
     <PageHeader title="Xuất kho"
-      subtitle="Cả đơn phải soạn đủ ở mọi kho và đạt điều kiện thanh toán thì mới được xuất. Mở từng đơn để xem kho, shipment và thao tác vận hành." />
+      subtitle="Cả đơn phải soạn đủ ở mọi kho và đạt điều kiện thanh toán thì mới được xuất. Mở từng đơn để xem kho, phiếu giao hàng và thao tác vận hành." />
     <QueryState query={lists}>{data => data.length === 0
-      ? <Callout tone="info">Chưa có PO nào phát hành phiếu soạn để kiểm tra xuất kho.</Callout>
+      ? <Callout tone="info">Chưa có đơn thực hiện nào phát hành phiếu soạn để kiểm tra xuất kho.</Callout>
       : <QueryState query={orders}>{items => <ExportOrders orders={items} pickingCount={data.length} />}</QueryState>}
     </QueryState>
   </>;
@@ -57,9 +57,9 @@ function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; picking
             { value: 'codeAsc', label: 'Mã đơn tăng dần' }, { value: 'codeDesc', label: 'Mã đơn giảm dần' },
           ]} />
       </label>
-      <label className="lbl">Shipment trong từng đơn
+      <label className="lbl">Phiếu giao hàng trong từng đơn
         <Select value={shipmentSort} onChange={event => setShipmentSort(event.target.value as ShipmentSort)}
-          options={[{ value: 'asc', label: 'Mã shipment tăng dần' }, { value: 'desc', label: 'Mã shipment giảm dần' }]} />
+          options={[{ value: 'asc', label: 'Mã phiếu giao hàng tăng dần' }, { value: 'desc', label: 'Mã phiếu giao hàng giảm dần' }]} />
       </label>
       <Button onClick={() => { void readiness.refetch(); }}>Tải lại trạng thái</Button>
     </div>

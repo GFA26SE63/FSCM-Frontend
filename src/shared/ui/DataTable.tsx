@@ -8,6 +8,7 @@ import { errorMessage } from '../api/errors';
 import { SearchSelect } from './SearchSelect';
 import type { SelectOption } from './FormField';
 import { minimumTableWidth } from './tableLayout';
+import { tableFilterParam, tableFilterValue } from './tableFilterLabels';
 import type { CursorServerPaging, RestServerPaging, ServerPaging, ServerSort, SortDirection } from '../pagination/types';
 import { PaginationControls } from '../pagination/PaginationControls';
 
@@ -87,13 +88,7 @@ const optionValue = (o: string | SelectOption) => (typeof o === 'string' ? o : o
 /** "Trạng thái" → "trangthai": tên tham số ổn định, chỉ ký tự ASCII. */
 function filterParamName<T>(f: FilterDef<T>): string {
   if (f.param) return f.param;
-  const slug = f.label
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[đĐ]/g, 'd')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '');
-  return slug || 'filter';
+  return tableFilterParam(f.label);
 }
 
 /**
@@ -138,7 +133,8 @@ function useTableState<T>(filters: FilterDef<T>[], persist: boolean, namespace: 
       if (raw === null) return [f.label, defaultOf(f)];
       if (raw === ALL_TOKEN) return [f.label, ALL];
       const values = f.options.map(optionValue);
-      return [f.label, values.length > 0 && !values.includes(raw) ? defaultOf(f) : raw];
+      const normalized = tableFilterValue(raw, values);
+      return [f.label, values.length > 0 && !values.includes(normalized) ? defaultOf(f) : normalized];
     }),
   );
   const encode = (f: FilterDef<T>, v: string) => (v === defaultOf(f) ? null : v === ALL ? ALL_TOKEN : v);
@@ -311,12 +307,12 @@ export function DataTable<T>({
   return (
     <>
       {searchable && (
-        <section className="card filter-card" aria-label="Advanced filter">
+        <section className="card filter-card" aria-label="Bộ lọc nâng cao">
           <div className="row">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14655B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M3 5h18l-7 8v6l-4 2v-8z" />
             </svg>
-            <h2 className="sec">Advanced filter</h2>
+            <h2 className="sec">Bộ lọc nâng cao</h2>
           </div>
           <div className="filter-grid">
             <label className="lbl">

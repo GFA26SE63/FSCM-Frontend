@@ -185,7 +185,7 @@ export function ReceiptFormPage() {
       <PageHeader
         back="/receipts"
         title="Tạo phiếu nhập kho"
-        subtitle="Tiếp nhận hàng từ nhà sản xuất. Mỗi dòng hàng sẽ được đối soát và tạo hoặc gộp batch khi được duyệt."
+        subtitle="Tiếp nhận hàng từ nhà sản xuất. Mỗi dòng hàng sẽ được đối soát và tạo hoặc gộp lô hàng khi được duyệt."
       />
 
       <Card title="Thông tin chung">
@@ -358,7 +358,7 @@ export function ReceiptFormPage() {
 
                 {currentWarehouseCode && r.sku && r.expirationDate && (
                   <div style={{ marginTop: 6, fontSize: 12, color: 'var(--c-muted, #666)' }}>
-                    Mã batch dự kiến khi duyệt: <b>{IdFormat.batch(currentWarehouseCode, r.sku, r.expirationDate)}</b>
+                    Mã lô hàng dự kiến khi duyệt: <b>{IdFormat.batch(currentWarehouseCode, r.sku, r.expirationDate)}</b>
                   </div>
                 )}
               </div>

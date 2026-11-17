@@ -43,13 +43,16 @@ export function formatSalesName(entry: ResolvedSalesUser | undefined): string {
     return `[Điểm bán] ${identity}`;
   }
   if (role === 'Admin') {
-    return `[Admin] ${identity}`;
+    return `[Quản trị viên] ${identity}`;
   }
   if (role === 'Operator') {
     return `[Vận hành] ${identity}`;
   }
   if (role === 'WarehouseKeeper') {
     return `[Thủ kho] ${identity}`;
+  }
+  if (role === 'SalesManager') {
+    return `[Quản lý bán hàng] ${identity}`;
   }
   return `[${role}] ${identity}`;
 }

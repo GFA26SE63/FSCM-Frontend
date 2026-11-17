@@ -11,7 +11,7 @@ import {
   StatusChip,
   type Column,
 } from '@/shared/ui';
-import { formatCases, formatMoney, formatShortDateTime } from '@/shared/lib';
+import { formatCases, formatMoney, formatShortDateTime, statusLabel } from '@/shared/lib';
 import type { OrderStatus, OrderSummary } from '@/features/orders/types';
 import { fetchAllocationOrdersPage } from '../allocationOrdersApi';
 
@@ -39,7 +39,7 @@ const ORDER_STATUS_FILTER_VALUES = [
 type OrderStatusFilter = (typeof ORDER_STATUS_FILTER_VALUES)[number];
 
 const STATUS_OPTIONS = [
-  { label: 'Tất cả trạng thái SO', value: '' },
+  { label: 'Tất cả trạng thái đơn bán hàng', value: '' },
   { label: 'Đang phân bổ', value: 'Allocating' },
   { label: 'Đã báo giá', value: 'Quoted' },
   { label: 'Phân bổ thất bại', value: 'AllocationFailed' },
@@ -92,13 +92,13 @@ export function AllocationRunPage() {
   const columns: Column<OrderSummary>[] = [
     {
       key: 'received',
-      header: 'Server nhận',
+      header: 'Hệ thống tiếp nhận',
       width: '145px',
       text: (order) => formatShortDateTime(order.createdAt),
     },
     {
       key: 'order',
-      header: 'SO / Retailer',
+      header: 'Đơn bán hàng / điểm bán',
       width: '220px',
       text: (order) => `${order.orderCode} ${order.retailerCode} ${order.retailerName}`,
       render: (order) => (
@@ -122,14 +122,14 @@ export function AllocationRunPage() {
     },
     {
       key: 'allocation',
-      header: 'Trạng thái allocation',
-      text: (order) => `${order.allocationState} ${order.allocationResult ?? ''}`,
+      header: 'Kết quả phân bổ',
+      text: (order) => `${statusLabel('allocation', order.allocationState)} ${statusLabel('allocation', order.allocationResult ?? '')}`,
       render: (order) => (
         <>
-          <div className="strong">{order.allocationResult ?? order.allocationState ?? '—'}</div>
+          <div className="strong">{statusLabel('allocation', order.allocationResult ?? order.allocationState ?? '—')}</div>
           <div className="muted small">
             {order.allocationRunId
-              ? `Run: ${order.allocationRunId.slice(0, 8)}…`
+              ? `Lần phân bổ: ${order.allocationRunId.slice(0, 8)}…`
               : order.finalPricePendingAllocation
                 ? 'Đang tính giá HSD'
                 : null}
@@ -154,7 +154,7 @@ export function AllocationRunPage() {
     },
     {
       key: 'status',
-      header: 'Trạng thái SO',
+      header: 'Trạng thái đơn bán hàng',
       width: '165px',
       render: (order) => <StatusChip domain="order" value={order.status as OrderStatus} />,
     },
@@ -163,20 +163,20 @@ export function AllocationRunPage() {
   return (
     <>
       <PageHeader
-        title="Giám sát allocation real-time"
-        subtitle="Mỗi SO được chọn batch/kho ngay khi gửi. Hệ thống giữ tồn sau allocation thành công, tính giảm HSD theo batch rồi gửi báo giá cho Retailer; Admin không duyệt phương án."
+        title="Giám sát phân bổ theo thời gian thực"
+        subtitle="Mỗi đơn bán hàng được chọn lô hàng/kho ngay khi gửi. Hệ thống giữ tồn sau phân bổ thành công, tính giảm HSD theo lô hàng rồi gửi báo giá cho điểm bán; quản trị viên không duyệt phương án."
       />
       <DataTable
-        title="Lịch sử xử lý SO"
+        title="Lịch sử xử lý đơn bán hàng"
         rows={rows}
         loading={query.isLoading || query.isFetching}
         error={query.error}
         rowKey={(order) => order.id}
         columns={columns}
-        searchPlaceholder="Mã SO, Retailer…"
+        searchPlaceholder="Mã đơn bán hàng, điểm bán…"
         filterExtra={
           <Select
-            aria-label="Lọc theo trạng thái SO"
+            aria-label="Lọc theo trạng thái đơn bán hàng"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as OrderStatusFilter)}
             options={STATUS_OPTIONS}

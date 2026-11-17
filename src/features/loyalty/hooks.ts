@@ -26,5 +26,5 @@ export const useBalances = () => useQuery({ queryKey: ['loyalty', 'balances'], q
 export const useRetailerLoyalty = (code: string) => useQuery({ queryKey: ['loyalty', 'retailer', code], queryFn: () => loyaltyApi.retailer(code) });
 export const useUpdateProgram = () => useApiMutation(loyaltyApi.updateProgram, {
   permission: 'loyalty.manage',
-  success: 'Đã cập nhật chương trình loyalty.',
+  success: 'Đã cập nhật chương trình tích điểm.',
 });

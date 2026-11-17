@@ -292,7 +292,7 @@ describe('URL state preservation — source analysis', () => {
 describe('clear filters', () => {
   test('clearFilters resets status, search and page atomically', () => {
     assert.ok(
-      pageCode.includes("setParams({ status: null, search: null, page: null })"),
+      pageCode.includes("setParams({ status: null, q: null, page: null })"),
       'clearFilters must clear status + search + page atomically',
     );
   });

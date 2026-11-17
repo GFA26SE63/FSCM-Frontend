@@ -3,7 +3,7 @@ import { useNavigate } from '@/shared/router/compat';
 import { useStringParam } from '@/shared/router/listState';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { ConfirmDialog, Modal, Button } from '@/shared/ui';
-import { formatMoney } from '@/shared/lib';
+import { formatMoney, statusLabel } from '@/shared/lib';
 import { useToast } from '@/shared/ui/Toast';
 import { useCategories, useCategory, useUpdateCategoryStatus, useDeleteCategory } from '../hooks';
 import { CategoryDialog } from '../components/CategoryDialog';
@@ -641,7 +641,7 @@ export function CategoriesPage() {
                                 alignItems: 'center',
                               }}
                             >
-                              {p.status}
+                              {statusLabel('product', p.status)}
                             </span>
                           </span>
                         </button>

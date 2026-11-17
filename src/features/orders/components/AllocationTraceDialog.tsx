@@ -4,8 +4,8 @@ import { formatDateTime, formatHours, formatMoney, formatNumber, formatPercent }
 import type { OrderDetail } from '../types';
 
 const MLOR_SOURCE = {
-  Sku: 'SKU riêng của retailer',
-  Category: 'category của retailer',
+  Sku: 'SKU riêng của điểm bán',
+  Category: 'danh mục của điểm bán',
   Default: 'mặc định sản phẩm',
 } as const;
 
@@ -21,7 +21,7 @@ export function AllocationTraceDialog({ order, open, onClose }: {
   const fragments = line ? [...line.allocationFragments].sort((a, b) => a.sequence - b.sequence) : [];
   const audit = order.allocationAudit?.lines.find(item => item.lineId === line?.id);
   const reasons = { Eligible: 'Đủ điều kiện', NoRemainingQuantity: 'Hết tồn khả dụng', RouteUnavailable: 'Không có tuyến giao hợp lệ',
-    OutsideServiceRadius: 'Ngoài bán kính phục vụ', ArrivesAfterDeadline: 'Đến sau hạn giao', BelowMlor: 'Không đạt MLOR tại ETA' };
+    OutsideServiceRadius: 'Ngoài bán kính phục vụ', ArrivesAfterDeadline: 'Đến sau hạn giao', BelowMlor: 'Không đạt yêu cầu HSD tối thiểu tại thời gian nhận dự kiến' };
 
   return (
     <Modal
@@ -32,13 +32,13 @@ export function AllocationTraceDialog({ order, open, onClose }: {
       wide
       title={`Giải thích phân bổ · ${order.orderCode}`}
       subtitle={order.allocationRunCode
-        ? `${order.allocationRunCode} · chạy real-time · ${formatDateTime(order.officialPricedAt)}`
+        ? `${order.allocationRunCode} · chạy theo thời gian thực · ${formatDateTime(order.officialPricedAt)}`
         : 'Đơn chưa có kết quả phân bổ'}
     >
       <Callout tone={fragments.length > 0 ? 'info' : 'warn'}>
         {fragments.length > 0
-          ? 'Đây là kết quả allocation đã lưu và đã giữ tồn bằng khóa lạc quan; không có bước Admin duyệt phương án.'
-          : 'Đơn chưa có batch được chọn. Xem trạng thái và lý do trong lịch sử đơn.'}
+          ? 'Đây là kết quả phân bổ đã lưu và đã giữ tồn bằng khóa lạc quan; không có bước quản trị viên duyệt phương án.'
+          : 'Đơn chưa có lô hàng được chọn. Xem trạng thái và lý do trong lịch sử đơn.'}
       </Callout>
 
       <Tabs
@@ -54,11 +54,11 @@ export function AllocationTraceDialog({ order, open, onClose }: {
       {line && (
         <div style={{ display: 'grid', gap: 14 }}>
           <section className="card" style={{ padding: 16 }}>
-            <h3 style={{ marginTop: 0 }}>B1 · Nhận SO và đóng băng điều kiện</h3>
+            <h3 style={{ marginTop: 0 }}>B1 · Nhận đơn bán hàng và đóng băng điều kiện</h3>
             <div className="row-wrap">
               <Chip tone="info">{line.sku}</Chip>
               <span>Nhu cầu: <b>{formatNumber(line.quantity)}</b></span>
-              <span>MLOR: <b>{formatPercent(line.mlor.minimumLifeRatio * 100, 1)}</b></span>
+              <span>Yêu cầu HSD tối thiểu: <b>{formatPercent(line.mlor.minimumLifeRatio * 100, 1)}</b></span>
               {line.mlor.minimumLifeHours != null && <span>Tối thiểu: <b>{formatHours(line.mlor.minimumLifeHours)}</b></span>}
               <span>Nguồn: <b>{MLOR_SOURCE[line.mlor.sourceScope]}</b></span>
               <span>Phiên bản: <b>v{line.mlor.sourceVersion}</b></span>
@@ -66,48 +66,48 @@ export function AllocationTraceDialog({ order, open, onClose }: {
           </section>
 
           <section className="card" style={{ padding: 16 }}>
-            <h3 style={{ marginTop: 0 }}>B2 · Lọc batch đủ điều kiện</h3>
+            <h3 style={{ marginTop: 0 }}>B2 · Lọc lô hàng đủ điều kiện</h3>
             <p className="muted small">
-              Hệ thống loại batch hết tồn, không có tuyến giao, ngoài vùng phục vụ, đến trễ hoặc không đạt MLOR.
-              {audit ? 'Bảng ghi lại từng bước lọc của tất cả batch tại thời điểm phân bổ.' : 'Đơn cũ chưa lưu trace ứng viên; bảng dưới chỉ có batch đã chọn.'}
+              Hệ thống loại lô hàng hết tồn, không có tuyến giao, ngoài vùng phục vụ, đến trễ hoặc không đạt yêu cầu HSD tối thiểu.
+              {audit ? 'Bảng ghi lại từng bước lọc của tất cả lô hàng tại thời điểm phân bổ.' : 'Đơn cũ chưa lưu trace ứng viên; bảng dưới chỉ có lô hàng đã chọn.'}
             </p>
             {audit && <SimpleTable compact rows={audit.filters} empty="Không có ứng viên."
               columns={[
-                { header: 'Kho / batch', cell: item => `${item.warehouseCode} / ${item.batchCode}` },
+                { header: 'Kho / lô hàng', cell: item => `${item.warehouseCode} / ${item.batchCode}` },
                 { header: 'Bước lọc', cell: item => item.stage },
                 { header: 'Kết quả / lý do', cell: item => <Chip tone={item.passed ? 'success' : 'danger'}>{reasons[item.reason]}</Chip> },
-                { header: 'ETA', cell: item => formatDateTime(item.estimatedArrivalAt) },
+                { header: 'Thời gian nhận dự kiến', cell: item => formatDateTime(item.estimatedArrivalAt) },
                 { header: 'Hạn còn lại / yêu cầu', cell: item => `${item.remainingShelfLifeHours ?? '—'} / ${item.requiredShelfLifeHours ?? '—'} giờ` },
               ]} />}
             <SimpleTable
               compact
               rows={fragments}
-              empty="Không có batch hợp lệ được lưu cho dòng này."
+              empty="Không có lô hàng hợp lệ được lưu cho dòng này."
               columns={[
-                { header: 'Kho / batch', cell: (item) => <>{item.warehouseCode}<br /><b>{item.batchCode}</b></> },
-                { header: 'ETA', cell: (item) => formatDateTime(item.estimatedArrivalAt) },
+                { header: 'Kho / lô hàng', cell: (item) => <>{item.warehouseCode}<br /><b>{item.batchCode}</b></> },
+                { header: 'Thời gian nhận dự kiến', cell: (item) => formatDateTime(item.estimatedArrivalAt) },
                 { header: 'Khoảng cách', align: 'right', cell: (item) => item.distanceMeters == null ? '—' : `${formatNumber(item.distanceMeters / 1000)} km` },
-                { header: 'Hạn còn lại tại ETA', align: 'right', cell: (item) => formatHours(item.remainingLifeHoursAtArrival) },
+                { header: 'Hạn còn lại tại thời gian nhận dự kiến', align: 'right', cell: (item) => formatHours(item.remainingLifeHoursAtArrival) },
                 { header: 'Kết quả', cell: () => <Chip tone="success">Đạt điều kiện</Chip> },
               ]}
             />
           </section>
 
           <section className="card" style={{ padding: 16 }}>
-            <h3 style={{ marginTop: 0 }}>B3 · Kiểm tra MLOR tại lúc hàng tới</h3>
+            <h3 style={{ marginTop: 0 }}>B3 · Kiểm tra yêu cầu HSD tối thiểu tại lúc hàng tới</h3>
             <SimpleTable
               compact
               rows={fragments}
-              empty="Không có kết quả MLOR."
+              empty="Không có kết quả yêu cầu HSD tối thiểu."
               columns={[
-                { header: 'Batch', cell: (item) => item.batchCode },
-                { header: 'Hạn còn lại tại ETA', align: 'right', cell: (item) => formatHours(item.remainingLifeHoursAtArrival) },
+                { header: 'Lô hàng', cell: (item) => item.batchCode },
+                { header: 'Hạn còn lại tại thời gian nhận dự kiến', align: 'right', cell: (item) => formatHours(item.remainingLifeHoursAtArrival) },
                 { header: 'Ngưỡng dòng hàng', align: 'right', cell: () => line.mlor.minimumLifeHours != null
                   ? formatHours(line.mlor.minimumLifeHours)
                   : formatPercent(line.mlor.minimumLifeRatio * 100, 1) },
                 { header: 'Kết luận', cell: (item) => {
                   const passed = line.mlor.minimumLifeHours == null || item.remainingLifeHoursAtArrival >= line.mlor.minimumLifeHours;
-                  return <Chip tone={passed ? 'success' : 'danger'}>{passed ? 'Đạt MLOR' : 'Không đạt'}</Chip>;
+                  return <Chip tone={passed ? 'success' : 'danger'}>{passed ? 'Đạt yêu cầu HSD tối thiểu' : 'Không đạt'}</Chip>;
                 } },
               ]}
             />
@@ -119,14 +119,14 @@ export function AllocationTraceDialog({ order, open, onClose }: {
             {audit && <SimpleTable compact rows={audit.scores} empty="Không có ứng viên qua bước lọc."
               columns={[
                 { header: 'Lượt / hạng', cell: item => `${item.iteration} / ${item.rank}` },
-                { header: 'Batch', cell: item => item.batchCode },
+                { header: 'Lô hàng', cell: item => item.batchCode },
                 { header: 'HSD / khoảng cách / độ phủ', cell: item => `${item.shelfLifeScore.toFixed(3)} / ${item.distanceScore.toFixed(3)} / ${item.coverageScore.toFixed(3)}` },
                 { header: 'Tổng điểm', cell: item => item.weightedScore.toFixed(3) },
                 { header: 'Lựa chọn', cell: item => item.selected ? `Cấp ${item.selectedQuantity}` : 'Không chọn trong lượt này' },
               ]} />}
             <p className="muted small">
               Trong mỗi lượt, hệ thống chọn ứng viên có weighted score cao nhất, cấp tối đa phần nhu cầu còn thiếu,
-              rồi tính lại cho lượt kế tiếp. Sau khi batch đã được chọn, hệ thống mới áp dụng giảm HSD.
+              rồi tính lại cho lượt kế tiếp. Sau khi lô hàng đã được chọn, hệ thống mới áp dụng giảm HSD.
             </p>
             <SimpleTable
               compact
@@ -134,7 +134,7 @@ export function AllocationTraceDialog({ order, open, onClose }: {
               empty="Không có lượt cấp hàng."
               columns={[
                 { header: 'Lượt', align: 'right', cell: (item) => item.sequence },
-                { header: 'Kho / batch', cell: (item) => `${item.warehouseCode} / ${item.batchCode}` },
+                { header: 'Kho / lô hàng', cell: (item) => `${item.warehouseCode} / ${item.batchCode}` },
                 { header: 'Weighted score', align: 'right', cell: (item) => item.weightedScore.toFixed(3) },
                 { header: 'Lượng cấp', align: 'right', cell: (item) => formatNumber(item.quantity) },
                 { header: 'Giá sau KM số lượng', align: 'right', cell: (item) => formatMoney(item.baseUnitPrice) },

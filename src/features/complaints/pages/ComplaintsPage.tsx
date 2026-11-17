@@ -15,7 +15,7 @@ export function ComplaintsPage() {
     { key: 'code', header: 'Mã', width: '130px', render: (c) => <span className="bold">{c.code}</span> },
     { key: 'order', header: 'Đơn hàng', width: '110px', text: (c) => c.orderCode },
     { key: 'type', header: 'Loại yêu cầu', width: '160px', text: c => requestTypeLabel(c.requestType) },
-    { key: 'retailer', header: 'Retailer', width: '180px', text: (c) => c.retailerName },
+    { key: 'retailer', header: 'Điểm bán', width: '180px', text: (c) => c.retailerName },
     { key: 'content', header: 'Nội dung', text: (c) => `${c.issueType === 'Return' ? 'Trả' : c.issueType === 'Damaged' ? 'Hỏng' : 'Thiếu'} ${c.requestedQuantity ?? c.expectedQuantity - c.actualQuantity} · ${c.sku}${c.note ? ` · ${c.note}` : ''}` },
     { key: 'at', header: 'Thời gian', width: '140px', text: (c) => formatDateTime(c.createdAt) },
     { key: 'status', header: 'Trạng thái', width: '110px', render: (c) => <StatusChip domain="complaint" value={c.reviewStatus === 'UnderReview' ? 'UnderReview' : c.status} /> },
@@ -23,7 +23,7 @@ export function ComplaintsPage() {
   ];
   return (
     <>
-      <PageHeader title="Yêu cầu" subtitle="Khiếu nại, trả hàng và thu hồi hàng hỏng. Admin duyệt; Operator xác nhận xử lý thực tế trước khi chốt tài chính." />
+      <PageHeader title="Yêu cầu" subtitle="Khiếu nại, trả hàng và thu hồi hàng hỏng. quản trị viên duyệt; nhân viên vận hành xác nhận xử lý thực tế trước khi chốt tài chính." />
       <DataTable
         title="Danh sách yêu cầu"
         rows={query.data}
@@ -31,7 +31,7 @@ export function ComplaintsPage() {
         error={query.error}
         rowKey={(c) => c.code}
         columns={columns}
-        searchPlaceholder="Mã, đơn hàng, retailer, nội dung…"
+        searchPlaceholder="Mã, đơn hàng, điểm bán, nội dung…"
         filters={[{ label: 'Trạng thái', options: Object.values(statusLabels.complaint), value: (c) => statusLabel('complaint', c.status) },
           {label:'Loại yêu cầu',options:['Khiếu nại đơn hàng','Trả hàng','Thu hồi hàng hỏng'],value:c=>requestTypeLabel(c.requestType)}]}
         onRowClick={(c) => navigate(`/complaints/${c.code}`)}

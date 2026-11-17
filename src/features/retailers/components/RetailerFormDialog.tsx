@@ -140,7 +140,7 @@ export function RetailerFormDialog({
     },
     {
       key: 'groupCode',
-      label: 'Nhóm Sales phụ trách',
+      label: 'Nhóm bán hàng phụ trách',
       type: 'select',
       readOnly: edit,
       options: groupOptions,
@@ -165,7 +165,7 @@ export function RetailerFormDialog({
     },
     {
       key: 'assessmentNote',
-      label: 'Đánh giá / Ghi chú của Sales',
+      label: 'Đánh giá / Ghi chú của nhân viên bán hàng',
       type: 'textarea',
       span: 3,
     },
@@ -265,7 +265,7 @@ export function RetailerFormDialog({
       columns={3}
       title={edit ? `Sửa thông tin hồ sơ ${retailer!.code}` : 'Tạo mới điểm bán'}
       submitLabel={edit ? 'Lưu thay đổi' : 'Tạo điểm bán'}
-      note={edit ? undefined : 'Mã điểm bán do hệ thống tự cấp. Điểm bán mới ở trạng thái Chờ duyệt như khai báo của Sales; kỳ hạn công nợ và tài khoản Retailer được tạo khi duyệt. Cần khai báo ít nhất 1 MLOR ở tab Yêu cầu hạn sử dụng trước khi duyệt.'}
+      note={edit ? undefined : 'Mã điểm bán do hệ thống tự cấp. Điểm bán mới ở trạng thái Chờ duyệt như khai báo của nhân viên bán hàng; kỳ hạn công nợ và tài khoản điểm bán được tạo khi duyệt. Cần khai báo ít nhất 1 yêu cầu HSD tối thiểu ở tab Yêu cầu hạn sử dụng trước khi duyệt.'}
       initial={initialValues}
       fields={fields}
       onClose={onClose}

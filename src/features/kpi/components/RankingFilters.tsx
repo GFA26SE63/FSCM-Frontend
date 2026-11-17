@@ -190,7 +190,7 @@ export function RankingFilters({
           </div>
         )}
 
-        <FormField label="Nhóm Sales">
+        <FormField label="Nhóm bán hàng">
           <Select
             value={value.salesGroupId}
             disabled={groups.isPending}
@@ -233,7 +233,7 @@ export function RankingFilters({
       {groups.error && (
         <div style={{ marginTop: 12 }}>
           <Callout tone="danger">
-            Không tải được danh sách nhóm Sales. Vui lòng thử lại.{' '}
+            Không tải được danh sách nhóm bán hàng. Vui lòng thử lại.{' '}
             <Button
               size="sm"
               onClick={() => void groups.refetch()}

@@ -47,7 +47,7 @@ export function DebtsPage() {
   );
   const { setParams } = useQueryParams();
   const hasActiveFilters = !!(search || statusFilter);
-  const clearFilters = () => setParams({ status: null, search: null, page: null });
+  const clearFilters = () => setParams({ status: null, q: null, page: null });
 
   // ── Refunds: separate URL-persisted pagination (stateKey namespaces the URL params)
   const {
@@ -113,12 +113,8 @@ export function DebtsPage() {
 
   const columns: Column<Receivable>[] = [
     { key: 'orderCode', header: 'Mã đơn', width: '104px', render: (r) => <span className="bold">{r.orderCode}</span> },
-    {
-      key: 'retailer', header: 'Retailer',
-      text: (r) => `${r.retailerName} ${r.retailerCode}`,
-      render: (r) => (<><div className="strong">{r.retailerName}</div><div className="muted small">{r.retailerCode}</div></>),
-    },
-    { key: 'sales', header: 'Sales ID', width: '130px', text: (r) => r.salesUserId },
+    { key: 'retailer', header: 'Điểm bán', text: (r) => `${r.retailerName} ${r.retailerCode}`, render: (r) => (<><div className="strong">{r.retailerName}</div><div className="muted small">{r.retailerCode}</div></>) },
+    { key: 'sales', header: 'Mã nhân viên bán hàng', width: '130px', text: (r) => r.salesUserId },
     { key: 'term', header: 'Kỳ hạn', width: '80px', text: (r) => `${r.creditTermDays} ngày` },
     { key: 'delivered', header: 'Ngày giao', width: '100px', text: (r) => r.deliveredDate ? formatDate(r.deliveredDate) : '—' },
     { key: 'due', header: 'Hạn thanh toán', width: '120px', text: (r) => r.dueDate ? formatDate(r.dueDate) : '—' },
@@ -130,57 +126,23 @@ export function DebtsPage() {
 
   return (
     <>
-      <PageHeader
-        title="Công nợ"
-        subtitle="Theo dõi số dư từng đơn sau các lần cấn tự động. Retailer thanh toán một hoặc nhiều khoản qua PayOS trên Mobile."
-      />
+      <PageHeader title="Công nợ" subtitle="Theo dõi số dư từng đơn sau các lần cấn tự động. điểm bán thanh toán một hoặc nhiều khoản qua PayOS trên Mobile." />
       <div className="grid-3">
         {/* Stats always reflect global totals (full rows dataset, not filtered/paged) */}
         <Stat label="Chưa thu (trong hạn)" value={formatMoney(sum('Unpaid'))} />
         <Stat label="Quá hạn" value={formatMoney(sum('Overdue'))} color="var(--c-danger)" note={`${rows.filter((r) => r.status === 'Overdue').length} đơn`} />
         <Stat label="Đã thu" value={rows.filter((r) => r.status === 'Paid').length + ' đơn'} />
       </div>
-      {rows.some((r) => r.status === 'Overdue') && (
-        <Callout tone="danger">Có đơn quá hạn thanh toán – lọc "Quá hạn" để xem và liên hệ Sales phụ trách.</Callout>
-      )}
-
-      {/* Unified filter bar for receivables (client-side — Backend returns flat array) */}
-      <div className="row-wrap" style={{ gap: 12, marginBottom: 12, alignItems: 'flex-end' }}>
-        <label className="lbl">Tìm kiếm
-          <Input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Mã đơn, retailer, Sales…"
-            style={{ minWidth: 220 }}
-          />
-        </label>
-        <label className="lbl">Trạng thái
-          <Select
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value as ReceivableStatusFilter)}
-            options={[
-              { value: '', label: 'Tất cả trạng thái' },
-              { value: 'Unpaid', label: statusLabels.receivable.Unpaid },
-              { value: 'Overdue', label: statusLabels.receivable.Overdue },
-              { value: 'Paid', label: statusLabels.receivable.Paid },
-              { value: 'Cancelled', label: statusLabels.receivable.Cancelled },
-            ]}
-          />
-        </label>
-        {hasActiveFilters && (
-          <Button
-            variant="default"
-            size="sm"
-            onClick={clearFilters}
-            style={{ alignSelf: 'flex-end', marginBottom: 2 }}
-          >
-            Xóa bộ lọc
-          </Button>
-        )}
+      {rows.some((r) => r.status === 'Overdue') && <Callout tone="danger">Có đơn quá hạn thanh toán – lọc "Quá hạn" để xem và liên hệ nhân viên bán hàng phụ trách.</Callout>}
+      <div className="row-wrap" style={{ gap: 12, marginBottom: 12 }}>
+        <label className="lbl">Tìm kiếm<Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã đơn, điểm bán, nhân viên bán hàng…" /></label>
+        <label className="lbl">Trạng thái<Select value={statusFilter} onChange={e => setStatusFilter(e.target.value as ReceivableStatusFilter)}
+          options={[{ value: '', label: 'Tất cả trạng thái' }, ...RECEIVABLE_STATUSES.filter(Boolean).map(value => ({ value, label: statusLabels.receivable[value as Exclude<ReceivableStatusFilter, ''>] }))]} /></label>
+        {hasActiveFilters && <Button onClick={clearFilters}>Xóa bộ lọc</Button>}
       </div>
-
       <DataTable
         title="Danh sách công nợ"
+        searchable={false}
         rows={pageRows}
         loading={query.isLoading}
         error={query.error}
@@ -214,10 +176,10 @@ export function DebtsPage() {
         submitLabel="Xác nhận đã thu đủ"
         initial={{ method: 'BankTransfer' }}
         fields={[
-          { key: 'info', type: 'info', label: 'Retailer / số tiền', info: () => `${target?.retailerName} · ${formatMoney(target?.outstandingAmount)}` },
+          { key: 'info', type: 'info', label: 'Điểm bán / số tiền', info: () => `${target?.retailerName} · ${formatMoney(target?.outstandingAmount)}` },
           { key: 'method', type: 'info', label: 'Hình thức thu', info: () => 'Chuyển khoản đã đối soát' },
         ]}
-        note="Thu một lần đủ số tiền. Sau khi xác nhận, điểm loyalty của đơn được cộng cho retailer."
+        note="Thu một lần đủ số tiền. Sau khi xác nhận, điểm tích điểm của đơn được cộng cho điểm bán."
         onClose={() => setTarget(null)}
         onSubmit={async (values) => {
           if (!mayCollect || !target) return;
@@ -243,13 +205,7 @@ export function DebtsPage() {
           { key: 'recipient', header: 'Người nhận', text: (refund) => refund.recipient },
           { key: 'amount', header: 'Số tiền', align: 'right', text: (refund) => formatMoney(refund.amount) },
           { key: 'reason', header: 'Lý do', text: (refund) => refund.reason },
-          {
-            key: 'status', header: 'Trạng thái',
-            text: (refund) =>
-              refund.status === 'PendingRefund' ? 'Chờ hoàn'
-              : refund.status === 'AwaitingVerification' ? 'Chờ Admin xác minh'
-              : 'Đã hoàn',
-          },
+          { key: 'status', header: 'Trạng thái', text: (refund) => refund.status === 'PendingRefund' ? 'Chờ hoàn' : refund.status === 'AwaitingVerification' ? 'Chờ quản trị viên xác minh' : 'Đã hoàn' },
         ]}
         server={refundPagingProps}
         rowActions={(refund) => (
@@ -299,7 +255,7 @@ export function DebtsPage() {
         width={560}
         columns={1}
         title={`Bằng chứng hoàn tiền · ${evidenceTarget?.orderCode ?? ''}`}
-        submitLabel="Gửi Admin xác minh"
+        submitLabel="Gửi quản trị viên xác minh"
         initial={{ transferredAt: toIsoDateTime(new Date()), transactionReference: '', evidenceReference: '' }}
         fields={[
           {

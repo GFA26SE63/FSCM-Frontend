@@ -53,8 +53,8 @@ const MLOR_SOURCES:
     OrderLineMlor['sourceScope'],
     string
   > = {
-    Sku: 'SKU riêng của retailer',
-    Category: 'Category của retailer',
+    Sku: 'SKU riêng của điểm bán',
+    Category: 'Danh mục của điểm bán',
     Default: 'Mặc định sản phẩm',
   };
 
@@ -92,7 +92,7 @@ function PriceBreakdown({
             line.allocationFragments
               .length
           }
-          {' '}phần batch ·{' '}
+          {' '}phần lô hàng ·{' '}
           {formatMoney(
             line.officialNetAmount ??
               line.indicativeNetAmount,
@@ -105,10 +105,10 @@ function PriceBreakdown({
         rows={
           line.allocationFragments
         }
-        empty="Chưa có giá chính thức theo batch."
+        empty="Chưa có giá chính thức theo lô hàng."
         columns={[
           {
-            header: 'Kho / batch',
+            header: 'Kho / lô hàng',
             width: '240px',
             cell: (item) => (
               <>
@@ -174,7 +174,7 @@ function PriceBreakdown({
                 )}
                 <br />
                 <span className="muted small">
-                  ETA còn{' '}
+                  HSD còn khi nhận dự kiến:{' '}
                   {formatHours(
                     item.remainingLifeHoursAtArrival,
                   )}
@@ -259,7 +259,7 @@ function PriceBreakdown({
           }}
         >
           <span className="muted">
-            Tổng giá theo batch
+            Tổng giá theo lô hàng
             của dòng
           </span>
           <b>
@@ -412,9 +412,9 @@ function OrderBody({
 
           {order.hasOfflineDifference && (
             <Callout tone="warn">
-              Điều kiện/giá server
-              khác snapshot offline.
-              Giá dự kiến offline:{' '}
+              Điều kiện/giá máy chủ
+              khác bản tạm tính đã lưu trên máy.
+              Giá dự kiến ngoại tuyến:{' '}
               {formatMoney(
                 order.offlineEstimatedAmount,
               )}.
@@ -425,7 +425,7 @@ function OrderBody({
             <Callout tone="danger">
               Tổng giá chính thức
               không khớp tổng các
-              phần giá theo batch.
+              phần giá theo lô hàng.
               Cần đối soát trước khi thu.
             </Callout>
           )}
@@ -436,7 +436,7 @@ function OrderBody({
               items={[
                 {
                   label:
-                    'Retailer',
+                    'Điểm bán',
                   value:
                     `${order.retailerName} (${order.retailerCode})`,
                 },
@@ -476,7 +476,7 @@ function OrderBody({
                 },
                 {
                   label:
-                    'Kỳ hạn snapshot',
+                    'Kỳ hạn chốt lúc đặt đơn',
                   value:
                     order.paymentMethod === 'Credit' && order.creditTermDays != null
                       ? `${order.creditTermDays} ngày`
@@ -506,9 +506,7 @@ function OrderBody({
                   label:
                     'Kết quả phân bổ',
                   value:
-                    order.allocationResult ??
-                    order.allocationState ??
-                    '—',
+                    statusLabel('allocation', order.allocationResult ?? order.allocationState ?? '—'),
                 },
                 {
                   label:
@@ -521,7 +519,7 @@ function OrderBody({
             {order.paymentMethod === 'Credit' && (
               <div style={{ marginTop: '12px' }}>
                 <Callout tone="neutral">
-                  <b>Quy tắc công nợ & snapshot:</b> Đơn hàng áp dụng kỳ hạn snapshot <b>{order.creditTermDays} ngày</b>. Hạn thanh toán được tính từ mốc nhận đủ hàng (hoặc ngày hoàn tất xử lý khiếu nại), không tính từ thời điểm đặt đơn và không bị thay đổi bởi các điều chỉnh hồ sơ điểm bán sau này.
+                  <b>Quy tắc công nợ áp dụng cho đơn:</b> Đơn hàng áp dụng kỳ hạn đã chốt lúc đặt đơn là <b>{order.creditTermDays} ngày</b>. Hạn thanh toán được tính từ mốc nhận đủ hàng (hoặc ngày hoàn tất xử lý khiếu nại), không tính từ thời điểm đặt đơn và không bị thay đổi bởi các điều chỉnh hồ sơ điểm bán sau này.
                 </Callout>
               </div>
             )}
@@ -613,7 +611,7 @@ function OrderBody({
                 },
                 {
                   header:
-                    'MLOR · nguồn',
+                    'Yêu cầu HSD tối thiểu · nguồn',
                   cell: (line) => (
                     <>
                       {formatPercent(
@@ -676,7 +674,7 @@ function OrderBody({
                 <b>
                   {order.officialAmount ==
                   null
-                    ? 'Chưa có kết quả allocation'
+                    ? 'Chưa có kết quả phân bổ'
                     : formatMoney(
                         order.officialAmount,
                       )}
@@ -686,7 +684,7 @@ function OrderBody({
           </Card>
 
           <Card
-            title="Chi tiết giá theo SKU / batch"
+            title="Chi tiết giá theo SKU / lô hàng"
             flush
           >
             {order.lines.map(
@@ -739,8 +737,7 @@ function OrderBody({
                   header:
                     'Trạng thái giao',
                   cell: (item) =>
-                    item.shipmentStatus ??
-                    '—',
+                    statusLabel('shipment', item.shipmentStatus ?? '—'),
                 },
                 {
                   header:

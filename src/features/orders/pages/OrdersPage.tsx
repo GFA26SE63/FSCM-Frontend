@@ -20,7 +20,7 @@ import {
   formatShortDateTime,
   vietnamDate,
   paymentLabel,
-  statusLabels,
+  statusLabels, statusLabel,
 } from '@/shared/lib';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { useApiMutation } from '@/shared/hooks';
@@ -118,7 +118,7 @@ export function OrdersPage() {
     },
     {
       key: 'retailer',
-      header: 'Retailer',
+      header: 'Điểm bán',
       text: (order) => `${order.retailerCode} ${order.retailerName}`,
       render: (order) => (
         <>
@@ -202,10 +202,10 @@ export function OrdersPage() {
       key: 'progress',
       header: 'Phân bổ / giao',
       width: '110px',
-      text: (order) => `${order.allocationResult ?? order.allocationState} ${order.shipmentCount}`,
+      text: (order) => `${statusLabel('allocation', order.allocationResult ?? order.allocationState)} ${order.shipmentCount}`,
       render: (order) => (
         <>
-          {order.allocationResult ?? order.allocationState}
+          {statusLabel('allocation', order.allocationResult ?? order.allocationState)}
           <br />
           <span className="muted small">{order.shipmentCount} phần giao</span>
         </>
@@ -217,7 +217,7 @@ export function OrdersPage() {
     <>
       <PageHeader
         title="Đơn hàng"
-        subtitle="Theo dõi SO, phân bổ real-time, báo giá, PO và tiến độ giao hàng."
+        subtitle="Theo dõi đơn bán hàng, phân bổ theo thời gian thực, báo giá, đơn thực hiện và tiến độ giao hàng."
         actions={
           <Button loading={query.isFetching} onClick={() => void query.refetch()}>
             Tải lại dữ liệu
@@ -232,7 +232,7 @@ export function OrdersPage() {
         error={query.isPlaceholderData ? undefined : query.error}
         rowKey={(order) => order.id}
         columns={columns}
-        searchPlaceholder="Mã đơn, retailer, người đặt, trạng thái…"
+        searchPlaceholder="Mã đơn, điểm bán, người đặt, trạng thái…"
         cursor={pagingProps}
         filters={[
           {
