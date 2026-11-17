@@ -124,30 +124,29 @@ function inspection(states, { reports = [], post = async () => {}, get = async (
     '@/shared/api/http': { get, http: { post } },
     '@/shared/api/errors': { errorMessage: e => e.message },
     '@/shared/ui': { SimpleTable: 'table' },
+    './PalletCamera': { PalletCamera: 'camera' },
+    '@/shared/lib/dates': { formatInstantDateTime: value => value },
   };
   const mod = { exports: {} };
   new Function('require', 'exports', 'module', code)(name => Object.hasOwn(mocks, name) ? mocks[name] : require(name), mod.exports, mod);
   return mod.exports.PalletReceiving({ documentId: 'receipt', version: 3, editable: true, initialCode });
 }
 
-test('pallet chosen from arrivals is fixed on the receipt inspection form', () => {
-  const tree = inspection(['PID-1', undefined, [], '', false], { initialCode: 'PID-1' });
-  const input = all(tree, n => n.type === 'input')[0];
-  assert.equal(input.props.value, 'PID-1');
-  assert.equal(input.props.readOnly, true);
+test('receipt shows expected pallet and camera instead of a prefilled confirmation input', () => {
+  const tree = inspection([undefined, undefined, [], '', false], { initialCode: 'PID-1' });
+  assert.equal(all(tree, n => n.type === 'camera').length, 1);
+  assert.equal(all(tree, n => n.type === 'input').length, 0);
+  assert.equal(all(tree, n => n.type === 'form').length, 0);
 });
 
-test('pallet preview is read-only and suppresses double scanner submission', async () => {
-  const reads = [], writes = [];
-  const tree = inspection(['PID-1', undefined, [], '', false], {
-    get: async (...args) => { reads.push(args); return { pallet: { code: 'PID-1' }, cartons: [{ code: 'CID-1' }] }; },
-    post: async (...args) => writes.push(args),
+test('camera decoding records one server scan without confirming receipt or increasing stock', async () => {
+  const writes = [];
+  const tree = inspection([undefined, undefined, [], '', false], {
+    post: async (...args) => { writes.push(args); return { data: { id: 'scan-1', documentVersion: 4, manifest: { pallet: { code: 'PID-1' }, cartons: [{ code: 'CID-1' }] } } }; },
   });
-  const form = all(tree, n => n.type === 'form')[0];
-  form.props.onSubmit({ preventDefault() {} }); form.props.onSubmit({ preventDefault() {} });
-  await new Promise(resolve => setImmediate(resolve));
-  assert.equal(reads.length, 1); assert.equal(writes.length, 0);
-  assert.deepEqual(reads[0], ['/warehouse-documents/receipt/pallet-preview', { code: 'PID-1' }]);
+  const camera = all(tree, n => n.type === 'camera')[0];
+  await Promise.all([camera.props.onScan('PID-1'), camera.props.onScan('PID-1')]);
+  assert.deepEqual(writes, [['/warehouse-documents/receipt/pallet-scans', { code: 'PID-1', expectedVersion: 3, source: 'Camera' }]]);
 });
 
 test('receiving submits each disposition and quarantine location once', async () => {
@@ -157,18 +156,18 @@ test('receiving submits each disposition and quarantine location once', async ()
     { cartonCode: 'B', disposition: 'Damaged', reason: 'Wet', quarantineLocation: 'Q-01' },
     { cartonCode: 'C', disposition: 'Missing', reason: 'Absent', quarantineLocation: '' },
   ];
-  const tree = inspection(['PID-1', { pallet: { code: 'PID-1' }, sku: 'SKU', cartons: [] }, rows, '', false], { post: async (...args) => writes.push(args) });
+  const tree = inspection([{ id: 'scan-1', documentVersion: 4, scannedAt: '2026-11-17T10:00:00Z' }, { pallet: { code: 'PID-1' }, sku: 'SKU', cartons: [] }, rows, '', false], { post: async (...args) => writes.push(args) });
   const save = all(tree, n => n.type === 'button' && n.props.children === 'Xác nhận kết quả và nhận pallet')[0];
   assert.equal(save.props.disabled, false);
   save.props.onClick(); save.props.onClick();
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(writes.length, 1);
-  assert.deepEqual(writes[0], ['/warehouse-documents/receipt/receive-pallet', { palletCode: 'PID-1', expectedVersion: 3, cartons: rows }]);
+  assert.deepEqual(writes[0], ['/warehouse-documents/receipt/receive-pallet', { palletCode: 'PID-1', expectedVersion: 4, scanId: 'scan-1', cartons: rows }]);
 });
 
 test('incomplete inspection and damage without quarantine location cannot be received', () => {
   for (const row of [ { cartonCode: 'A', disposition: '', reason: '', quarantineLocation: '' }, { cartonCode: 'A', disposition: 'Damaged', reason: 'Wet', quarantineLocation: '' } ]) {
-    const tree = inspection(['PID-1', { pallet: { code: 'PID-1' } }, [row], '', false]);
+    const tree = inspection([{ id: 'scan-1', documentVersion: 4, scannedAt: '2026-11-17T10:00:00Z' }, { pallet: { code: 'PID-1' } }, [row], '', false]);
     assert.equal(all(tree, n => n.type === 'button' && n.props.children === 'Xác nhận kết quả và nhận pallet')[0].props.disabled, true);
   }
 });
