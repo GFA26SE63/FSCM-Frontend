@@ -1,0 +1,42 @@
+.warehouse-document-code {
+  max-width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 30px;
+  padding: 6px 10px;
+  justify-content: flex-start;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.4;
+}
+
+.warehouse-document-code > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+.warehouse-pallet-code { overflow-wrap: anywhere; }
+
+.warehouse-work-filters {
+  display: grid;
+  grid-template-columns: minmax(240px, 2fr) repeat(2, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.warehouse-work-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.warehouse-work-filters input, .warehouse-work-filters select {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .warehouse-work-filters { grid-template-columns: 1fr; }
+}

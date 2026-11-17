@@ -62,7 +62,11 @@ const reports = () => import('@/features/reports');
 export const APP_ROUTES: AppRoute[] = [
   { key: 'inventory', label: 'Inventory · QR nhà máy', roles: [A, WK, OP], list: page(() => import('@/features/inventory'), 'InventoryPage') },
   { key: 'factory-traceability', label: 'Nhà máy · Traceability', roles: [A], list: page(() => import('@/features/factory-traceability'), 'FactoryTraceabilityPage') },
-  { key: 'warehouse-work', label: 'Phiếu nhập · xuất · luân chuyển', roles: [A, WK], list: page(() => import('@/features/warehouse-work'), 'WarehouseWorkPage') },
+  { key: 'warehouse-inbound', label: 'Nhập kho', roles: [A, WK], list: page(() => import('@/features/warehouse-work'), 'WarehouseInboundPage'), sub: [{ path: 'new', element: page(() => import('@/features/warehouse-work'), 'WarehouseInboundPage') }, { path: ':documentId', element: page(() => import('@/features/warehouse-work'), 'WarehouseInboundPage') }] },
+  { key: 'warehouse-outbound', label: 'Xuất kho', roles: [A, WK], list: page(() => import('@/features/warehouse-work'), 'WarehouseOutboundPage'), sub: [{ path: 'new', element: page(() => import('@/features/warehouse-work'), 'WarehouseOutboundPage') }, { path: ':documentId', element: page(() => import('@/features/warehouse-work'), 'WarehouseOutboundPage') }] },
+  { key: 'warehouse-transfers', label: 'Luân chuyển kho', roles: [A, WK], list: page(() => import('@/features/warehouse-work'), 'WarehouseTransferPage'), sub: [{ path: 'new', element: page(() => import('@/features/warehouse-work'), 'WarehouseTransferPage') }, { path: ':documentId', element: page(() => import('@/features/warehouse-work'), 'WarehouseTransferPage') }] },
+  { key: 'warehouse-trace', label: 'Tra cứu carton', roles: [A, WK], list: page(() => import('@/features/warehouse-work'), 'WarehouseTracePage') },
+  { key: 'warehouse-work', label: 'Chứng từ kho', roles: [A, WK], hidden: true, list: page(() => import('@/features/warehouse-work'), 'WarehouseWorkPage') },
   { key: 'dashboard', label: 'Tổng quan & báo cáo', roles: [A, OP, WK, SM], list: page(dashboard, 'DashboardPage') },
   { key: 'reports', label: 'Báo cáo đổi quà & chương trình', roles: [A, OP], list: page(reports, 'OperationsReportsPage'), menuLinks: [
     { key: 'report-redemptions', label: 'Báo cáo đổi quà', to: '/reports?kind=redemptions' },
@@ -77,7 +81,7 @@ export const APP_ROUTES: AppRoute[] = [
   { key: 'readiness', label: 'Điều phối giao hàng', roles: [A, OP], list: page(shipments, 'OrderReadinessPage') },
   {
     key: 'receipts', label: 'Nhập kho', roles: [A, WK], hidden: true, list: page(receipts, 'ReceiptsPage'),
-    sub: [{ path: 'new', element: page(() => import('@/features/warehouse-work'), 'WarehouseWorkPage') }, { path: ':code', element: page(receipts, 'ReceiptDetailPage') }],
+    sub: [{ path: 'new', element: page(() => import('@/features/warehouse-work'), 'WarehouseInboundCreatePage') }, { path: ':code', element: page(receipts, 'ReceiptDetailPage') }],
   },
   { key: 'batches', label: 'Quản lý batch', roles: [A, WK, OP], list: page(batches, 'BatchesPage'), sub: [{ path: ':code', element: page(batches, 'BatchDetailPage') }] },
   { key: 'batchpromo', label: 'Giảm giá theo HSD', roles: [A], list: page(batchpromo, 'BatchPromoPage'), sub: [{ path: 'scan', element: page(batchpromo, 'BatchPromoScanPage') }] },
