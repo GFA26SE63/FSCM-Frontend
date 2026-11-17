@@ -88,7 +88,7 @@ function SalesKpiDetail() {
             <>
               <PageHeader
                 back={back}
-                title="Chi tiết chỉ tiêu KPI Sales"
+                title="Chi tiết chỉ tiêu KPI bán hàng"
                 subtitle={`Kỳ báo cáo: ${formatDate(report.fromDate)} – ${formatDate(report.toDate)}`}
                 actions={
                   <Button
@@ -100,7 +100,7 @@ function SalesKpiDetail() {
                 }
               />
               <Callout tone="warn">
-                Không tìm thấy dữ liệu KPI của nhân viên Sales này trong kỳ hoặc phạm vi báo cáo hiện tại.
+                Không tìm thấy dữ liệu KPI của nhân viên bán hàng này trong kỳ hoặc phạm vi báo cáo hiện tại.
               </Callout>
             </>
           );
@@ -287,11 +287,11 @@ function SalesKpiDetail() {
                   cols={3}
                   items={[
                     {
-                      label: 'Nhân viên Sales',
+                      label: 'Nhân viên bán hàng',
                       value: row.salesUserName,
                     },
                     {
-                      label: 'Nhóm Sales',
+                      label: 'Nhóm bán hàng',
                       value: `${row.salesGroupCode} · ${row.salesGroupName}`,
                     },
                     {
@@ -385,7 +385,7 @@ function SalesRankingDetail() {
             <>
               <PageHeader
                 back={back}
-                title="Chi tiết xếp hạng Sales"
+                title="Chi tiết xếp hạng nhân viên bán hàng"
                 subtitle={`Kỳ báo cáo: ${formatDate(report.fromDate)} – ${formatDate(report.toDate)}`}
                 actions={
                   <Button
@@ -397,7 +397,7 @@ function SalesRankingDetail() {
                 }
               />
               <Callout tone="warn">
-                Không có dữ liệu Sales này trong kỳ hoặc phạm vi báo cáo hiện tại.
+                Không có dữ liệu nhân viên bán hàng này trong kỳ hoặc phạm vi báo cáo hiện tại.
               </Callout>
             </>
           );
@@ -407,7 +407,7 @@ function SalesRankingDetail() {
           <>
             <PageHeader
               back={back}
-              title={`Chi tiết xếp hạng Sales · ${row.salesUserName}`}
+              title={`Chi tiết xếp hạng nhân viên bán hàng · ${row.salesUserName}`}
               subtitle={`Kỳ báo cáo: ${formatDate(report.fromDate)} – ${formatDate(report.toDate)}`}
               actions={
                 <Button
@@ -425,7 +425,7 @@ function SalesRankingDetail() {
                 items={[
                   { label: 'Thứ hạng', value: `#${row.rank}` },
                   {
-                    label: 'Nhóm Sales',
+                    label: 'Nhóm bán hàng',
                     value: `${row.salesGroupCode} · ${row.salesGroupName}`,
                   },
                   {

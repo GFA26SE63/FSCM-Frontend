@@ -39,8 +39,8 @@ export function ShelfLifeDialog({ initial, currentFrom, onClose }: { initial: Sh
       onClose();
     } catch { /* Keep inputs and display the mutation error. */ }
   };
-  return <Modal open title="Publish bảng giảm theo HSD" width={900} onClose={onClose} footer={<>
-    <Button disabled={publish.isPending} onClick={onClose}>Hủy</Button><Button variant="primary" loading={publish.isPending} onClick={save}>Publish</Button>
+  return <Modal open title="Công bố bảng giảm theo HSD" width={900} onClose={onClose} footer={<>
+    <Button disabled={publish.isPending} onClick={onClose}>Hủy</Button><Button variant="primary" loading={publish.isPending} onClick={save}>Công bố</Button>
   </>}>
     <div className="stack-sm">
       <FormField label="Hiệu lực từ" required><Input type="date" min={minimumVersionDate(currentFrom)} value={date} onChange={(e) => setDate(e.target.value)} /></FormField>

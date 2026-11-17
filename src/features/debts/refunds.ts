@@ -62,5 +62,5 @@ const refundApi = {
 
 export const useRefunds = () => useQuery({ queryKey: ['refunds'], queryFn: refundApi.list });
 export const useCreateRefund = () => useApiMutation(refundApi.create, { success: 'Đã tạo phiếu hoàn tiền.' });
-export const useSubmitRefundEvidence = () => useApiMutation(refundApi.evidence, { success: 'Đã gửi bằng chứng hoàn tiền để Admin xác minh.' });
+export const useSubmitRefundEvidence = () => useApiMutation(refundApi.evidence, { success: 'Đã gửi bằng chứng hoàn tiền để quản trị viên xác minh.' });
 export const useVerifyRefund = () => useApiMutation(refundApi.verify, { success: 'Đã ghi nhận kết quả xác minh hoàn tiền.' });

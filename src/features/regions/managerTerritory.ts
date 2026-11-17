@@ -45,7 +45,7 @@ export interface ManagerTerritory {
 /** Use scoped assignment APIs; /users is an Admin-only directory. */
 export async function loadManagerTerritory(user: CurrentUser): Promise<ManagerTerritory> {
   if (user.role !== 'SalesManager') {
-    throw new ApiError(403, 'Chỉ Sales Manager được dùng luồng này.');
+    throw new ApiError(403, 'Chỉ quản lý bán hàng được dùng luồng này.');
   }
   const ids = user.scope?.salesGroupIds ?? [];
   if (ids.length === 0) return { areas: [], groups: [], staff: [] };
@@ -95,6 +95,6 @@ export async function loadManagerTerritory(user: CurrentUser): Promise<ManagerTe
 
 export function requireManagedGroup(territory: ManagerTerritory, idOrCode: string): SalesGroup {
   const group = territory.groups.find((g) => g.id === idOrCode || g.code === idOrCode);
-  if (!group) throw new ApiError(403, 'Nhóm Sales nằm ngoài phạm vi được phân công.');
+  if (!group) throw new ApiError(403, 'Nhóm bán hàng nằm ngoài phạm vi được phân công.');
   return group;
 }

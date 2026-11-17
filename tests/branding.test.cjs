@@ -33,7 +33,7 @@ test('Branding Sidebar: displays fscm-logo with object-fit: contain and proper a
   );
 
   assert.ok(sidebarCode.includes('fscm-logo.png'), 'Sidebar must reference fscm-logo.png');
-  assert.ok(sidebarCode.includes('alt="FSCM Logo"'), 'Sidebar logo must have alt text');
+  assert.ok(sidebarCode.includes('alt="Biểu trưng FSCM"'), 'Sidebar logo must have alt text');
   assert.ok(sidebarCode.includes('brand-logo-img'), 'Sidebar logo must use brand-logo-img class');
 
   const layoutCss = fs.readFileSync(
@@ -51,8 +51,8 @@ test('Branding LoginPage: displays fscm-logo on login card with object-fit: cont
   );
 
   assert.ok(loginCode.includes('fscm-logo.png'), 'LoginPage must reference fscm-logo.png');
-  assert.ok(loginCode.includes('alt="FSCM Logo"'), 'LoginPage logo must have alt text');
+  assert.ok(loginCode.includes('alt="Biểu trưng FSCM"'), 'LoginPage logo must have alt text');
   assert.ok(loginCode.includes("objectFit: 'contain'"), 'LoginPage logo must specify objectFit: contain');
-  assert.ok(loginCode.includes('FSCM Portal'), 'LoginPage must preserve portal title');
+  assert.ok(loginCode.includes('Cổng quản trị FSCM'), 'LoginPage must preserve portal title');
 });
 

@@ -35,7 +35,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
   const configsQuery = useRetailerMlorConfigs(retailerId, mayRead);
   const productsQuery = useQuery({
     queryKey: ['products', 'all-for-mlor'],
-    queryFn: productApi.list,
+    queryFn: productApi.listAll,
     enabled: mayRead,
   });
   const categoriesQuery = useQuery({
@@ -73,7 +73,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
   if (!mayRead) {
     return (
       <Callout tone="warn">
-        Bạn không có quyền xem cấu hình yêu cầu hạn sử dụng (MLOR).
+        Bạn không có quyền xem cấu hình yêu cầu hạn sử dụng (yêu cầu HSD tối thiểu).
       </Callout>
     );
   }
@@ -99,7 +99,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
       {/* MLOR Precedence Rule Callout */}
       <Callout tone="info">
         <div style={{ display: 'grid', gap: '6px' }}>
-          <strong>Quy tắc thứ tự ưu tiên hạn sử dụng (MLOR):</strong>
+          <strong>Quy tắc thứ tự ưu tiên hạn sử dụng (yêu cầu HSD tối thiểu):</strong>
           <div>
             1. <strong>Yêu cầu riêng theo sản phẩm</strong> (Ưu tiên cao nhất) → 
             2. <strong>Áp dụng theo danh mục</strong> (Mức trung gian) → 
@@ -339,7 +339,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         open={deletingConfig !== null}
-        title="Xác nhận xóa cấu hình MLOR"
+        title="Xác nhận xóa cấu hình yêu cầu HSD tối thiểu"
         confirmLabel="Xóa cấu hình"
         danger
         onClose={() => setDeletingConfig(null)}
@@ -351,7 +351,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
         message={
           deletingConfig ? (
             <div>
-              Bạn có chắc chắn muốn xóa cấu hình MLOR cho{' '}
+              Bạn có chắc chắn muốn xóa cấu hình yêu cầu HSD tối thiểu cho{' '}
               <strong>
                 {deletingConfig.productSku
                   ? `sản phẩm ${deletingConfig.productSku} - ${deletingConfig.productName}`

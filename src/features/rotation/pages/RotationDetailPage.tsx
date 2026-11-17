@@ -23,9 +23,9 @@ export function RotationDetailPage() {
           {p.toWarehouseName == null && <Callout tone="warn">Không kho nào nhận được phần dư {formatCases(p.qty)} → hệ thống gợi ý giảm giá theo hạn sử dụng.</Callout>}
           <Card title="Tổng quan">
             <Fields cols={3} items={[
-              { label: 'Batch', value: p.batchCode },
+              { label: 'Lô hàng', value: p.batchCode },
               { label: 'HSD / còn lại', value: `${formatDate(p.expiry)} · ${t.remainingDays} ngày` },
-              { label: 'Tồn batch / dư ước tính', value: `${formatCases(t.quantity)} / ${formatCases(p.excess)}` },
+              { label: 'Tồn lô hàng / dư ước tính', value: `${formatCases(t.quantity)} / ${formatCases(p.excess)}` },
               { label: 'Kho đích', value: p.toWarehouseName ?? '—' },
               { label: 'Khoảng cách', value: p.toWarehouseName ? formatKm(p.km) : '—' },
               { label: 'SL đề xuất (tối đa)', value: p.toWarehouseName ? `${formatCases(p.qty)} (${p.maxQty})` : formatCases(p.qty) },

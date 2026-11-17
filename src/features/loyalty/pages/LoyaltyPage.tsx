@@ -10,7 +10,7 @@ export function LoyaltyPage() {
   const balances = useBalances();
   const columns: Column<BalanceRow>[] = [
     { key: 'code', header: 'Mã', width: '110px', render: (r) => <span className="bold">{r.retailerCode}</span> },
-    { key: 'name', header: 'Retailer', text: (r) => r.retailerName },
+    { key: 'name', header: 'Điểm bán', text: (r) => r.retailerName },
     { key: 'balance', header: 'Số dư', width: '100px', align: 'right', text: (r) => formatNumber(r.balance) },
     { key: 'held', header: 'Đang giữ (chờ đổi quà)', width: '150px', align: 'right', text: (r) => formatNumber(r.held) },
     { key: 'avail', header: 'Khả dụng', width: '100px', align: 'right', text: (r) => formatNumber(r.available) },
@@ -19,17 +19,17 @@ export function LoyaltyPage() {
   ];
   return (
     <>
-      <PageHeader title="Loyalty – điểm"
+      <PageHeader title="Tích điểm – điểm"
         subtitle="Quản lý chương trình và số dư điểm. Điểm được cộng khi đơn Completed và đáp ứng điều kiện chương trình." />
       <LoyaltyProgramsPanel />
       <DataTable
-        title="Số dư điểm theo retailer"
+        title="Số dư điểm theo điểm bán"
         rows={balances.data}
         loading={balances.isLoading}
         error={balances.error}
         rowKey={(r) => r.retailerCode}
         columns={columns}
-        searchPlaceholder="Mã hoặc tên retailer…"
+        searchPlaceholder="Mã hoặc tên điểm bán…"
         onRowClick={(r) => navigate(`/loyalty/${r.retailerCode}`)}
         rowActionsWidth="90px"
         rowActions={(r) => <Button size="sm" onClick={() => navigate(`/loyalty/${r.retailerCode}`)}>Xem</Button>}

@@ -34,7 +34,7 @@ export const useCreateRefund = () =>
 export const useSubmitRefundEvidence = () =>
   useApiMutation(refundApi.submitEvidence, {
     permission: 'refunds.manage',
-    success: 'Đã gửi bằng chứng chuyển tiền để Admin xác minh.',
+    success: 'Đã gửi bằng chứng chuyển tiền để quản trị viên xác minh.',
   });
 
 export const useVerifyRefund = () =>

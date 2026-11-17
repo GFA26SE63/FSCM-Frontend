@@ -115,7 +115,7 @@ export function UserDialog({ user, onClose }: Props) {
 
     if (!isCreatableRole(role)) {
       next.role =
-        'Không được tạo hoặc nâng quyền thành Admin. Hãy chọn vai trò hợp lệ.';
+        'Không được tạo hoặc nâng quyền thành quản trị viên. Hãy chọn vai trò hợp lệ.';
     }
 
     if (!fullName.trim()) {
@@ -161,14 +161,14 @@ export function UserDialog({ user, onClose }: Props) {
       role === 'Sales' &&
       assignments['sales-groups'].length !== 1
     ) {
-      next['sales-groups'] = 'Chọn một nhóm Sales.';
+      next['sales-groups'] = 'Chọn một nhóm bán hàng.';
     }
 
     if (
       role === 'Retailer' &&
       assignments.retailers.length !== 1
     ) {
-      next.retailers = 'Chọn một retailer.';
+      next.retailers = 'Chọn một điểm bán.';
     }
 
     if (
@@ -345,7 +345,7 @@ export function UserDialog({ user, onClose }: Props) {
 
         {uncertain && (
           <div className="callout callout-danger">
-            Chưa xác định server đã tạo tài khoản hay chưa.
+            Chưa xác định máy chủ đã tạo tài khoản hay chưa.
             Đóng form, tìm theo email trong danh sách trước
             khi tạo lại. Nếu đã có, mở Sửa để hoàn thiện
             assignment.
@@ -364,7 +364,7 @@ export function UserDialog({ user, onClose }: Props) {
 
             <p>
               {created.role === 'Retailer'
-                ? 'Tài khoản Retailer đang chờ kích hoạt. Sau khi gán đúng retailer đã duyệt, chủ điểm bán phải xác minh OTP email và tự tạo mật khẩu trên Mobile.'
+                ? 'Tài khoản điểm bán đang chờ kích hoạt. Sau khi gán đúng điểm bán đã duyệt, chủ điểm bán phải xác minh OTP email và tự tạo mật khẩu trên Mobile.'
                 : 'Người dùng có thể đăng nhập bằng mật khẩu hoặc tài khoản Google cùng email.'}
             </p>
           </div>
@@ -429,7 +429,7 @@ export function UserDialog({ user, onClose }: Props) {
                     setErrors((current) => ({
                       ...current,
                       role:
-                        'Vai trò không hợp lệ. Không được chọn Admin.',
+                        'Vai trò không hợp lệ. Không được chọn quản trị viên.',
                     }));
 
                     return;
@@ -473,7 +473,7 @@ export function UserDialog({ user, onClose }: Props) {
                       autoComplete="new-password"
                       value={password}
                       readOnly={identityLocked || role === 'Retailer'}
-                      placeholder={role === 'Retailer' ? 'Retailer tự tạo mật khẩu sau khi xác minh OTP' : undefined}
+                      placeholder={role === 'Retailer' ? 'Điểm bán tự tạo mật khẩu sau khi xác minh OTP' : undefined}
                       onChange={(event) =>
                         setPassword(event.target.value)
                       }
@@ -505,7 +505,7 @@ export function UserDialog({ user, onClose }: Props) {
 
                 <p className="muted">
                   Phần dưới chỉ bổ sung region.
-                  Thay đổi nhóm Sales có thể thay đổi
+                  Thay đổi nhóm bán hàng có thể thay đổi
                   quyền khu vực kế thừa.
                 </p>
               </>
@@ -538,15 +538,15 @@ export function UserDialog({ user, onClose }: Props) {
 
             {role === 'SalesManager' && (
               <p className="muted">
-                Nhóm Sales là tùy chọn. Mỗi tài khoản
-                hiện chỉ có một membership nhóm Sales
+                Nhóm bán hàng là tùy chọn. Mỗi tài khoản
+                hiện chỉ có một membership nhóm bán hàng
                 hoạt động.
               </p>
             )}
 
             {user?.role === 'Retailer' && (
               <p className="muted">
-                Đổi retailer cần bỏ liên kết cũ rồi
+                Đổi điểm bán cần bỏ liên kết cũ rồi
                 gán liên kết mới. Nếu lỗi giữa chừng,
                 lưu lại để hoàn tất.
               </p>

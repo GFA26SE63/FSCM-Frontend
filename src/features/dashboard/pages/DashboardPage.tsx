@@ -3,7 +3,7 @@ import { useAuth } from '@/shared/auth/AuthContext';
 import type { PortalRole } from '@/shared/auth/roles';
 import { useNavigate } from '@/shared/router/compat';
 import { Button, Callout, Card, Chip, PageHeader, QueryState, SimpleTable, Stat, StatusChip, Tabs } from '@/shared/ui';
-import { formatMoney, formatNumber } from '@/shared/lib';
+import { formatMoney, formatNumber, statusLabel } from '@/shared/lib';
 import { formatDate, formatInstantDateTime } from '@/shared/lib/dates';
 import { useDashboard } from '../hooks';
 import { RevenueByDayChart } from '../components/RevenueChart';
@@ -11,6 +11,8 @@ import { ExpiryRiskCard } from '../components/ExpiryRiskCard';
 import { DASHBOARD_TITLES, dashboardTabs, defaultDashboardDates, periodChange, visibleCards } from '../dashboardModel';
 import type { DashboardFilters, DashboardResponse } from '../types';
 import './dashboard.css';
+import { workItemStatus } from '../workItemStatus';
+import { dashboardCardCopy, dashboardText } from '../dashboardCopy';
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -38,7 +40,7 @@ function DashboardSession({ role }: { role: PortalRole }) {
         onChange={e => setFilters(f => ({ ...f, warehouseId: e.target.value }))}>
         <option value="">Tất cả kho được phép xem</option>{options?.warehouses.filter(w => !filters.regionId || w.regionId === filters.regionId).map(w => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}
       </select></label>}
-      {role !== 'WarehouseKeeper' && <label className="lbl">Nhóm Sales<select className="inp" value={filters.salesGroupId ?? ''}
+      {role !== 'WarehouseKeeper' && <label className="lbl">Nhóm bán hàng<select className="inp" value={filters.salesGroupId ?? ''}
         onChange={e => setFilters(f => ({ ...f, salesGroupId: e.target.value }))}>
         <option value="">Tất cả nhóm được phép xem</option>{options?.salesGroups.filter(g => !filters.regionId || g.regionId === filters.regionId).map(g => <option key={g.id} value={g.id}>{g.code} · {g.name}</option>)}
       </select></label>}
@@ -54,7 +56,7 @@ export function DashboardContent({ data, tab, onTabChange }: {
   const navigate = useNavigate();
   const tabs = dashboardTabs(data.role);
   const allowed = tabs.some(t => t.key === tab) ? tab : 'overview';
-  const cards = visibleCards(data.cards, data.role, allowed);
+  const cards = visibleCards(data.cards, data.role, allowed).map(dashboardCardCopy);
   const keeper = data.role === 'WarehouseKeeper';
   const manager = data.role === 'SalesManager';
   const financial = !keeper && ['overview', 'finance'].includes(allowed);
@@ -67,11 +69,11 @@ export function DashboardContent({ data, tab, onTabChange }: {
   } as const;
   return <>
     <div className="dashboard-scope">
-      <Chip tone={data.scope.isGlobal ? 'info' : 'success'}>{data.scope.description}</Chip>
+      <Chip tone={data.scope.isGlobal ? 'info' : 'success'}>{dashboardText(data.scope.description)}</Chip>
       <span>Kỳ {formatDate(data.fromDate)} – {formatDate(data.toDate)}</span>
       <span>Cập nhật {formatInstantDateTime(data.asOf)}</span>
     </div>
-    {!data.scope.hasAssignments && <Callout tone="warn">Chưa có phạm vi được phân công. Liên hệ Admin để được gán khu vực, kho hoặc nhóm Sales.</Callout>}
+    {!data.scope.hasAssignments && <Callout tone="warn">Chưa có phạm vi được phân công. Liên hệ quản trị viên để được gán khu vực, kho hoặc nhóm bán hàng.</Callout>}
     <Tabs items={tabs} value={allowed} onChange={onTabChange} />
     <div className="dashboard-kpis">{cards.map(c => {
       const value = c.unit === 'VND' ? formatMoney(c.value) : `${formatNumber(c.value)}${c.unit === 'carton' ? ' thùng' : c.unit === 'percent' ? '%' : ''}`;
@@ -110,8 +112,8 @@ export function DashboardContent({ data, tab, onTabChange }: {
       <SimpleTable compact rows={work} empty="Không có công việc chờ trong phạm vi này."
         columns={[
           { header: 'Mức độ', cell: w => <Chip tone={w.priority === 1 ? 'danger' : w.priority === 2 ? 'warn' : 'info'}>{w.priority === 1 ? 'Ưu tiên cao' : w.priority === 2 ? 'Cần xử lý' : 'Đang chờ'}</Chip> },
-          { header: 'Chứng từ', cell: w => <><strong>{w.code}</strong><br />{w.title}</> },
-          { header: 'Trạng thái / lý do', cell: w => <>{w.status}<br /><span className="muted small">{w.reason}</span></> },
+          { header: 'Chứng từ', cell: w => <><strong>{w.code}</strong><br />{w.kind === 'shipment' ? dashboardText(w.title) : w.title}</> },
+          { header: 'Trạng thái / lý do', cell: w => <>{workItemStatus(w.kind, w.status)}<br /><span className="muted small">{['refund', 'receipt'].includes(w.kind) ? dashboardText(w.reason) : w.reason}</span></> },
           { header: 'Chờ từ', cell: w => formatInstantDateTime(w.since) },
           { header: 'Giá trị', align: 'right', cell: w => w.amount == null ? '—' : formatMoney(w.amount) },
           { header: '', cell: w => w.href ? <Button size="sm" onClick={() => navigate(w.href!)}>Mở xử lý</Button> : 'Theo dõi trong phạm vi quản lý' },
@@ -144,8 +146,8 @@ export function DashboardContent({ data, tab, onTabChange }: {
       <ExpiryRiskCard rows={data.expiryRisks} total={data.expiryRiskTotal} />
     </>}
     {allowed === 'sales' && <>
-      <Card title="Thành viên Sales · gồm người chưa có đơn hoàn tất">
-        <SimpleTable rows={data.salesTeam} empty="Chưa có thành viên Sales trong phạm vi này." columns={[
+      <Card title="Nhân viên bán hàng · gồm người chưa có đơn hoàn tất">
+        <SimpleTable rows={data.salesTeam} empty="Chưa có nhân viên bán hàng trong phạm vi này." columns={[
           { header: 'Thành viên / nhóm', cell: s => <>{s.name}<br /><span className="muted small">{s.groupCode}</span></> },
           { header: 'Đơn hoàn tất', align: 'right', cell: s => formatNumber(s.completedOrders) },
           { header: 'Điểm bán phục vụ', align: 'right', cell: s => formatNumber(s.retailersServed) },
@@ -166,7 +168,7 @@ export function DashboardContent({ data, tab, onTabChange }: {
     {allowed === 'customers' && manager && <Card title="Điểm bán trong phạm vi · 30 điểm ưu tiên theo công nợ và lần mua gần nhất">
       <SimpleTable rows={data.customers} columns={[
         { header: 'Điểm bán', cell: r => <>{r.code}<br /><strong>{r.name}</strong></> },
-        { header: 'Trạng thái', cell: r => r.status }, { header: 'Đơn trong kỳ', align: 'right', cell: r => formatNumber(r.periodOrders) },
+        { header: 'Trạng thái', cell: r => statusLabel('retailer', r.status) }, { header: 'Đơn trong kỳ', align: 'right', cell: r => formatNumber(r.periodOrders) },
         { header: 'Mua gần nhất', cell: r => r.lastOrderAt ? formatInstantDateTime(r.lastOrderAt) : 'Chưa có đơn' },
         { header: 'Tần suất dự kiến', cell: r => <>{r.expectedFrequencyPerMonth} lần/tháng{r.cycleOverdue && <><br /><Chip tone="warn">Quá chu kỳ mua</Chip></>}</> },
         { header: 'Còn phải thu', align: 'right', cell: r => formatMoney(r.outstanding) },
@@ -175,11 +177,11 @@ export function DashboardContent({ data, tab, onTabChange }: {
     </Card>}
     {allowed === 'health' && data.health && <Card title="Tác vụ nền · trạng thái thực tế gần nhất">
       <div className="dashboard-kpis">
-        <Stat label="Theo dõi HSD chạy gần nhất" value={data.health.expiryLastRunAt ? formatInstantDateTime(data.health.expiryLastRunAt) : 'Chưa ghi nhận'} note={data.health.expiryStatus ?? 'Chưa có lượt chạy'} />
+        <Stat label="Theo dõi HSD chạy gần nhất" value={data.health.expiryLastRunAt ? formatInstantDateTime(data.health.expiryLastRunAt) : 'Chưa ghi nhận'} note={data.health.expiryStatus ? statusLabel('expirySweep', data.health.expiryStatus) : 'Chưa có lượt chạy'} />
         <Stat label="Sự kiện chờ xử lý" value={formatNumber(data.health.pendingEvents)} />
         <Stat label="Sự kiện lỗi" value={formatNumber(data.health.failedEvents)} />
       </div>
     </Card>}
-    <div>{data.notes.map(note => <p key={note} className="dashboard-note">{note}</p>)}</div>
+    <div>{data.notes.map(note => <p key={note} className="dashboard-note">{dashboardText(note)}</p>)}</div>
   </>;
 }

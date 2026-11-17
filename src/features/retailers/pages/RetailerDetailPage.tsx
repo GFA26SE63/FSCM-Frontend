@@ -36,7 +36,7 @@ function DebtTab({ retailer }: { retailer: Retailer }) {
   return (
     <div className="stack" style={{ gap: '20px' }}>
       <CreditTermsCard retailer={retailer} receivables={rec.data ?? []} />
-      <Card title="Điểm loyalty">
+      <Card title="Điểm tích điểm">
         {loy.data
           ? `Số dư ${formatNumber(loy.data.availablePoints ?? loy.data.available ?? loy.data.balance ?? 0)} điểm · đang giữ ${formatNumber(loy.data.heldPoints ?? loy.data.held ?? 0)} · khả dụng ${formatNumber(loy.data.availablePoints ?? loy.data.available ?? 0)}`
           : 'Chưa có thông tin'}
@@ -46,7 +46,7 @@ function DebtTab({ retailer }: { retailer: Retailer }) {
           {(rows) => (
             <SimpleTable
               rows={rows}
-              empty="Retailer chưa có đơn công nợ."
+              empty="Điểm bán chưa có đơn công nợ."
               columns={[
                 { header: 'Mã đơn', cell: (r) => r.orderCode },
                 {
@@ -187,7 +187,7 @@ function RetailerView({ r }: { r: Retailer }) {
               cols={3}
               items={[
                 { label: 'Khu vực / Vùng hoạt động', value: r.areaName || r.areaCode || 'Chưa có thông tin' },
-                { label: 'Nhóm Sales phụ trách', value: r.salesGroupCode || r.groupCode || 'Chưa có thông tin' },
+                { label: 'Nhóm bán hàng phụ trách', value: r.salesGroupCode || r.groupCode || 'Chưa có thông tin' },
                 { label: 'Địa chỉ đăng ký', value: r.address || 'Chưa có thông tin' },
                 {
                   label: 'Tọa độ GPS',
@@ -286,7 +286,7 @@ function RetailerView({ r }: { r: Retailer }) {
                     ),
                 },
                 {
-                  label: 'Đánh giá / Ghi chú của Sales',
+                  label: 'Đánh giá / Ghi chú của nhân viên bán hàng',
                   value: r.assessmentNote || 'Chưa có thông tin',
                 },
                 {
@@ -337,7 +337,7 @@ export function RetailerDetailPage() {
   if (!identifier) {
     return (
       <EmptyState
-        title="Không tìm thấy Retailer"
+        title="Không tìm thấy điểm bán"
         description="Mã điểm bán không hợp lệ hoặc thiếu định danh."
         action={
           <Button variant="default" onClick={() => returnToList('/retailers')}>
@@ -361,8 +361,8 @@ export function RetailerDetailPage() {
     if (apiError.status === 404) {
       return (
         <EmptyState
-          title="Không tìm thấy Retailer"
-          description="Không tìm thấy Retailer này. Thông tin có thể đã được thay đổi hoặc không còn tồn tại."
+          title="Không tìm thấy điểm bán"
+          description="Không tìm thấy điểm bán này. Thông tin có thể đã được thay đổi hoặc không còn tồn tại."
           action={
             <Button variant="default" onClick={() => returnToList('/retailers')}>
               Quay lại danh sách
@@ -375,7 +375,7 @@ export function RetailerDetailPage() {
       return (
         <EmptyState
           title="Không có quyền truy cập"
-          description="Bạn không có quyền xem thông tin Retailer này."
+          description="Bạn không có quyền xem thông tin điểm bán này."
           action={
             <Button variant="default" onClick={() => returnToList('/retailers')}>
               Quay lại danh sách
@@ -400,7 +400,7 @@ export function RetailerDetailPage() {
     return (
       <EmptyState
         title="Không tải được dữ liệu"
-        description="Không thể tải thông tin Retailer. Vui lòng thử lại."
+        description="Không thể tải thông tin điểm bán. Vui lòng thử lại."
         action={
           <div style={{ display: 'flex', gap: '8px' }}>
             <Button variant="primary" onClick={() => retailer.refetch()}>
@@ -418,8 +418,8 @@ export function RetailerDetailPage() {
   if (!retailer.data) {
     return (
       <EmptyState
-        title="Không tìm thấy Retailer"
-        description="Không tìm thấy Retailer này. Thông tin có thể đã được thay đổi hoặc không còn tồn tại."
+        title="Không tìm thấy điểm bán"
+        description="Không tìm thấy điểm bán này. Thông tin có thể đã được thay đổi hoặc không còn tồn tại."
         action={
           <Button variant="default" onClick={() => returnToList('/retailers')}>
             Quay lại danh sách

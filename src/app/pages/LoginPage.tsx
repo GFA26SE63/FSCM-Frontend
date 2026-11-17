@@ -324,7 +324,7 @@ export function LoginPage() {
                   target.src = '/fscm-logo.png';
                 }
               }}
-              alt="FSCM Logo"
+              alt="Biểu trưng FSCM"
               style={{
                 width: '100%',
                 height: '100%',
@@ -338,7 +338,7 @@ export function LoginPage() {
               className="bold"
               style={{ fontSize: 24, lineHeight: 1.2 }}
             >
-              FSCM Portal
+              Cổng quản trị FSCM
             </div>
 
             <p className="muted" style={{ margin: '4px 0 0 0', fontSize: 13 }}>

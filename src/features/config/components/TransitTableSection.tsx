@@ -192,8 +192,8 @@ export function TransitTableSection({ current }: { current: TransitTable }) {
           Phát hành phiên bản mới
         </Button>
         <span className="muted small">
-          Phát hành không ghi đè: phiên bản {current.version} được đóng lại và giữ nguyên để giải thích các đợt đã chạy.
-          Chi phí chỉ để tham khảo, không tham gia chấm điểm chọn batch.
+          Phát hành không ghi đè: phiên bản {current.version} Được đóng lại và giữ nguyên để giải thích các đợt đã chạy.
+          Chi phí chỉ để tham khảo, không tham gia chấm điểm chọn lô hàng.
         </span>
       </div>
 

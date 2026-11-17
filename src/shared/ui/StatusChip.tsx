@@ -5,15 +5,17 @@ export type Tone = 'info' | 'ok' | 'success' | 'violet' | 'danger' | 'warn' | 'n
 
 /** Label → tone, ported from prototype chipStyle(). Keeps one colour language across all screens. */
 const toneByLabel: [string[], Tone][] = [
-  [['Chờ duyệt', 'Nháp', 'Gợi ý', 'Chờ giao', 'Đề xuất', 'Chưa thu', 'Bổ sung', 'Chưa pick'], 'info'],
-  [['Đã duyệt', 'Đã xuất kho', 'Đang chạy', 'Hoạt động', 'Bình thường', 'Còn hạn', 'Đã xuất', 'Đã nhập', 'Đã nhập kho', 'Đã xử lý', 'Đã tiêu hủy', 'Đã publish', 'Đã nhận', 'Đang áp dụng', 'Đã thu đủ', 'Hoàn tất', 'Đạt', 'A'], 'ok'],
+  [['Chờ duyệt', 'Nháp', 'Gợi ý', 'Chờ giao', 'Đề xuất', 'Chưa thu', 'Bổ sung', 'Chưa soạn hàng'], 'info'],
+  [['Đã duyệt', 'Đã xuất kho', 'Đang chạy', 'Hoạt động', 'Bình thường', 'Còn hạn', 'Đã xuất', 'Đã nhập', 'Đã nhập kho', 'Đã xử lý', 'Đã tiêu hủy', 'Đã công bố', 'Đã nhận', 'Đang áp dụng', 'Đã thu đủ', 'Hoàn tất', 'Đạt', 'A'], 'ok'],
   [['Kho tổng'], 'deep'],
-  [['B', 'Inactive', 'Kho vùng', 'Bỏ qua', 'Online'], 'neutral'],
-  [['Đang giao', 'Đang pick', 'Đang soạn hàng', 'Đang vận chuyển', 'Luân chuyển cận hạn', 'Đang giao quà'], 'violet'],
-  [['Đã giao'], 'success'],
+  [['B', 'Inactive', 'Ngừng hoạt động', 'Ngừng bán', 'Kho vùng', 'Bỏ qua', 'Online', 'Trực tuyến'], 'neutral'],
+  [['Đang giao', 'Đang soạn hàng', 'Đang vận chuyển', 'Luân chuyển cận hạn', 'Đang giao quà'], 'violet'],
+  [['Đã giao', 'Đã giao quà'], 'success'],
   [['Bị từ chối', 'Hết hạn', 'Đã khóa', 'Quá hạn', 'Chưa đạt', 'Từ chối', 'Đã hủy'], 'danger'],
   [['Cận hạn', 'Tạm dừng', 'Chờ xử lý', 'Tạm ngừng', 'C', 'Hết hiệu lực', 'Gợi ý giảm giá', 'Không có kho đích', 'Bảo trì', 'Tạm nghỉ'], 'warn'],
-  [['Offline'], 'dark'],
+  [['Đã thu một phần'], 'warn'],
+  [['Đang bán'], 'ok'],
+  [['Offline', 'Ngoại tuyến'], 'dark'],
 ];
 
 export const toneOf = (label: string): Tone => toneByLabel.find(([labels]) => labels.includes(label))?.[1] ?? 'neutral';

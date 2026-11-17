@@ -150,7 +150,7 @@ test('Retailer Loading: non-existent code throws user-friendly 404 ApiError', as
     },
     (err) => {
       assert.equal(err.status, 404);
-      assert.ok(err.message.includes('Không tìm thấy Retailer này'));
+      assert.ok(err.message.includes('Không tìm thấy điểm bán này'));
       return true;
     },
   );
@@ -165,7 +165,7 @@ test('Navigation Integrity: RetailersPage always passes row.id to navigate to de
   // Both row click and Xem button pass row.id
   assert.ok(pageCode.includes('onRowClick={(row) => navigate(`/retailers/${row.id || row.code}`)}'));
   assert.ok(pageCode.includes('onClick={() => navigate(`/retailers/${row.id || row.code}`)}'));
-  assert.ok(pageCode.includes('rowKey={(row) => row.id}'));
+  assert.ok(pageCode.includes('rowKey={(row) => row.id ?? row.code}'));
 });
 
 test('Error State Handling: RetailerDetailPage specifies user-friendly Vietnamese messages and retry actions', () => {
@@ -177,18 +177,18 @@ test('Error State Handling: RetailerDetailPage specifies user-friendly Vietnames
   // 404 Not Found message
   assert.ok(
     detailCode.includes(
-      'Không tìm thấy Retailer này. Thông tin có thể đã được thay đổi hoặc không còn tồn tại.',
+      'Không tìm thấy điểm bán này. Thông tin có thể đã được thay đổi hoặc không còn tồn tại.',
     ),
   );
 
   // 403 Forbidden message
-  assert.ok(detailCode.includes('Bạn không có quyền xem thông tin Retailer này.'));
+  assert.ok(detailCode.includes('Bạn không có quyền xem thông tin điểm bán này.'));
 
   // 401 Unauthorized message
   assert.ok(detailCode.includes('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'));
 
   // Network / server error message with retry button
-  assert.ok(detailCode.includes('Không thể tải thông tin Retailer. Vui lòng thử lại.'));
+  assert.ok(detailCode.includes('Không thể tải thông tin điểm bán. Vui lòng thử lại.'));
   assert.ok(detailCode.includes('retailer.refetch()'));
   assert.ok(detailCode.includes('Thử lại'));
 

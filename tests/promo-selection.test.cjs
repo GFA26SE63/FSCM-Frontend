@@ -43,14 +43,14 @@ test('selection is staged across renders, Cancel does not apply, and Apply commi
   toggle('b', true); toggle('b', true);
   assert.equal(applied, undefined);
   assert.deepEqual(props.selectedIds, ['a', 'a']);
-  nodes(tree.props.footer, n => n.type === 'Button' && n.props.children === 'Cancel')[0].props.onClick();
+  nodes(tree.props.footer, n => n.type === 'Button' && n.props.children === 'Hủy')[0].props.onClick();
   assert.equal(cancelled, 1); assert.equal(applied, undefined);
   tree.props.onClose(); // Escape/backdrop use this same cancellation handler.
   assert.equal(cancelled, 2); assert.equal(applied, undefined);
-  nodes(tree.props.footer, n => n.type === 'Button' && n.props.children === 'Apply')[0].props.onClick();
+  nodes(tree.props.footer, n => n.type === 'Button' && n.props.children === 'Áp dụng')[0].props.onClick();
   assert.deepEqual(applied, ['a', 'b']);
   toggle('a', false);
-  nodes(tree.props.footer, n => n.type === 'Button' && n.props.children === 'Apply')[0].props.onClick();
+  nodes(tree.props.footer, n => n.type === 'Button' && n.props.children === 'Áp dụng')[0].props.onClick();
   assert.deepEqual(applied, ['b']);
 });
 
@@ -58,7 +58,7 @@ test('Apply is unavailable while loading, after a lookup error, or without loade
   const { PromoSelectionModal } = load('features/promos/components/PromoSelectionModal.tsx', { react: hooks(), '@/shared/ui': ui });
   for (const options of [{ loading: true }, { error: new Error('offline') }, { rows: undefined }]) {
     const tree = PromoSelectionModal({ title: 'Chọn', rows: [], columns: [], selectedIds: [], rowLabel: r => r.id, ...options });
-    const apply = nodes(tree.props.footer, n => n.type === 'Button' && n.props.children === 'Apply')[0];
+    const apply = nodes(tree.props.footer, n => n.type === 'Button' && n.props.children === 'Áp dụng')[0];
     assert.equal(apply.props.disabled, true);
   }
 });

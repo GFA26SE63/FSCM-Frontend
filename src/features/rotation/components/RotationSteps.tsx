@@ -11,7 +11,7 @@ export function RotationSteps({ t }: { t: RotationTrace }) {
         num="Bước 1"
         title="Năng lực bán của kho nguồn → lượng dư"
         hint={`L = ${t.remainingDays} ngày · SL vòng đời ${t.shelfLifeDays} ngày`}
-        note={`Cửa sổ bán W = L − m·SL − 1 cho từng nhóm khách; C = Σ v·W − tồn batch cũ hơn cùng SKU (${formatCases(t.olderAhead)}); dư E = q − C = ${t.quantity} − ${formatNumber(t.sellable)} = ${formatCases(t.excess)}.`}
+        note={`Cửa sổ bán W = L − m·SL − 1 cho từng nhóm khách; C = Σ v·W − tồn lô hàng cũ hơn cùng SKU (${formatCases(t.olderAhead)}); dư E = q − C = ${t.quantity} − ${formatNumber(t.sellable)} = ${formatCases(t.excess)}.`}
       >
         <SimpleTable
           compact
@@ -21,7 +21,7 @@ export function RotationSteps({ t }: { t: RotationTrace }) {
             { header: 'Nhóm khách', cell: (r) => r.group },
             { header: 'v (thùng/ngày)', align: 'right', cell: (r) => formatNumber(r.velocity, 2) },
             { header: 'm', align: 'right', cell: (r) => formatNumber(r.m, 2) },
-            { header: 'MLOR (ngày)', align: 'right', cell: (r) => formatNumber(r.mlorDays, 1) },
+            { header: 'Yêu cầu HSD tối thiểu (ngày)', align: 'right', cell: (r) => formatNumber(r.mlorDays, 1) },
             { header: 'W (ngày)', align: 'right', cell: (r) => formatNumber(r.windowDays, 1) },
             { header: 'v·W (thùng)', align: 'right', cell: (r) => formatNumber(r.sellable, 1) },
           ]}

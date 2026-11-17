@@ -44,7 +44,7 @@ export function PromoFormPage() {
     { key: 'name', header: 'Tên cửa hàng', width: '230px' },
     { key: 'contact', header: 'Liên hệ', width: '200px', text: (r) => `${r.contactName || '—'} · ${r.phone || '—'}` },
     { key: 'address', header: 'Địa chỉ', width: '260px', text: (r) => r.address || '—' },
-    { key: 'salesGroupCode', header: 'Nhóm Sales', width: '130px', text: (r) => r.salesGroupCode || '—' },
+    { key: 'salesGroupCode', header: 'Nhóm bán hàng', width: '130px', text: (r) => r.salesGroupCode || '—' },
     { key: 'creditTermDays', header: 'Hạn công nợ', width: '130px', text: (r) => r.creditTermDays == null ? '—' : r.creditTermDays > 0 ? `${r.creditTermDays} ngày` : 'Trả trước' },
   ];
   const validQty = (v: string) => Number(v) > 0 && Number(v) <= 999999999999999 && Number.isInteger(Number(v));
@@ -71,7 +71,7 @@ export function PromoFormPage() {
     } catch { /* Keep the form and show the server error. */ }
   };
   return <>
-    <PageHeader back="/promos" title="Tạo khuyến mãi" subtitle="Mỗi dòng sản phẩm nhận một chương trình đủ điều kiện có mức giảm cao nhất. Giảm HSD được tính sau khi chọn batch." />
+    <PageHeader back="/promos" title="Tạo khuyến mãi" subtitle="Mỗi dòng sản phẩm nhận một chương trình đủ điều kiện có mức giảm cao nhất. Giảm HSD được tính sau khi chọn lô hàng." />
     <Card title="Thông tin chung"><div className="form-grid cols-2">
       <FormField label="Tên chương trình" required><Input maxLength={200} value={name} onChange={(e) => setName(e.target.value)} /></FormField>
       <FormField label="Loại chương trình"><Select value={mode} onChange={(e) => setMode(e.target.value as typeof mode)} options={[{ value: 'PerSku', label: 'Loại 1 · Theo từng SKU' }, { value: 'ProductGroup', label: 'Loại 2 · Theo nhóm sản phẩm' }]} /></FormField>

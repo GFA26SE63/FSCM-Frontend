@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param()
+param([switch]$InventoryLayout)
 
 $ErrorActionPreference = 'Stop'
 if ($PSVersionTable.PSVersion.Major -lt 7) { throw 'Run this script in PowerShell 7.' }
@@ -117,6 +117,28 @@ function Wait-Vercel([ValidatePattern('^[0-9a-fA-F]{40}$')][string]$Sha) {
 }
 
 Invoke-Gh @('auth', 'status', '--hostname', 'github.com') | Out-Host
+if ($InventoryLayout) {
+    $change = @{
+        Repo = 'GFA26SE63/FSCM-Frontend'; Directory = 'FSCM-Frontend'; Branch = 'fix/inventory-carton-detail-layout-20261117'
+        Title = 'fix(inventory): contain long codes and show carton details immediately'
+        Body = 'Long carton, pallet, batch and receipt codes stay within fixed-width columns with wrapping. Filters adapt to narrow screens. Clicking a carton opens its history and source trace in a drawer instead of below the full list. Validation: build, lint, 265 frontend tests passed; local fixture UI verified code wrapping and opening/closing details.'
+    }
+    $sha = Publish-Release $change
+    Wait-Vercel $sha
+    $site = 'https://fscm-frontend.vercel.app'
+    $html = [string](Invoke-WebRequest -Uri $site -TimeoutSec 30).Content
+    $entry = [regex]::Match($html, 'src="([^\"]*/assets/index-[^\"]+\.js)"')
+    if (-not $entry.Success) { throw 'Could not identify the production entry bundle.' }
+    $bundle = [string](Invoke-WebRequest -Uri ([Uri]::new([Uri]$site, $entry.Groups[1].Value).AbsoluteUri) -TimeoutSec 30).Content
+    $feature = [regex]::Match($bundle, '(?<![A-Za-z0-9_-])inventory-[A-Za-z0-9_-]+\.js')
+    if (-not $feature.Success) { throw 'Could not identify the inventory bundle.' }
+    $inventory = [string](Invoke-WebRequest -Uri "$site/assets/$($feature.Value)" -TimeoutSec 30).Content
+    if (-not $inventory.Contains('inventory-code') -or -not $inventory.Contains('Chi tiết carton') -or -not $inventory.Contains('Danh sách carton trong kho')) {
+        throw 'Production does not serve the inventory layout and detail drawer fix yet.'
+    }
+    Write-Host "DEPLOYED AND VERIFIED: Inventory layout and carton details at $site"
+    return
+}
 $trace = @{
     Repo = 'GFA26SE63/FSCM-Traceability'; Directory = 'FSCM-Traceability'; Branch = 'release/factory-dispatches-20261117'
     Title = 'release: expose dispatched factory pallets for assigned warehouse receiving'
@@ -127,19 +149,19 @@ Deploy this release before the FSCM receiving backend and portal releases. Valid
 '@
 }
 $backend = @{
-    Repo = 'GFA26SE63/FSCM-Backend'; Directory = 'FSCM-Backend'; Branch = 'release/factory-inbound-20261117'
-    Title = 'release: receive factory pallets using their fixed destination warehouse'
+    Repo = 'GFA26SE63/FSCM-Backend'; Directory = 'FSCM-Backend'; Branch = 'fix/receiving-pallet-camera-20261117'
+    Title = 'fix(receiving): require recorded pallet scans before stock receipt'
     Body = @'
-Adds an assigned-warehouse arrivals queue and opens one receipt per selected factory pallet. The destination is derived from the external manifest; browser requests cannot choose it. Receipt retries reuse the source pallet key. Preview and receipt reject another pallet on a bound document. Locally received pallets are excluded while ACK delivery is pending. No schema migration.
+Records authenticated pallet camera scans against the receipt document, fixed destination, user and server time in the existing audit ledger. Confirmation requires the matching scan and inspection; the old generic scan path cannot post factory stock. Adds printable receipt documents, scan history and inspection details. No schema migration.
 
-Depends on the Traceability dispatch-list release. CI checks out its exact commit and enables the isolated PostgreSQL warehouse workflow tests. Local API/integration build and four directly invoked contract/query/role tests passed; full PostgreSQL verification must pass in CI before merge.
+Depends on the existing Traceability dispatch-list release. CI must pass before merge. Regression coverage includes missing or unrelated scan evidence, stock unchanged by scans and duplicate confirmation protection.
 '@
 }
 $frontend = @{
-    Repo = 'GFA26SE63/FSCM-Frontend'; Directory = 'FSCM-Frontend'; Branch = 'release/warehouse-screens-20261117'
-    Title = 'release: separate warehouse screens and receive only assigned factory arrivals'
+    Repo = 'GFA26SE63/FSCM-Frontend'; Directory = 'FSCM-Frontend'; Branch = 'fix/receiving-pallet-camera-20261117'
+    Title = 'fix(receiving): scan physical pallet QR on mobile receipt documents'
     Body = @'
-Separates inbound, outbound, transfers and carton tracing into distinct menu entries and list/create/detail routes. Inbound starts from pending factory pallets; the destination and selected pallet are fixed. Single-warehouse keepers see a fixed warehouse; multi-warehouse selection filters the queue. Retains inspection, shortage/damage handling and stock posting semantics. Long document codes stay inside table columns. Aligns existing QR regression assertions with receipt-generated labels.
+Replaces prefilled pallet preview confirmation with phone camera QR decoding and a server-recorded scan. Shows scan history and printable/PDF receipt documents. Inspection confirmation submits the scan identifier and server document version; opening the receipt or scanning does not add stock.
 
 Requires the Traceability and backend receiving releases to be deployed first. Validation: local frontend tests, lint, build and browser checks using isolated fixture data. No environment files or credentials are part of the release.
 '@
@@ -153,6 +175,7 @@ Wait-Route 'https://fscm-traceability-ckeke3bwe6fahzhm.southeastasia-01.azureweb
 $backendSha = Publish-Release $backend
 Wait-Mirror $backend.Repo $backendSha
 Wait-Route 'https://app-fmcg-api-dev-e4f6bdg2h2bfehbq.southeastasia-01.azurewebsites.net/api/v1/warehouse-documents/factory-pending' 401
+Wait-Route 'https://app-fmcg-api-dev-e4f6bdg2h2bfehbq.southeastasia-01.azurewebsites.net/api/v1/warehouse-documents/11111111-1111-1111-1111-111111111111/pallet-scans' 401
 Wait-Route 'https://app-fmcg-api-dev-e4f6bdg2h2bfehbq.southeastasia-01.azurewebsites.net/health' 200 2
 
 $frontendSha = Publish-Release $frontend
@@ -168,6 +191,7 @@ $feature = [regex]::Match($bundle, 'warehouse-work-[A-Za-z0-9_-]+\.js')
 if (-not $feature.Success) { throw 'Could not verify the production warehouse chunk.' }
 $featureBundle = [string](Invoke-WebRequest -Uri "$site/assets/$($feature.Value)" -TimeoutSec 30).Content
 if (-not $featureBundle.Contains('factory-pending') -or -not $featureBundle.Contains('from-pallet')) { throw 'Production does not serve the new arrivals workflow.' }
+if (-not $featureBundle.Contains('pallet-scans') -or -not $featureBundle.Contains('receipt-print')) { throw 'Production does not serve camera scan confirmation and printable receipts.' }
 Write-Host "DEPLOYED AND VERIFIED: $site"
 Write-Host 'Traceability dispatch list, backend arrivals route and production portal assets are present.'
 Write-Host 'No live warehouse stock was changed by this deployment verification.'

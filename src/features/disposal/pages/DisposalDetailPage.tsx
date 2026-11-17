@@ -21,11 +21,11 @@ export function DisposalDetailPage() {
               { label: 'Tổng SL / giá trị', value: `${formatCases(d.totalQty)} · ${formatMoney(d.totalValue)}` },
             ]} />
           </Card>
-          <Card title="Batch đã hủy" flush>
+          <Card title="Lô hàng đã hủy" flush>
             <SimpleTable
               rows={d.lines}
               columns={[
-                { header: 'Batch', cell: (l) => l.batchCode },
+                { header: 'Lô hàng', cell: (l) => l.batchCode },
                 { header: 'SKU', cell: (l) => `${l.sku} · ${l.productName}` },
                 { header: 'HSD', cell: (l) => formatDate(l.expiry) },
                 { header: 'Số lượng', align: 'right', cell: (l) => formatCases(l.qty) },

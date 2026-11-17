@@ -26,7 +26,7 @@ export function PromoDetailPage() {
     { key: 'phone', header: 'Số điện thoại', width: '140px', text: r => r.phone || '—' },
     { key: 'email', header: 'Email', width: '220px', text: r => r.email || '—' },
     { key: 'address', header: 'Địa chỉ', width: '260px', text: r => r.address || '—' },
-    { key: 'salesGroupCode', header: 'Nhóm Sales', width: '130px', text: r => r.salesGroupCode || '—' },
+    { key: 'salesGroupCode', header: 'Nhóm bán hàng', width: '130px', text: r => r.salesGroupCode || '—' },
     { key: 'creditTermDays', header: 'Hạn công nợ', width: '130px', text: r => r.creditTermDays == null ? '—' : r.creditTermDays > 0 ? `${r.creditTermDays} ngày` : 'Trả trước' },
     { key: 'status', header: 'Trạng thái', width: '140px', text: r => statusLabel('active', r.status) },
   ];

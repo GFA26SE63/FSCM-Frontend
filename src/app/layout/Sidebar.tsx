@@ -56,17 +56,17 @@ export function Sidebar() {
                 target.src = '/fscm-logo.png';
               }
             }}
-            alt="FSCM Logo"
+            alt="Biểu trưng FSCM"
             className="brand-logo-img"
           />
         </div>
         <div>
-          <div className="brand-name">FSCM Portal</div>
-          <div className="brand-sub">Short shelf-life FMCG</div>
+          <div className="brand-name">Cổng quản trị FSCM</div>
+          <div className="brand-sub">Quản lý hàng tiêu dùng hạn ngắn</div>
         </div>
       </div>
 
-      <nav className="menu-list" aria-label="Menu">
+      <nav className="menu-list" aria-label="Danh mục chức năng">
         {groups.map((g) => {
           const isOpen = openGroup === g.key;
           const hasActive = g.items.some((r) => isActivePath(pathname, r.key));
