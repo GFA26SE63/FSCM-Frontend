@@ -105,5 +105,14 @@ export function toApiError(err: unknown): ApiError {
 
 export const errorMessage = (err: unknown): string => {
   const e = toApiError(err);
-  return e.detail ? `${e.title}: ${e.detail}` : e.title;
+  const context = [
+    Number.isFinite(e.status) && e.status > 0 ? `HTTP ${e.status}` : null,
+    e.code ? `Mã: ${e.code}` : null,
+  ].filter((value): value is string => value !== null);
+  const heading = context.length ? `${e.title} (${context.join(' · ')})` : e.title;
+  const details = e.detail ? [heading, e.detail] : [heading];
+  const fields = Object.entries(e.fieldErrors)
+    .flatMap(([field, messages]) => messages.map((message) => `${field}: ${message}`));
+
+  return [...details, ...fields].join('\n');
 };

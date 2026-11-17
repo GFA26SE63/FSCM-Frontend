@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Modal } from './Modal';
 import { Button } from './Button';
 import { Checkbox, FormField, Input, Select, TextArea, type SelectOption } from './FormField';
-import { toApiError } from '../api/errors';
+import { errorMessage, toApiError } from '../api/errors';
 import { SearchSelect } from './SearchSelect';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -102,7 +102,10 @@ export function FormDialog({ open, title, subtitle, fields, initial, submitLabel
         if (m) fe[f.key] = m;
       });
       setServerErrors(fe);
-      setGeneralError(Object.keys(fe).length ? null : err.detail ?? err.title);
+      // Keep field-level messages next to their inputs, but also retain the
+      // HTTP/business context so an operator can report and diagnose a failed
+      // command without opening browser developer tools.
+      setGeneralError(errorMessage(err));
     } finally {
       setBusy(false);
     }

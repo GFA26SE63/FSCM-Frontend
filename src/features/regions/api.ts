@@ -53,8 +53,13 @@ interface RetailerTerritoryAssignmentResult {
   retailerCode: string | null;
   retailerName: string | null;
   address?: string | null;
-  contact?: string | null;
+  contactName?: string | null;
   phone?: string | null;
+  retailerType?: string | null;
+  storeSizeSquareMeters?: number | null;
+  storeSizeCategory?: string | null;
+  potentialStatus?: string | null;
+  potentialScore?: number | null;
   salesGroupId: string;
   salesGroupCode: string | null;
   assignedAt: string;
@@ -681,9 +686,12 @@ export const regionApi = {
       id: a.retailerId,
       code: String(a.retailerCode ?? ''),
       name: String(a.retailerName ?? a.retailerCode ?? ''),
-      address: a.address ?? '—',
-      contact: a.contact ?? '—',
-      phone: a.phone ?? '—',
+      address: a.address?.trim() || 'Chưa cập nhật địa chỉ',
+      contact: a.contactName?.trim() || 'Chưa cập nhật người liên hệ',
+      phone: a.phone?.trim() || 'Chưa cập nhật số điện thoại',
+      kind: a.retailerType?.trim() || undefined,
+      size: a.storeSizeCategory?.trim() || undefined,
+      potentialClass: a.potentialStatus?.trim() || undefined,
       status: a.isActive ? 'Active' : 'Locked',
     }));
   },

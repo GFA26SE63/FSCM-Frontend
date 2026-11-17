@@ -285,17 +285,17 @@ export function GroupDetailPage() {
                 },
                 {
                   header: 'Liên hệ',
-                  cell: (r) => `${r.contact || '—'} (${r.phone})`,
+                  cell: (r) => `${r.contact} (${r.phone})`,
                 },
                 {
                   header: 'Quy mô',
                   align: 'center',
-                  cell: (r) => r.size || '—',
+                  cell: (r) => r.size || 'Chưa phân loại',
                 },
                 {
                   header: 'Tiềm năng',
                   align: 'center',
-                  cell: (r) => (r.potentialClass ? <StatusChip value={r.potentialClass} /> : '—'),
+                  cell: (r) => (r.potentialClass ? <StatusChip value={r.potentialClass} /> : 'Chưa đánh giá'),
                 },
                 {
                   header: 'Trạng thái',

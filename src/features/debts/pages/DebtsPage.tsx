@@ -19,6 +19,7 @@ import {
 import { formatDate, formatMoney, statusLabels, toIsoDateTime, vietnamDateTimeToIso } from '@/shared/lib';
 import { useCollectReceivable, useReceivables } from '../hooks';
 import type { Receivable, ReceivableStatus } from '../types';
+import { useOrderSales } from '@/features/orders/orderSales';
 import {
   useCreateRefund,
   useRefunds,
@@ -75,6 +76,7 @@ export function DebtsPage() {
 
   // Full dataset — stats and callout always use the global totals, not page/filter totals
   const rows = useMemo(() => query.data ?? [], [query.data]);
+  const { salesNameOf, salesSearchTextOf } = useOrderSales(rows.map((row) => row.salesUserId));
   const sum = (s: ReceivableStatus) => rows.filter((r) => r.status === s).reduce((a, r) => a + r.outstandingAmount, 0);
 
   // Client-side filtering for receivables list
@@ -87,14 +89,14 @@ export function DebtsPage() {
           r.orderCode.toLowerCase().includes(q) ||
           r.retailerName.toLowerCase().includes(q) ||
           r.retailerCode.toLowerCase().includes(q) ||
-          r.salesUserId.toLowerCase().includes(q),
+          salesSearchTextOf(r.salesUserId).toLowerCase().includes(q),
       );
     }
     if (statusFilter) {
       result = result.filter((r) => r.status === statusFilter);
     }
     return result;
-  }, [rows, search, statusFilter]);
+  }, [rows, search, statusFilter, salesSearchTextOf]);
 
   // Pagination on filtered results
   const totalCount = filtered.length;
@@ -114,10 +116,10 @@ export function DebtsPage() {
   const columns: Column<Receivable>[] = [
     { key: 'orderCode', header: 'Mã đơn', width: '104px', render: (r) => <span className="bold">{r.orderCode}</span> },
     { key: 'retailer', header: 'Điểm bán', text: (r) => `${r.retailerName} ${r.retailerCode}`, render: (r) => (<><div className="strong">{r.retailerName}</div><div className="muted small">{r.retailerCode}</div></>) },
-    { key: 'sales', header: 'Mã nhân viên bán hàng', width: '130px', text: (r) => r.salesUserId },
+    { key: 'sales', header: 'Nhân viên bán hàng', width: '160px', text: (r) => salesSearchTextOf(r.salesUserId), render: (r) => <span className="strong">{salesNameOf(r.salesUserId)}</span> },
     { key: 'term', header: 'Kỳ hạn', width: '80px', text: (r) => `${r.creditTermDays} ngày` },
-    { key: 'delivered', header: 'Ngày giao', width: '100px', text: (r) => r.deliveredDate ? formatDate(r.deliveredDate) : '—' },
-    { key: 'due', header: 'Hạn thanh toán', width: '120px', text: (r) => r.dueDate ? formatDate(r.dueDate) : '—' },
+    { key: 'delivered', header: 'Ngày giao', width: '110px', text: (r) => r.deliveredDate ? formatDate(r.deliveredDate) : 'Chưa giao' },
+    { key: 'due', header: 'Hạn thanh toán', width: '130px', text: (r) => r.dueDate ? formatDate(r.dueDate) : 'Chưa phát sinh' },
     { key: 'total', header: 'Giá trị điều chỉnh', width: '120px', align: 'right', text: (r) => formatMoney(r.adjustedAmount) },
     { key: 'out', header: 'Còn phải thu', width: '120px', align: 'right', text: (r) => formatMoney(r.outstandingAmount) },
     { key: 'refund', header: 'Cần hoàn', width: '110px', align: 'right', text: (r) => formatMoney(r.refundDueAmount) },

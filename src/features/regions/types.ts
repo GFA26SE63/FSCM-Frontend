@@ -74,7 +74,7 @@ export interface GroupRetailerItem {
   contact: string;
   phone: string;
   kind?: string;
-  size?: 'S' | 'M' | 'L';
-  potentialClass?: 'A' | 'B' | 'C';
+  size?: string;
+  potentialClass?: string;
   status: 'Active' | 'Locked';
 }

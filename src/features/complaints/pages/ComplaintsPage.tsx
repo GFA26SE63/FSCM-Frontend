@@ -32,7 +32,7 @@ export function ComplaintsPage() {
         rowKey={(c) => c.code}
         columns={columns}
         searchPlaceholder="Mã, đơn hàng, điểm bán, nội dung…"
-        filters={[{ label: 'Trạng thái', options: Object.values(statusLabels.complaint), value: (c) => statusLabel('complaint', c.status) },
+        filters={[{ label: 'Trạng thái', options: [...new Set(Object.values(statusLabels.complaint))], value: (c) => statusLabel('complaint', c.status) },
           {label:'Loại yêu cầu',options:['Khiếu nại đơn hàng','Trả hàng','Thu hồi hàng hỏng'],value:c=>requestTypeLabel(c.requestType)}]}
         onRowClick={(c) => navigate(`/complaints/${c.code}`)}
         rowActionsWidth="180px"
