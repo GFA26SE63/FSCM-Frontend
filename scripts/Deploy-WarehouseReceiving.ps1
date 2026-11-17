@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([switch]$InventoryLayout)
+param([switch]$InventoryLayout, [switch]$WarehouseOperations)
 
 $ErrorActionPreference = 'Stop'
 if ($PSVersionTable.PSVersion.Major -lt 7) { throw 'Run this script in PowerShell 7.' }
@@ -117,6 +117,37 @@ function Wait-Vercel([ValidatePattern('^[0-9a-fA-F]{40}$')][string]$Sha) {
 }
 
 Invoke-Gh @('auth', 'status', '--hostname', 'github.com') | Out-Host
+if ($InventoryLayout -and $WarehouseOperations) { throw 'Choose one release mode.' }
+if ($WarehouseOperations) {
+    $mobileChange = @{
+        Repo = 'GFA26SE63/FSCM-Mobile'; Directory = 'FSCM-Mobile'; Branch = 'feat/warehouse-document-operations-20261117'
+        Title = 'feat(warehouse): add native factory and transfer receiving and issue workflows'
+        Body = 'Adds four native warehouse document entry points: factory receipt, transfer receipt, sales issue and transfer issue. Camera-only document scans use the shared WMS API. Factory confirmation submits the recorded ScanId; transfer stock is posted only after carton scanning and receipt confirmation. Shows document identifiers, lines, progress, inspections and scan history. Validation: 250 mobile tests passed; Dart analysis clean. Physical phone camera verification and installation of the new APK are still required.'
+    }
+    Publish-Release $mobileChange | Out-Host
+    $webChange = @{
+        Repo = 'GFA26SE63/FSCM-Frontend'; Directory = 'FSCM-Frontend'; Branch = 'feat/warehouse-document-operations-20261117'
+        Title = 'feat(warehouse): separate factory and transfer receipt and issue queues'
+        Body = 'Separates inbound into factory arrivals and transfer receipts, and outbound into sales and transfer issues. Only posted transfer issues for the assigned destination can open receipt documents. Transfer receipts navigate to inbound; picking and issue documents navigate to outbound. Preserves transfer request planning. Includes inventory long-code wrapping and immediate carton detail drawer. Validation: build, lint and 266 tests passed.'
+    }
+    $sha = Publish-Release $webChange
+    Wait-Vercel $sha
+    $site = 'https://fscm-frontend.vercel.app'
+    $html = [string](Invoke-WebRequest -Uri $site -TimeoutSec 30).Content
+    $entry = [regex]::Match($html, 'src="([^\"]*/assets/index-[^\"]+\.js)"')
+    if (-not $entry.Success) { throw 'Could not identify the production entry bundle.' }
+    $bundle = [string](Invoke-WebRequest -Uri ([Uri]::new([Uri]$site, $entry.Groups[1].Value).AbsoluteUri) -TimeoutSec 30).Content
+    $feature = [regex]::Match($bundle, 'warehouse-work-[A-Za-z0-9_-]+\.js')
+    if (-not $feature.Success) { throw 'Could not identify the warehouse bundle.' }
+    $work = [string](Invoke-WebRequest -Uri "$site/assets/$($feature.Value)" -TimeoutSec 30).Content
+    if (-not $work.Contains('Nhập luân chuyển') -or -not $work.Contains('Xuất luân chuyển')) {
+        throw 'Production does not serve the four warehouse operations yet.'
+    }
+    Write-Host "WEB DEPLOYED AND VERIFIED: $site"
+    & (Join-Path $packageRoot 'FSCM-Mobile/scripts/Build-WarehouseOperations.ps1')
+    Write-Host 'Native source merged and APK built. Install the new APK on the warehouse phone; web deployment does not update an installed app.'
+    return
+}
 if ($InventoryLayout) {
     $change = @{
         Repo = 'GFA26SE63/FSCM-Frontend'; Directory = 'FSCM-Frontend'; Branch = 'fix/inventory-carton-detail-layout-20261117'
