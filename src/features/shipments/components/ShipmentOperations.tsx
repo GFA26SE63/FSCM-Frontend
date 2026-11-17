@@ -4,6 +4,7 @@ import { Button, Callout, Chip, Input, Select, type Tone } from '@/shared/ui';
 import { formatNumber } from '@/shared/lib';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { useApiMutation } from '@/shared/hooks/useApiMutation';
+import { errorMessage } from '@/shared/api/errors';
 import { shipmentsApi } from '../api';
 import type { DeliveryDriver, DeliveryVehicle, Shipment, ShipmentPartStatus } from '../types';
 import type { ShipmentSort } from '../exportList';
@@ -36,14 +37,14 @@ export function ShipmentOperations({ orderId, sort }: { orderId: string; sort: S
   });
 
   if (shipments.isPending) return <p className="muted small">Đang tải thao tác vận hành…</p>;
-  if (shipments.isError) return <Callout tone="danger">Không tải được phiếu giao hàng của đơn.</Callout>;
+  if (shipments.isError) return <Callout tone="danger">Không tải được phiếu giao hàng của đơn.\n{errorMessage(shipments.error)}</Callout>;
   if (!shipments.data?.length) return <p className="muted small">Chưa có phiếu giao hàng được tạo cho đơn này.</p>;
 
   return (
     <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
       {mayDispatch && (drivers.isPending || vehicles.isPending) && <p className="muted small">Đang tải tài xế và xe…</p>}
       {mayDispatch && (drivers.isError || vehicles.isError) && <Callout tone="danger">
-        Không tải đầy đủ tài xế hoặc xe. <Button size="sm" onClick={() => { void drivers.refetch(); void vehicles.refetch(); }}>Thử lại</Button>
+        Không tải đầy đủ tài xế hoặc xe.\n{errorMessage(drivers.error ?? vehicles.error)} <Button size="sm" onClick={() => { void drivers.refetch(); void vehicles.refetch(); }}>Thử lại</Button>
       </Callout>}
       {[...shipments.data].sort((a, b) => (sort === 'asc' ? 1 : -1) * a.shipmentCode.localeCompare(b.shipmentCode, 'vi', { numeric: true })).map((shipment) => (
         <ShipmentActionRow

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
 import { useNavigate } from '@/shared/router/compat';
+import { errorMessage } from '@/shared/api/errors';
 import { Button, Callout, Card, Chip, DataTable, FormDialog, PageHeader, Stat, type Column, type Tone } from '@/shared/ui';
 import { formatDateTime, formatMoney } from '@/shared/lib';
 import { useCreateRefund, useRefundObligations, useRefunds } from '../hooks';
@@ -62,7 +63,7 @@ export function RefundsPage() {
       {mayManage && (
         <Card title="Khoản cần tạo hồ sơ hoàn" flush>
           {obligations.isError ? (
-            <Callout tone="danger">Không tải được các khoản cần hoàn.</Callout>
+            <Callout tone="danger">Không tải được các khoản cần hoàn.\n{errorMessage(obligations.error)}</Callout>
           ) : (
             <DataTable
               stateKey="obligations"
