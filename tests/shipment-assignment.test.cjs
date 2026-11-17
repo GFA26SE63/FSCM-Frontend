@@ -17,6 +17,7 @@ const mocks = {
   '@/shared/lib': { formatNumber: value => String(value) },
   '@/shared/auth/AuthContext': {},
   '@/shared/hooks/useApiMutation': { useApiMutation: () => ({ mutate() {}, isPending: false }) },
+  '@/shared/api/errors': { errorMessage: error => String(error?.message ?? error ?? '') },
   '@/features/runpicking/hooks': {},
   '../hooks': {},
   '../api': { shipmentsApi: {} },

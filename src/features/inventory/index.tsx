@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { get } from '@/shared/api/http';
+import { errorMessage } from '@/shared/api/errors';
 import { Card, Drawer, PageHeader, QueryState, SimpleTable } from '@/shared/ui';
 import { receiptApi } from '@/features/receipts/api';
 import { qrLabelApi } from '@/features/qr-labels/api';
@@ -54,7 +55,7 @@ export function InventoryPage() {
         <button className="btn" type="submit">Tìm kiếm</button>
         <button className="btn" type="button" disabled={inventory.isFetching} onClick={() => { void inventory.refetch(); if (selectedCode) void detail.refetch(); }}>Làm mới</button>
       </form>
-      {warehouses.isError && <p role="alert">Không tải được danh sách kho. Bảng QR vẫn giới hạn theo quyền của bạn.</p>}
+      {warehouses.isError && <p role="alert">Không tải được danh sách kho. Bảng QR vẫn giới hạn theo quyền của bạn. {errorMessage(warehouses.error)}</p>}
       <QueryState query={inventory}>{data => <>
         <p>{data.totalCount} thùng khớp bộ lọc · Trang {data.page}</p>
         <SimpleTable rows={data.items} columns={[

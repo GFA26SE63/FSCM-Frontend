@@ -125,5 +125,10 @@ test('localized API errors retain machine codes, field names, original evidence 
   assert.equal(error.field('quantity'), 'Số lượng phải lớn hơn 0.');
   assert.equal(error.field('RetailerName'), 'Store ABC must be reviewed by manager Jane');
   assert.deepEqual(Object.keys(error.fieldErrors), ['Quantity', 'RetailerName']);
-  assert.equal(errorMessage(error), 'Xung đột dữ liệu: Không đủ số lượng quà để đáp ứng yêu cầu.');
+  assert.equal(errorMessage(error), [
+    'Xung đột dữ liệu (HTTP 409 · Mã: reward_quantity)',
+    'Không đủ số lượng quà để đáp ứng yêu cầu.',
+    'Quantity: Số lượng phải lớn hơn 0.',
+    'RetailerName: Store ABC must be reviewed by manager Jane',
+  ].join('\n'));
 });

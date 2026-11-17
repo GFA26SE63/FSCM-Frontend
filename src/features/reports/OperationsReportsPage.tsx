@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { get, getAll } from '@/shared/api/http';
+import { errorMessage } from '@/shared/api/errors';
 import { useLocation, useNavigate } from '@/shared/router/compat';
 import { Button, Callout, Card, Fields, Modal, PageHeader, QueryState, SimpleTable, Stat } from '@/shared/ui';
 import { formatNumber } from '@/shared/lib';
@@ -115,7 +116,7 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
       const url = URL.createObjectURL(new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' }));
       const link = document.createElement('a'); link.href = url; link.download = `bao-cao-${kind}-${filters.fromDate}-${filters.toDate}.csv`; link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (error) { setExportError(error instanceof Error ? error.message : 'Không thể xuất báo cáo.'); }
+    } catch (error) { setExportError(errorMessage(error)); }
     finally { setExporting(false); }
   }
   return <>
@@ -129,7 +130,7 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
       <label className="lbl">Trạng thái / loại<select className="inp" value={draft.status} onChange={e => setDraft(f => ({ ...f, status: e.target.value }))}><option value="">Tất cả</option>{statuses[kind].map(s => <option key={s} value={s}>{kind === 'loyalty' && s === 'Pending' ? 'Điểm chờ cộng (cũ)' : labels[s] ?? s}</option>)}</select></label>
       <Button onClick={() => void query.refetch()} loading={query.isFetching} disabled={!valid}>Làm mới</Button>
     </div>
-    {regions.isError && <Callout tone="danger">Không tải được danh sách khu vực. <Button size="sm" onClick={() => void regions.refetch()}>Thử lại</Button></Callout>}
+    {regions.isError && <Callout tone="danger">Không tải được danh sách khu vực.\n{errorMessage(regions.error)} <Button size="sm" onClick={() => void regions.refetch()}>Thử lại</Button></Callout>}
     {exportError && <Callout tone="danger">{exportError}</Callout>}
     {!valid ? <Callout tone="danger">Chọn khoảng ngày hợp lệ, tối đa 367 ngày.</Callout> : <QueryState query={query}>{data => <>
       <div className="report-summary" style={{ gridTemplateColumns: `repeat(${summaryColumns(data.summary.length)}, minmax(0, 1fr))` }}>
