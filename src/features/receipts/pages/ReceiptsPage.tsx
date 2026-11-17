@@ -3,6 +3,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
+import { useEnumParam } from '@/shared/router/listState';
+import { useRestPagination } from '@/shared/pagination';
 import {
   ActionDropdown,
   type ActionDropdownItem,
@@ -10,6 +12,7 @@ import {
   ConfirmDialog,
   DataTable,
   PageHeader,
+  Select,
   StatusChip,
   type Column,
 } from '@/shared/ui';
@@ -18,14 +21,29 @@ import { useApproveReceipt, useReceipts } from '../hooks';
 import { useReceiptUserNames } from '../userNames';
 import type { ReceiptListItem } from '../types';
 
+const RECEIPT_STATUSES = ['', 'Pending', 'Received'] as const;
+type ReceiptStatusFilter = (typeof RECEIPT_STATUSES)[number];
+
 export function ReceiptsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const query = useReceipts();
-  const users = useReceiptUserNames((query.data ?? []).map((r) => r.createdByUserId));
-  const approveMutation = useApproveReceipt();
 
+  // URL-persisted pagination state (client-side data — GET /api/v1/goods-receipts returns flat array)
+  const { page, pageSize, search, pagingProps: basePagingProps } = useRestPagination({
+    defaultPageSize: 20,
+    pageSizeOptions: [10, 20, 50],
+    urlState: true,
+  });
+  const [statusFilter, setStatusFilter] = useEnumParam<ReceiptStatusFilter>(
+    'status', RECEIPT_STATUSES, '', { resets: ['page'] },
+  );
+  const [warehouseFilter, setWarehouseFilter] = useState('');
+
+  // Load full dataset — no server-side pagination or search available
+  const query = useReceipts();
+
+  const approveMutation = useApproveReceipt();
   const [approveTarget, setApproveTarget] = useState<ReceiptListItem | null>(null);
 
   const canCreate = can(user, 'receipts.create');
@@ -45,6 +63,51 @@ export function ReceiptsPage() {
       // Error is handled and toasted by useApiMutation
     }
   };
+
+  // Warehouse options derived from full data
+  const warehouseOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of query.data ?? []) {
+      const name = r.warehouseName || r.warehouseCode;
+      if (name) set.add(name);
+    }
+    return Array.from(set).sort();
+  }, [query.data]);
+
+  // Client-side filtering across the full dataset
+  const filtered = useMemo(() => {
+    let result = query.data ?? [];
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter(r =>
+        (r.receiptCode || r.code)?.toLowerCase().includes(q) ||
+        r.warehouseName?.toLowerCase().includes(q) ||
+        r.warehouseCode?.toLowerCase().includes(q),
+      );
+    }
+    if (warehouseFilter) {
+      result = result.filter(r => (r.warehouseName || r.warehouseCode) === warehouseFilter);
+    }
+    if (statusFilter) {
+      result = result.filter(r => r.status === statusFilter);
+    }
+    return result;
+  }, [query.data, search, warehouseFilter, statusFilter]);
+
+  // Client-side pagination on filtered results
+  const totalCount = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageRows = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const pagingProps = { ...basePagingProps, total: totalCount, totalPages };
+
+  // Resolve names only for visible-page users. React Query caches per ID — turning pages
+  // only fetches IDs not already resolved on previous pages (no re-request for cached users).
+  const visibleUserIds = useMemo(
+    () => pageRows.flatMap(r => [r.createdByUserId, r.approvedByUserId]),
+    [pageRows],
+  );
+  const users = useReceiptUserNames(visibleUserIds);
 
   const columns: Column<ReceiptListItem>[] = [
     {
@@ -78,6 +141,12 @@ export function ReceiptsPage() {
       text: (r) => users.nameOf(r.createdByUserId),
     },
     {
+      key: 'approvedBy',
+      header: 'Người duyệt',
+      width: '130px',
+      text: (r) => users.approverOf(r),
+    },
+    {
       key: 'batches',
       header: 'Số dòng',
       width: '90px',
@@ -99,15 +168,6 @@ export function ReceiptsPage() {
     },
   ];
 
-  const warehouseOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const r of query.data ?? []) {
-      const name = r.warehouseName || r.warehouseCode;
-      if (name) set.add(name);
-    }
-    return Array.from(set);
-  }, [query.data]);
-
   return (
     <>
       <PageHeader
@@ -122,27 +182,40 @@ export function ReceiptsPage() {
         }
       />
 
+      {/* Filter bar — client-side (Backend: GET /api/v1/goods-receipts only accepts warehouseId) */}
+      <div className="row-wrap" style={{ gap: 12, marginBottom: 8 }}>
+        <label className="lbl">Trạng thái
+          <Select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value as ReceiptStatusFilter)}
+            options={[
+              { value: '', label: 'Tất cả trạng thái' },
+              { value: 'Pending', label: statusLabels.receipt.Pending },
+              { value: 'Received', label: statusLabels.receipt.Received },
+            ]}
+          />
+        </label>
+        <label className="lbl">Kho nhận
+          <Select
+            value={warehouseFilter}
+            onChange={e => { setWarehouseFilter(e.target.value); basePagingProps.onPageChange(1); }}
+            options={[
+              { value: '', label: 'Tất cả kho' },
+              ...warehouseOptions.map(w => ({ value: w, label: w })),
+            ]}
+          />
+        </label>
+      </div>
+
       <DataTable
         title="Danh sách phiếu nhập kho"
-        rows={query.data}
+        rows={pageRows}
         loading={query.isLoading}
         error={query.error}
         rowKey={(r) => r.id || r.receiptCode || r.code}
         columns={columns}
-        searchPlaceholder="Mã phiếu, kho nhận, người tạo…"
-        filters={[
-          {
-            label: 'Kho',
-            options: warehouseOptions,
-            value: (r) => r.warehouseName || r.warehouseCode,
-          },
-          {
-            label: 'Trạng thái',
-            options: [statusLabels.receipt.Pending, statusLabels.receipt.Received],
-            value: (r) =>
-              statusLabels.receipt[r.status as keyof typeof statusLabels.receipt] ?? r.status,
-          },
-        ]}
+        searchPlaceholder="Mã phiếu, kho nhận…"
+        server={pagingProps}
         onRowClick={(r) => navigate(`/receipts/${r.receiptCode || r.id}`)}
         rowActionsWidth="120px"
         rowActions={(r) => {
