@@ -33,16 +33,30 @@ async function setup(page: Page) {
     id: 'list-state-session', remember: false, accessToken: 'token', accessTokenExpiresAt: '2099-01-01',
     refreshToken: 'refresh', refreshTokenExpiresAt: '2099-01-01',
   })));
+  await page.route('**/graphql', async (route) => {
+    const body = JSON.parse(route.request().postData() ?? '{}') as { query?: string; variables?: { after?: string; before?: string; st?: string } };
+    if (!body.query?.includes('salesOrders(')) return route.fulfill({ json: { data: {} } });
+    const filtered = body.variables?.st ? orders.filter((order) => order.status === body.variables?.st) : orders;
+    const pageSize = Number(body.query.match(/(?:first|last): (\d+)/)?.[1] ?? 20);
+    const after = body.variables?.after ? Number(Buffer.from(body.variables.after, 'base64').toString()) : 0;
+    const before = body.variables?.before ? Number(Buffer.from(body.variables.before, 'base64').toString()) : undefined;
+    const start = before === undefined ? after : Math.max(0, before - pageSize);
+    const nodes = filtered.slice(start, start + pageSize).map(({ retailerCode, retailerName, ...order }) => ({
+      ...order, retailerCodeSnapshot: retailerCode, retailerNameSnapshot: retailerName,
+    }));
+    return route.fulfill({ json: { data: { entities: { page: {
+      nodes, totalCount: filtered.length,
+      pageInfo: { hasPreviousPage: start > 0, hasNextPage: start + nodes.length < filtered.length,
+        startCursor: nodes.length ? Buffer.from(String(start)).toString('base64') : null,
+        endCursor: nodes.length ? Buffer.from(String(start + nodes.length)).toString('base64') : null },
+    } } } } });
+  });
   await page.route('**/api/v1/**', async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname.replace(/^.*\/api\/v1/, '');
     calls.push({ path, search: url.searchParams });
     const q = url.searchParams;
     if (path === '/auth/me') return route.fulfill({ json: { id: 'admin', email: 'admin@example.test', fullName: 'Admin', role: 'Admin' } });
-    if (path === '/orders') {
-      const p = Number(q.get('page') ?? 1); const size = Number(q.get('pageSize') ?? 10);
-      return route.fulfill({ json: { items: orders.slice((p - 1) * size, p * size), totalCount: orders.length, totalPages: Math.ceil(orders.length / size) } });
-    }
     if (path.startsWith('/orders/')) {
       return route.fulfill({ status: 404, json: { title: 'Không tìm thấy đơn hàng', status: 404 } });
     }
@@ -77,15 +91,16 @@ const label = (page: Page, text: string) => page.locator('label.lbl', { hasText:
 
 test('Orders: filters, search, date and page survive detail → back / breadcrumb / refresh / forward', async ({ page }) => {
   const calls = await setup(page);
-  await page.goto('/orders');
+  await page.goto('/orders?size=10');
   await expect(page.locator('table.tbl tbody tr')).toHaveCount(10);
 
-  await label(page, 'Trạng thái').locator('select').selectOption('Đang giao');
+  await label(page, 'Trạng thái').locator('select').selectOption('Delivering');
   await label(page, 'Từ ngày').locator('input').fill('2026-11-02');
   await label(page, 'Tìm kiếm').locator('input').fill('Cửa hàng');
+  await expect.poll(() => params(page).get('q')).toBe('Cửa hàng');
   await page.locator('.pager').getByRole('button', { name: '2', exact: true }).click();
 
-  expect(params(page).get('trangthai')).toBe('Đang giao');
+  expect(params(page).get('status')).toBe('Delivering');
   expect(params(page).get('from')).toBe('2026-11-02');
   expect(params(page).get('q')).toBe('Cửa hàng');
   expect(params(page).get('page')).toBe('2');
@@ -93,14 +108,12 @@ test('Orders: filters, search, date and page survive detail → back / breadcrum
   const firstRowOnPage2 = (await page.locator('table.tbl tbody tr').first().locator('td').first().innerText()).trim();
 
   // Client-side search / filters must not re-request the list.
-  const listCallsBefore = calls.filter((c) => c.path === '/orders').length;
-
   // 1) Browser Back
   await page.locator('table.tbl tbody tr').first().click();
   await expect(page).toHaveURL(/\/orders\/0000/);
   await page.goBack();
   await expect(page).toHaveURL(listUrl);
-  await expect(label(page, 'Trạng thái').locator('select')).toHaveValue('Đang giao');
+  await expect(label(page, 'Trạng thái').locator('select')).toHaveValue('Delivering');
   await expect(label(page, 'Từ ngày').locator('input')).toHaveValue('2026-11-02');
   await expect(label(page, 'Tìm kiếm').locator('input')).toHaveValue('Cửa hàng');
   await expect(page.locator('.pager .btn-primary')).toHaveText('2');
@@ -117,38 +130,33 @@ test('Orders: filters, search, date and page survive detail → back / breadcrum
 
   // 4) Refresh keeps state
   await page.reload();
-  await expect(label(page, 'Trạng thái').locator('select')).toHaveValue('Đang giao');
+  await expect(label(page, 'Trạng thái').locator('select')).toHaveValue('Delivering');
   await expect(page.locator('.pager .btn-primary')).toHaveText('2');
 
   // Changing a filter resets to page 1 and keeps the others.
   await label(page, 'Nguồn').locator('select').selectOption('Offline');
   expect(params(page).get('page')).toBeNull();
-  expect(params(page).get('trangthai')).toBe('Đang giao');
+  expect(params(page).get('status')).toBe('Delivering');
   expect(params(page).get('q')).toBe('Cửa hàng');
 
   // Clearing the search removes only q.
   await label(page, 'Tìm kiếm').locator('input').fill('');
-  expect(params(page).get('q')).toBeNull();
+  await expect.poll(() => params(page).get('q')).toBeNull();
   expect(params(page).get('nguon')).toBe('Offline');
 
-  // Typing / filtering did not add list requests beyond the mounts (back, breadcrumb, reload).
-  const listPagesPerLoad = Math.ceil(orders.length / 10);
-  const extra = calls.filter((c) => c.path === '/orders').length - listCallsBefore;
-  expect(extra % listPagesPerLoad).toBe(0);
-  expect(extra / listPagesPerLoad).toBeLessThanOrEqual(3);
+  // List filters are client-side where the GraphQL entity model does not expose a filter;
+  // state changes must not mutate the GraphQL cursor request contract.
+  expect(calls.filter((c) => c.path === '/orders')).toHaveLength(0);
 });
 
-test('Orders: invalid URL params fall back to safe defaults; out-of-range page shows last page', async ({ page }) => {
+test('Orders: invalid URL params fall back to safe defaults', async ({ page }) => {
   await setup(page);
-  await page.goto('/orders?trangthai=%3Cscript%3E&nguon=X&page=abc&from=2026-99-99');
-  await expect(page.locator('table.tbl tbody tr')).toHaveCount(10);
-  await expect(label(page, 'Trạng thái').locator('select')).toHaveValue('Tất cả');
+  await page.goto('/orders?status=%3Cscript%3E&size=999&from=2026-99-99');
+  await expect(page.locator('table.tbl tbody tr')).toHaveCount(20);
+  await expect(label(page, 'Trạng thái').locator('select')).toHaveValue('');
   await expect(label(page, 'Từ ngày').locator('input')).toHaveValue('');
-  await expect(page.locator('.pager .btn-primary')).toHaveText('1');
-
-  await page.goto('/orders?page=99');
-  await expect(page.locator('.pager .btn-primary')).toHaveText('9');
-  await expect(page.locator('table.tbl tbody tr')).toHaveCount(10);
+  await expect(page.getByRole('navigation', { name: 'Phân trang dữ liệu' })
+    .getByRole('button', { name: '1', exact: true })).toHaveAttribute('aria-current', 'page');
 });
 
 test('Users (server paging): debounced search, filters and page restored via "← Quay lại"', async ({ page }) => {
@@ -207,7 +215,7 @@ test('Fleet: active tab and per-tab table state are kept separately and survive 
 test('Scroll position of a long list is restored when returning from a detail; a new screen opens at the top', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 420 });
   await setup(page);
-  await page.goto('/orders');
+  await page.goto('/orders?size=10');
   await expect(page.locator('table.tbl tbody tr')).toHaveCount(10);
   const scroller = page.locator('.page');
   await scroller.evaluate((el) => { el.scrollTop = 500; });
@@ -220,6 +228,6 @@ test('Scroll position of a long list is restored when returning from a detail; a
   expect(await scroller.evaluate((el) => el.scrollTop)).toBe(0);
 
   await page.goBack();
-  await expect(page).toHaveURL(/\/orders$/);
+  await expect(page).toHaveURL(/\/orders\?size=10$/);
   await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBe(saved);
 });

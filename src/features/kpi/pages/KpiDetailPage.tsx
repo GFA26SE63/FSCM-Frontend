@@ -276,12 +276,6 @@ function SalesKpiDetail() {
             />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              {report.recognitionRule && (
-                <Callout tone="info">
-                  <strong>Quy tắc tính KPI:</strong> {report.recognitionRule}
-                </Callout>
-              )}
-
               <Card title={row.salesUserName}>
                 <Fields
                   cols={3}

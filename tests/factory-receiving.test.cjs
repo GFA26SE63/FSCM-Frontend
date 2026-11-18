@@ -69,7 +69,7 @@ test('warehouse lists isolate factory, order and transfer documents with separat
     assert.deepEqual(table.props.rows.map(w => w.document.reason), [reason]);
     const button = table.props.columns[0].cell(table.props.rows[0]);
     button.props.onClick();
-    assert.equal(navigations[0], `${workflowModule.exports.warehouseScreens[workflow].path}/${reason}`);
+    assert.equal(navigations[0], workflowModule.exports.warehouseDocumentPath(table.props.rows[0].document));
   }
 });
 
@@ -104,12 +104,17 @@ test('outbound and transfer forms submit the matching request type and navigate 
   }
 });
 
-test('transfer receipts stay in the transfer workflow and cross-workflow details are not rendered', () => {
-  const doc = { id: 'receipt', reason: 'Transfer', kind: 'Receipt', code: 'PNK-1', status: 'Posted', warehouseId: 'warehouse' };
-  assert.equal(workflowModule.exports.warehouseDocumentPath(doc), '/warehouse-transfers/receipt');
-  const tree = page(states(), [{ document: doc, lines: [], cartons: [] }], undefined, { workflow: 'inbound', search: '?document=receipt' });
-  assert.equal(all(tree, n => n.type === 'inspection').length, 0);
-  assert.equal(all(tree, n => n.type === 'query')[0].props.children().props.title, 'Không tìm thấy chứng từ');
+test('transfer receipts route to inbound and transfer picking/issues route to outbound', () => {
+  const receipt = { id: 'receipt', reason: 'Transfer', kind: 'Receipt' };
+  assert.equal(workflowModule.exports.warehouseDocumentPath(receipt), '/warehouse-inbound/receipt');
+  assert.equal(workflowModule.exports.belongsToWorkflow(receipt, 'inbound'), true);
+  assert.equal(workflowModule.exports.belongsToWorkflow(receipt, 'outbound'), false);
+  for (const kind of ['Picking', 'Issue']) {
+    const issue = { id: 'issue', reason: 'Transfer', kind };
+    assert.equal(workflowModule.exports.warehouseDocumentPath(issue), '/warehouse-outbound/issue');
+    assert.equal(workflowModule.exports.belongsToWorkflow(issue, 'outbound'), true);
+    assert.equal(workflowModule.exports.belongsToWorkflow(issue, 'inbound'), false);
+  }
 });
 
 
@@ -177,4 +182,22 @@ test('empty receipt cannot close, but recorded all-missing receipt can close', (
     const tree = inspection(['', undefined, [], '', false], { reports: hasReport ? [{ palletCode: 'PID-1', cartons: [{ cartonCode: 'A', disposition: 'Missing', reason: 'Absent' }] }] : [] });
     assert.equal(all(tree, n => n.type === 'button' && n.props.children === 'Hoàn tất phiếu nhập')[0].props.disabled, !hasReport);
   }
+});
+
+
+test('transfer arrivals only offer posted issues for the receiving warehouse and open a receipt', async () => {
+  const values = states(); values[13] = 'Transfer';
+  const docs = [
+    { document: { id: 'incoming', kind: 'Issue', reason: 'Transfer', status: 'Posted', warehouseId: 'source', destinationWarehouseId: 'warehouse' }, lines: [], cartons: [] },
+    { document: { id: 'not-exported', kind: 'Issue', reason: 'Transfer', status: 'Open', warehouseId: 'source', destinationWarehouseId: 'warehouse' }, lines: [], cartons: [] },
+    { document: { id: 'other-warehouse', kind: 'Issue', reason: 'Transfer', status: 'Posted', warehouseId: 'source', destinationWarehouseId: 'other' }, lines: [], cartons: [] },
+  ];
+  const writes = [], paths = [];
+  const tree = page(values, docs, async (...args) => { writes.push(args); return { data: { document: { id: 'pnk', kind: 'Receipt', reason: 'Transfer' } } }; }, { search: '', push: path => paths.push(path) });
+  const arrivals = all(tree, n => n.type === 'table' && n.props.columns[0].header === 'Phiếu xuất')[0];
+  assert.deepEqual(arrivals.props.rows.map(w => w.document.id), ['incoming']);
+  arrivals.props.columns[2].cell(arrivals.props.rows[0]).props.onClick();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(writes[0][0], '/warehouse-documents/incoming/create-document');
+  assert.equal(paths[0], '/warehouse-inbound/pnk');
 });

@@ -48,6 +48,8 @@ export interface OrdersPageQuery {
   after?: string;
   before?: string;
   status?: string;
+  source?: string;
+  search?: string;
   /** Vietnam local date yyyy-MM-dd — backend receives as ISO DateTime (Vietnam midnight UTC+7). */
   from?: string;
 }
@@ -146,6 +148,16 @@ function buildFilter(q: OrdersPageQuery) {
     conditions.push('{ createdAt: { gte: $from } }');
     declarations.push('$from: DateTime!');
     variables.from = `${q.from}T00:00:00+07:00`;
+  }
+  if (q.source) {
+    conditions.push('{ source: { eq: $source } }');
+    declarations.push('$source: String!');
+    variables.source = q.source === 'Online' ? 'Assisted' : q.source;
+  }
+  if (q.search?.trim()) {
+    conditions.push('{ or: [{ orderCode: { contains: $search } }, { retailerCodeSnapshot: { contains: $search } }, { retailerNameSnapshot: { contains: $search } }] }');
+    declarations.push('$search: String!');
+    variables.search = q.search.trim();
   }
 
   return { conditions, declarations, variables };

@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { useApiMutation } from '@/shared/hooks';
 import { giftApi } from './api';
+import type { GiftFilters } from './types';
 
-export const useGifts = () => useQuery({ queryKey: ['gifts', 'list'], queryFn: giftApi.list });
-export const useCreateGift = () => useApiMutation(giftApi.create, { success: (g) => `Đã thêm quà ${g.code} · ${g.name}.` });
-export const useUpdateGift = () => useApiMutation(giftApi.update, { success: (g) => `Đã cập nhật quà ${g.code}.` });
+export const useGifts = (filters: GiftFilters) => useQuery({ queryKey: ['gifts', 'list', filters], queryFn: () => giftApi.list(filters) });
+export const useGiftPrograms = () => useQuery({ queryKey: ['gifts', 'programs'], queryFn: giftApi.programs });
+export const useCreateGift = () => useApiMutation(giftApi.create, { permission: 'loyalty.manage' });
+export const useUpdateGift = () => useApiMutation(giftApi.update, { permission: 'loyalty.manage' });

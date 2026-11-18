@@ -191,7 +191,7 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-lay
 .page { flex: 1; min-height: 0; overflow: auto; padding: 20px 24px 28px; display: flex; flex-direction: column; gap: 14px; }
 .page > * { flex-shrink: 0; min-width: 0; }
 .page-hd { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.page-title { font-weight: 700; font-size: 18px; }
+.page-title { font-weight: 700; font-size: 22px; line-height: 1.25; }
 .page-sub { font-size: 12.5px; color: var(--c-muted); }
 
 /* tabs */
@@ -273,3 +273,16 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-lay
 .export-order-toggle { display: flex; align-items: center; gap: 12px; width: 100%; padding: 18px 20px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .export-order-toggle:hover { background: var(--c-surface-2); }
 .export-order-toggle:focus-visible { outline: 2px solid var(--c-primary, #14655b); outline-offset: -3px; }
+/* dd/mm/yyyy date field with a calendar button (DateInput). */
+.date-input { position: relative; display: flex; align-items: center; width: 100%; }
+.date-input > .inp { padding-right: 36px; }
+.date-input-btn { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: 6px; background: transparent; color: var(--c-muted); cursor: pointer; }
+.date-input-btn:hover:not(:disabled) { background: var(--c-surface-2); color: var(--c-primary); }
+.date-input-native { position: absolute; right: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; border: 0; padding: 0; }
+/* A table inside a card keeps its pager off the table border. */
+.card-bd .tbl-wrap + .pager, .card-pad .tbl-wrap + .pager { margin-top: 12px; }
+/* DataTable nowrap: one line per row, horizontal scroll instead of wrapping. */
+.tbl-nowrap { overflow-x: auto; }
+.tbl-nowrap table.tbl { table-layout: auto; }
+.tbl-nowrap .tbl td { white-space: nowrap; overflow-wrap: normal; }
+.tbl-nowrap .tbl .actions { flex-wrap: nowrap; }
