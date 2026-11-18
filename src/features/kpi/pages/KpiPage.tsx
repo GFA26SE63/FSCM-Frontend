@@ -71,7 +71,6 @@ function RankingPageContent() {
     <>
       <PageHeader
         title="Quản lý KPI & Xếp hạng kinh doanh"
-        subtitle="Theo dõi chỉ tiêu, tiến độ hoàn thành và các đơn hàng ghi nhận doanh thu."
         actions={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {canConfig && (
@@ -132,7 +131,6 @@ function RankingPageContent() {
                   entry={selectedEntry}
                   fromDate={report.fromDate}
                   toDate={report.toDate}
-                  recognitionRule={report.recognitionRule}
                   onClose={() => setSelectedEntry(null)}
                 />
               </>

@@ -1,11 +1,10 @@
 import { useParams } from '@/shared/router/compat';
-import { Callout, Card, Fields, PageHeader, QueryState, StatusChip } from '@/shared/ui';
+import { Card, Fields, PageHeader, QueryState, StatusChip } from '@/shared/ui';
 import { formatNumber } from '@/shared/lib';
 import { formatInstantDateTime } from '@/shared/lib/dates';
 import { useRedemption } from '../hooks';
 import { RedeemActions } from '../components/RedeemActions';
 
-const flow = ['Requested', 'Approved', 'Delivered', 'Done'] as const;
 
 export function RedeemDetailPage() {
   const { code = '' } = useParams();
@@ -15,17 +14,6 @@ export function RedeemDetailPage() {
       {(x) => (
         <>
           <PageHeader back="/redeem" title={`Yêu cầu ${x.code}`} subtitle={`${x.retailerName} · ${x.giftName}`} chips={<StatusChip domain="gift" value={x.status} />} actions={<RedeemActions x={x} size="md" />} />
-          {x.status === 'Rejected' && <Callout tone="danger">Yêu cầu bị từ chối; điểm đang giữ đã trả lại điểm bán.</Callout>}
-          <Card title="Tiến trình">
-            <div className="row-wrap">
-              {flow.map((s, i) => (
-                <span key={s} className="row">
-                  <StatusChip domain="gift" value={s} />
-                  {i < flow.length - 1 && <span className="muted">→</span>}
-                </span>
-              ))}
-            </div>
-          </Card>
           <Card title="Thông tin">
             <Fields cols={3} items={[
               { label: 'Điểm bán', value: `${x.retailerName} (${x.retailerCode})` },

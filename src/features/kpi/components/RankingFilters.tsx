@@ -3,16 +3,14 @@ import {
   Button,
   Callout,
   Card,
+  DateInput,
   FormField,
-  Input,
   Select,
 } from '@/shared/ui';
-import { formatDate } from '@/shared/lib';
 
 import { useReportGroups } from '../hooks';
-import { getPeriodDates, vietnamToday } from '../filters';
+import { vietnamToday } from '../filters';
 import type {
-  PeriodType,
   ProductCriterion,
   ReportFilters,
 } from '../types';
@@ -24,6 +22,19 @@ interface Props {
   onChange: (patch: Partial<ReportFilters>) => void;
 }
 
+/** Why a date range cannot be used, or undefined when it can. */
+export function rangeError(fromDate: string, toDate: string, today = vietnamToday()): string | undefined {
+  if (!fromDate || !toDate) return 'Vui lòng chọn đầy đủ ngày bắt đầu và ngày kết thúc.';
+  if (fromDate > toDate) return 'Ngày bắt đầu không được sau ngày kết thúc.';
+  if (fromDate > today) return 'Kỳ báo cáo không được bắt đầu trong tương lai.';
+  if (toDate > today) return 'Ngày kết thúc không được trong tương lai.';
+  return undefined;
+}
+
+/**
+ * Report period as two dates (Từ ngày / Đến ngày). A valid range applies at once; an invalid one
+ * stays on screen with its error and keeps the last applied range in the URL.
+ */
 export function RankingFilters({
   value,
   productMode,
@@ -48,147 +59,43 @@ export function RankingFilters({
     });
   }
 
-  const currentPeriod: PeriodType = value.periodType || 'month';
-  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>(currentPeriod);
-  const [stagedFromDate, setStagedFromDate] = useState<string>(value.fromDate);
-  const [stagedToDate, setStagedToDate] = useState<string>(value.toDate);
+  const [fromDate, setFromDate] = useState(value.fromDate);
+  const [toDate, setToDate] = useState(value.toDate);
   const [localError, setLocalError] = useState<string | undefined>(undefined);
 
-  // Đồng bộ lại state nội bộ khi URL hoặc props thay đổi
   useEffect(() => {
-    setSelectedPeriod(value.periodType || 'month');
-    setStagedFromDate(value.fromDate);
-    setStagedToDate(value.toDate);
+    setFromDate(value.fromDate);
+    setToDate(value.toDate);
     setLocalError(undefined);
-  }, [value.periodType, value.fromDate, value.toDate]);
+  }, [value.fromDate, value.toDate]);
 
-  const handlePeriodChange = (newPeriod: PeriodType) => {
-    setSelectedPeriod(newPeriod);
-    setLocalError(undefined);
-
-    if (newPeriod === 'custom') {
-      // Giữ nguyên ngày hợp lệ trước đó và chờ người dùng chọn ngày rồi nhấn "Áp dụng"
-      return;
+  const apply = (nextFrom: string, nextTo: string) => {
+    setFromDate(nextFrom);
+    setToDate(nextTo);
+    const problem = rangeError(nextFrom, nextTo, today);
+    setLocalError(problem);
+    if (!problem && (nextFrom !== value.fromDate || nextTo !== value.toDate)) {
+      onChange({ periodType: 'custom', fromDate: nextFrom, toDate: nextTo });
     }
-
-    // Khi chọn kỳ định sẵn (preset), tính toán ngay mốc thời gian chuẩn và nạp dữ liệu
-    const dates = getPeriodDates(newPeriod, today);
-    setStagedFromDate(dates.fromDate);
-    setStagedToDate(dates.toDate);
-    onChange({
-      periodType: newPeriod,
-      fromDate: dates.fromDate,
-      toDate: dates.toDate,
-    });
   };
-
-  const handleApplyCustom = () => {
-    if (!stagedFromDate || !stagedToDate) {
-      setLocalError('Vui lòng chọn đầy đủ ngày bắt đầu và ngày kết thúc.');
-      return;
-    }
-
-    if (stagedFromDate > stagedToDate) {
-      setLocalError('Ngày bắt đầu không được sau ngày kết thúc.');
-      return;
-    }
-
-    if (stagedFromDate > today) {
-      setLocalError('Kỳ báo cáo không được bắt đầu trong tương lai.');
-      return;
-    }
-
-    if (stagedToDate > today) {
-      setLocalError('Ngày kết thúc không được trong tương lai.');
-      return;
-    }
-
-    setLocalError(undefined);
-    onChange({
-      periodType: 'custom',
-      fromDate: stagedFromDate,
-      toDate: stagedToDate,
-    });
-  };
-
-  const isCustom = selectedPeriod === 'custom';
 
   return (
     <Card title="Bộ lọc báo cáo">
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: isCustom
-            ? 'repeat(auto-fit, minmax(170px, 1fr))'
-            : 'repeat(auto-fit, minmax(210px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
           gap: 16,
           alignItems: 'flex-end',
         }}
       >
-        <FormField label="Kỳ báo cáo">
-          <Select
-            value={selectedPeriod}
-            options={[
-              { value: 'month', label: 'Tháng này' },
-              { value: 'lastMonth', label: 'Tháng trước' },
-              { value: 'quarter', label: 'Quý này' },
-              { value: 'year', label: 'Năm nay' },
-              { value: 'custom', label: 'Tùy chỉnh khoảng ngày' },
-            ]}
-            onChange={(event) =>
-              handlePeriodChange(event.target.value as PeriodType)
-            }
-          />
+        <FormField label="Từ ngày" required>
+          <DateInput value={fromDate} max={toDate || today} invalid={!!localError} onChange={(next) => apply(next, toDate)} />
         </FormField>
 
-        {isCustom ? (
-          <>
-            <FormField label="Từ ngày" required>
-              <Input
-                type="date"
-                value={stagedFromDate}
-                max={today}
-                onChange={(event) => {
-                  setStagedFromDate(event.target.value);
-                  setLocalError(undefined);
-                }}
-              />
-            </FormField>
-
-            <FormField label="Đến ngày" required>
-              <Input
-                type="date"
-                value={stagedToDate}
-                max={today}
-                onChange={(event) => {
-                  setStagedToDate(event.target.value);
-                  setLocalError(undefined);
-                }}
-              />
-            </FormField>
-
-            <div style={{ paddingBottom: 2 }}>
-              <Button
-                variant="primary"
-                onClick={handleApplyCustom}
-                disabled={!stagedFromDate || !stagedToDate}
-              >
-                Áp dụng
-              </Button>
-            </div>
-          </>
-        ) : (
-          <div
-            style={{
-              paddingBottom: 10,
-              fontSize: 13,
-              color: 'var(--text-secondary, #64748B)',
-            }}
-          >
-            Thời gian: <strong>{formatDate(value.fromDate)}</strong> –{' '}
-            <strong>{formatDate(value.toDate)}</strong>
-          </div>
-        )}
+        <FormField label="Đến ngày" required>
+          <DateInput value={toDate} min={fromDate} max={today} invalid={!!localError} onChange={(next) => apply(fromDate, next)} />
+        </FormField>
 
         <FormField label="Nhóm bán hàng">
           <Select

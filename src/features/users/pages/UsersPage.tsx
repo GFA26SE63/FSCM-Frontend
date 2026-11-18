@@ -91,6 +91,7 @@ export function UsersPage() {
 
       <DataTable
         title="Danh sách tài khoản"
+        nowrap
         columns={columns}
         rows={query.data?.items}
         loading={query.isLoading}

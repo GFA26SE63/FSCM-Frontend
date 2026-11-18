@@ -181,7 +181,7 @@ export function DebtsPage() {
           { key: 'info', type: 'info', label: 'Điểm bán / số tiền', info: () => `${target?.retailerName} · ${formatMoney(target?.outstandingAmount)}` },
           { key: 'method', type: 'info', label: 'Hình thức thu', info: () => 'Chuyển khoản đã đối soát' },
         ]}
-        note="Thu một lần đủ số tiền. Sau khi xác nhận, điểm tích điểm của đơn được cộng cho điểm bán."
+        note="Thu đủ khoản được phép thu của đơn. Điểm tích lũy chỉ được xét khi đơn hoàn tất đủ điều kiện nhận hàng, đối soát tiền và xử lý khiếu nại."
         onClose={() => setTarget(null)}
         onSubmit={async (values) => {
           if (!mayCollect || !target) return;

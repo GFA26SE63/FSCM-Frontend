@@ -5,6 +5,10 @@ import { Button } from './Button';
 
 interface PageHeaderProps {
   title: ReactNode;
+  /**
+   * Only shown on detail pages (those with `back`), where it identifies the record (address,
+   * email, warehouse…). Top-level pages show just the title: no introduction line under it.
+   */
   subtitle?: ReactNode;
   /** Show "← Quay lại"; string = path (khôi phục bộ lọc đã dùng ở danh sách đó), true = history back. */
   back?: string | boolean;
@@ -25,7 +29,7 @@ export function PageHeader({ title, subtitle, back, chips, actions }: PageHeader
           <span className="page-title">{title}</span>
           {chips}
         </div>
-        {subtitle && <span className="page-sub">{subtitle}</span>}
+        {back && subtitle && <span className="page-sub">{subtitle}</span>}
       </div>
       {actions}
     </div>

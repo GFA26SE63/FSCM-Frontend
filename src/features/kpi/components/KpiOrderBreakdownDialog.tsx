@@ -3,7 +3,7 @@ import {
   Button,
   Callout,
   DataTable,
-  Drawer,
+  Modal,
   Stat,
   type Column,
 } from '@/shared/ui';
@@ -28,7 +28,6 @@ export function KpiOrderBreakdownDialog({
   entry,
   fromDate,
   toDate,
-  recognitionRule,
   onClose,
 }: Props) {
   const navigate = useNavigate();
@@ -147,12 +146,12 @@ export function KpiOrderBreakdownDialog({
   ];
 
   return (
-    <Drawer
+    <Modal
       open={open}
       onClose={onClose}
       title={`Đơn hàng cấu thành KPI · ${entry.salesUserName}`}
       subtitle={`${entry.salesGroupCode} · ${entry.salesGroupName} | Kỳ: ${formatDate(fromDate)} – ${formatDate(toDate)}`}
-      width={1050}
+      width={1100}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div className="stats-grid">
@@ -172,11 +171,6 @@ export function KpiOrderBreakdownDialog({
           />
         </div>
 
-        <Callout tone="info">
-          <strong>Quy tắc đối soát KPI:</strong>{' '}
-          {recognitionRule ||
-            'Doanh thu tính KPI = Doanh thu trước KM − Khuyến mãi + Điều chỉnh khiếu nại đã duyệt. Chỉ các đơn giao thành công và ghi nhận trong kỳ báo cáo mới được tổng hợp vào KPI.'}
-        </Callout>
 
         {orders.length === 0 ? (
           <Callout tone="warn">
@@ -192,7 +186,7 @@ export function KpiOrderBreakdownDialog({
           />
         )}
       </div>
-    </Drawer>
+    </Modal>
   );
 }
 

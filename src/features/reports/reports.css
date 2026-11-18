@@ -25,3 +25,20 @@
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
+/* List cells stay on one line; long names are cut with an ellipsis (full text in the detail popup). */
+.report-table td, .report-table th {
+  white-space: nowrap;
+}
+.report-table td {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.report-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+.report-table td:last-child {
+  max-width: none;
+  overflow: visible;
+}

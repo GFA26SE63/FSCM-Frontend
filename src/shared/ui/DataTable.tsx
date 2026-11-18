@@ -60,6 +60,8 @@ interface DataTableProps<T> {
   filters?: FilterDef<T>[];
   /** Extra controls placed in the filter grid (e.g. date inputs). */
   filterExtra?: ReactNode;
+  /** Keep every cell on one line; the table scrolls horizontally instead of wrapping. */
+  nowrap?: boolean;
   pageSize?: number;
   pageSizeOptions?: readonly number[];
   /** When set, paging/search are delegated to REST server (?page=&size=&search=). Filters still apply client-side. */
@@ -226,6 +228,7 @@ export function DataTable<T>({
   emptyText = 'Không có bản ghi phù hợp bộ lọc.',
   stateKey,
   urlState = true,
+  nowrap = false,
 }: DataTableProps<T>) {
   const inUrlScope = useContext(UrlStateScope);
   const state = useTableState(filters, urlState && inUrlScope, stateKey);
@@ -349,8 +352,7 @@ export function DataTable<T>({
             <div>
               <span className="bold" style={{ fontSize: 15 }}>
                 {title}
-              </span>{' '}
-              <span className="muted" style={{ fontSize: 13 }}>· {total} bản ghi</span>
+              </span>
             </div>
             {subtitle && (
               <span className="muted" style={{ fontSize: 12.5, lineHeight: 1.45 }}>
@@ -362,7 +364,7 @@ export function DataTable<T>({
         </div>
       )}
 
-      <section className="card tbl-wrap" style={{ minHeight: 120 }}>
+      <section className={`card tbl-wrap${nowrap ? ' tbl-nowrap' : ''}`} style={{ minHeight: 120 }}>
         <table className="tbl" style={{ minWidth: minimumTableWidth(columns, rowActions ? rowActionsWidth : undefined) }}>
           <colgroup>
             {columns.map((c) => (
