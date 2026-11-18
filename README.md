@@ -65,6 +65,7 @@ mọi tầng có thể dùng shared/ui, shared/lib và shared/auth khi phù hợ
 - Không đưa business rule authoritative vào UI; kết quả server luôn là nguồn sự thật.
 - Khi thêm GraphQL, đặt client/provider ở `shared/api`, operation và hook ở feature. GraphQL dùng cho Query; command vẫn gọi REST theo API hiện tại. Sau REST mutation phải đồng bộ cả React Query cache và Apollo cache nếu cùng màn dùng hai nguồn.
 - Giữ alias `@/*`, TypeScript strict, lazy route và role guard theo pattern đang có. Không thêm global state nếu server state có thể do React Query/Apollo quản lý hoặc state chỉ thuộc một page.
+- **Chi tiết mở bằng popup.** Trang có danh sách (bảng, list) mà mỗi dòng có thể xem chi tiết thì mỗi dòng phải có nút **"Chi tiết"** (hoặc "Xem"); bấm nút đó mở popup bằng `Modal` (hoặc `FormDialog` khi cần thao tác) trong `shared/ui`. **Không** hiển thị phần chi tiết thành một khối mới ở cuối trang hay chèn bên dưới danh sách. Popup đóng được bằng nút "Đóng", phím Esc và bấm ra ngoài. Nếu chi tiết cần nhiều không gian hoặc có URL riêng để chia sẻ thì dùng trang chi tiết riêng (route `/<feature>/:id`), không dùng khối dưới trang.
 
 ### Cách thêm feature mới
 

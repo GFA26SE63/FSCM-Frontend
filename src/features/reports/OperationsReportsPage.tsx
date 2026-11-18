@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { get, getAll } from '@/shared/api/http';
 import { errorMessage } from '@/shared/api/errors';
 import { useLocation, useNavigate } from '@/shared/router/compat';
-import { Button, Callout, Card, Fields, Modal, PageHeader, QueryState, SimpleTable, Stat } from '@/shared/ui';
+import { Button, Callout, Card, DateInput, Fields, Modal, PageHeader, QueryState, SimpleTable, Stat } from '@/shared/ui';
 import { formatNumber } from '@/shared/lib';
 import { formatInstantDateTime } from '@/shared/lib/dates';
 import { defaultDashboardDates } from '@/features/dashboard/dashboardModel';
@@ -42,6 +42,12 @@ const statuses: Record<Kind, string[]> = {
 const load = (kind: Kind, filters: Filters, page: number, pageSize = 50) => get<Result>(`/reports/operations/${kind}`, { ...filters, page, pageSize });
 
 type Column = { key: keyof Row; label: string; date?: boolean; numeric?: boolean };
+/** Columns shown in the list, per report; the rest (IDs, people, notes…) are in the detail popup. */
+const TABLE_COLUMNS: Record<Kind, (keyof Row)[]> = {
+  redemptions: ['at', 'retailerName', 'itemName', 'quantity', 'points', 'status'],
+  loyalty: ['at', 'retailerName', 'programCode', 'status', 'points', 'balanceAfter'],
+  promotions: ['at', 'retailerName', 'orderCode', 'itemCode', 'quantity', 'discountAmount', 'netAmount'],
+};
 function columns(kind: Kind): Column[] {
   const common: Column[] = [{ key: 'id', label: 'Mã giao dịch / yêu cầu' }, { key: 'at', label: 'Thời gian', date: true },
     { key: 'retailerCode', label: 'Mã điểm bán' }, { key: 'retailerName', label: 'Điểm bán' }, { key: 'regionName', label: 'Khu vực' },
@@ -53,6 +59,7 @@ function columns(kind: Kind): Column[] {
     { key: 'discountAmount', label: 'Tiền giảm (đ)', numeric: true }, { key: 'netAmount', label: 'Sau giảm (đ)', numeric: true });
   else common.push({ key: 'points', label: kind === 'loyalty' ? 'Biến động điểm' : 'Điểm đổi', numeric: true });
   if (kind === 'loyalty') common.push({ key: 'balanceAfter', label: 'Số dư thẻ sau giao dịch', numeric: true });
+  // Kept for the detail popup and CSV; which columns the list shows is TABLE_COLUMNS.
   common.push({ key: 'orderCode', label: 'Đơn hàng' });
   if (kind === 'redemptions') common.push({ key: 'createdByName', label: 'Người tạo' }, { key: 'createdByUserId', label: 'Người tạo (ID)' },
     { key: 'approvedByName', label: 'Người duyệt' }, { key: 'approvedByUserId', label: 'Người duyệt (ID)' }, { key: 'approvedAt', label: 'Ngày duyệt', date: true },
@@ -103,7 +110,8 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
   const regions = useQuery({ queryKey: ['report-regions', user?.id], queryFn: () => getAll<{ id: string; name: string }>('/regions', { includeInactive: true }), enabled: !!user });
   const query = useQuery({ queryKey: ['operations-reports', user?.id, user?.role, kind, filters, page], queryFn: () => load(kind, filters, page), enabled: valid && !!user });
   const cols = columns(kind);
-  const tableCols = cols.filter(c => ['at', 'retailerName', 'programCode', 'status', 'itemName', 'quantity', 'points', 'balanceAfter', 'discountAmount', 'orderCode'].includes(c.key));
+  // Only the columns needed to scan the list; everything else is in the detail popup.
+  const tableCols = TABLE_COLUMNS[kind].flatMap(key => cols.filter(c => c.key === key));
   const title = REPORT_TITLES[kind];
   async function exportCsv() {
     setExporting(true); setExportError('');
@@ -122,8 +130,8 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
   return <>
     <PageHeader title={title} actions={<Button disabled={!valid || !query.data || query.isFetching} loading={exporting} onClick={() => void exportCsv()}>Xuất CSV · toàn bộ bộ lọc</Button>} />
     <div className="card report-filters">
-      <label className="lbl">Từ ngày<input required className="inp" type="date" value={draft.fromDate} onChange={e => setDraft(f => ({ ...f, fromDate: e.target.value }))} /></label>
-      <label className="lbl">Đến ngày<input required className="inp" type="date" min={draft.fromDate} value={draft.toDate} onChange={e => setDraft(f => ({ ...f, toDate: e.target.value }))} /></label>
+      <label className="lbl">Từ ngày<DateInput required value={draft.fromDate} onChange={fromDate => setDraft(f => ({ ...f, fromDate }))} /></label>
+      <label className="lbl">Đến ngày<DateInput required min={draft.fromDate} value={draft.toDate} onChange={toDate => setDraft(f => ({ ...f, toDate }))} /></label>
       <label className="lbl">Khu vực<select className="inp" value={draft.regionId} onChange={e => setDraft(f => ({ ...f, regionId: e.target.value }))}><option value="">Tất cả khu vực</option>{regions.data?.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
       <label className="lbl">Điểm bán<input className="inp" placeholder="Mã hoặc tên điểm bán" value={draft.retailer} onChange={e => setDraft(f => ({ ...f, retailer: e.target.value }))} /></label>
       <label className="lbl">Chương trình<input className="inp" placeholder={kind === 'promotions' ? 'Mã chiến dịch hoặc HSD' : 'Mã hoặc tên chương trình'} value={draft.program} onChange={e => setDraft(f => ({ ...f, program: e.target.value }))} /></label>
@@ -137,12 +145,15 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
         {data.summary.map(s => <Stat key={s.label} label={s.label} value={formatNumber(s.value)} />)}
       </div>
       <Card title={`${title} · ${formatNumber(data.totalCount)} bản ghi`}>
-        <SimpleTable rows={data.items} columns={[
-          { header: 'Mở', cell: row => <>{kind === 'redemptions' ? <Button size="sm" onClick={() => navigate(`/redeem/${row.id}`)}>Yêu cầu</Button> : row.orderId ? <Button size="sm" onClick={() => navigate(`/orders/${row.orderId}`)}>Đơn hàng</Button> : null}
-            {kind === 'loyalty' && <Button size="sm" onClick={() => navigate(`/loyalty/${encodeURIComponent(row.retailerCode)}`)}>Thẻ tích điểm</Button>}</> },
-          { header: 'Chi tiết', cell: row => <Button size="sm" onClick={() => setSelected(row)}>Chi tiết</Button> },
-          ...tableCols.map(col => ({ header: col.label, cell: (row: Row) => display(row, col, kind) })),
-        ]} />
+        <div className="report-table"><SimpleTable rows={data.items} columns={[
+          ...tableCols.map(col => ({ header: col.label, align: col.numeric ? 'right' as const : undefined, cell: (row: Row) => display(row, col, kind) })),
+          { header: '', align: 'right', cell: row => <div className="report-actions">
+            <Button size="sm" onClick={() => setSelected(row)}>Chi tiết</Button>
+            {kind === 'redemptions' && <Button size="sm" onClick={() => navigate(`/redeem/${row.id}`)}>Yêu cầu</Button>}
+            {kind === 'promotions' && row.orderId && <Button size="sm" onClick={() => navigate(`/orders/${row.orderId}`)}>Đơn hàng</Button>}
+            {kind === 'loyalty' && <Button size="sm" onClick={() => navigate(`/loyalty/${encodeURIComponent(row.retailerCode)}`)}>Thẻ tích điểm</Button>}
+          </div> },
+        ]} /></div>
         <div className="row-wrap" style={{ padding: 12, gap: 16 }}>
           <Button disabled={page === 1 || query.isFetching} onClick={() => setPage(p => p - 1)}>Trước</Button>
           <span>Trang {page} / {Math.max(1, Math.ceil(data.totalCount / data.pageSize))}</span>
