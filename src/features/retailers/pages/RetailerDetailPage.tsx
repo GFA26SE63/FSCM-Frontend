@@ -60,7 +60,7 @@ function DebtTab({ retailer }: { retailer: Retailer }) {
           {(rows) => <>
             <SimpleTable
               rows={rows.slice(0, Math.min(shown, rows.length))}
-              empty="Điểm bán chưa có đơn công nợ."
+              empty="Nhà bán lẻ chưa có đơn công nợ."
               columns={[
                 { header: 'Mã đơn', cell: (r) => r.orderCode },
                 {
@@ -148,7 +148,7 @@ function RetailerView({ r }: { r: Retailer }) {
     <>
       <PageHeader
         back="/retailers"
-        title={r.code ? `${r.code} · ${r.name}` : r.name || 'Điểm bán'}
+        title={r.code ? `${r.code} · ${r.name}` : r.name || 'Nhà bán lẻ'}
         subtitle={r.address || 'Chưa có thông tin địa chỉ'}
         chips={<StatusChip domain="active" value={r.status} />}
         actions={
@@ -197,8 +197,8 @@ function RetailerView({ r }: { r: Retailer }) {
             <Fields
               cols={3}
               items={[
-                { label: 'Tên điểm bán', value: r.name || 'Chưa có thông tin' },
-                { label: 'Mã điểm bán', value: r.code || 'Chưa cấp mã' },
+                { label: 'Tên nhà bán lẻ', value: r.name || 'Chưa có thông tin' },
+                { label: 'Mã nhà bán lẻ', value: r.code || 'Chưa cấp mã' },
                 { label: 'Người liên hệ', value: r.contactName || r.contact || 'Chưa có thông tin' },
                 { label: 'Số điện thoại', value: r.phone || 'Chưa có thông tin' },
                 { label: 'Email', value: r.email || 'Chưa có thông tin' },
@@ -258,7 +258,7 @@ function RetailerView({ r }: { r: Retailer }) {
             <Fields
               cols={3}
               items={[
-                { label: 'Loại hình điểm bán', value: r.retailerType || r.kind || 'Chưa có thông tin' },
+                { label: 'Loại hình nhà bán lẻ', value: r.retailerType || r.kind || 'Chưa có thông tin' },
                 {
                   label: 'Diện tích cửa hàng',
                   value: r.storeSizeSquareMeters != null ? `${r.storeSizeSquareMeters} m²` : (r.areaM2 != null ? `${r.areaM2} m²` : 'Chưa có thông tin'),
@@ -316,12 +316,12 @@ function RetailerView({ r }: { r: Retailer }) {
                   value: r.assessmentNote || 'Chưa có thông tin',
                 },
                 {
-                  label: 'Ảnh mặt tiền điểm bán',
+                  label: 'Ảnh mặt tiền nhà bán lẻ',
                   value: r.storefrontImageUrl ? (
                     <div>
                       <img
                         src={r.storefrontImageUrl}
-                        alt="Mặt tiền điểm bán"
+                        alt="Mặt tiền nhà bán lẻ"
                         style={{ maxWidth: '180px', maxHeight: '120px', borderRadius: '6px', border: '1px solid #ddd' }}
                       />
                     </div>
@@ -363,8 +363,8 @@ export function RetailerDetailPage() {
   if (!identifier) {
     return (
       <EmptyState
-        title="Không tìm thấy điểm bán"
-        description="Mã điểm bán không hợp lệ hoặc thiếu định danh."
+        title="Không tìm thấy nhà bán lẻ"
+        description="Mã nhà bán lẻ không hợp lệ hoặc thiếu định danh."
         action={
           <Button variant="default" onClick={() => returnToList('/retailers')}>
             Quay lại danh sách
@@ -377,7 +377,7 @@ export function RetailerDetailPage() {
   if (retailer.isLoading) {
     return (
       <div className="loading">
-        <span className="spinner" /> Đang tải thông tin điểm bán…
+        <span className="spinner" /> Đang tải thông tin nhà bán lẻ…
       </div>
     );
   }
@@ -387,8 +387,8 @@ export function RetailerDetailPage() {
     if (apiError.status === 404) {
       return (
         <EmptyState
-          title="Không tìm thấy điểm bán"
-          description="Không tìm thấy điểm bán này. Thông tin có thể đã được thay đổi hoặc không còn tồn tại."
+          title="Không tìm thấy nhà bán lẻ"
+          description="Không tìm thấy nhà bán lẻ này. Thông tin có thể đã được thay đổi hoặc không còn tồn tại."
           action={
             <Button variant="default" onClick={() => returnToList('/retailers')}>
               Quay lại danh sách
@@ -401,7 +401,7 @@ export function RetailerDetailPage() {
       return (
         <EmptyState
           title="Không có quyền truy cập"
-          description="Bạn không có quyền xem thông tin điểm bán này."
+          description="Bạn không có quyền xem thông tin nhà bán lẻ này."
           action={
             <Button variant="default" onClick={() => returnToList('/retailers')}>
               Quay lại danh sách
@@ -426,7 +426,7 @@ export function RetailerDetailPage() {
     return (
       <EmptyState
         title="Không tải được dữ liệu"
-        description="Không thể tải thông tin điểm bán. Vui lòng thử lại."
+        description="Không thể tải thông tin nhà bán lẻ. Vui lòng thử lại."
         action={
           <div style={{ display: 'flex', gap: '8px' }}>
             <Button variant="primary" onClick={() => retailer.refetch()}>
@@ -444,8 +444,8 @@ export function RetailerDetailPage() {
   if (!retailer.data) {
     return (
       <EmptyState
-        title="Không tìm thấy điểm bán"
-        description="Không tìm thấy điểm bán này. Thông tin có thể đã được thay đổi hoặc không còn tồn tại."
+        title="Không tìm thấy nhà bán lẻ"
+        description="Không tìm thấy nhà bán lẻ này. Thông tin có thể đã được thay đổi hoặc không còn tồn tại."
         action={
           <Button variant="default" onClick={() => returnToList('/retailers')}>
             Quay lại danh sách

@@ -1,6 +1,6 @@
 /** SPEC §9 – status codes (API, English) ↔ UI labels (Vietnamese, as in the prototype). */
 export const statusLabels = {
-  order: { Allocating: 'Đang phân bổ', Quoted: 'Chờ điểm bán xác nhận báo giá', AllocationFailed: 'Phân bổ lỗi', OutOfStock: 'Thiếu hàng', AllocationConflict: 'Xung đột tồn', Withdrawn: 'Đã hủy', QuoteRejected: 'Báo giá bị từ chối', QuoteExpired: 'Báo giá hết hạn', PaymentPending: 'Chờ thanh toán', ConvertedToPo: 'Đã phát hành đơn thực hiện', Picking: 'Đang soạn hàng', Rejected: 'Đã từ chối', Cancelled: 'Đã hủy', Issued: 'Đã xuất kho', Delivering: 'Đang giao', Delivered: 'Đã giao', Completed: 'Hoàn tất' },
+  order: { Allocating: 'Đang phân bổ', Quoted: 'Chờ nhà bán lẻ xác nhận báo giá', AllocationFailed: 'Phân bổ lỗi', OutOfStock: 'Thiếu hàng', AllocationConflict: 'Xung đột tồn', Withdrawn: 'Đã hủy', QuoteRejected: 'Báo giá bị từ chối', QuoteExpired: 'Báo giá hết hạn', PaymentPending: 'Chờ thanh toán', ConvertedToPo: 'Đã phát hành đơn thực hiện', Picking: 'Đang soạn hàng', Rejected: 'Đã từ chối', Cancelled: 'Đã hủy', Issued: 'Đã xuất kho', Delivering: 'Đang giao', Delivered: 'Đã giao', Completed: 'Hoàn tất' },
   receivable: { AwaitingDelivery: 'Chờ giao', Unpaid: 'Chưa thu', PartiallyPaid: 'Đã thu một phần', Paid: 'Đã thu đủ', Overdue: 'Quá hạn', Cancelled: 'Đã hủy' },
   product: { Draft: 'Nháp', Published: 'Đang bán', Inactive: 'Ngừng bán' },
   transfer: { Suggested: 'Gợi ý', InTransit: 'Đang vận chuyển', Received: 'Đã nhận', Cancelled: 'Đã hủy' },
@@ -15,7 +15,7 @@ export const statusLabels = {
   expiry: { Normal: 'Còn hạn', 'Near-date': 'Cận hạn', NearExpiry: 'Cận hạn', Expired: 'Hết hạn', Disposed: 'Đã tiêu hủy' },
   picking: { NotPicked: 'Chưa soạn hàng', Picking: 'Đang soạn hàng', Shipped: 'Đã xuất' },
   pickingLine: { Pending: 'Chưa soạn', InProgress: 'Đang soạn', Completed: 'Đã soạn xong', Cancelled: 'Đã hủy' },
-  complaint: { Open: 'Chờ xử lý', Submitted: 'Chờ xử lý', UnderReview: 'Cần bổ sung / đang xem xét', Approved: 'Đã chấp nhận', Rejected: 'Đã từ chối', Resolved: 'Đã xử lý', Cancelled: 'Điểm bán đã hủy' },
+  complaint: { Open: 'Chờ xử lý', Submitted: 'Chờ xử lý', UnderReview: 'Cần bổ sung / đang xem xét', Approved: 'Đã chấp nhận', Rejected: 'Đã từ chối', Resolved: 'Đã xử lý', Cancelled: 'Nhà bán lẻ đã hủy' },
   registration: { Pending: 'Chờ duyệt', Approved: 'Đã duyệt', Rejected: 'Bị từ chối' },
   receipt: { Pending: 'Chờ duyệt', Received: 'Đã nhập kho', Posted: 'Đã nhập kho' },
   disposal: { Disposed: 'Đã tiêu hủy' },
@@ -32,7 +32,7 @@ export const statusLabels = {
     Delivering: 'Đang giao', Received: 'Đã nhận hàng', Exception: 'Có phát sinh cần xử lý' },
   qrEvent: { Generated: 'Tạo tem', Split: 'Tách tem', Picked: 'Soạn hàng', Unpicked: 'Bỏ soạn hàng',
     Inspected: 'Kiểm tra hàng', Issued: 'Xuất kho', Received: 'Nhập kho', Dispatched: 'Bắt đầu giao',
-    RetailerReceived: 'Điểm bán nhận hàng', Invalidated: 'Vô hiệu hóa tem' },
+    RetailerReceived: 'Nhà bán lẻ nhận hàng', Invalidated: 'Vô hiệu hóa tem' },
   stock: { Available: 'Sẵn sàng', Picked: 'Đã soạn', InTransit: 'Đang vận chuyển', Delivered: 'Đã giao',
     Invalidated: 'Đã vô hiệu hóa', Split: 'Đã tách', Packed: 'Đã đóng pallet', Dispatched: 'Đã xuất nhà máy', Received: 'Kho đã nhận' },
   documentKind: { Request: 'Yêu cầu kho', Picking: 'Phiếu soạn hàng', Issue: 'Phiếu xuất kho', Receipt: 'Phiếu nhập kho' },
@@ -71,4 +71,4 @@ export function statusLabel(domain: StatusDomain, code: string): string {
 }
 
 export const paymentLabel = (method?: string | null, termDays?: number | null): string =>
-  method === 'Credit' ? `Công nợ – trả sau ${termDays ?? 0} ngày` : method === 'Prepaid' ? 'Trả trước (chuyển khoản)' : 'Chưa chọn — điểm bán chọn khi duyệt báo giá';
+  method === 'Credit' ? `Công nợ – trả sau ${termDays ?? 0} ngày` : method === 'Prepaid' ? 'Trả trước (chuyển khoản)' : 'Chưa chọn — nhà bán lẻ chọn khi duyệt báo giá';

@@ -53,8 +53,8 @@ const MLOR_SOURCES:
     OrderLineMlor['sourceScope'],
     string
   > = {
-    Sku: 'SKU riêng của điểm bán',
-    Category: 'Danh mục của điểm bán',
+    Sku: 'SKU riêng của nhà bán lẻ',
+    Category: 'Danh mục của nhà bán lẻ',
     Default: 'Mặc định sản phẩm',
   };
 
@@ -436,7 +436,7 @@ function OrderBody({
               items={[
                 {
                   label:
-                    'Điểm bán',
+                    'Nhà bán lẻ',
                   value:
                     `${order.retailerName} (${order.retailerCode})`,
                 },

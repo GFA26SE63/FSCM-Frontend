@@ -291,10 +291,10 @@ export function RegionsPage() {
     },
     {
       key: 'retailers',
-      header: 'Điểm bán',
+      header: 'Nhà bán lẻ',
       width: '120px',
       align: 'right',
-      render: (group) => <span>{group.retailerCount} điểm bán</span>,
+      render: (group) => <span>{group.retailerCount} nhà bán lẻ</span>,
       text: (group) => `${group.retailerCount}`,
     },
     {
@@ -372,10 +372,10 @@ export function RegionsPage() {
     },
     {
       key: 'retailers',
-      header: 'Điểm bán',
+      header: 'Nhà bán lẻ',
       width: '120px',
       align: 'right',
-      render: (area) => <span>{area.retailerCount} điểm bán</span>,
+      render: (area) => <span>{area.retailerCount} nhà bán lẻ</span>,
       text: (area) => `${area.retailerCount}`,
     },
     {

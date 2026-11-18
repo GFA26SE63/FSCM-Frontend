@@ -98,7 +98,7 @@ export function AllocationRunPage() {
     },
     {
       key: 'order',
-      header: 'Đơn bán hàng / điểm bán',
+      header: 'Đơn bán hàng / nhà bán lẻ',
       width: '220px',
       text: (order) => `${order.orderCode} ${order.retailerCode} ${order.retailerName}`,
       render: (order) => (
@@ -164,7 +164,7 @@ export function AllocationRunPage() {
     <>
       <PageHeader
         title="Giám sát phân bổ theo thời gian thực"
-        subtitle="Mỗi đơn bán hàng được chọn lô hàng/kho ngay khi gửi. Hệ thống giữ tồn sau phân bổ thành công, tính giảm HSD theo lô hàng rồi gửi báo giá cho điểm bán; quản trị viên không duyệt phương án."
+        subtitle="Mỗi đơn bán hàng được chọn lô hàng/kho ngay khi gửi. Hệ thống giữ tồn sau phân bổ thành công, tính giảm HSD theo lô hàng rồi gửi báo giá cho nhà bán lẻ; quản trị viên không duyệt phương án."
       />
       <DataTable
         title="Lịch sử xử lý đơn bán hàng"
@@ -173,7 +173,7 @@ export function AllocationRunPage() {
         error={query.error}
         rowKey={(order) => order.id}
         columns={columns}
-        searchPlaceholder="Mã đơn bán hàng, điểm bán…"
+        searchPlaceholder="Mã đơn bán hàng, nhà bán lẻ…"
         filterExtra={
           <Select
             aria-label="Lọc theo trạng thái đơn bán hàng"

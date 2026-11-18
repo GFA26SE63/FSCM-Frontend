@@ -74,7 +74,7 @@ export function RefundsPage() {
               emptyText="Không có khoản nào đã thu vượt mức phải thu mà chưa có hồ sơ hoàn."
               columns={[
                 { key: 'order', header: 'Đơn', width: '110px', render: (r: RefundObligation) => <span className="bold">{r.orderCode}</span>, text: (r: RefundObligation) => r.orderCode },
-                { key: 'retailer', header: 'Điểm bán', text: (r: RefundObligation) => r.retailerName },
+                { key: 'retailer', header: 'Nhà bán lẻ', text: (r: RefundObligation) => r.retailerName },
                 { key: 'confirmed', header: 'Đã thu', width: '120px', align: 'right', text: (r: RefundObligation) => formatMoney(r.confirmedAmount) },
                 { key: 'adjusted', header: 'Phải thu sau điều chỉnh', width: '170px', align: 'right', text: (r: RefundObligation) => formatMoney(r.adjustedAmount) },
                 { key: 'refunded', header: 'Đã hoàn', width: '110px', align: 'right', text: (r: RefundObligation) => formatMoney(r.refundedAmount) },

@@ -50,7 +50,7 @@ const TABLE_COLUMNS: Record<Kind, (keyof Row)[]> = {
 };
 function columns(kind: Kind): Column[] {
   const common: Column[] = [{ key: 'id', label: 'Mã giao dịch / yêu cầu' }, { key: 'at', label: 'Thời gian', date: true },
-    { key: 'retailerCode', label: 'Mã điểm bán' }, { key: 'retailerName', label: 'Điểm bán' }, { key: 'regionName', label: 'Khu vực' },
+    { key: 'retailerCode', label: 'Mã nhà bán lẻ' }, { key: 'retailerName', label: 'Nhà bán lẻ' }, { key: 'regionName', label: 'Khu vực' },
     { key: 'programCode', label: 'Mã chương trình' }, { key: 'programName', label: 'Chương trình' }, { key: 'status', label: 'Trạng thái / nghiệp vụ' }];
   if (kind !== 'loyalty') common.push({ key: 'itemCode', label: kind === 'redemptions' ? 'Mã quà' : 'SKU' }, { key: 'itemName', label: kind === 'redemptions' ? 'Quà' : 'Sản phẩm' }, { key: 'quantity', label: 'Số lượng', numeric: true });
   if (kind === 'promotions') common.push({ key: 'grossAmount', label: 'Trước giảm (đ)', numeric: true },
@@ -133,7 +133,7 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
       <label className="lbl">Từ ngày<DateInput required value={draft.fromDate} onChange={fromDate => setDraft(f => ({ ...f, fromDate }))} /></label>
       <label className="lbl">Đến ngày<DateInput required min={draft.fromDate} value={draft.toDate} onChange={toDate => setDraft(f => ({ ...f, toDate }))} /></label>
       <label className="lbl">Khu vực<select className="inp" value={draft.regionId} onChange={e => setDraft(f => ({ ...f, regionId: e.target.value }))}><option value="">Tất cả khu vực</option>{regions.data?.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></label>
-      <label className="lbl">Điểm bán<input className="inp" placeholder="Mã hoặc tên điểm bán" value={draft.retailer} onChange={e => setDraft(f => ({ ...f, retailer: e.target.value }))} /></label>
+      <label className="lbl">Nhà bán lẻ<input className="inp" placeholder="Mã hoặc tên nhà bán lẻ" value={draft.retailer} onChange={e => setDraft(f => ({ ...f, retailer: e.target.value }))} /></label>
       <label className="lbl">Chương trình<input className="inp" placeholder={kind === 'promotions' ? 'Mã chiến dịch hoặc HSD' : 'Mã hoặc tên chương trình'} value={draft.program} onChange={e => setDraft(f => ({ ...f, program: e.target.value }))} /></label>
       <label className="lbl">Trạng thái / loại<select className="inp" value={draft.status} onChange={e => setDraft(f => ({ ...f, status: e.target.value }))}><option value="">Tất cả</option>{statuses[kind].map(s => <option key={s} value={s}>{kind === 'loyalty' && s === 'Pending' ? 'Điểm chờ cộng (cũ)' : labels[s] ?? s}</option>)}</select></label>
       <Button onClick={() => void query.refetch()} loading={query.isFetching} disabled={!valid}>Làm mới</Button>

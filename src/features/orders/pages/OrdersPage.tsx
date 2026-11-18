@@ -122,7 +122,7 @@ export function OrdersPage() {
     },
     {
       key: 'retailer',
-      header: 'Điểm bán',
+      header: 'Nhà bán lẻ',
       text: (order) => `${order.retailerCode} ${order.retailerName}`,
       render: (order) => (
         <>
@@ -236,7 +236,7 @@ export function OrdersPage() {
         error={query.isPlaceholderData ? undefined : query.error}
         rowKey={(order) => order.id}
         columns={columns}
-        searchPlaceholder="Mã đơn, điểm bán, người đặt, trạng thái…"
+        searchPlaceholder="Mã đơn, nhà bán lẻ, người đặt, trạng thái…"
         cursor={pagingProps}
         filters={[
           {

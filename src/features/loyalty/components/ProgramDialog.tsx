@@ -28,7 +28,7 @@ export function ProgramDialog({ program, onClose }: Props) {
       required: true, validate: validate('endAt') },
     { key: 'pointsExpireAt', label: 'Điểm hết hạn lúc (giờ Việt Nam)', type: 'datetime-local',
       span: 2, validate: validate('pointsExpireAt'), hint: 'Để trống nếu không đặt hạn điểm.' },
-    { key: 'retailerIds', label: 'Điểm bán áp dụng', type: 'custom', span: 2,
+    { key: 'retailerIds', label: 'Nhà bán lẻ áp dụng', type: 'custom', span: 2,
       validate: validate('retailerIds'),
       render: (values, set, error) => <ProgramRetailerPicker value={values.retailerIds}
         onChange={(ids) => set('retailerIds', ids)} options={retailers.data}

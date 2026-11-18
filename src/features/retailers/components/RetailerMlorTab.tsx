@@ -130,7 +130,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
       >
         <SimpleTable
           rows={categoryConfigs}
-          empty="Chưa có yêu cầu hạn sử dụng theo danh mục nào cho điểm bán này."
+          empty="Chưa có yêu cầu hạn sử dụng theo danh mục nào cho nhà bán lẻ này."
           columns={[
             {
               header: 'Mã danh mục',
@@ -194,7 +194,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
       >
         <SimpleTable
           rows={productConfigs}
-          empty="Chưa có yêu cầu riêng theo sản phẩm (SKU) nào cho điểm bán này."
+          empty="Chưa có yêu cầu riêng theo sản phẩm (SKU) nào cho nhà bán lẻ này."
           columns={[
             {
               header: 'SKU',
@@ -243,7 +243,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
       <Card title="3. Tra cứu yêu cầu đang áp dụng">
         <div style={{ display: 'grid', gap: '16px' }}>
           <p className="muted" style={{ margin: 0 }}>
-            Chọn một sản phẩm để kiểm tra quy tắc hạn sử dụng thực tế sẽ được áp dụng cho điểm bán theo thứ bậc ưu tiên.
+            Chọn một sản phẩm để kiểm tra quy tắc hạn sử dụng thực tế sẽ được áp dụng cho nhà bán lẻ theo thứ bậc ưu tiên.
           </p>
 
           <div style={{ maxWidth: '450px' }}>

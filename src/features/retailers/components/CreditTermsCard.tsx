@@ -155,7 +155,7 @@ export function CreditTermsCard({ retailer, receivables }: CreditTermsCardProps)
               key: 'reason',
               label: 'Lý do phê duyệt / cập nhật',
               type: 'textarea',
-              placeholder: 'Nhập lý do thay đổi kỳ hạn công nợ cho điểm bán...',
+              placeholder: 'Nhập lý do thay đổi kỳ hạn công nợ cho nhà bán lẻ...',
             },
           ]}
           note="Quyền mua công nợ sẽ được áp dụng cho các đơn hàng tạo mới tiếp theo. Các đơn hàng cũ vẫn giữ nguyên kỳ hạn đã chốt ban đầu."

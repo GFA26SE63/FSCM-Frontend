@@ -26,7 +26,7 @@ export function GiftsPage() {
   const open = (gift: Gift | null) => { setStatusError(''); setNotice(''); setDlg({ gift }); };
   return (
     <>
-      <PageHeader title="Quà đổi điểm" subtitle="Khi điểm bán gửi yêu cầu, hệ thống giữ điểm và lượng quà. Từ chối sẽ trả lại phần đã giữ." />
+      <PageHeader title="Quà đổi điểm" subtitle="Khi nhà bán lẻ gửi yêu cầu, hệ thống giữ điểm và lượng quà. Từ chối sẽ trả lại phần đã giữ." />
       {notice && <Callout tone="ok">{notice}</Callout>}
       {programs.isError && <Callout tone="danger">Không tải được chương trình tích điểm. <Button size="sm" onClick={() => void programs.refetch()}>Thử lại</Button></Callout>}
       {programs.isSuccess && programs.data.length === 0 && <Callout tone="info">Cần tạo chương trình tích điểm trước khi thêm quà.</Callout>}
