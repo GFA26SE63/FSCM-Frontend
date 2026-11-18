@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
-import { Button, DataTable, PageHeader, StatusChip, type Column } from '@/shared/ui';
-import { formatDateTime, statusLabel, statusLabels } from '@/shared/lib';
+import { Button, DataTable, PageHeader, Select, StatusChip, type Column } from '@/shared/ui';
+import { DATE_SORT_OPTIONS, formatDateTime, sortByDate, statusLabel, statusLabels, type DateSortOrder } from '@/shared/lib';
 import { useComplaints } from '../hooks';
 import { ResolveDialog } from '../components/ResolveDialog';
 import type { Complaint } from '../types';
@@ -11,11 +11,12 @@ export function ComplaintsPage() {
   const navigate = useNavigate();
   const query = useComplaints();
   const [resolving, setResolving] = useState<string | null>(null);
+  const [dateSort, setDateSort] = useState<DateSortOrder>('newest');
   const columns: Column<Complaint>[] = [
     { key: 'code', header: 'Mã', width: '130px', render: (c) => <span className="bold">{c.code}</span> },
     { key: 'order', header: 'Đơn hàng', width: '110px', text: (c) => c.orderCode },
     { key: 'type', header: 'Loại yêu cầu', width: '160px', text: c => requestTypeLabel(c.requestType) },
-    { key: 'retailer', header: 'Điểm bán', width: '180px', text: (c) => c.retailerName },
+    { key: 'retailer', header: 'Nhà bán lẻ', width: '180px', text: (c) => c.retailerName },
     { key: 'content', header: 'Nội dung', text: (c) => `${c.issueType === 'Return' ? 'Trả' : c.issueType === 'Damaged' ? 'Hỏng' : 'Thiếu'} ${c.requestedQuantity ?? c.expectedQuantity - c.actualQuantity} · ${c.sku}${c.note ? ` · ${c.note}` : ''}` },
     { key: 'at', header: 'Thời gian', width: '140px', text: (c) => formatDateTime(c.createdAt) },
     { key: 'status', header: 'Trạng thái', width: '110px', render: (c) => <StatusChip domain="complaint" value={c.reviewStatus === 'UnderReview' ? 'UnderReview' : c.status} /> },
@@ -26,12 +27,13 @@ export function ComplaintsPage() {
       <PageHeader title="Yêu cầu" subtitle="Khiếu nại, trả hàng và thu hồi hàng hỏng. quản trị viên duyệt; nhân viên vận hành xác nhận xử lý thực tế trước khi chốt tài chính." />
       <DataTable
         title="Danh sách yêu cầu"
-        rows={query.data}
+        rows={sortByDate(query.data ?? [], c => c.createdAt, dateSort)}
         loading={query.isLoading}
         error={query.error}
         rowKey={(c) => c.code}
         columns={columns}
-        searchPlaceholder="Mã, đơn hàng, điểm bán, nội dung…"
+        searchPlaceholder="Mã, đơn hàng, nhà bán lẻ, nội dung…"
+        filterExtra={<label className="lbl">Thời gian<Select value={dateSort} options={DATE_SORT_OPTIONS} onChange={e => setDateSort(e.target.value as DateSortOrder)} /></label>}
         filters={[{ label: 'Trạng thái', options: [...new Set(Object.values(statusLabels.complaint))], value: (c) => statusLabel('complaint', c.status) },
           {label:'Loại yêu cầu',options:['Khiếu nại đơn hàng','Trả hàng','Thu hồi hàng hỏng'],value:c=>requestTypeLabel(c.requestType)}]}
         onRowClick={(c) => navigate(`/complaints/${c.code}`)}

@@ -44,7 +44,7 @@ const toPair = (p?: [number | null | undefined, number | null | undefined] | nul
 
 /**
  * Tài liệu HTML cho iframe srcDoc: Leaflet + VietMap Street Map.
- * - Kho: chấm cam; Điểm bán: chấm xanh; vòng tròn bán kính phục vụ (nét đứt) quanh kho.
+ * - Kho: chấm cam; Nhà bán lẻ: chấm xanh; vòng tròn bán kính phục vụ (nét đứt) quanh kho.
  * - Chế độ chọn vị trí: bấm hoặc kéo ghim → postMessage({ type: 'mapPick', lat, lng }) lên trang cha;
  *   trang cha gửi { type: 'setPoint', lat, lng } để di chuyển ghim mà không tải lại bản đồ.
  * - Điểm không có tọa độ hợp lệ không được vẽ (không dùng tọa độ thay thế).
@@ -117,7 +117,7 @@ export function buildMapDoc({
 
 <div class="lg">
   ${hasWh || (!hasWh && !hasRet && !interactivePick) ? '<span><b style="color:#B85C1E">■</b> Kho</span>' : ''}
-  ${hasRet || (!hasWh && !hasRet) ? '<span><b style="color:#1D4ED8">●</b> Điểm bán</span>' : ''}
+  ${hasRet || (!hasWh && !hasRet) ? '<span><b style="color:#1D4ED8">●</b> Nhà bán lẻ</span>' : ''}
   ${radiusKm > 0 ? `<span><span style="color:#0D9488;font-weight:700">◯</span> Bán kính ${radiusKm} km</span>` : ''}
   ${interactivePick ? `<span class="pick-hint">· ${escapeHtml(pickHint)}</span>` : ''}
 </div>
@@ -204,7 +204,7 @@ try{
     var marker=L.circleMarker([p.lat,p.lng],{
       radius:radius, color:'#fff', weight:2, fillColor:isW?'#B85C1E':'#1D4ED8', fillOpacity:0.96
     }).addTo(map);
-    var info='<b>'+(isW?'Kho: ':'Điểm bán: ')+esc(p.label)+'</b>';
+    var info='<b>'+(isW?'Kho: ':'Nhà bán lẻ: ')+esc(p.label)+'</b>';
     if(p.sub) info+='<br/>'+esc(p.sub);
     if(p.regionName) info+='<br/><span style="color:#0D9488;font-weight:600">Vùng: '+esc(p.regionName)+'</span>';
     info+='<br/><small>['+p.lat+', '+p.lng+']</small>';

@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
-import { Button, Callout, DataTable, PageHeader, StatusChip, type Column } from '@/shared/ui';
-import { formatCases, formatDateTime, formatMoney } from '@/shared/lib';
+import { Button, Callout, DataTable, PageHeader, Select, StatusChip, type Column } from '@/shared/ui';
+import { DATE_SORT_OPTIONS, formatCases, formatDateTime, formatMoney, sortByDate, type DateSortOrder } from '@/shared/lib';
 import { useDisposalCandidates, useDisposals } from '../hooks';
 import type { Disposal } from '../types';
 
@@ -8,6 +9,7 @@ export function DisposalPage() {
   const navigate = useNavigate();
   const query = useDisposals();
   const candidates = useDisposalCandidates();
+  const [dateSort, setDateSort] = useState<DateSortOrder>('newest');
   const columns: Column<Disposal>[] = [
     { key: 'code', header: 'Mã phiếu', width: '130px', render: (d) => <span className="bold">{d.code}</span> },
     { key: 'wh', header: 'Kho', text: (d) => d.warehouseName },
@@ -26,12 +28,13 @@ export function DisposalPage() {
       {n > 0 && <Callout tone="warn">Có {n} lô hàng đã hết hạn còn tồn kho, cần lập phiếu hủy.</Callout>}
       <DataTable
         title="Phiếu hủy hàng"
-        rows={query.data}
+        rows={sortByDate(query.data ?? [], d => d.createdAt, dateSort)}
         loading={query.isLoading}
         error={query.error}
         rowKey={(d) => d.code}
         columns={columns}
         searchPlaceholder="Mã phiếu, kho, lô hàng…"
+        filterExtra={<label className="lbl">Thời gian<Select value={dateSort} options={DATE_SORT_OPTIONS} onChange={e => setDateSort(e.target.value as DateSortOrder)} /></label>}
         filters={[{ label: 'Kho', options: [...new Set((query.data ?? []).map((d) => d.warehouseName))], value: (d) => d.warehouseName }]}
         onRowClick={(d) => navigate(`/disposal/${d.code}`)}
         rowActionsWidth="90px"

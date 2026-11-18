@@ -76,6 +76,7 @@ test('mapReceiptListItem calculates batchCount and totalQty accurately', () => {
       post: () => Promise.resolve({}),
     },
     '@/shared/api/errors': errors,
+    '@/shared/api/graphql': { graphql: async () => ({ goodsReceiptReads: [] }) },
   });
 
   const rawReceipt = {
@@ -194,6 +195,7 @@ test('normalizeWarehouseOption correctly parses backend WarehouseResult with isA
       post: () => Promise.resolve({}),
     },
     '@/shared/api/errors': errors,
+    '@/shared/api/graphql': { graphql: async () => ({ goodsReceiptReads: [] }) },
   });
 
   const rawActive = {

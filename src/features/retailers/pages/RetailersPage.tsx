@@ -82,7 +82,7 @@ export function RetailersPage() {
 
   const columns: Column<Retailer>[] = [
     { key: 'code', header: 'Mã', width: '120px', text: (row) => row.code },
-    { key: 'name', header: 'Điểm bán', text: (row) => row.name },
+    { key: 'name', header: 'Nhà bán lẻ', text: (row) => row.name },
     {
       key: 'contact',
       header: 'Liên hệ',
@@ -107,25 +107,25 @@ export function RetailersPage() {
   return (
     <>
       <PageHeader
-        title="Điểm bán"
-        subtitle="Theo dõi khai báo từ nhân viên bán hàng, duyệt điểm bán và quản lý hồ sơ điểm bán."
+        title="Nhà bán lẻ"
+        subtitle="Theo dõi khai báo từ nhân viên bán hàng, duyệt nhà bán lẻ và quản lý hồ sơ nhà bán lẻ."
         actions={
           can(user, 'retailers.create') ? (
             <Button variant="primary" onClick={() => setCreateOpen(true)}>
-              + Tạo điểm bán
+              + Tạo nhà bán lẻ
             </Button>
           ) : undefined
         }
       />
       <DataTable
-        title="Danh sách điểm bán"
+        title="Danh sách nhà bán lẻ"
         rows={query.data?.items}
         loading={query.isLoading || query.isPlaceholderData}
         error={query.isPlaceholderData ? undefined : query.error}
         rowKey={(row) => row.id ?? row.code}
         columns={columns}
         onRowClick={(row) => navigate(`/retailers/${row.id || row.code}`)}
-        searchPlaceholder="Mã, tên điểm bán, người liên hệ, SĐT..."
+        searchPlaceholder="Mã, tên nhà bán lẻ, người liên hệ, SĐT..."
         server={pagingProps}
         filterExtra={
           <label className="lbl">

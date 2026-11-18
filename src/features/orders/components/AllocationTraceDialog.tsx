@@ -4,8 +4,8 @@ import { formatDateTime, formatHours, formatMoney, formatNumber, formatPercent }
 import type { OrderDetail } from '../types';
 
 const MLOR_SOURCE = {
-  Sku: 'SKU riêng của điểm bán',
-  Category: 'danh mục của điểm bán',
+  Sku: 'SKU riêng của nhà bán lẻ',
+  Category: 'danh mục của nhà bán lẻ',
   Default: 'mặc định sản phẩm',
 } as const;
 

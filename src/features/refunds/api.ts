@@ -1,10 +1,11 @@
-import { get, getAll, http } from '@/shared/api/http';
+import { get, http } from '@/shared/api/http';
+import { graphql } from '@/shared/api/graphql';
 import type { Refund, RefundEvidenceFile, RefundObligation } from './types';
 
 const withKey = (operationKey: string) => ({ headers: { 'Idempotency-Key': operationKey } });
 
 export const refundApi = {
-  list: (params?: { orderId?: string; status?: string }) => getAll<Refund>('/refunds', params),
+  list: (params?: { orderId?: string; status?: string }) => graphql<{ entities: { refundReads: Refund[] } }>(`query RefundReads($orderId: UUID, $status: String) { entities { refundReads(orderId: $orderId, status: $status) { id paymentId salesOrderId orderCode amount recipient reason status transferredAt transactionReference evidenceReference createdByUserId submittedByUserId submittedAt verifiedByUserId verifiedAt verificationNote version finalApprovedAmount adjustedAmount confirmedAmount pendingRefundAmount refundedAmount refundDueAmount receiptDiscrepancyId createdAt updatedAt } } }`, { orderId: params?.orderId, status: params?.status }).then(x => x.entities.refundReads),
   get: (id: string) => get<Refund>(`/refunds/${id}`),
   obligations: () => get<RefundObligation[]>('/refunds/obligations'),
   create: (input: {

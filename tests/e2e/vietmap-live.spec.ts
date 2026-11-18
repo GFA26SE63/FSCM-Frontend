@@ -96,7 +96,7 @@ test('Warehouse network map: Street Map tiles, real points only, 20 km dashed ra
 test('Retailer create: no substitute pin; map click → coordinates + VietMap reverse address; "Định vị" → coordinates; typing does not reload', async ({ page }) => {
   const net = await setup(page);
   await page.goto('/retailers');
-  await page.getByRole('button', { name: '+ Tạo điểm bán' }).click();
+  await page.getByRole('button', { name: '+ Tạo nhà bán lẻ' }).click();
   const frame = await mapFrame(page, 'Bản đồ chọn vị trí');
   // @ts-expect-error Leaflet global
   expect(await frame.evaluate(() => window.mk === null)).toBe(true);

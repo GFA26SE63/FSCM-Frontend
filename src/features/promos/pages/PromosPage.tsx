@@ -1,6 +1,7 @@
+import { useMemo, useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
-import { Button, DataTable, PageHeader, StatusChip, type Column } from '@/shared/ui';
-import { formatInstantDate, formatPercent, statusLabels } from '@/shared/lib';
+import { Button, DataTable, PageHeader, Select, StatusChip, type Column } from '@/shared/ui';
+import { DATE_SORT_OPTIONS, formatInstantDate, formatPercent, sortByDate, statusLabels, type DateSortOrder } from '@/shared/lib';
 import { useActivatePromo, usePausePromo, usePromos } from '../hooks';
 import { promoStatus } from '../status';
 import type { PromoSummary } from '../types';
@@ -10,6 +11,11 @@ export function PromosPage() {
   const query = usePromos();
   const pause = usePausePromo();
   const activate = useActivatePromo();
+  const [dateSort, setDateSort] = useState<DateSortOrder>('newest');
+  const rows = useMemo(
+    () => sortByDate(query.data ?? [], (promo) => promo.startAt, dateSort),
+    [query.data, dateSort],
+  );
   const columns: Column<PromoSummary>[] = [
     { key: 'code', header: 'Mã', width: '110px', render: (p) => <span className="bold">{p.code}</span> },
     { key: 'name', header: 'Tên chương trình' },
@@ -27,7 +33,7 @@ export function PromosPage() {
       />
       <DataTable
         title="Chương trình khuyến mãi"
-        rows={query.data}
+        rows={rows}
         loading={query.isLoading}
         error={query.error}
         rowKey={(p) => p.id}
@@ -36,7 +42,15 @@ export function PromosPage() {
         filters={[
           { label: 'Trạng thái', options: Object.values(statusLabels.promotion), value: (p) => statusLabels.promotion[promoStatus(p)] },
         ]}
-        actions={<Button variant="primary" onClick={() => navigate('/promos/new')}>+ Tạo khuyến mãi</Button>}
+        actions={<>
+          <Select
+            aria-label="Sắp xếp theo ngày hiệu lực"
+            value={dateSort}
+            onChange={(event) => setDateSort(event.target.value as DateSortOrder)}
+            options={DATE_SORT_OPTIONS}
+          />
+          <Button variant="primary" onClick={() => navigate('/promos/new')}>+ Tạo khuyến mãi</Button>
+        </>}
         onRowClick={(p) => navigate(`/promos/${p.id}`)}
         rowActionsWidth="190px"
         rowActions={(p) => (

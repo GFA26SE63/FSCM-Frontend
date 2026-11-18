@@ -246,7 +246,7 @@ test('Retailer Hooks Integrity: profile and declaration updates retain cache inv
   const hooksCode = fs.readFileSync(hooksFile, 'utf8');
 
   assert.ok(hooksCode.includes("permission: 'retailers.edit'"));
-  assert.ok(hooksCode.includes("success: 'Cập nhật thông tin điểm bán thành công.'"));
+  assert.ok(hooksCode.includes("success: 'Cập nhật thông tin nhà bán lẻ thành công.'"));
   assert.ok(hooksCode.includes('retailerApi.updateProfile(retailerId, payload)'));
   assert.ok(hooksCode.includes("queryClient.invalidateQueries({ queryKey: ['retailers'] })"));
 });

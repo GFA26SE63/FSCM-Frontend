@@ -54,6 +54,7 @@ export interface UserFilters {
   activity: '' | 'active' | 'inactive';
   page: number;
   pageSize: number;
+  sort: 'asc' | 'desc';
 }
 
 export interface UserAuditEntry {
@@ -137,7 +138,7 @@ export const assignmentLabels: Record<ScopeKind, string> = {
   warehouses: 'Kho phụ trách',
   regions: 'Khu vực phụ trách',
   'sales-groups': 'Nhóm bán hàng',
-  retailers: 'Điểm bán phụ trách',
+  retailers: 'Nhà bán lẻ phụ trách',
 };
 
 export const emptyAssignments = (): Assignments => ({

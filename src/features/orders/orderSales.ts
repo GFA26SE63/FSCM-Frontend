@@ -40,7 +40,7 @@ export function formatSalesName(entry: ResolvedSalesUser | undefined): string {
     return identity;
   }
   if (role === 'Retailer') {
-    return `[Điểm bán] ${identity}`;
+    return `[Nhà bán lẻ] ${identity}`;
   }
   if (role === 'Admin') {
     return `[Quản trị viên] ${identity}`;

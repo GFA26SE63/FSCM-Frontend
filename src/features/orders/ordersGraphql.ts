@@ -52,6 +52,7 @@ export interface OrdersPageQuery {
   search?: string;
   /** Vietnam local date yyyy-MM-dd — backend receives as ISO DateTime (Vietnam midnight UTC+7). */
   from?: string;
+  sort?: 'newest' | 'oldest';
 }
 
 interface OrdersConnection {
@@ -182,7 +183,8 @@ export function buildOrdersPageQuery(q: OrdersPageQuery): { query: string; varia
     variables.after = q.after;
   }
 
-  const order = 'order: [{ createdAt: DESC }, { id: DESC }]';
+  const direction = q.sort === 'oldest' ? 'ASC' : 'DESC';
+  const order = `order: [{ createdAt: ${direction} }, { id: ${direction} }]`;
   const decl = declarations.length ? `(${declarations.join(', ')})` : '';
 
   // Only request fields confirmed on FSCM.Domain.Entities.SalesOrder.

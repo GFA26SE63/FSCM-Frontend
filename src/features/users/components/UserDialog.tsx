@@ -168,7 +168,7 @@ export function UserDialog({ user, onClose }: Props) {
       role === 'Retailer' &&
       assignments.retailers.length !== 1
     ) {
-      next.retailers = 'Chọn một điểm bán.';
+      next.retailers = 'Chọn một nhà bán lẻ.';
     }
 
     if (
@@ -364,7 +364,7 @@ export function UserDialog({ user, onClose }: Props) {
 
             <p>
               {created.role === 'Retailer'
-                ? 'Tài khoản điểm bán đang chờ kích hoạt. Sau khi gán đúng điểm bán đã duyệt, chủ điểm bán phải xác minh OTP email và tự tạo mật khẩu trên Mobile.'
+                ? 'Tài khoản nhà bán lẻ đang chờ kích hoạt. Sau khi gán đúng nhà bán lẻ đã duyệt, chủ nhà bán lẻ phải xác minh OTP email và tự tạo mật khẩu trên Mobile.'
                 : 'Người dùng có thể đăng nhập bằng mật khẩu hoặc tài khoản Google cùng email.'}
             </p>
           </div>
@@ -473,7 +473,7 @@ export function UserDialog({ user, onClose }: Props) {
                       autoComplete="new-password"
                       value={password}
                       readOnly={identityLocked || role === 'Retailer'}
-                      placeholder={role === 'Retailer' ? 'Điểm bán tự tạo mật khẩu sau khi xác minh OTP' : undefined}
+                      placeholder={role === 'Retailer' ? 'Nhà bán lẻ tự tạo mật khẩu sau khi xác minh OTP' : undefined}
                       onChange={(event) =>
                         setPassword(event.target.value)
                       }
@@ -546,7 +546,7 @@ export function UserDialog({ user, onClose }: Props) {
 
             {user?.role === 'Retailer' && (
               <p className="muted">
-                Đổi điểm bán cần bỏ liên kết cũ rồi
+                Đổi nhà bán lẻ cần bỏ liên kết cũ rồi
                 gán liên kết mới. Nếu lỗi giữa chừng,
                 lưu lại để hoàn tất.
               </p>

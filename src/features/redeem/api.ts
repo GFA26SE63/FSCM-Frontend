@@ -1,18 +1,19 @@
-import { get, post } from '@/shared/api/http';
+import { post } from '@/shared/api/http';
+import { graphql } from '@/shared/api/graphql';
 import type { RedeemStep, Redemption, RedemptionApi, RedemptionStatus } from './types';
 
 export const redeemApi = {
-  list: () => get<RedemptionApi[]>('/loyalty/redemptions').then((items) => items.map(normalize)),
+  list: () => graphql<{ entities: { redemptionReads: RedemptionApi[] } }>(`query RedemptionReads { entities { redemptionReads { id retailerId rewardId rewardCode rewardName quantity heldPoints quantityIsEstimated regionId salesGroupIds redeemedPoints status balanceAfter clientRequestId createdAt updatedAt retailerCode retailerName } } }`).then(x => x.entities.redemptionReads.map(normalize)),
   /**
    * The server addresses a redemption by identifier and offers no by-code read, so the list is
    * fetched and matched here. Worth replacing with a filtered query once the read side moves to
    * GraphQL; fetching every redemption to show one is not something to leave in place.
    */
   get: (id: string) =>
-    get<RedemptionApi[]>('/loyalty/redemptions').then((items) => {
-      const found = items.find((x) => x.id === id);
+    redeemApi.list().then((items) => {
+      const found = items.find((x) => x.code === id);
       if (!found) throw new Error(`Không tìm thấy yêu cầu đổi quà ${id}.`);
-      return normalize(found);
+      return found;
     }),
   step: (v: { code: string; step: RedeemStep }) =>
     post<RedemptionApi>(`/loyalty/redemptions/${v.code}/${v.step}`).then(normalize),
