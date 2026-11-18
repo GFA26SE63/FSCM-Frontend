@@ -54,6 +54,7 @@ export interface UserFilters {
   activity: '' | 'active' | 'inactive';
   page: number;
   pageSize: number;
+  sort: 'asc' | 'desc';
 }
 
 export interface UserAuditEntry {

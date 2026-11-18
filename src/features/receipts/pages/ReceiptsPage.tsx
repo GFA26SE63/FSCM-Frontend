@@ -39,6 +39,7 @@ export function ReceiptsPage() {
     'status', RECEIPT_STATUSES, '', { resets: ['page'] },
   );
   const [warehouseFilter, setWarehouseFilter] = useState('');
+  const [sortOrder, setSortOrder] = useEnumParam<'desc' | 'asc'>('sort', ['desc', 'asc'] as const, 'desc', { resets: ['page'] });
 
   // Load full dataset — no server-side pagination or search available
   const query = useReceipts();
@@ -91,8 +92,8 @@ export function ReceiptsPage() {
     if (statusFilter) {
       result = result.filter(r => r.status === statusFilter);
     }
-    return result;
-  }, [query.data, search, warehouseFilter, statusFilter]);
+    return [...result].sort((a, b) => sortOrder === 'desc' ? Date.parse(b.createdAt) - Date.parse(a.createdAt) : Date.parse(a.createdAt) - Date.parse(b.createdAt));
+  }, [query.data, search, warehouseFilter, statusFilter, sortOrder]);
 
   // Client-side pagination on filtered results
   const totalCount = filtered.length;
@@ -205,6 +206,7 @@ export function ReceiptsPage() {
             ]}
           />
         </label>
+        <label className="lbl">Thời gian tạo<Select value={sortOrder} onChange={e => setSortOrder(e.target.value as 'desc' | 'asc')} options={[{ value: 'desc', label: 'Mới nhất' }, { value: 'asc', label: 'Cũ nhất' }]} /></label>
       </div>
 
       <DataTable

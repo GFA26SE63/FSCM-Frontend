@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from '@/shared/router/compat';
 import { useState } from 'react';
-import { Button, DataTable, PageHeader, StatusChip, type Column } from '@/shared/ui';
-import { formatNumber, statusLabel, statusLabels } from '@/shared/lib';
+import { Button, DataTable, PageHeader, Select, StatusChip, type Column } from '@/shared/ui';
+import { DATE_SORT_OPTIONS, formatNumber, sortByDate, statusLabel, statusLabels, type DateSortOrder } from '@/shared/lib';
 import { formatInstantDateTime } from '@/shared/lib/dates';
 import { useRedemptions } from '../hooks';
 import { RedeemActions } from '../components/RedeemActions';
@@ -11,6 +11,7 @@ export function RedeemPage() {
   const navigate = useNavigate();
   const query = useRedemptions();
   const [openedAt] = useState(() => Date.now());
+  const [dateSort, setDateSort] = useState<DateSortOrder>('newest');
   const params = new URLSearchParams(useLocation().search);
   const status = params.get('status');
   const aged = params.get('aged') === 'true';
@@ -35,12 +36,13 @@ export function RedeemPage() {
         actions={<><Button onClick={() => navigate('/reports?kind=redemptions')}>Báo cáo đổi quà</Button>{(status || aged || regionId || salesGroupId) && <Button onClick={() => navigate('/redeem')}>Bỏ lọc dashboard</Button>}</>} />
       <DataTable
         title="Yêu cầu đổi quà"
-        rows={filteredRows}
+        rows={sortByDate(filteredRows ?? [], x => x.requestedAt, dateSort)}
         loading={query.isLoading}
         error={query.error}
         rowKey={(x) => x.code}
         columns={columns}
         searchPlaceholder="Mã yêu cầu, nhà bán lẻ, quà…"
+        filterExtra={<label className="lbl">Ngày yêu cầu<Select value={dateSort} options={DATE_SORT_OPTIONS} onChange={e => setDateSort(e.target.value as DateSortOrder)} /></label>}
         filters={[{ label: 'Trạng thái', options: Object.values(statusLabels.gift), value: (x) => statusLabel('gift', x.status) }]}
         onRowClick={(x) => navigate(`/redeem/${x.code}`)}
         rowActionsWidth="240px"

@@ -1,5 +1,6 @@
 import { http, get, getAll, post } from '@/shared/api/http';
 import { ApiError } from '@/shared/api/errors';
+import { graphql } from '@/shared/api/graphql';
 
 import type {
   CreateGoodsReceiptRequest,
@@ -90,7 +91,8 @@ export function normalizeWarehouseOption(raw: RawWarehouseResult): WarehouseOpti
 
 export const receiptApi = {
   list: async (warehouseId?: string): Promise<ReceiptListItem[]> => {
-    const raw = await getAll<ReceiptDetail>('/goods-receipts', warehouseId ? { warehouseId } : undefined);
+    const data = await graphql<{ entities: { goodsReceiptReads: ReceiptDetail[] } }>(`query GoodsReceiptReads($warehouseId: UUID) { entities { goodsReceiptReads(warehouseId: $warehouseId) { id receiptCode warehouseId warehouseCode warehouseName createdByUserId approvedByUserId status receivedAt approvedAt createdAt version lines { id productId sku productName sourceLotCode receivedQuantity productionDate expirationDate batchId batchCode } } } }`, { warehouseId });
+    const raw = data.entities.goodsReceiptReads;
     return raw.map(mapReceiptListItem);
   },
 

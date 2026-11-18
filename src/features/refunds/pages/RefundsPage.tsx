@@ -3,8 +3,8 @@ import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
 import { useNavigate } from '@/shared/router/compat';
 import { errorMessage } from '@/shared/api/errors';
-import { Button, Callout, Card, Chip, DataTable, FormDialog, PageHeader, Stat, type Column, type Tone } from '@/shared/ui';
-import { formatDateTime, formatMoney } from '@/shared/lib';
+import { Button, Callout, Card, Chip, DataTable, FormDialog, PageHeader, Select, Stat, type Column, type Tone } from '@/shared/ui';
+import { DATE_SORT_OPTIONS, formatDateTime, formatMoney, sortByDate, type DateSortOrder } from '@/shared/lib';
 import { useCreateRefund, useRefundObligations, useRefunds } from '../hooks';
 import { OPEN_REFUND_STATUSES, REFUND_STATUS_LABEL, type Refund, type RefundObligation, type RefundStatus } from '../types';
 
@@ -33,6 +33,7 @@ export function RefundsPage() {
   const obligations = useRefundObligations(mayManage);
   const create = useCreateRefund();
   const [target, setTarget] = useState<RefundObligation | null>(null);
+  const [dateSort, setDateSort] = useState<DateSortOrder>('newest');
 
   const rows = refunds.data ?? [];
   const open = rows.filter((refund) => OPEN_REFUND_STATUSES.includes(refund.status));
@@ -94,12 +95,13 @@ export function RefundsPage() {
 
       <DataTable
         title="Hồ sơ hoàn tiền"
-        rows={rows}
+        rows={sortByDate(rows, r => r.createdAt, dateSort)}
         loading={refunds.isLoading}
         error={refunds.error}
         rowKey={(refund) => refund.id}
         columns={columns}
         searchPlaceholder="Mã đơn, người nhận…"
+        filterExtra={<label className="lbl">Ngày tạo<Select value={dateSort} options={DATE_SORT_OPTIONS} onChange={e => setDateSort(e.target.value as DateSortOrder)} /></label>}
         filters={[{ label: 'Trạng thái', options: Object.values(REFUND_STATUS_LABEL), value: (r) => REFUND_STATUS_LABEL[r.status] }]}
         onRowClick={(refund) => navigate(`/refunds/${refund.id}`)}
         rowActionsWidth="120px"

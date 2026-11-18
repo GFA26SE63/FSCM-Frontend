@@ -8,7 +8,9 @@ function load(file, mocks = {}) {
   const code = ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'),
     { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX } }).outputText;
   const mod = { exports: {} };
-  new Function('require', 'exports', 'module', code)(name => Object.hasOwn(mocks, name) ? mocks[name] : require(name), mod.exports, mod);
+  new Function('require', 'exports', 'module', code)(name => Object.hasOwn(mocks, name)
+    ? mocks[name]
+    : name === '@/shared/api/graphql' ? { graphql: async () => ({ entities: { promotionReads: [] } }) } : require(name), mod.exports, mod);
   return mod.exports;
 }
 const dates = load('shared/lib/dates.ts');

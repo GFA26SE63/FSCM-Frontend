@@ -16,7 +16,7 @@ import {
   StatusChip,
   type Column,
 } from '@/shared/ui';
-import { formatDate, formatMoney, statusLabels, toIsoDateTime, vietnamDateTimeToIso } from '@/shared/lib';
+import { DATE_SORT_OPTIONS, formatDate, formatMoney, sortByDate, statusLabels, toIsoDateTime, vietnamDateTimeToIso, type DateSortOrder } from '@/shared/lib';
 import { useCollectReceivable, useReceivables } from '../hooks';
 import type { Receivable, ReceivableStatus } from '../types';
 import { useOrderSales } from '@/features/orders/orderSales';
@@ -46,9 +46,12 @@ export function DebtsPage() {
   const [statusFilter, setStatusFilter] = useEnumParam<ReceivableStatusFilter>(
     'status', RECEIVABLE_STATUSES, '', { resets: ['page'] },
   );
+  const [dateSort, setDateSort] = useEnumParam<DateSortOrder>(
+    'sort', ['newest', 'oldest'] as const, 'newest', { resets: ['page'] },
+  );
   const { setParams } = useQueryParams();
-  const hasActiveFilters = !!(search || statusFilter);
-  const clearFilters = () => setParams({ status: null, q: null, page: null });
+  const hasActiveFilters = !!(search || statusFilter || dateSort !== 'newest');
+  const clearFilters = () => setParams({ status: null, q: null, sort: null, page: null });
 
   // ── Refunds: separate URL-persisted pagination (stateKey namespaces the URL params)
   const {
@@ -95,8 +98,8 @@ export function DebtsPage() {
     if (statusFilter) {
       result = result.filter((r) => r.status === statusFilter);
     }
-    return result;
-  }, [rows, search, statusFilter, salesSearchTextOf]);
+    return sortByDate(result, (row) => row.dueDate ?? row.deliveredDate, dateSort);
+  }, [rows, search, statusFilter, salesSearchTextOf, dateSort]);
 
   // Pagination on filtered results
   const totalCount = filtered.length;
@@ -140,6 +143,7 @@ export function DebtsPage() {
         <label className="lbl">Tìm kiếm<Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã đơn, nhà bán lẻ, nhân viên bán hàng…" /></label>
         <label className="lbl">Trạng thái<Select value={statusFilter} onChange={e => setStatusFilter(e.target.value as ReceivableStatusFilter)}
           options={[{ value: '', label: 'Tất cả trạng thái' }, ...RECEIVABLE_STATUSES.filter(Boolean).map(value => ({ value, label: statusLabels.receivable[value as Exclude<ReceivableStatusFilter, ''>] }))]} /></label>
+        <label className="lbl">Sắp xếp<Select value={dateSort} onChange={e => setDateSort(e.target.value as DateSortOrder)} options={DATE_SORT_OPTIONS} /></label>
         {hasActiveFilters && <Button onClick={clearFilters}>Xóa bộ lọc</Button>}
       </div>
       <DataTable

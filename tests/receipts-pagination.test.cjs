@@ -352,6 +352,7 @@ test('batch: mapReceiptListItem derives batchCount and totalQty from lines', () 
   const { mapReceiptListItem } = source('features/receipts/api.ts', {
     '@/shared/api/http': { http: {}, get: () => {}, getAll: () => {} },
     '@/shared/api/errors': { ApiError: class {} },
+    '@/shared/api/graphql': { graphql: async () => ({ goodsReceiptReads: [] }) },
   });
   const detail = {
     id: 'r1', receiptCode: 'RC-0001', warehouseId: 'wh1', warehouseCode: 'WH', warehouseName: 'Kho',
@@ -372,6 +373,7 @@ test('batch: receipt with zero lines gives batchCount=0 and totalQty=0', () => {
   const { mapReceiptListItem } = source('features/receipts/api.ts', {
     '@/shared/api/http': { http: {}, get: () => {}, getAll: () => {} },
     '@/shared/api/errors': { ApiError: class {} },
+    '@/shared/api/graphql': { graphql: async () => ({ goodsReceiptReads: [] }) },
   });
   const detail = {
     id: 'r2', receiptCode: 'RC-0002', warehouseId: 'wh1', warehouseCode: 'WH', warehouseName: 'Kho',

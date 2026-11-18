@@ -11,7 +11,9 @@ function load(file, mocks = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   const module = { exports: {} };
-  new Function('require', 'module', 'exports', code)(name => Object.hasOwn(mocks, name) ? mocks[name] : require(name), module, module.exports);
+  new Function('require', 'module', 'exports', code)(name => Object.hasOwn(mocks, name)
+    ? mocks[name]
+    : name === '@/shared/api/graphql' ? { graphql: async () => ({ entities: { promotionReads: [] } }) } : require(name), module, module.exports);
   return module.exports;
 }
 

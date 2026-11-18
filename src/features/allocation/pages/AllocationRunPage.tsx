@@ -46,6 +46,7 @@ const STATUS_OPTIONS = [
   { label: 'Hết hàng', value: 'OutOfStock' },
   { label: 'Xung đột allocation', value: 'AllocationConflict' },
 ];
+const SORT_VALUES = ['desc', 'asc'] as const;
 
 export function AllocationRunPage() {
   const navigate = useNavigate();
@@ -56,6 +57,7 @@ export function AllocationRunPage() {
     '',
     { resets: ['page'] },
   );
+  const [sort, setSort] = useEnumParam<'desc' | 'asc'>('sort', SORT_VALUES, 'desc', { resets: ['page'] });
 
   const { page, pageSize, search, pagingProps: basePagingProps } = useRestPagination({
     defaultPageSize: 20,
@@ -68,7 +70,7 @@ export function AllocationRunPage() {
       page,
       size: pageSize,
       search,
-      filters: { status: statusFilter },
+      filters: { status: statusFilter, sort },
     }),
     queryFn: () =>
       fetchAllocationOrdersPage({
@@ -76,6 +78,7 @@ export function AllocationRunPage() {
         pageSize,
         search: search || undefined,
         status: statusFilter || undefined,
+        sort,
       }),
     placeholderData: (prev) => prev,
   });
@@ -175,12 +178,12 @@ export function AllocationRunPage() {
         columns={columns}
         searchPlaceholder="Mã đơn bán hàng, nhà bán lẻ…"
         filterExtra={
-          <Select
+          <><Select
             aria-label="Lọc theo trạng thái đơn bán hàng"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as OrderStatusFilter)}
             options={STATUS_OPTIONS}
-          />
+          /><Select aria-label="Sắp xếp theo thời gian" value={sort} onChange={e => setSort(e.target.value as 'desc' | 'asc')} options={[{ value: 'desc', label: 'Mới nhất' }, { value: 'asc', label: 'Cũ nhất' }]} /></>
         }
         server={pagingProps}
         onRowClick={(order) => navigate(`/orders/${order.id}`)}

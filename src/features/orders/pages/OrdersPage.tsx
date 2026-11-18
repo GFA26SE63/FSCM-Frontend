@@ -63,6 +63,7 @@ export function OrdersPage() {
     'status', STATUS_VALUES, '', { resets: PAGE_RESETS },
   );
   const [from, setFrom] = useDateParam('from', { resets: PAGE_RESETS });
+  const [sort, setSort] = useEnumParam<'newest' | 'oldest'>('sort', ['newest', 'oldest'] as const, 'newest', { resets: PAGE_RESETS });
   const search = params.get('q') ?? undefined;
   const source = params.get('nguon') ?? undefined;
   // sizeParam wires the size selector to URL and resets cursors when changed.
@@ -78,6 +79,7 @@ export function OrdersPage() {
     from: from || undefined,
     source,
     search,
+    sort,
   });
 
   // Phase 0 cursor pagination hook — reads same URL params, provides navigation callbacks
@@ -266,6 +268,7 @@ export function OrdersPage() {
               Từ ngày
               <DateInput value={from} onChange={setFrom} />
             </label>
+            <label className="lbl">Thời gian<Select value={sort} options={[{ value: 'newest', label: 'Mới nhất' }, { value: 'oldest', label: 'Cũ nhất' }]} onChange={e => setSort(e.target.value as 'newest' | 'oldest')} /></label>
           </>
         }
         onRowClick={(order) => navigate(`/orders/${order.id}`)}
