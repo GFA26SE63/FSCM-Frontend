@@ -215,7 +215,7 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
         { header: 'Tổng thùng', cell: r => r.required }, { header: 'Đã quét', cell: r => r.scanned }, { header: 'Còn lấy', cell: r => r.required - r.scanned },
       ]} /></>}
       {admin && d.kind === 'Request' && d.status === 'Open' && <button className="btn" disabled={busy} onClick={() => void act(`${base}/${d.id}/cancel`, { expectedVersion: d.version })}>Hủy yêu cầu chưa lấy hàng</button>}
-      {canCreateChild && <button className="btn btn-primary" disabled={busy} onClick={() => void act(`${base}/${d.id}/create-document`, undefined, true)}>{d.kind === 'Request' ? 'Tạo phiếu soạn cho yêu cầu' : 'Tạo phiếu nhập kho nhận'}</button>}
+      {canCreateChild && <button className="btn btn-primary" disabled={busy} onClick={() => void act(`${base}/${d.id}/create-document`, undefined, true)}>{d.kind === 'Request' ? 'Tạo phiếu xuất kho để quét' : 'Tạo phiếu nhập kho nhận'}</button>}
       {active.lines.length > 0 && <SimpleTable rows={active.lines} columns={[
         { header: 'Đơn hàng', cell: l => l.orderCode ?? '—' }, { header: 'SKU / sản phẩm', cell: l => `${l.sku} · ${l.productName}` },
         { header: 'Mã tồn / lô hàng nhà máy', cell: l => [l.batchCode, l.sourceLotCode].filter(Boolean).join(' · ') || 'Chờ nhập' }, { header: 'HSD', cell: l => formatDate(l.expirationDate) },
@@ -228,13 +228,13 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
             initialCode={incoming.data?.find(p => p.receiptDocumentId === d.id)?.palletCode ?? new URLSearchParams(location.search).get('pallet') ?? ''}
             documentId={d.id} version={d.version} receivedCount={active.cartons.length} editable={!admin && d.status === 'Open'} />
         </>}{d.reason !== 'Factory' && <p>Tiến độ: {active.cartons.filter(c => c.scannedAt).length} / {active.lines.reduce((s, l) => s + l.quantity, 0)} thùng. Mỗi mã QR đại diện một thùng chứa một SKU.</p>}
-        {!admin && d.kind === 'Picking' && d.status === 'Open' && active.lines.some(l => !l.sourceLotCode?.startsWith('BID-')) && <div className="row-wrap" style={{ gap: 12 }}><button className="btn" disabled={busy} onClick={() => void act(`${base}/${d.id}/prepare-cartons`)}>Chuẩn bị nhãn một thùng cho hàng tồn</button><button className="btn" onClick={() => void printLabels(true)}>Mở nhãn hàng tồn để in</button><span className="muted">Dán nhãn mới lên từng thùng; nhãn gộp cũ sau khi tách sẽ hết hiệu lực.</span></div>}{active.cartons.length > 0 && d.reason !== 'Factory' && <button className="btn" onClick={() => void printLabels()}>In nhãn QR thùng</button>}
+        {!admin && (d.kind === 'Picking' || d.kind === 'Issue') && d.status === 'Open' && active.lines.some(l => !l.sourceLotCode?.startsWith('BID-')) && <div className="row-wrap" style={{ gap: 12 }}><button className="btn" disabled={busy} onClick={() => void act(`${base}/${d.id}/prepare-cartons`)}>Chuẩn bị nhãn một thùng cho hàng tồn</button><button className="btn" onClick={() => void printLabels(true)}>Mở nhãn hàng tồn để in</button><span className="muted">Dán nhãn mới lên từng thùng; nhãn gộp cũ sau khi tách sẽ hết hiệu lực.</span></div>}{active.cartons.length > 0 && d.reason !== 'Factory' && <button className="btn" onClick={() => void printLabels()}>In nhãn QR thùng</button>}
         {!admin && d.reason !== 'Factory' && (d.status === 'Open' || d.status === 'Prepared') && <form onSubmit={e => { e.preventDefault(); if (scan.trim()) void act(`${base}/${d.id}/scans`, { cartonId: scan.trim(), expectedVersion: d.version }); }} className="row-wrap" style={{ gap: 12, margin: '14px 0' }}>
           <label>Quét mã thùng <input ref={scanInput} autoComplete="off" value={scan} onChange={e => setScan(e.target.value)} placeholder="Quét QR bằng máy đọc rồi nhấn phím xác nhận" disabled={busy} /></label>
           <button className="btn" disabled={busy || !scan.trim() || d.status !== 'Open'}>Ghi nhận thùng</button>
-          <button type="button" className="btn btn-primary" disabled={busy || active.cartons.length === 0 || active.cartons.filter(c => c.scannedAt).length !== active.lines.reduce((s, l) => s + l.quantity, 0)} onClick={() => void act(`${base}/${d.id}/post`, { expectedVersion: d.version })}>Xác nhận {d.kind === 'Picking' || d.kind === 'Issue' ? 'xuất và lập PXK' : 'nhập'} kho</button>
+          <button type="button" className="btn btn-primary" disabled={busy || active.cartons.length === 0 || active.cartons.filter(c => c.scannedAt).length !== active.lines.reduce((s, l) => s + l.quantity, 0)} onClick={() => void act(`${base}/${d.id}/post`, { expectedVersion: d.version })}>Xác nhận {(d.kind === 'Picking' || d.kind === 'Issue') ? 'xuất và ghi sổ PXK' : 'nhập'} kho</button>
         </form>}
-        {cartonEdit?.documentId === d.id && !admin && d.kind === 'Picking' && ['Open', 'Prepared'].includes(d.status) && <form aria-label="Sửa thùng đang soạn" onSubmit={e => {
+        {cartonEdit?.documentId === d.id && !admin && (d.kind === 'Picking' || d.kind === 'Issue') && ['Open', 'Prepared'].includes(d.status) && <form aria-label="Sửa thùng đang soạn" onSubmit={e => {
           e.preventDefault();
           if (!cartonEdit.reason.trim() || cartonEdit.replace && !cartonEdit.replacementCode.trim()) return;
           void act(`${base}/${d.id}/remove-carton`, { cartonCode: cartonEdit.cartonCode, reason: cartonEdit.reason.trim(), expectedVersion: d.version,
@@ -248,7 +248,7 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
         </form>}
         {(d.reason !== 'Factory' || active.cartons.length > 0) && <SimpleTable rows={active.cartons} columns={[
           { header: 'Mã thùng / QR', cell: c => c.cartonId },
-          { header: 'Sửa khi đang soạn', cell: c => !admin && d.kind === 'Picking' && ['Open', 'Prepared'].includes(d.status) ? <div className="row-wrap">
+          { header: 'Sửa khi đang soạn', cell: c => !admin && (d.kind === 'Picking' || d.kind === 'Issue') && ['Open', 'Prepared'].includes(d.status) ? <div className="row-wrap">
             <button className="btn btn-sm" disabled={busy} onClick={() => setCartonEdit({ documentId: d.id, cartonCode: c.cartonId, replace: false, replacementCode: '', reason: '' })}>Bỏ thùng</button>
             <button className="btn btn-sm" disabled={busy} onClick={() => setCartonEdit({ documentId: d.id, cartonCode: c.cartonId, replace: true, replacementCode: '', reason: '' })}>Đổi thùng</button>
           </div> : 'Đã khóa / không áp dụng' }, { header: 'Pallet gốc / sản phẩm trong thùng', cell: c => { const m = active.pallets?.find(p => p.cartonCode === c.cartonId); return m ? `${m.palletCode} · ${m.unitsPerCarton} sản phẩm` : 'Hàng tồn cũ'; } }, { header: 'SKU', cell: c => active.lines.find(l => l.id === c.lineId)?.sku },
