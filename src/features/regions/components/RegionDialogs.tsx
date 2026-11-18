@@ -878,7 +878,10 @@ export function TransferStaffDialog({
           />
         </FormField>
         <FormField label="Nhóm hiện tại">
-          <div className="inp readonly">{current ? (current.groupCode ?? 'Chưa phân nhóm') : '—'}</div>
+          {/* Read-only value centred vertically in the 38px box like the inputs around it. */}
+          <div className="inp readonly" style={{ display: 'flex', alignItems: 'center', background: 'var(--c-surface-2)' }}>
+            {current ? (current.groupCode ?? 'Chưa phân nhóm') : '—'}
+          </div>
         </FormField>
         <FormField label="Nhóm đích" required>
           <Select

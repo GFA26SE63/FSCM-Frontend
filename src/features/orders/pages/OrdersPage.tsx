@@ -8,7 +8,7 @@ import {
   ActionDropdown,
   Button,
   DataTable,
-  Input,
+  DateInput,
   PageHeader,
   Select,
   StatusChip,
@@ -264,11 +264,7 @@ export function OrdersPage() {
             </label>
             <label className="lbl">
               Từ ngày
-              <Input
-                type="date"
-                value={from}
-                onChange={(event) => setFrom(event.target.value)}
-              />
+              <DateInput value={from} onChange={setFrom} />
             </label>
           </>
         }
