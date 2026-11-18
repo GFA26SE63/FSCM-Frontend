@@ -22,7 +22,7 @@ export function RegistrationActions({ code, size = 'sm', onDone }: { code: strin
       <ConfirmDialog
         open={mode === 'approve'}
         title={`Duyệt khai báo ${code}`}
-        message="Hệ thống cấp mã điểm bán 8 chữ số, gán nhóm bán hàng của người khai báo và gửi thông báo cho nhân viên bán hàng."
+        message="Hệ thống cấp mã nhà bán lẻ 8 chữ số, gán nhóm bán hàng của người khai báo và gửi thông báo cho nhân viên bán hàng."
         confirmLabel="Duyệt khai báo"
         onClose={() => setMode(null)}
         onConfirm={async () => {

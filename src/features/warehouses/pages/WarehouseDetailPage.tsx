@@ -226,14 +226,14 @@ export function WarehouseDetailPage() {
           </Card>
 
           <Card
-            title={`Khoảng cách đường bộ tới điểm bán (Dijkstra) · Bảng vận chuyển ${
+            title={`Khoảng cách đường bộ tới nhà bán lẻ (Dijkstra) · Bảng vận chuyển ${
               whData.transitTableVersion ? `v${whData.transitTableVersion}` : 'active'
             }`}
           >
             <SimpleTable
               columns={[
                 {
-                  header: 'Điểm bán',
+                  header: 'Nhà bán lẻ',
                   cell: (r) => (
                     <b>
                       {r.retailerCode} · {r.retailerName}
@@ -266,7 +266,7 @@ export function WarehouseDetailPage() {
                 },
               ]}
               rows={whData.retailerDistances ?? []}
-              empty="Chưa có dữ liệu khoảng cách tới điểm bán."
+              empty="Chưa có dữ liệu khoảng cách tới nhà bán lẻ."
             />
           </Card>
 

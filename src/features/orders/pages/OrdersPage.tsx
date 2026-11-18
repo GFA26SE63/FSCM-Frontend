@@ -63,6 +63,7 @@ export function OrdersPage() {
     'status', STATUS_VALUES, '', { resets: PAGE_RESETS },
   );
   const [from, setFrom] = useDateParam('from', { resets: PAGE_RESETS });
+  const [sort, setSort] = useEnumParam<'newest' | 'oldest'>('sort', ['newest', 'oldest'] as const, 'newest', { resets: PAGE_RESETS });
   const search = params.get('q') ?? undefined;
   const source = params.get('nguon') ?? undefined;
   // sizeParam wires the size selector to URL and resets cursors when changed.
@@ -130,7 +131,7 @@ export function OrdersPage() {
     },
     {
       key: 'retailer',
-      header: 'Điểm bán',
+      header: 'Nhà bán lẻ',
       text: (order) => `${order.retailerCode} ${order.retailerName}`,
       render: (order) => (
         <>
@@ -246,7 +247,7 @@ export function OrdersPage() {
         error={query.isPlaceholderData ? undefined : query.error}
         rowKey={(order) => order.id}
         columns={columns}
-        searchPlaceholder="Mã đơn, điểm bán, người đặt, trạng thái…"
+        searchPlaceholder="Mã đơn, nhà bán lẻ, người đặt, trạng thái…"
         cursor={pagingProps}
         serverSort={{ ...sortProps, sortableFields: ORDER_SORTABLE_FIELDS }}
         filters={[
@@ -277,6 +278,7 @@ export function OrdersPage() {
               Từ ngày
               <DateInput value={from} onChange={setFrom} />
             </label>
+            <label className="lbl">Thời gian<Select value={sort} options={[{ value: 'newest', label: 'Mới nhất' }, { value: 'oldest', label: 'Cũ nhất' }]} onChange={e => setSort(e.target.value as 'newest' | 'oldest')} /></label>
           </>
         }
         onRowClick={(order) => navigate(`/orders/${order.id}`)}

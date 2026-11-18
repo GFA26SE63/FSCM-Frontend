@@ -3,13 +3,13 @@ import type { DashboardCard } from './types';
 // Fixed presentation text emitted by the verified dashboard contract. Do not
 // replace words inside arbitrary names, codes or user-entered business reasons.
 const serverCopy: Record<string, string> = {
-  'Đang chờ Retailer xác nhận PO': 'Đang chờ điểm bán xác nhận báo giá',
+  'Đang chờ Retailer xác nhận PO': 'Đang chờ nhà bán lẻ xác nhận báo giá',
   'Shipment chờ xuất': 'Phiếu giao hàng chờ xuất',
   'Shipment ngoại lệ': 'Phiếu giao hàng cần xử lý phát sinh',
   'Tại các kho trong bộ lọc · kiểm tra readiness trước xuất': 'Tại các kho trong bộ lọc · kiểm tra điều kiện trước khi xuất kho',
   'Tỷ lệ báo giá thành PO': 'Tỷ lệ báo giá thành đơn thực hiện',
   'Đang giao quá ETA': 'Đang giao quá giờ nhận dự kiến',
-  'Đã rời kho, retailer chưa nhận, đã qua giờ dự kiến': 'Đã rời kho, điểm bán chưa nhận, đã qua giờ dự kiến',
+  'Đã rời kho, retailer chưa nhận, đã qua giờ dự kiến': 'Đã rời kho, nhà bán lẻ chưa nhận, đã qua giờ dự kiến',
   'Sales đã gửi, chờ Admin xét duyệt': 'Nhân viên bán hàng đã gửi, chờ quản trị viên xét duyệt',
   'Khu vực / nhóm Sales được quản lý': 'Khu vực / nhóm bán hàng được quản lý',
   'Doanh thu ghi nhận theo đơn Completed và thời điểm hoàn tất; giá trị đã trừ khuyến mãi và điều chỉnh.': 'Doanh thu ghi nhận theo đơn hoàn tất và thời điểm hoàn tất; giá trị đã trừ khuyến mãi và điều chỉnh.',
@@ -26,7 +26,7 @@ export function dashboardText(text: string): string {
 export function dashboardCardCopy(card: DashboardCard): DashboardCard {
   let note = dashboardText(card.note);
   if (card.key === 'fillRate') {
-    note = note.replace(/^([\d.,]+\/[\d.,]+) thùng retailer xác nhận nhận$/, '$1 thùng điểm bán xác nhận nhận');
+    note = note.replace(/^([\d.,]+\/[\d.,]+) thùng retailer xác nhận nhận$/, '$1 thùng nhà bán lẻ xác nhận nhận');
   }
   return { ...card, label: dashboardText(card.label), note };
 }

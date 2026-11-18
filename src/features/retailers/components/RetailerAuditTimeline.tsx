@@ -20,10 +20,10 @@ export function RetailerAuditTimeline({ retailer }: RetailerAuditTimelineProps) 
   // Event 1: Creation / Declaration
   if (retailer.createdAt) {
     events.push({
-      title: 'Khai báo hồ sơ điểm bán',
+      title: 'Khai báo hồ sơ nhà bán lẻ',
       timestamp: retailer.createdAt,
       actor: retailer.declaredByUserId ? 'Nhân viên bán hàng' : (retailer.source || 'Nhân viên bán hàng'),
-      description: `Khởi tạo hồ sơ điểm bán ${retailer.name} (${retailer.code}) với loại hình ${retailer.retailerType || retailer.kind || 'Điểm bán'}.`,
+      description: `Khởi tạo hồ sơ nhà bán lẻ ${retailer.name} (${retailer.code}) với loại hình ${retailer.retailerType || retailer.kind || 'Nhà bán lẻ'}.`,
       statusChip: 'Draft',
     });
   }
@@ -52,7 +52,7 @@ export function RetailerAuditTimeline({ retailer }: RetailerAuditTimelineProps) 
       actor: 'Ban quản trị hệ thống',
       description: retailer.locationVersion
         ? `Cập nhật thông tin chi tiết và định vị cửa hàng (Phiên bản vị trí: v${retailer.locationVersion}).`
-        : 'Cập nhật thông tin chi tiết điểm bán.',
+        : 'Cập nhật thông tin chi tiết nhà bán lẻ.',
     });
   }
 
@@ -60,9 +60,9 @@ export function RetailerAuditTimeline({ retailer }: RetailerAuditTimelineProps) 
     <div className="stack" style={{ gap: '20px' }}>
       <Callout tone="info">
         <div style={{ display: 'grid', gap: '6px' }}>
-          <strong>Lịch sử thay đổi điểm bán:</strong>
+          <strong>Lịch sử thay đổi nhà bán lẻ:</strong>
           <div>
-            Theo dõi toàn bộ các mốc quan trọng trong quá trình hoạt động của điểm bán, bao gồm thời điểm khai báo ban đầu từ nhân viên bán hàng, kết quả xét duyệt và các lần cập nhật thông tin gần nhất.
+            Theo dõi toàn bộ các mốc quan trọng trong quá trình hoạt động của nhà bán lẻ, bao gồm thời điểm khai báo ban đầu từ nhân viên bán hàng, kết quả xét duyệt và các lần cập nhật thông tin gần nhất.
           </div>
         </div>
       </Callout>
@@ -70,7 +70,7 @@ export function RetailerAuditTimeline({ retailer }: RetailerAuditTimelineProps) 
       <Card title="Lịch sử thay đổi hồ sơ">
         {events.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>
-            Chưa có thông tin thời gian vòng đời cho điểm bán này.
+            Chưa có thông tin thời gian vòng đời cho nhà bán lẻ này.
           </p>
         ) : (
           <div className="timeline">

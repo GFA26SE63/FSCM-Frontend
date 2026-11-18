@@ -131,12 +131,12 @@ export function RetailersPage() {
   return (
     <>
       <PageHeader
-        title="Điểm bán"
-        subtitle="Theo dõi khai báo từ nhân viên bán hàng, duyệt điểm bán và quản lý hồ sơ điểm bán."
+        title="Nhà bán lẻ"
+        subtitle="Theo dõi khai báo từ nhân viên bán hàng, duyệt nhà bán lẻ và quản lý hồ sơ nhà bán lẻ."
         actions={
           can(user, 'retailers.create') ? (
             <Button variant="primary" onClick={() => setCreateOpen(true)}>
-              + Tạo điểm bán
+              + Tạo nhà bán lẻ
             </Button>
           ) : undefined
         }

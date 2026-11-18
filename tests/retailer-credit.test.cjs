@@ -180,6 +180,8 @@ test('Source Code Integrity: CreditTermsCard, RetailerDetailPage, and OrderDetai
   // 1. CreditTermsCard contains required sections and fallback text
   assert.ok(creditCardCode.includes('Điều kiện mua công nợ'));
   assert.ok(creditCardCode.includes('Cấu hình điều kiện công nợ'));
+  assert.ok(creditCardCode.includes("key: 'creditLimit'"));
+  assert.ok(creditCardCode.includes('Hạn mức công nợ (VNĐ)'));
   assert.ok(creditCardCode.includes('Khách hàng hiện chưa đủ điều kiện mua công nợ. Có thể lựa chọn thanh toán trước.'));
   // The long rule explanations were removed from the UI on request.
   assert.ok(!creditCardCode.includes('Quy tắc tính hạn thanh toán và chốt kỳ hạn:'));
@@ -198,5 +200,6 @@ test('Source Code Integrity: CreditTermsCard, RetailerDetailPage, and OrderDetai
   // 4. API handles review/update credit terms and eligibility
   assert.ok(retailerApiCode.includes('order-eligibility'));
   assert.ok(retailerApiCode.includes('updateCreditTerms'));
+  assert.ok(retailerApiCode.includes('creditLimit: v.creditLimit'));
 });
 

@@ -3,6 +3,7 @@ import { IdFormat } from '@/shared/lib';
 import {
   useCreateRetailer,
   useRetailerLookups,
+  useUpdateCreditTerms,
   useUpdateRetailerProfile,
 } from '../hooks';
 import type { Retailer, UpdateRetailerProfilePayload } from '../types';
@@ -28,6 +29,7 @@ export function RetailerFormDialog({
   const { areas, groups } = useRetailerLookups(open);
   const create = useCreateRetailer();
   const updateProfile = useUpdateRetailerProfile();
+  const updateCreditTerms = useUpdateCreditTerms();
   const toast = useToast();
 
   if (!open) return null;
@@ -39,7 +41,7 @@ export function RetailerFormDialog({
       <Modal
         open
         width={500}
-        title={edit ? `Sửa thông tin hồ sơ ${retailer!.code}` : 'Tạo mới điểm bán'}
+        title={edit ? `Sửa thông tin hồ sơ ${retailer!.code}` : 'Tạo mới nhà bán lẻ'}
         onClose={onClose}
       >
         <div className="loading" style={{ padding: '36px 20px', textAlign: 'center' }}>
@@ -80,11 +82,11 @@ export function RetailerFormDialog({
     // The 8-digit code is issued by the system, so it is only shown (read-only) when editing.
     {
       key: 'code',
-      label: 'Mã điểm bán',
+      label: 'Mã nhà bán lẻ',
       readOnly: true,
       visible: () => edit,
     },
-    { key: 'name', label: 'Tên điểm bán', required: true, span: 2 },
+    { key: 'name', label: 'Tên nhà bán lẻ', required: true, span: 2 },
     { key: 'contactName', label: 'Người liên hệ', required: true },
     {
       key: 'phone',
@@ -130,7 +132,7 @@ export function RetailerFormDialog({
         />
       ),
     },
-    { key: 'retailerType', label: 'Loại hình điểm bán', type: 'select', options: KINDS },
+    { key: 'retailerType', label: 'Loại hình nhà bán lẻ', type: 'select', options: KINDS },
     {
       key: 'areaCode',
       label: 'Khu vực / Vùng hoạt động',
@@ -183,6 +185,14 @@ export function RetailerFormDialog({
       ],
     },
     {
+      key: 'creditLimit',
+      label: 'Hạn mức công nợ (VNĐ)',
+      type: 'number',
+      required: true,
+      visible: () => edit,
+      validate: (v) => Number(v) >= 0 ? undefined : 'Hạn mức công nợ không được âm.',
+    },
+    {
       key: 'status',
       label: 'Trạng thái hoạt động',
       type: 'select',
@@ -232,6 +242,7 @@ export function RetailerFormDialog({
         creditTermDays: String(
           retailer.requestedCreditTermDays ?? retailer.creditTermDays ?? 0,
         ),
+        creditLimit: String(retailer.creditLimit ?? 0),
         status: retailer.status || 'Active',
       }
     : {
@@ -263,9 +274,9 @@ export function RetailerFormDialog({
       open
       width={860}
       columns={3}
-      title={edit ? `Sửa thông tin hồ sơ ${retailer!.code}` : 'Tạo mới điểm bán'}
-      submitLabel={edit ? 'Lưu thay đổi' : 'Tạo điểm bán'}
-      note={edit ? undefined : 'Mã điểm bán do hệ thống tự cấp. Điểm bán mới ở trạng thái Chờ duyệt như khai báo của nhân viên bán hàng; kỳ hạn công nợ và tài khoản điểm bán được tạo khi duyệt. Cần khai báo ít nhất 1 yêu cầu HSD tối thiểu ở tab Yêu cầu hạn sử dụng trước khi duyệt.'}
+      title={edit ? `Sửa thông tin hồ sơ ${retailer!.code}` : 'Tạo mới nhà bán lẻ'}
+      submitLabel={edit ? 'Lưu thay đổi' : 'Tạo nhà bán lẻ'}
+      note={edit ? undefined : 'Mã nhà bán lẻ do hệ thống tự cấp. Nhà bán lẻ mới ở trạng thái Chờ duyệt như khai báo của nhân viên bán hàng; kỳ hạn công nợ và tài khoản nhà bán lẻ được tạo khi duyệt. Cần khai báo ít nhất 1 yêu cầu HSD tối thiểu ở tab Yêu cầu hạn sử dụng trước khi duyệt.'}
       initial={initialValues}
       fields={fields}
       onClose={onClose}
@@ -277,19 +288,29 @@ export function RetailerFormDialog({
         const sizeM2 = Number(v.storeSizeSquareMeters);
         const frequency = Number(v.purchaseFrequencyPerMonth || 4);
         const creditDays = Number(v.creditTermDays);
+        const creditLimit = Number(v.creditLimit);
 
         if (edit) {
-          if (!hasRetailerProfileChanges(initialValues, v)) {
+          const profileChanged = hasRetailerProfileChanges(initialValues, v);
+          const creditChanged = creditDays !== Number(initialValues.creditTermDays)
+            || creditLimit !== Number(initialValues.creditLimit);
+          if (!profileChanged && !creditChanged) {
             toast.show('Chưa có thay đổi nào.');
             return;
           }
           const retailerId = retailer!.id || retailer!.code;
-          const profilePayload: UpdateRetailerProfilePayload = retailerProfilePayload(v);
-
-          await updateProfile.mutateAsync({
-            retailerId,
-            payload: profilePayload,
-          });
+          if (profileChanged) {
+            const profilePayload: UpdateRetailerProfilePayload = retailerProfilePayload(v);
+            await updateProfile.mutateAsync({ retailerId, payload: profilePayload });
+          }
+          if (creditChanged) {
+            await updateCreditTerms.mutateAsync({
+              retailerId,
+              creditTermDays: creditDays as 0 | 7 | 14 | 30,
+              creditLimit,
+              reason: 'Cập nhật từ hồ sơ nhà bán lẻ.',
+            });
+          }
         } else {
           const selectedRegion = rawAreas.find((a) => a.code === v.areaCode || a.id === v.areaCode);
           const selectedGroup = rawGroups.find((g) => g.code === v.groupCode || g.id === v.groupCode);

@@ -28,7 +28,7 @@ export const retailerApi = {
   listAll: () => getAll<Retailer>('/retailers'),
   get: async (identifier: string): Promise<Retailer> => {
     if (!identifier) {
-      throw new ApiError(400, 'Mã điểm bán không hợp lệ.');
+      throw new ApiError(400, 'Mã nhà bán lẻ không hợp lệ.');
     }
 
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
@@ -54,7 +54,7 @@ export const retailerApi = {
     if (!match?.id) {
       throw new ApiError(
         404,
-        'Không tìm thấy điểm bán này. Thông tin có thể đã được thay đổi hoặc không còn tồn tại.',
+        'Không tìm thấy nhà bán lẻ này. Thông tin có thể đã được thay đổi hoặc không còn tồn tại.',
       );
     }
 
@@ -67,10 +67,10 @@ export const retailerApi = {
     retailerId: string,
     payload: UpdateRetailerProfilePayload,
   ): Promise<Retailer> => {
-    if (!retailerId) throw new ApiError(400, 'Mã định danh điểm bán không hợp lệ.');
+    if (!retailerId) throw new ApiError(400, 'Mã định danh nhà bán lẻ không hợp lệ.');
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(retailerId)) {
       const existing = await retailerApi.get(retailerId);
-      if (!existing.id) throw new ApiError(404, 'Không tìm thấy định danh điểm bán để cập nhật.');
+      if (!existing.id) throw new ApiError(404, 'Không tìm thấy định danh nhà bán lẻ để cập nhật.');
       retailerId = existing.id;
     }
     return put<Retailer>(`/retailers/${encodeURIComponent(retailerId)}/profile`, payload);
@@ -80,14 +80,14 @@ export const retailerApi = {
     payload: UpdateRetailerDeclarationPayload,
   ): Promise<Retailer> => {
     if (!retailerId) {
-      throw new ApiError(400, 'Mã định danh điểm bán không hợp lệ.');
+      throw new ApiError(400, 'Mã định danh nhà bán lẻ không hợp lệ.');
     }
 
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(retailerId);
     if (!isUuid) {
       const existing = await retailerApi.get(retailerId);
       if (!existing.id) {
-        throw new ApiError(404, 'Không tìm thấy định danh điểm bán để cập nhật.');
+        throw new ApiError(404, 'Không tìm thấy định danh nhà bán lẻ để cập nhật.');
       }
       retailerId = existing.id;
     }
@@ -175,6 +175,7 @@ export const retailerApi = {
     } catch {
       return await put<Retailer>(`/retailers/${encodeURIComponent(v.retailerId)}`, {
         creditTermDays: v.creditTermDays,
+        ...(v.creditLimit !== undefined ? { creditLimit: v.creditLimit } : {}),
         reviewReason: v.reason ?? null,
       });
     }

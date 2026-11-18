@@ -11,7 +11,7 @@ export const DASHBOARD_TITLES: Record<PortalRole, string> = {
 };
 export function dashboardTabs(role: PortalRole) {
   if (role === 'WarehouseKeeper') return [{ key: 'overview', label: 'Công việc kho' }, { key: 'inventory', label: 'Tồn kho & hạn sử dụng' }];
-  if (role === 'SalesManager') return [{ key: 'overview', label: 'Tổng quan nhóm' }, { key: 'sales', label: 'Thành viên & sản phẩm' }, { key: 'customers', label: 'Điểm bán & công nợ' }];
+  if (role === 'SalesManager') return [{ key: 'overview', label: 'Tổng quan nhóm' }, { key: 'sales', label: 'Thành viên & sản phẩm' }, { key: 'customers', label: 'Nhà bán lẻ & công nợ' }];
   // "Tổng quan" now also holds money and receivables (the old "Tiền & công nợ" tab); "Kinh doanh"
   // holds people, products and stores. No tile, chart or table appears on two tabs.
   const tabs = [{ key: 'overview', label: 'Tổng quan' }, { key: 'operations', label: 'Việc cần xử lý' },
@@ -40,7 +40,7 @@ export function visibleCards(cards: DashboardCard[], role: PortalRole, tab: stri
     : tab === 'health' ? []
     : tab === 'quality' ? CARD_KEYS.quality
     : tab === 'customers' ? CARD_KEYS.customers
-    // Sales Manager keeps store tiles on "Điểm bán & công nợ", so its "Thành viên & sản phẩm" tab has none.
+    // Sales Manager keeps store tiles on "Nhà bán lẻ & công nợ", so its "Thành viên & sản phẩm" tab has none.
     : tab === 'sales' ? (global ? CARD_KEYS.business : [])
     : global ? CARD_KEYS.overview : CARD_KEYS.managerOverview;
   return keys.flatMap(key => cards.filter(card => card.key === key));

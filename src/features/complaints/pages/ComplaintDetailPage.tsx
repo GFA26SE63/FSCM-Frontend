@@ -30,7 +30,7 @@ export function ComplaintDetailPage() {
           <Card>
             <Fields cols={3} items={[
               { label: 'Đơn hàng', value: <a href={`/orders/${c.salesOrderId}`} onClick={(e) => { e.preventDefault(); navigate(`/orders/${c.salesOrderId}`); }}>{c.orderCode}</a> },
-              { label: 'Điểm bán', value: `${c.retailerName} (${c.retailerCode})` },
+              { label: 'Nhà bán lẻ', value: `${c.retailerName} (${c.retailerCode})` },
               { label: 'Thời gian gửi', value: formatDateTime(c.createdAt) },
             ]} />
           </Card>
@@ -70,7 +70,7 @@ export function ComplaintDetailPage() {
               {mayRefund && c.refundId && <> · <a href="/refunds" onClick={(e) => { e.preventDefault(); navigate('/refunds'); }}>Xem phiếu hoàn tiền đã tạo</a></>}
             </Callout>
           )}
-          {c.status === 'Cancelled' && <Callout tone="neutral">Điểm bán đã hủy khiếu nại này.</Callout>}
+          {c.status === 'Cancelled' && <Callout tone="neutral">Nhà bán lẻ đã hủy khiếu nại này.</Callout>}
           <Card title="Bằng chứng đã gửi">
             {evidence.isLoading ? 'Đang tải…' : (evidence.data ?? []).length === 0 && !c.evidenceUrl ? 'Chưa có bằng chứng.' : (
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>

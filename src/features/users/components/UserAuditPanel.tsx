@@ -16,8 +16,8 @@ const actionLabels: Record<string, string> = {
   RegionUnassigned: 'Bỏ gán khu vực',
   SalesGroupAssigned: 'Gán nhóm bán hàng',
   SalesGroupUnassigned: 'Bỏ gán nhóm bán hàng',
-  RetailerAssigned: 'Gán điểm bán',
-  RetailerUnassigned: 'Bỏ gán điểm bán',
+  RetailerAssigned: 'Gán nhà bán lẻ',
+  RetailerUnassigned: 'Bỏ gán nhà bán lẻ',
 };
 
 export function UserAuditPanel({ userId }: { userId: string }) {

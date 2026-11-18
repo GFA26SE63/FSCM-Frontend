@@ -1,4 +1,4 @@
-import { get } from '@/shared/api/http';
+import { graphql } from '@/shared/api/graphql';
 import type { OrderSummary } from '@/features/orders/types';
 
 export interface AllocationOrdersPageQuery {
@@ -7,6 +7,7 @@ export interface AllocationOrdersPageQuery {
   search?: string;
   /** Filter by OrderStatus value. Empty string means no filter. */
   status?: string;
+  sort?: 'asc' | 'desc';
 }
 
 export interface AllocationOrdersPage {
@@ -15,7 +16,7 @@ export interface AllocationOrdersPage {
   totalPages: number;
 }
 
-interface RestOrderPage {
+interface GraphqlOrderPage {
   items: OrderSummary[];
   page: number;
   pageSize: number;
@@ -24,10 +25,7 @@ interface RestOrderPage {
 }
 
 /**
- * Fetch a single page of orders from the REST endpoint, specifically for the
- * Allocation Run monitoring view.
- *
- * Uses REST `GET /api/v1/orders` with server-side page/pageSize pagination.
+ * Lossless allocation monitoring read model via GraphQL `orderReads`.
  *
  * Supported server-side filters: status, search.
  *
@@ -39,12 +37,8 @@ interface RestOrderPage {
 export async function fetchAllocationOrdersPage(
   q: AllocationOrdersPageQuery,
 ): Promise<AllocationOrdersPage> {
-  const data = await get<RestOrderPage>('/orders', {
-    page: q.page,
-    pageSize: q.pageSize,
-    search: q.search || undefined,
-    status: q.status || undefined,
-  });
+  const result = await graphql<{ entities: { orderReads: GraphqlOrderPage } }>(`query AllocationOrderReads($status: String, $search: String, $page: Int!, $pageSize: Int!, $sort: String!) { entities { orderReads(status: $status, search: $search, page: $page, pageSize: $pageSize, sort: $sort) { items { id orderCode retailerId retailerCode retailerName salesGroupId createdByUserId status paymentMethod finalAmount finalPricePendingAllocation indicativeAmount officialAmount allocationState allocationRunId allocationResult shipmentCount totalCartons lineCount source version createdAt } page pageSize totalCount totalPages } } }`, { status: q.status, search: q.search, page: q.page, pageSize: q.pageSize, sort: q.sort ?? 'desc' });
+  const data = result.entities.orderReads;
   return {
     items: data.items ?? [],
     totalCount: data.totalCount,

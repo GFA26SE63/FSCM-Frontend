@@ -64,6 +64,7 @@ test('unchanged submit shows information without calling mutation or closing; ch
       useRetailerLookups: () => ({ areas: { data: [] }, groups: { data: [] } }),
       useCreateRetailer: () => ({ mutateAsync: async () => { throw new Error('Must not create'); } }),
       useUpdateRetailerProfile: () => ({ mutateAsync: async input => saves.push(input) }),
+      useUpdateCreditTerms: () => ({ mutateAsync: async () => { throw new Error('Credit terms should not change'); } }),
     },
   });
   const retailer = {

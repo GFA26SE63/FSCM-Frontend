@@ -219,7 +219,7 @@ test('Source Code Integrity: RetailerDetailPage implements 4-group Thông tin ch
   assert.ok(detailCode.includes('Phân loại diện tích'));
   assert.ok(detailCode.includes('Tần suất mua hàng'));
   assert.ok(detailCode.includes('Khả năng nộp duyệt'));
-  assert.ok(detailCode.includes('Ảnh mặt tiền điểm bán'));
+  assert.ok(detailCode.includes('Ảnh mặt tiền nhà bán lẻ'));
 
   // Sub-components integrated
   assert.ok(detailCode.includes('<RetailerMlorTab retailer={r} />'));
@@ -266,7 +266,7 @@ test('Source Code Integrity: RetailerAuditTimeline complies with architectural r
   );
 
   // Clean business UI check: NEVER expose technical notes or ProfileHistory/AuditLog to users
-  assert.ok(auditCode.includes('Lịch sử thay đổi điểm bán'));
+  assert.ok(auditCode.includes('Lịch sử thay đổi nhà bán lẻ'));
   assert.ok(auditCode.includes('Lịch sử thay đổi hồ sơ'));
   assert.ok(!auditCode.includes('ProfileHistory'), 'Should not expose ProfileHistory technical note to business users');
   assert.ok(!auditCode.includes('AuditLog'), 'Should not expose AuditLog technical note to business users');

@@ -53,6 +53,11 @@ export function PromosPage() {
   });
   const pause = usePausePromo();
   const activate = useActivatePromo();
+  const [dateSort, setDateSort] = useState<DateSortOrder>('newest');
+  const rows = useMemo(
+    () => sortByDate(query.data ?? [], (promo) => promo.startAt, dateSort),
+    [query.data, dateSort],
+  );
   const columns: Column<PromoSummary>[] = [
     { key: 'code', header: 'Mã', width: '110px', sortable: true, render: (p) => <span className="bold">{p.code}</span> },
     { key: 'name', header: 'Tên chương trình', sortable: true },

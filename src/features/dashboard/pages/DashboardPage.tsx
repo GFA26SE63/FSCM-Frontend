@@ -95,9 +95,9 @@ export function DashboardContent({ data, tab, onTabChange }: {
           { header: 'Còn phải thu', align: 'right', cell: b => <strong>{formatMoney(b.amount)}</strong> },
         ]} />
       </Card>
-      {global && <Card title="Điểm bán nợ nhiều nhất · 10 điểm ưu tiên theo quá hạn">
-        <SimpleTable compact rows={data.customers.filter(r => r.outstanding > 0).slice(0, 10)} empty="Không có điểm bán còn công nợ." columns={[
-          { header: 'Điểm bán', cell: r => <>{r.code}<br /><strong>{r.name}</strong></> },
+      {global && <Card title="Nhà bán lẻ nợ nhiều nhất · 10 điểm ưu tiên theo quá hạn">
+        <SimpleTable compact rows={data.customers.filter(r => r.outstanding > 0).slice(0, 10)} empty="Không có nhà bán lẻ còn công nợ." columns={[
+          { header: 'Nhà bán lẻ', cell: r => <>{r.code}<br /><strong>{r.name}</strong></> },
           { header: 'Còn phải thu', align: 'right', cell: r => formatMoney(r.outstanding) },
           { header: 'Quá hạn', align: 'right', cell: r => <strong style={{ color: r.overdue > 0 ? 'var(--c-danger)' : undefined }}>{formatMoney(r.overdue)}</strong> },
           { header: '', cell: r => <Button size="sm" onClick={() => navigate(`/retailers/${r.id}`)}>Xem</Button> },
@@ -136,7 +136,7 @@ export function DashboardContent({ data, tab, onTabChange }: {
         <SimpleTable rows={data.salesTeam} empty="Chưa có nhân viên bán hàng trong phạm vi này." columns={[
           { header: 'Thành viên / nhóm', cell: s => <>{s.name}<br /><span className="muted small">{s.groupCode}</span></> },
           { header: 'Đơn hoàn tất', align: 'right', cell: s => formatNumber(s.completedOrders) },
-          { header: 'Điểm bán phục vụ', align: 'right', cell: s => formatNumber(s.retailersServed) },
+          { header: 'Nhà bán lẻ phục vụ', align: 'right', cell: s => formatNumber(s.retailersServed) },
           { header: 'Doanh thu', align: 'right', cell: s => formatMoney(s.revenue) },
           { header: 'KPI tổng', align: 'right', cell: s => s.kpiCompletion == null ? 'Chưa cấu hình' : `${s.kpiCompletion.toFixed(1)}%` },
           { header: '', cell: s => <Button size="sm" onClick={() => navigate(`/kpi/sales/${s.id}/${s.groupId}`)}>Xem KPI</Button> },
@@ -145,9 +145,9 @@ export function DashboardContent({ data, tab, onTabChange }: {
       </Card>
       <TopProductsCard rows={data.topProducts} />
     </>}
-    {sections.customers && <Card title="Điểm bán trong phạm vi · 30 điểm ưu tiên theo công nợ và lần mua gần nhất">
+    {sections.customers && <Card title="Nhà bán lẻ trong phạm vi · 30 điểm ưu tiên theo công nợ và lần mua gần nhất">
       <SimpleTable rows={data.customers} columns={[
-        { header: 'Điểm bán', cell: r => <>{r.code}<br /><strong>{r.name}</strong></> },
+        { header: 'Nhà bán lẻ', cell: r => <>{r.code}<br /><strong>{r.name}</strong></> },
         { header: 'Trạng thái', cell: r => statusLabel('retailer', r.status) }, { header: 'Đơn trong kỳ', align: 'right', cell: r => formatNumber(r.periodOrders) },
         { header: 'Mua gần nhất', cell: r => r.lastOrderAt ? formatInstantDateTime(r.lastOrderAt) : 'Chưa có đơn' },
         { header: 'Tần suất dự kiến', cell: r => <>{r.expectedFrequencyPerMonth} lần/tháng{r.cycleOverdue && <><br /><Chip tone="warn">Quá chu kỳ mua</Chip></>}</> },
