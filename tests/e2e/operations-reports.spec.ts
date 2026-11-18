@@ -26,13 +26,14 @@ test('operator reports filter, show details, switch kinds and export every page'
     return route.fulfill({ json: { items, totalCount: 201, page: pageNumber, pageSize, summary: [{ label: 'Số bản ghi', value: 201 }], notes: ['Dữ liệu kiểm thử'] } });
   });
   await page.goto('/reports?kind=redemptions');
-  await expect(page.getByRole('heading', { name: 'Báo cáo chương trình & đổi quà' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Báo cáo đổi quà' })).toBeVisible();
   await page.getByRole('button', { name: 'Chi tiết', exact: true }).first().click();
   await expect(page.getByText('operator-approver', { exact: true })).toBeVisible();
   await expect(page.getByText('Nguyễn Văn Duyệt', { exact: true })).toBeVisible();
-  await page.getByLabel('Khu vực', { exact: true }).selectOption('region-hcm');
-  await page.getByPlaceholder('Mã hoặc tên retailer').fill('An Phú');
-  await page.getByRole('button', { name: 'Xem báo cáo', exact: true }).click();
+  // The report filter is a native select nested inside its visible label; use that
+  // supported structure rather than an inferred accessible-name association.
+  await page.locator('label.lbl', { hasText: 'Khu vực' }).locator('select').selectOption('region-hcm');
+  await page.getByPlaceholder('Mã hoặc tên điểm bán').fill('An Phú');
   await expect.poll(() => requests.at(-1)?.searchParams.get('retailer')).toBe('An Phú');
   await expect.poll(() => requests.at(-1)?.searchParams.get('regionId')).toBe('region-hcm');
   await page.getByRole('button', { name: 'Sau', exact: true }).click();
@@ -45,18 +46,18 @@ test('operator reports filter, show details, switch kinds and export every page'
   expect(csv).toContain('request-200');
   expect(csv).toContain("'=UNSAFE()");
   expect(requests.filter(url => url.searchParams.get('pageSize') === '200')).toHaveLength(2);
-  await page.getByRole('tab', { name: 'Biến động loyalty', exact: true }).click();
+  const menu = page.getByRole('navigation', { name: 'Danh mục chức năng', exact: true });
+  await menu.getByRole('link', { name: 'Báo cáo tích điểm', exact: true }).click();
   await expect.poll(() => requests.at(-1)?.pathname).toContain('/loyalty');
-  await page.getByRole('tab', { name: 'Sử dụng khuyến mãi', exact: true }).click();
+  await menu.getByRole('link', { name: 'Báo cáo khuyến mãi', exact: true }).click();
   await expect.poll(() => requests.at(-1)?.pathname).toContain('/promotions');
   await expect(page.getByRole('columnheader', { name: 'Tiền giảm (đ)' })).toBeVisible();
-  const menu = page.getByRole('navigation', { name: 'Menu', exact: true });
   await menu.getByRole('link', { name: 'Báo cáo đổi quà', exact: true }).click();
   await expect(page).toHaveURL(/kind=redemptions/);
-  await expect(page.getByRole('tab', { name: 'Báo cáo đổi quà', exact: true })).toHaveAttribute('aria-selected', 'true');
-  await menu.getByRole('link', { name: 'Báo cáo loyalty', exact: true }).click();
+  await expect(menu.getByRole('link', { name: 'Báo cáo đổi quà', exact: true })).toHaveClass(/active/);
+  await menu.getByRole('link', { name: 'Báo cáo tích điểm', exact: true }).click();
   await expect(page.getByRole('columnheader', { name: 'Biến động điểm' })).toBeVisible();
-  await expect(menu.getByRole('link', { name: 'Báo cáo loyalty', exact: true })).toHaveClass(/active/);
+  await expect(menu.getByRole('link', { name: 'Báo cáo tích điểm', exact: true })).toHaveClass(/active/);
   await page.goBack();
-  await expect(page.getByRole('tab', { name: 'Báo cáo đổi quà', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(menu.getByRole('link', { name: 'Báo cáo đổi quà', exact: true })).toHaveClass(/active/);
 });

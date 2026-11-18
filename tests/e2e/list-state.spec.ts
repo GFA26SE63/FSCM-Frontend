@@ -97,6 +97,7 @@ test('Orders: filters, search, date and page survive detail → back / breadcrum
   await label(page, 'Trạng thái').locator('select').selectOption('Delivering');
   await label(page, 'Từ ngày').locator('input').fill('2026-11-02');
   await label(page, 'Tìm kiếm').locator('input').fill('Cửa hàng');
+  await expect.poll(() => params(page).get('q')).toBe('Cửa hàng');
   await page.locator('.pager').getByRole('button', { name: '2', exact: true }).click();
 
   expect(params(page).get('status')).toBe('Delivering');
@@ -140,7 +141,7 @@ test('Orders: filters, search, date and page survive detail → back / breadcrum
 
   // Clearing the search removes only q.
   await label(page, 'Tìm kiếm').locator('input').fill('');
-  expect(params(page).get('q')).toBeNull();
+  await expect.poll(() => params(page).get('q')).toBeNull();
   expect(params(page).get('nguon')).toBe('Offline');
 
   // List filters are client-side where the GraphQL entity model does not expose a filter;
@@ -152,9 +153,10 @@ test('Orders: invalid URL params fall back to safe defaults', async ({ page }) =
   await setup(page);
   await page.goto('/orders?status=%3Cscript%3E&size=999&from=2026-99-99');
   await expect(page.locator('table.tbl tbody tr')).toHaveCount(20);
-  await expect(label(page, 'Trạng thái').locator('select')).toHaveValue('Tất cả');
+  await expect(label(page, 'Trạng thái').locator('select')).toHaveValue('');
   await expect(label(page, 'Từ ngày').locator('input')).toHaveValue('');
-  await expect(page.locator('.pager')).toContainText('Trang 1');
+  await expect(page.getByRole('navigation', { name: 'Phân trang dữ liệu' })
+    .getByRole('button', { name: '1', exact: true })).toHaveAttribute('aria-current', 'page');
 });
 
 test('Users (server paging): debounced search, filters and page restored via "← Quay lại"', async ({ page }) => {
@@ -213,7 +215,7 @@ test('Fleet: active tab and per-tab table state are kept separately and survive 
 test('Scroll position of a long list is restored when returning from a detail; a new screen opens at the top', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 420 });
   await setup(page);
-  await page.goto('/orders');
+  await page.goto('/orders?size=10');
   await expect(page.locator('table.tbl tbody tr')).toHaveCount(10);
   const scroller = page.locator('.page');
   await scroller.evaluate((el) => { el.scrollTop = 500; });
@@ -226,6 +228,6 @@ test('Scroll position of a long list is restored when returning from a detail; a
   expect(await scroller.evaluate((el) => el.scrollTop)).toBe(0);
 
   await page.goBack();
-  await expect(page).toHaveURL(/\/orders$/);
+  await expect(page).toHaveURL(/\/orders\?size=10$/);
   await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBe(saved);
 });
