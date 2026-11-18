@@ -121,33 +121,40 @@ interface RawRetailerDistance {
   withinRange?: boolean;
 }
 
-// entities.warehouses cursor resolver (replaces removed flat warehouses/warehouse resolvers)
-// When includeInactive is false, filter to isActive: true via where clause.
-// inventory field does NOT exist on WarehouseEntity — omitted; detail falls back to REST /batches.
-const WAREHOUSES_LIST_QUERY = `
-  query WarehousesList($where: WarehouseEntityFilterInput) {
-    entities {
-      warehouses(first: 500, where: $where) {
-        nodes {
-          id
-          code
-          name
-          address
-          latitude
-          longitude
-          warehouseType
-          capacityPallets
-          minStockPerSku
-          isActive
+// inventory field does NOT exist on WarehouseEntity — detail falls back to REST /batches.
+// HC0047: first/last must be literals in the query string, not variables.
+function buildWarehousesListQuery(first: number, hasAfter: boolean): string {
+  const afterArg = hasAfter ? ', after: $after' : '';
+  const afterDecl = hasAfter ? ', $after: String!' : '';
+  return `
+    query WarehousesList($where: WarehouseEntityFilterInput${afterDecl}) {
+      entities {
+        warehouses(first: ${first}${afterArg}, where: $where) {
+          nodes {
+            id
+            code
+            name
+            address
+            latitude
+            longitude
+            warehouseType
+            capacityPallets
+            minStockPerSku
+            isActive
+            regionId
+            createdAt
+            updatedAt
+          }
+          pageInfo { hasNextPage endCursor }
+          totalCount
         }
-        totalCount
       }
     }
-  }
-`;
+  `;
+}
 
-const WAREHOUSE_DETAIL_WITH_INV_QUERY = `
-  query WarehouseDetailBasicById($id: UUID!) {
+const WAREHOUSE_DETAIL_QUERY = `
+  query WarehouseDetailById($id: UUID!) {
     entities {
       warehouses(first: 1, where: { id: { eq: $id } }) {
         nodes {
@@ -161,6 +168,9 @@ const WAREHOUSE_DETAIL_WITH_INV_QUERY = `
           capacityPallets
           minStockPerSku
           isActive
+          regionId
+          createdAt
+          updatedAt
         }
       }
     }
@@ -416,21 +426,38 @@ export const warehouseApi = {
   async list(includeInactive = true): Promise<Warehouse[]> {
     try {
       const where = includeInactive ? undefined : { isActive: { eq: true } };
-      const data = await graphql<{ entities: { warehouses: { nodes: RawWarehouse[] } } }>(
-        WAREHOUSES_LIST_QUERY,
-        { where },
-      );
-      const nodes = data?.entities?.warehouses?.nodes;
-      if (Array.isArray(nodes)) {
-        const items = nodes.map(normalizeWarehouse).map(rememberWarehouse);
+      const allNodes: RawWarehouse[] = [];
+      let after: string | undefined;
+      let hasNextPage = true;
+
+      while (hasNextPage) {
+        const query = buildWarehousesListQuery(500, !!after);
+        const vars: Record<string, unknown> = { where };
+        if (after) vars.after = after;
+        const data = await graphql<{
+          entities: {
+            warehouses: {
+              nodes: RawWarehouse[];
+              pageInfo: { hasNextPage: boolean; endCursor: string | null };
+              totalCount: number;
+            };
+          };
+        }>(query, vars);
+        const conn = data?.entities?.warehouses;
+        if (!conn || !Array.isArray(conn.nodes)) break;
+        allNodes.push(...conn.nodes);
+        hasNextPage = !!(conn.pageInfo?.hasNextPage && conn.pageInfo?.endCursor);
+        if (hasNextPage) after = conn.pageInfo.endCursor ?? undefined;
+      }
+
+      if (allNodes.length > 0) {
+        const items = allNodes.map(normalizeWarehouse).map(rememberWarehouse);
         return enrichKeepersFromUsers(items);
       }
     } catch (err) {
       console.warn('[warehouseApi.list] GraphQL failed, falling back to REST:', err);
     }
-    const res = await getAll<RawWarehouse>("/warehouses", {
-      includeInactive: true,
-    });
+    const res = await getAll<RawWarehouse>("/warehouses", { includeInactive });
     const items = res.map(normalizeWarehouse).map(rememberWarehouse);
     return enrichKeepersFromUsers(items);
   },
@@ -445,7 +472,7 @@ export const warehouseApi = {
     if (isUuid(targetId)) {
       try {
         const data = await graphql<{ entities: { warehouses: { nodes: RawWarehouse[] } } }>(
-          WAREHOUSE_DETAIL_WITH_INV_QUERY,
+          WAREHOUSE_DETAIL_QUERY,
           { id: targetId },
         );
         const node = data?.entities?.warehouses?.nodes?.[0];
