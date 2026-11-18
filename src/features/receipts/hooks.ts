@@ -7,6 +7,29 @@ import { useAuth } from '@/shared/auth/AuthContext';
 import { useApiMutation } from '@/shared/hooks';
 
 import { receiptApi } from './api';
+import { fetchReceiptLineTotals, fetchReceiptsPage, type ReceiptsPageQuery } from './receiptsGraphql';
+
+/** Server-side cursor-paginated receipts via GraphQL entities.goodsReceipts. */
+export const useReceiptsPage = (q: ReceiptsPageQuery) =>
+  useQuery({
+    queryKey: ['receipts', 'page', q],
+    queryFn: () => fetchReceiptsPage(q),
+    placeholderData: (prev) => prev,
+    retry: false,
+    staleTime: 15_000,
+  });
+
+/** One batched request set per page: line count + total quantity per receipt. Never throws. */
+export const useReceiptLineTotalsForPage = (receiptIds: string[]) => {
+  const ids = [...receiptIds].sort();
+  return useQuery({
+    queryKey: ['receipts', 'lineTotals', ids],
+    queryFn: () => fetchReceiptLineTotals(ids),
+    enabled: ids.length > 0,
+    staleTime: 15_000,
+    retry: false,
+  });
+};
 
 export function useReceipts(warehouseId?: string) {
   const { user } = useAuth();

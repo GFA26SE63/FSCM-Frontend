@@ -3,7 +3,7 @@ import { Can } from '@/shared/auth/Can';
 import { useNavigate } from '@/shared/router/compat';
 import { useEnumParam, useStringParam, useQueryParams } from '@/shared/router/listState';
 import { useCursorPagination } from '@/shared/pagination';
-import { parsePageSize } from '@/shared/pagination/urlSync';
+import { decodeSort, PAGINATION_PARAM_NAMES, PAGINATION_RESETS, parsePageSize } from '@/shared/pagination/urlSync';
 import {
   Button,
   DataTable,
@@ -16,7 +16,7 @@ import { statusLabels } from '@/shared/lib';
 import { useCategoryOptions, useProductsPage, useProductPricesForPage } from '../hooks';
 import { ProductActions } from '../components/ProductActions';
 import { lifeText, priceText } from '../utils';
-import { PRODUCTS_PAGE_SIZES, type ProductPageSize } from '../productsGraphql';
+import { PRODUCTS_PAGE_SIZES, PRODUCTS_SORT_MAP, PRODUCTS_SORTABLE_FIELDS, type ProductPageSize, type ProductSortField } from '../productsGraphql';
 import type { Product } from '../types';
 
 const STATUS_VALUES = ['', 'Draft', 'Published', 'Inactive'] as const;
@@ -30,7 +30,7 @@ const STATUS_FILTER_OPTIONS = [
 ];
 
 const SIZE_VALUES = PRODUCTS_PAGE_SIZES.map(String) as `${ProductPageSize}`[];
-const PAGE_RESETS = ['after', 'before', 'page'];
+const PAGE_RESETS = PAGINATION_RESETS;
 
 export function ProductsPage() {
   const navigate = useNavigate();
@@ -54,6 +54,12 @@ export function ProductsPage() {
 
   const [categoryFilter, setCategoryFilter] = useStringParam('category', { resets: PAGE_RESETS });
 
+  // Read sort from URL synchronously before the query
+  const rawSort = decodeSort(params.get(PAGINATION_PARAM_NAMES.SORT));
+  const activeSort = rawSort?.field && PRODUCTS_SORT_MAP[rawSort.field as ProductSortField]
+    ? { field: rawSort.field as ProductSortField, direction: rawSort.direction }
+    : undefined;
+
   const categoriesQuery = useCategoryOptions();
 
   const query = useProductsPage({
@@ -63,9 +69,10 @@ export function ProductsPage() {
     status: statusFilter || undefined,
     categoryId: categoryFilter || undefined,
     search: search || undefined,
+    sort: activeSort,
   });
 
-  const { pagingProps } = useCursorPagination({
+  const { pagingProps, sortProps } = useCursorPagination({
     pageInfo: query.data?.pageInfo,
     totalCount: query.data?.totalCount,
     loading: query.isLoading || query.isFetching,
@@ -112,12 +119,14 @@ export function ProductsPage() {
       key: 'sku',
       header: 'SKU',
       width: '95px',
+      sortable: true,
       render: (p) => <span className="bold">{p.sku}</span>,
     },
     {
       key: 'name',
       header: 'Tên sản phẩm',
       width: '260px',
+      sortable: true,
     },
     {
       key: 'categoryName',
@@ -171,6 +180,7 @@ export function ProductsPage() {
         columns={columns}
         searchPlaceholder="SKU, tên, danh mục…"
         cursor={pagingProps}
+        serverSort={{ ...sortProps, sortableFields: PRODUCTS_SORTABLE_FIELDS }}
         filterExtra={
           <>
             <label className="lbl">

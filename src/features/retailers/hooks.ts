@@ -1,7 +1,34 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApiMutation } from '@/shared/hooks';
 import { retailerApi } from './api';
+import { fetchRetailersPage, fetchRetailerSalesGroups, type RetailersPageQuery } from './retailersGraphql';
 import type { RetailerRow, SetMlorPayload, UpdateRetailerDeclarationPayload, UpdateRetailerProfilePayload } from './types';
+
+/** Server-side cursor-paginated retailers via GraphQL entities.retailers. */
+export const useRetailersPage = (q: RetailersPageQuery) =>
+  useQuery({
+    queryKey: ['retailers', 'page', q],
+    queryFn: () => fetchRetailersPage(q),
+    placeholderData: (prev) => prev,
+    retry: false,
+    staleTime: 15_000,
+  });
+
+/**
+ * Batch-fetch active sales-group codes for the given retailer IDs via
+ * entities.retailerSalesAssignments + entities.salesGroups.
+ * Returns a Map<retailerId, salesGroupCode>. Never throws — errors yield an empty map.
+ */
+export const useRetailerSalesGroupsForPage = (retailerIds: string[]) => {
+  const sortedIds = [...retailerIds].sort();
+  return useQuery({
+    queryKey: ['retailers', 'salesGroups', sortedIds],
+    queryFn: () => fetchRetailerSalesGroups(sortedIds),
+    enabled: sortedIds.length > 0,
+    staleTime: 60_000,
+    retry: false,
+  });
+};
 
 /** Retailers + pending/rejected registrations merged into one list (Approved registrations already exist as retailers). */
 export const useRetailerRows = () =>

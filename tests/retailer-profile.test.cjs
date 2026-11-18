@@ -189,7 +189,9 @@ test('Source Code Integrity: RetailersPage implements standardized Thao tác, di
   // Filtering and searching
   assert.ok(pageCode.includes('STATUS_FILTER_OPTIONS'));
   assert.ok(pageCode.includes("header: 'Nhóm bán hàng'"));
-  assert.ok(pageCode.includes('searchPlaceholder="Mã, tên điểm bán, người liên hệ, SĐT..."'));
+  // Phase C.1: contact fields (contactName/phone) are not GraphQL-exposed — search placeholder
+  // now covers only code/name/address, matching entities.retailers' searchable fields.
+  assert.ok(pageCode.includes('searchPlaceholder="Mã, tên điểm bán, địa chỉ..."'));
 });
 
 test('Source Code Integrity: RetailerDetailPage implements 4-group Thông tin chung, MLOR F22-FE, and Audit Timeline', () => {

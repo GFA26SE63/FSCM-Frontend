@@ -28,6 +28,19 @@ import type { Product } from './types';
 export const PRODUCTS_PAGE_SIZES = [10, 20, 50] as const;
 export type ProductPageSize = (typeof PRODUCTS_PAGE_SIZES)[number];
 
+/**
+ * Sortable columns for the Products list.
+ * Keys match DataTable column keys; values are GraphQL field names on ProductEntity.
+ * createdAt excluded — no createdAt column in the table; default sort still uses createdAt DESC.
+ * price excluded — comes from a separate entities.productPrices batch, not on the entity.
+ */
+export const PRODUCTS_SORT_MAP = {
+  name: 'name',
+  sku: 'sku',
+} as const;
+export type ProductSortField = keyof typeof PRODUCTS_SORT_MAP;
+export const PRODUCTS_SORTABLE_FIELDS = Object.keys(PRODUCTS_SORT_MAP) as readonly ProductSortField[];
+
 export interface ProductsPageQuery {
   size: ProductPageSize;
   after?: string;
@@ -35,6 +48,8 @@ export interface ProductsPageQuery {
   status?: string;
   categoryId?: string;
   search?: string;
+  /** User-selected sort. Default when absent: createdAt DESC, id DESC. */
+  sort?: { field: ProductSortField; direction: 'asc' | 'desc' };
 }
 
 interface RawProductNode {
@@ -81,6 +96,15 @@ function mapNode(n: RawProductNode): Product {
     createdAt: n.createdAt,
     updatedAt: n.updatedAt,
   };
+}
+
+function buildOrderClause(sort?: ProductsPageQuery['sort']): string {
+  if (sort && PRODUCTS_SORT_MAP[sort.field]) {
+    const gqlField = PRODUCTS_SORT_MAP[sort.field];
+    const dir = sort.direction === 'asc' ? 'ASC' : 'DESC';
+    return `order: [{ ${gqlField}: ${dir} }, { id: DESC }]`;
+  }
+  return 'order: [{ createdAt: DESC }, { id: DESC }]';
 }
 
 function buildFilter(q: ProductsPageQuery): {
@@ -136,7 +160,7 @@ export function buildProductsPageQuery(q: ProductsPageQuery): {
     variables.after = q.after;
   }
 
-  const order = 'order: [{ createdAt: DESC }, { id: DESC }]';
+  const order = buildOrderClause(q.sort);
   const decl = declarations.length ? `(${declarations.join(', ')})` : '';
 
   const query = `query ProductsPage${decl} {

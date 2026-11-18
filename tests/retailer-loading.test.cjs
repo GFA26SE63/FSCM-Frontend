@@ -162,10 +162,11 @@ test('Navigation Integrity: RetailersPage always passes row.id to navigate to de
     'utf8',
   );
 
-  // Both row click and Xem button pass row.id
-  assert.ok(pageCode.includes('onRowClick={(row) => navigate(`/retailers/${row.id || row.code}`)}'));
-  assert.ok(pageCode.includes('onClick={() => navigate(`/retailers/${row.id || row.code}`)}'));
-  assert.ok(pageCode.includes('rowKey={(row) => row.id ?? row.code}'));
+  // Phase C.1: GraphQL rows (entities.retailers) always carry a non-null id —
+  // the id || code fallback was only needed for the old REST DTO's optional id.
+  assert.ok(pageCode.includes('onRowClick={(row) => navigate(`/retailers/${row.id}`)}'));
+  assert.ok(pageCode.includes('onClick={() => navigate(`/retailers/${row.id}`)}'));
+  assert.ok(pageCode.includes('rowKey={(row) => row.id}'));
 });
 
 test('Error State Handling: RetailerDetailPage specifies user-friendly Vietnamese messages and retry actions', () => {

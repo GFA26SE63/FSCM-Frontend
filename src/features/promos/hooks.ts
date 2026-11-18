@@ -1,9 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
 import { useApiMutation } from '@/shared/hooks';
 import { promoApi } from './api';
+import { fetchPromosPage, type PromosPageQuery } from './promosGraphql';
 import { useAuth } from '@/shared/auth/AuthContext';
 import type { PromoDetail } from './types';
 
+/** Server-side cursor-paginated promotions via GraphQL entities.promotions. */
+export const usePromosPage = (q: PromosPageQuery) =>
+  useQuery({
+    queryKey: ['promos', 'page', q],
+    queryFn: () => fetchPromosPage(q),
+    placeholderData: (prev) => prev,
+    retry: false,
+    staleTime: 15_000,
+  });
 export const usePromos = () => useQuery({ queryKey: ['promos', 'list'], queryFn: promoApi.list });
 export const usePromo = (id: string) => useQuery({ queryKey: ['promos', 'detail', id], queryFn: () => promoApi.get(id) });
 export const usePromoLookups = () => ({

@@ -5,6 +5,8 @@ import { can } from '@/shared/auth/permissions';
 import { useApiMutation } from '@/shared/hooks';
 
 import { fleetApi } from './api';
+import { fetchFleetCount, fetchFleetPage, type FleetKind, type FleetPageQuery } from './fleetGraphql';
+import type { Driver, Vehicle } from './types';
 
 function useFleetAccess() {
   const { user } = useAuth();
@@ -13,6 +15,33 @@ function useFleetAccess() {
     ownerId: user?.id,
     allowed: can(user, 'fleet.manage'),
   };
+}
+
+/** Cursor-paginated vehicles/drivers via GraphQL (server-side search, filter, sort). */
+export function useFleetPage<T extends Vehicle | Driver>(q: FleetPageQuery) {
+  const { ownerId, allowed } = useFleetAccess();
+
+  return useQuery({
+    queryKey: ['fleet', ownerId, 'page', q],
+    queryFn: () => fetchFleetPage<T>(q),
+    enabled: allowed,
+    placeholderData: (prev) => prev,
+    retry: false,
+    staleTime: 15_000,
+  });
+}
+
+/** Unfiltered total for a tab badge. */
+export function useFleetCount(kind: FleetKind) {
+  const { ownerId, allowed } = useFleetAccess();
+
+  return useQuery({
+    queryKey: ['fleet', ownerId, 'count', kind],
+    queryFn: () => fetchFleetCount(kind),
+    enabled: allowed,
+    retry: false,
+    staleTime: 15_000,
+  });
 }
 
 export function useVehicles() {

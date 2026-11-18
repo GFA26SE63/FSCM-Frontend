@@ -1,5 +1,6 @@
 import { http, get, getAll, post } from '@/shared/api/http';
 import { ApiError } from '@/shared/api/errors';
+import { findReceiptIdByCode } from './receiptsGraphql';
 
 import type {
   CreateGoodsReceiptRequest,
@@ -44,13 +45,11 @@ async function getReceipt(idOrCode: string): Promise<ReceiptDetail> {
     return get<ReceiptDetail>(`/goods-receipts/${encodeURIComponent(value)}`);
   }
 
-  const receipts = await getAll<ReceiptDetail>('/goods-receipts');
+  // Code → id via one GraphQL lookup (was: download every receipt and scan). Scope is
+  // still enforced server-side; the detail itself stays on REST.
+  const id = await findReceiptIdByCode(value);
 
-  const receipt = receipts.find(
-    (item) => item.receiptCode?.toLowerCase() === value.toLowerCase(),
-  );
-
-  if (!receipt) {
+  if (!id) {
     throw new ApiError(
       404,
       'Không tìm thấy phiếu nhập',
@@ -58,7 +57,7 @@ async function getReceipt(idOrCode: string): Promise<ReceiptDetail> {
     );
   }
 
-  return get<ReceiptDetail>(`/goods-receipts/${encodeURIComponent(receipt.id)}`);
+  return get<ReceiptDetail>(`/goods-receipts/${encodeURIComponent(id)}`);
 }
 
 interface RawWarehouseResult {
