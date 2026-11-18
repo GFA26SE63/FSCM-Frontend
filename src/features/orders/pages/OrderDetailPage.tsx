@@ -516,13 +516,6 @@ function OrderBody({
                 },
               ]}
             />
-            {order.paymentMethod === 'Credit' && (
-              <div style={{ marginTop: '12px' }}>
-                <Callout tone="neutral">
-                  <b>Quy tắc công nợ áp dụng cho đơn:</b> Đơn hàng áp dụng kỳ hạn đã chốt lúc đặt đơn là <b>{order.creditTermDays} ngày</b>. Hạn thanh toán được tính từ mốc nhận đủ hàng (hoặc ngày hoàn tất xử lý khiếu nại), không tính từ thời điểm đặt đơn và không bị thay đổi bởi các điều chỉnh hồ sơ điểm bán sau này.
-                </Callout>
-              </div>
-            )}
           </Card>
 
           <Card

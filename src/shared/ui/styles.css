@@ -279,3 +279,10 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-lay
 .date-input-btn { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: 6px; background: transparent; color: var(--c-muted); cursor: pointer; }
 .date-input-btn:hover:not(:disabled) { background: var(--c-surface-2); color: var(--c-primary); }
 .date-input-native { position: absolute; right: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; border: 0; padding: 0; }
+/* A table inside a card keeps its pager off the table border. */
+.card-bd .tbl-wrap + .pager, .card-pad .tbl-wrap + .pager { margin-top: 12px; }
+/* DataTable nowrap: one line per row, horizontal scroll instead of wrapping. */
+.tbl-nowrap { overflow-x: auto; }
+.tbl-nowrap table.tbl { table-layout: auto; }
+.tbl-nowrap .tbl td { white-space: nowrap; overflow-wrap: normal; }
+.tbl-nowrap .tbl .actions { flex-wrap: nowrap; }

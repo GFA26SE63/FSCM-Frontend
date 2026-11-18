@@ -124,22 +124,6 @@ export function CreditTermsCard({ retailer, receivables }: CreditTermsCardProps)
           </div>
         )}
 
-        <Callout tone="neutral">
-          <div style={{ fontSize: '13px', lineHeight: 1.6 }}>
-            <b>Quy tắc tính hạn thanh toán và chốt kỳ hạn:</b>
-            <ul style={{ margin: '4px 0 0 18px', padding: 0 }}>
-              <li>
-                <b>Mốc tính hạn:</b> Bắt đầu tính từ ngày <b>nhận đủ hàng</b> (hoặc ngày giải quyết xong khiếu nại nếu có), <b>không tính từ thời điểm đặt đơn</b>.
-              </li>
-              <li>
-                <b>Công thức:</b> <code>Ngày đến hạn = Ngày nhận đủ hàng + Kỳ hạn công nợ ({retailer.creditTermDays || 0} ngày)</code>.
-              </li>
-              <li>
-                <b>Kỳ hạn riêng cho từng đơn:</b> Mỗi đơn hàng lưu kỳ hạn công nợ riêng tại thời điểm đặt. Việc cập nhật kỳ hạn của điểm bán sau này không làm thay đổi hạn thanh toán của các đơn đã tạo trước đó.
-              </li>
-            </ul>
-          </div>
-        </Callout>
       </div>
 
       {configOpen && (

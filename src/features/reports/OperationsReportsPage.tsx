@@ -144,7 +144,7 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
       <div className="report-summary" style={{ gridTemplateColumns: `repeat(${summaryColumns(data.summary.length)}, minmax(0, 1fr))` }}>
         {data.summary.map(s => <Stat key={s.label} label={s.label} value={formatNumber(s.value)} />)}
       </div>
-      <Card title={`${title} · ${formatNumber(data.totalCount)} bản ghi`}>
+      <Card title={title}>
         <div className="report-table"><SimpleTable rows={data.items} columns={[
           ...tableCols.map(col => ({ header: col.label, align: col.numeric ? 'right' as const : undefined, cell: (row: Row) => display(row, col, kind) })),
           { header: '', align: 'right', cell: row => <div className="report-actions">
@@ -156,7 +156,7 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
         ]} /></div>
         <div className="row-wrap" style={{ padding: 12, gap: 16 }}>
           <Button disabled={page === 1 || query.isFetching} onClick={() => setPage(p => p - 1)}>Trước</Button>
-          <span>Trang {page} / {Math.max(1, Math.ceil(data.totalCount / data.pageSize))}</span>
+          <span>Trang {page} / {Math.max(1, Math.ceil(data.totalCount / data.pageSize))} · {formatNumber(data.totalCount)} bản ghi</span>
           <Button disabled={page * data.pageSize >= data.totalCount || query.isFetching} onClick={() => setPage(p => p + 1)}>Sau</Button>
         </div>
       </Card>
