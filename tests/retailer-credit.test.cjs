@@ -181,9 +181,8 @@ test('Source Code Integrity: CreditTermsCard, RetailerDetailPage, and OrderDetai
   assert.ok(creditCardCode.includes('Điều kiện mua công nợ'));
   assert.ok(creditCardCode.includes('Cấu hình điều kiện công nợ'));
   assert.ok(creditCardCode.includes('Khách hàng hiện chưa đủ điều kiện mua công nợ. Có thể lựa chọn thanh toán trước.'));
-  assert.ok(creditCardCode.includes('Quy tắc tính hạn thanh toán và chốt kỳ hạn:'));
-  assert.ok(creditCardCode.includes('Bắt đầu tính từ ngày <b>nhận đủ hàng</b>'));
-  assert.ok(creditCardCode.includes('Kỳ hạn riêng cho từng đơn:'));
+  // The long rule explanations were removed from the UI on request.
+  assert.ok(!creditCardCode.includes('Quy tắc tính hạn thanh toán và chốt kỳ hạn:'));
 
   // 2. RetailerDetailPage imports and renders CreditTermsCard
   assert.ok(retailerDetailCode.includes('CreditTermsCard'));
@@ -194,7 +193,7 @@ test('Source Code Integrity: CreditTermsCard, RetailerDetailPage, and OrderDetai
   // 3. OrderDetailPage renders snapshot and due date trigger note
   assert.ok(orderDetailCode.includes('Kỳ hạn chốt lúc đặt đơn'));
   assert.ok(orderDetailCode.includes('Hạn thanh toán'));
-  assert.ok(orderDetailCode.includes('Quy tắc công nợ áp dụng cho đơn:'));
+  assert.ok(!orderDetailCode.includes('Quy tắc công nợ áp dụng cho đơn:'));
 
   // 4. API handles review/update credit terms and eligibility
   assert.ok(retailerApiCode.includes('order-eligibility'));

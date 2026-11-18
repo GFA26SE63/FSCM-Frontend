@@ -33,8 +33,29 @@ test('Admin and Operator see all report tabs; Keeper and Manager see their own r
   assert.deepEqual(model.dashboardTabs('SalesManager').map(x=>x.key), ['overview','sales','customers']);
   const cards=['revenue','allocationIssues','receiptPending','expired'].map(key=>({key}));
   assert.deepEqual(model.visibleCards(cards,'WarehouseKeeper','overview').map(c=>c.key),['receiptPending','expired']);
-  assert.deepEqual(model.visibleCards(cards,'Operator','overview').map(c=>c.key),['allocationIssues']);
+  // Operator's overview now shows money tiles; queue tiles live only on 'Việc cần xử lý'.
+  assert.deepEqual(model.visibleCards(cards,'Operator','overview').map(c=>c.key),['revenue']);
+  assert.deepEqual(model.visibleCards(cards,'Operator','operations').map(c=>c.key),['allocationIssues']);
   assert.deepEqual(model.visibleCards(cards,'Admin','overview').map(c=>c.key),['revenue']);
+});
+test('finance merges into overview and no block appears on two tabs', () => {
+  assert.deepEqual(model.dashboardTabs('Admin').map(t=>t.key),['overview','operations','inventory','quality','sales','health']);
+  const tabs=model.dashboardTabs('Admin').map(t=>t.key);
+  for (const role of ['Admin','Operator','SalesManager','WarehouseKeeper']) {
+    const roleTabs=model.dashboardTabs(role).map(t=>t.key);
+    const owners={};
+    for (const tab of roleTabs) for (const [block,on] of Object.entries(model.dashboardSections(role,tab))) if (on) (owners[block] ??= []).push(tab);
+    for (const [block,where] of Object.entries(owners)) if (role!=='WarehouseKeeper' || block!=='stock') assert.equal(where.length,1,role+' '+block+' on '+where);
+    const all=['revenue','completed','collected','outstanding','overdue','prepaid','allocationIssues','quotesPending','cycleOverdue','newRetailers','fillRate','receiptPending'].map(key=>({key}));
+    const seen={};
+    for (const tab of roleTabs) for (const c of model.visibleCards(all,role,tab)) (seen[c.key] ??= []).push(tab);
+    if (role!=='WarehouseKeeper' && role!=='SalesManager') for (const [key,where] of Object.entries(seen)) assert.equal(where.length,1,role+' '+key+' on '+where);
+  }
+  assert.ok(tabs.includes('sales'));
+  assert.equal(model.dashboardSections('Admin','overview').work,false);
+  assert.equal(model.dashboardSections('Admin','operations').work,true);
+  assert.equal(model.dashboardSections('SalesManager','overview').work,true);
+  assert.equal(model.nextShown(10,35),20); assert.equal(model.nextShown(30,35),35);
 });
 test('duplicate tiles are gone and each tab gets its own card set', () => {
   const cards=['shipmentsReady','prepaid','revenue','fillRate','cycleOverdue','lowStock'].map(key=>({key}));
@@ -126,4 +147,14 @@ test('dashboard picking link shows and expands the requested sheet, with a way b
   search='';const all=renderToStaticMarkup(React.createElement(RunPickingPage));
   assert.equal(requests.at(-1).pickingCode,undefined);
   assert.match(all,/PK-TARGET/);assert.match(all,/PK-OTHER/);assert.doesNotMatch(all,/Xem tất cả phiếu/);
+});
+
+test('date filters show dd/mm/yyyy and send ISO dates', () => {
+  const d=source('shared/ui/DateInput.tsx');
+  assert.equal(d.isoToVnDate('2026-11-08'),'08/11/2026');
+  assert.equal(d.vnToIsoDate('8/11/2026'),'2026-11-08');
+  assert.equal(d.vnToIsoDate('31/02/2026'),null);
+  assert.equal(d.vnToIsoDate('11/2026'),null);
+  assert.equal(d.vnToIsoDate(''),'');
+  assert.equal(d.maskVnDate('08112026'),'08/11/2026');
 });
