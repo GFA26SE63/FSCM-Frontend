@@ -1,8 +1,9 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { Can } from '@/shared/auth/Can';
 import { useNavigate } from '@/shared/router/compat';
-import { useEnumParam, useStringParam } from '@/shared/router/listState';
-import { useRestPagination, paginationQueryKeys } from '@/shared/pagination';
+import { useEnumParam, useStringParam, useQueryParams } from '@/shared/router/listState';
+import { useCursorPagination } from '@/shared/pagination';
+import { decodeSort, PAGINATION_PARAM_NAMES, PAGINATION_RESETS, parsePageSize } from '@/shared/pagination/urlSync';
 import {
   Button,
   DataTable,
@@ -12,10 +13,10 @@ import {
   type Column,
 } from '@/shared/ui';
 import { statusLabels } from '@/shared/lib';
-import { productApi } from '../api';
-import { useCategoryOptions } from '../hooks';
+import { useCategoryOptions, useProductsPage, useProductPricesForPage } from '../hooks';
 import { ProductActions } from '../components/ProductActions';
 import { lifeText, priceText } from '../utils';
+import { PRODUCTS_PAGE_SIZES, PRODUCTS_SORT_MAP, PRODUCTS_SORTABLE_FIELDS, type ProductPageSize, type ProductSortField } from '../productsGraphql';
 import type { Product } from '../types';
 
 const STATUS_VALUES = ['', 'Draft', 'Published', 'Inactive'] as const;
@@ -28,43 +29,83 @@ const STATUS_FILTER_OPTIONS = [
   { label: statusLabels.product['Inactive'], value: 'Inactive' },
 ];
 
+const SIZE_VALUES = PRODUCTS_PAGE_SIZES.map(String) as `${ProductPageSize}`[];
+const PAGE_RESETS = PAGINATION_RESETS;
+
 export function ProductsPage() {
   const navigate = useNavigate();
+  const { params } = useQueryParams();
+
+  // Read cursor params directly from URL
+  const after = params.get('after') ?? undefined;
+  const before = after ? undefined : (params.get('before') ?? undefined);
+  const pageSize = parsePageSize(params.get('size'), PRODUCTS_PAGE_SIZES, 20) as ProductPageSize;
+  const search = params.get('q') ?? undefined;
+
+  // Wire size selector to URL; resets cursors when changed
+  useEnumParam<`${ProductPageSize}`>('size', SIZE_VALUES, '20', { resets: PAGE_RESETS });
 
   const [statusFilter, setStatusFilter] = useEnumParam<StatusValue>(
     'status',
     STATUS_VALUES,
     '',
-    { resets: ['page'] },
+    { resets: PAGE_RESETS },
   );
 
-  const [categoryFilter, setCategoryFilter] = useStringParam('category', { resets: ['page'] });
+  const [categoryFilter, setCategoryFilter] = useStringParam('category', { resets: PAGE_RESETS });
 
-  const { page, pageSize, search, pagingProps: basePagingProps } = useRestPagination({
+  // Read sort from URL synchronously before the query
+  const rawSort = decodeSort(params.get(PAGINATION_PARAM_NAMES.SORT));
+  const activeSort = rawSort?.field && PRODUCTS_SORT_MAP[rawSort.field as ProductSortField]
+    ? { field: rawSort.field as ProductSortField, direction: rawSort.direction }
+    : undefined;
+
+  const categoriesQuery = useCategoryOptions();
+
+  const query = useProductsPage({
+    size: pageSize,
+    after,
+    before,
+    status: statusFilter || undefined,
+    categoryId: categoryFilter || undefined,
+    search: search || undefined,
+    sort: activeSort,
+  });
+
+  const { pagingProps, sortProps } = useCursorPagination({
+    pageInfo: query.data?.pageInfo,
+    totalCount: query.data?.totalCount,
+    loading: query.isLoading || query.isFetching,
+    error: query.isPlaceholderData ? undefined : query.error,
     defaultPageSize: 20,
-    pageSizeOptions: [10, 20, 50],
+    pageSizeOptions: PRODUCTS_PAGE_SIZES,
     urlState: true,
   });
 
-  const query = useQuery({
-    queryKey: paginationQueryKeys.restPage('products', {
-      page,
-      size: pageSize,
-      search,
-      filters: { status: statusFilter, categoryId: categoryFilter },
-    }),
-    queryFn: () =>
-      productApi.listPage({
-        page,
-        pageSize,
-        search: search || undefined,
-        status: statusFilter || undefined,
-        categoryId: categoryFilter || undefined,
-      }),
-    placeholderData: (prev) => prev,
-  });
+  // Collect product IDs for price batch fetch (stable reference — only changes when page changes)
+  const pageProductIds = useMemo(
+    () => (query.data?.rows ?? []).map((p) => p.id),
+    [query.data?.rows],
+  );
+  const pricesQuery = useProductPricesForPage(pageProductIds);
 
-  const categoriesQuery = useCategoryOptions();
+  // Enrich rows: category names from cache, prices from entities.productPrices batch
+  const rows = useMemo(() => {
+    const cats = categoriesQuery.data ?? [];
+    const prices = pricesQuery.data;
+    return (query.data?.rows ?? []).map((p) => {
+      const cat = (p.categoryCode && p.categoryName)
+        ? undefined
+        : cats.find((c) => c.id === p.productCategoryId);
+      const price = prices?.get(p.id) ?? null;
+      const enriched = {
+        ...p,
+        ...(cat ? { categoryCode: cat.code, categoryName: cat.name } : {}),
+        currentUnitPrice: price,
+      };
+      return enriched;
+    });
+  }, [query.data?.rows, categoriesQuery.data, pricesQuery.data]);
 
   const categoryOptions = [
     { label: 'Tất cả danh mục', value: '' },
@@ -73,21 +114,19 @@ export function ProductsPage() {
       .map((c) => ({ label: `${c.code} · ${c.name}`, value: c.id })),
   ];
 
-  const totalCount = query.data?.totalCount ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-  const pagingProps = { ...basePagingProps, total: totalCount, totalPages };
-
   const columns: Column<Product>[] = [
     {
       key: 'sku',
       header: 'SKU',
       width: '95px',
+      sortable: true,
       render: (p) => <span className="bold">{p.sku}</span>,
     },
     {
       key: 'name',
       header: 'Tên sản phẩm',
       width: '260px',
+      sortable: true,
     },
     {
       key: 'categoryName',
@@ -134,13 +173,14 @@ export function ProductsPage() {
 
       <DataTable
         title="Danh sách sản phẩm"
-        rows={query.data?.items}
-        loading={query.isLoading || query.isPlaceholderData}
+        rows={rows}
+        loading={query.isLoading || query.isPlaceholderData || categoriesQuery.isLoading}
         error={query.isPlaceholderData ? undefined : query.error}
         rowKey={(p) => p.id}
         columns={columns}
         searchPlaceholder="SKU, tên, danh mục…"
-        server={pagingProps}
+        cursor={pagingProps}
+        serverSort={{ ...sortProps, sortableFields: PRODUCTS_SORTABLE_FIELDS }}
         filterExtra={
           <>
             <label className="lbl">

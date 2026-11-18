@@ -43,6 +43,20 @@ import type { OrderStatus, OrderSummary, PaymentMethod } from './types';
 export const ORDER_PAGE_SIZES = [10, 20, 50] as const;
 export type OrderPageSize = (typeof ORDER_PAGE_SIZES)[number];
 
+/**
+ * Sortable columns for the Orders list.
+ * Keys match DataTable column keys; values are the GraphQL field names on SalesOrderEntity.
+ * Only fields confirmed on FSCM.Domain.Entities.SalesOrder with [UseSorting] are listed.
+ * Use an explicit allowlist — never interpolate arbitrary user-supplied field names.
+ */
+export const ORDER_SORT_MAP = {
+  createdAt: 'createdAt',
+  orderCode: 'orderCode',
+  amount: 'finalAmount',
+} as const;
+export type OrderSortField = keyof typeof ORDER_SORT_MAP;
+export const ORDER_SORTABLE_FIELDS = Object.keys(ORDER_SORT_MAP) as readonly OrderSortField[];
+
 export interface OrdersPageQuery {
   size: OrderPageSize;
   after?: string;
@@ -52,7 +66,8 @@ export interface OrdersPageQuery {
   search?: string;
   /** Vietnam local date yyyy-MM-dd — backend receives as ISO DateTime (Vietnam midnight UTC+7). */
   from?: string;
-  sort?: 'newest' | 'oldest';
+  /** User-selected sort. Default when absent: createdAt DESC, id DESC. */
+  sort?: { field: OrderSortField; direction: 'asc' | 'desc' };
 }
 
 interface OrdersConnection {
@@ -131,6 +146,20 @@ function mapNode(n: SalesOrderNode): OrderSummary {
   };
 }
 
+/**
+ * Build the GraphQL order clause as a safe literal string.
+ * Only fields in ORDER_SORT_MAP are ever injected — user-supplied field names
+ * never reach the query string directly.
+ */
+function buildOrderClause(sort?: OrdersPageQuery['sort']): string {
+  if (sort && ORDER_SORT_MAP[sort.field]) {
+    const gqlField = ORDER_SORT_MAP[sort.field];
+    const dir = sort.direction === 'asc' ? 'ASC' : 'DESC';
+    return `order: [{ ${gqlField}: ${dir} }, { id: DESC }]`;
+  }
+  return 'order: [{ createdAt: DESC }, { id: DESC }]';
+}
+
 /** Build the filter conditions and variable declarations. */
 function buildFilter(q: OrdersPageQuery) {
   const conditions: string[] = [];
@@ -183,8 +212,7 @@ export function buildOrdersPageQuery(q: OrdersPageQuery): { query: string; varia
     variables.after = q.after;
   }
 
-  const direction = q.sort === 'oldest' ? 'ASC' : 'DESC';
-  const order = `order: [{ createdAt: ${direction} }, { id: ${direction} }]`;
+  const order = buildOrderClause(q.sort);
   const decl = declarations.length ? `(${declarations.join(', ')})` : '';
 
   // Only request fields confirmed on FSCM.Domain.Entities.SalesOrder.

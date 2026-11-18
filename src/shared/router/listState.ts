@@ -78,10 +78,10 @@ export function useQueryParams() {
 
 interface ParamOptions {
   /** Các tham số bị xóa cùng lúc khi giá trị đổi (thường là trang hiện tại). */
-  resets?: string[];
+  resets?: readonly string[];
 }
 
-function resetUpdates(resets: string[] | undefined): ParamUpdates {
+function resetUpdates(resets: readonly string[] | undefined): ParamUpdates {
   return Object.fromEntries((resets ?? []).map((k) => [k, null]));
 }
 
