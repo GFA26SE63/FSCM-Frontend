@@ -36,7 +36,8 @@ test('Retailer Edit: "Sửa thông tin" button action in RetailerDetailPage and 
   assert.ok(detailCode.includes("const mayEdit = can(user, 'retailers.edit')"));
   assert.ok(detailCode.includes('Sửa thông tin'));
   assert.ok(detailCode.includes('onClick={() => setEdit(true)}'));
-  assert.ok(detailCode.includes('<RetailerFormDialog open={edit} retailer={r} onClose={() => setEdit(false)} />'));
+  assert.ok(detailCode.includes('<RetailerInlineEditor retailer={r} onCancel={() => setEdit(false)} />'));
+  assert.ok(detailCode.includes('chế độ chỉ đọc'));
 
   // Authorization rule check
   const permissions = source('shared/auth/permissions.ts', {

@@ -23,9 +23,11 @@ import { MlorRuleDialog } from './MlorRuleDialog';
 
 interface RetailerMlorTabProps {
   retailer: Retailer;
+  /** Child actions are deliberately unavailable until the parent detail page enters edit mode. */
+  editing: boolean;
 }
 
-export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
+export function RetailerMlorTab({ retailer, editing }: RetailerMlorTabProps) {
   const { user } = useAuth();
   const mayRead = can(user, 'mlor.read');
   const mayManage = can(user, 'mlor.manage');
@@ -96,6 +98,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
         <Callout tone="info">Đang tải yêu cầu hạn sử dụng và danh mục sản phẩm…</Callout>}
       {(configsQuery.error || productsQuery.error || categoriesQuery.error) &&
         <Callout tone="danger">Không tải đầy đủ yêu cầu hạn sử dụng hoặc danh mục sản phẩm. Vui lòng tải lại trước khi chỉnh sửa.</Callout>}
+      {mayManage && !editing && <Callout tone="info">Chế độ chỉ xem đang bật. Chọn <strong>Sửa thông tin</strong> ở đầu trang để thêm, sửa hoặc xóa yêu cầu hạn sử dụng.</Callout>}
       {/* MLOR Precedence Rule Callout */}
       <Callout tone="info">
         <div style={{ display: 'grid', gap: '6px' }}>
@@ -115,7 +118,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
       <Card
         title="1. Áp dụng theo danh mục"
         actions={
-          mayManage ? (
+          mayManage && editing ? (
             <Button
               variant="primary"
               size="sm"
@@ -143,7 +146,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
             },
             {
               header: 'Tỷ lệ HSD tối thiểu',
-              align: 'right',
+              align: 'right' as const,
               width: '160px',
               cell: (r) => `${(r.minimumLifeRatio * 100).toFixed(0)}% (${formatNumber(r.minimumLifeRatio, 2)})`,
             },
@@ -153,11 +156,11 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
               width: '160px',
               cell: (r) => (r.minimumLifeHours != null ? `${r.minimumLifeHours} giờ` : '—'),
             },
-            {
+            ...(mayManage && editing ? [{
               header: 'Thao tác',
               align: 'right',
               width: '180px',
-              cell: (r) =>
+              cell: (r: MlorConfigItem) =>
                 mayManage ? (
                   <div className="row-wrap" style={{ justifyContent: 'flex-end', gap: 8 }}>
                   <Button size="sm" disabled={!lookupsReady} onClick={() => setEditingConfig(r)}>Sửa</Button>
@@ -170,7 +173,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
                   </Button>
                   </div>
                 ) : null,
-            },
+            }] : []),
           ]}
         />
       </Card>
@@ -179,7 +182,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
       <Card
         title="2. Yêu cầu riêng theo sản phẩm"
         actions={
-          mayManage ? (
+          mayManage && editing ? (
             <Button
               variant="primary"
               size="sm"
@@ -207,7 +210,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
             },
             {
               header: 'Tỷ lệ HSD tối thiểu',
-              align: 'right',
+              align: 'right' as const,
               width: '160px',
               cell: (r) => `${(r.minimumLifeRatio * 100).toFixed(0)}% (${formatNumber(r.minimumLifeRatio, 2)})`,
             },
@@ -217,11 +220,11 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
               width: '160px',
               cell: (r) => (r.minimumLifeHours != null ? `${r.minimumLifeHours} giờ` : '—'),
             },
-            {
+            ...(mayManage && editing ? [{
               header: 'Thao tác',
               align: 'right',
               width: '180px',
-              cell: (r) =>
+              cell: (r: MlorConfigItem) =>
                 mayManage ? (
                   <div className="row-wrap" style={{ justifyContent: 'flex-end', gap: 8 }}>
                   <Button size="sm" disabled={!lookupsReady} onClick={() => setEditingConfig(r)}>Sửa</Button>
@@ -234,7 +237,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
                   </Button>
                   </div>
                 ) : null,
-            },
+            }] : []),
           ]}
         />
       </Card>

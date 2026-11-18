@@ -25,7 +25,7 @@ import {
   useRetailerLoyalty,
   useRetailerReceivables,
 } from '../hooks';
-import { RetailerFormDialog } from '../components/RetailerFormDialog';
+import { RetailerInlineEditor } from '../components/RetailerInlineEditor';
 import { RetailerReviewDialog } from '../components/RetailerReviewDialog';
 import { CreditTermsCard } from '../components/CreditTermsCard';
 import { RetailerMlorTab } from '../components/RetailerMlorTab';
@@ -154,11 +154,9 @@ function RetailerView({ r }: { r: Retailer }) {
         actions={
           mayEdit || mayReview ? (
             <div style={{ display: 'inline-flex', gap: 8 }}>
-              {mayEdit && (
-                <Button variant="default" onClick={() => setEdit(true)}>
-                  Sửa thông tin
-                </Button>
-              )}
+              {mayEdit && (edit ? <><Button onClick={() => setEdit(false)}>Hủy</Button><Button variant="primary" onClick={() => document.getElementById('retailer-inline-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Đang sửa</Button></> : (
+                <Button variant="default" onClick={() => setEdit(true)}>Sửa thông tin</Button>
+              ))}
               {mayReview && (
                 <Button variant="primary" onClick={() => setReview(true)}>
                   Xét duyệt
@@ -190,8 +188,11 @@ function RetailerView({ r }: { r: Retailer }) {
         ]}
       />
 
-      {tab === 'info' && (
+      {tab === 'info' && (edit ? (
+        <div id="retailer-inline-editor"><RetailerInlineEditor retailer={r} onCancel={() => setEdit(false)} /></div>
+      ) : (
         <div className="stack" style={{ gap: '20px' }}>
+          {mayEdit && <div className="callout callout-info">Bạn đang xem thông tin ở chế độ chỉ đọc. Chọn <strong>Sửa thông tin</strong> để mở khóa các trường có thể thay đổi.</div>}
           {/* A. Thông tin liên hệ */}
           <Card title="A. Thông tin liên hệ">
             <Fields
@@ -337,17 +338,16 @@ function RetailerView({ r }: { r: Retailer }) {
             />
           </Card>
         </div>
-      )}
+      ))}
 
       {tab === 'mlor' && mayReadMlor && (
-        <RetailerMlorTab retailer={r} />
+        <RetailerMlorTab retailer={r} editing={edit} />
       )}
 
       {tab === 'debt' && <DebtTab retailer={r} />}
 
       {tab === 'hist' && <RetailerAuditTimeline retailer={r} />}
 
-      <RetailerFormDialog open={edit} retailer={r} onClose={() => setEdit(false)} />
       {review && <RetailerReviewDialog retailer={{ id: r.id ?? '', code: r.code ?? '' }} onClose={() => setReview(false)} />}
     </>
   );
