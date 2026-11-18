@@ -63,6 +63,8 @@ export function OrdersPage() {
     'status', STATUS_VALUES, '', { resets: PAGE_RESETS },
   );
   const [from, setFrom] = useDateParam('from', { resets: PAGE_RESETS });
+  const search = params.get('q') ?? undefined;
+  const source = params.get('nguon') ?? undefined;
   // sizeParam wires the size selector to URL and resets cursors when changed.
   // The raw value is not used directly — pageSize is derived above via parsePageSize.
   useEnumParam<`${OrderPageSize}`>('size', SIZE_VALUES, '20', { resets: PAGE_RESETS });
@@ -74,6 +76,8 @@ export function OrdersPage() {
     before,
     status: statusFilter || undefined,
     from: from || undefined,
+    source,
+    search,
   });
 
   // Phase 0 cursor pagination hook — reads same URL params, provides navigation callbacks
