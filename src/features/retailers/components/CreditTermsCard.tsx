@@ -83,7 +83,9 @@ export function CreditTermsCard({ retailer, receivables }: CreditTermsCardProps)
             },
             {
               label: 'Hạn mức công nợ',
-              value: '— (Kiểm soát theo kỳ hạn và chặn quá hạn)',
+              value: retailer.creditLimit != null
+                ? formatMoney(retailer.creditLimit)
+                : 'Chưa thiết lập',
             },
             {
               label: 'Dư nợ hiện tại',
@@ -136,6 +138,7 @@ export function CreditTermsCard({ retailer, receivables }: CreditTermsCardProps)
           submitLabel="Lưu cấu hình"
           initial={{
             creditTermDays: String(retailer.creditTermDays ?? 0),
+            creditLimit: String(retailer.creditLimit ?? 0),
             reason: '',
           }}
           fields={[
@@ -152,6 +155,13 @@ export function CreditTermsCard({ retailer, receivables }: CreditTermsCardProps)
               ],
             },
             {
+              key: 'creditLimit',
+              label: 'Hạn mức công nợ (VNĐ)',
+              type: 'number',
+              required: true,
+              validate: (value) => Number(value) >= 0 ? undefined : 'Hạn mức công nợ không được âm.',
+            },
+            {
               key: 'reason',
               label: 'Lý do phê duyệt / cập nhật',
               type: 'textarea',
@@ -164,6 +174,7 @@ export function CreditTermsCard({ retailer, receivables }: CreditTermsCardProps)
             await updateCredit.mutateAsync({
               retailerId: retailer.id ?? retailer.code,
               creditTermDays: Number(v.creditTermDays) as 0 | 7 | 14 | 30,
+              creditLimit: Number(v.creditLimit),
               reason: v.reason || undefined,
             });
             setConfigOpen(false);

@@ -175,6 +175,7 @@ export const retailerApi = {
     } catch {
       return await put<Retailer>(`/retailers/${encodeURIComponent(v.retailerId)}`, {
         creditTermDays: v.creditTermDays,
+        ...(v.creditLimit !== undefined ? { creditLimit: v.creditLimit } : {}),
         reviewReason: v.reason ?? null,
       });
     }

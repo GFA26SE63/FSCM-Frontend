@@ -152,9 +152,9 @@ function RetailerView({ r }: { r: Retailer }) {
         subtitle={r.address || 'Chưa có thông tin địa chỉ'}
         chips={<StatusChip domain="active" value={r.status} />}
         actions={
-          mayEdit || mayReview ? (
+          (tab === 'info' && mayEdit) || mayReview ? (
             <div style={{ display: 'inline-flex', gap: 8 }}>
-              {mayEdit && (
+              {tab === 'info' && mayEdit && (
                 <Button variant="default" onClick={() => setEdit(true)}>
                   Sửa thông tin
                 </Button>
