@@ -121,66 +121,52 @@ interface RawRetailerDistance {
   withinRange?: boolean;
 }
 
-const WAREHOUSES_QUERY = `
-  query Warehouses($includeInactive: Boolean) {
-    warehouses(includeInactive: $includeInactive) {
-      id
-      code
-      name
-      address
-      latitude
-      longitude
-      warehouseType
-      capacityPallets
-      minStockPerSku
-      isActive
-    }
-  }
-`;
-
-const WAREHOUSE_DETAIL_WITH_INV_QUERY = `
-  query WarehouseDetailWithInv($id: UUID!) {
-    warehouse(id: $id) {
-      id
-      code
-      name
-      address
-      latitude
-      longitude
-      warehouseType
-      capacityPallets
-      minStockPerSku
-      isActive
-      inventory {
-        batchId
-        batchCode
-        productCode
-        productName
-        expiryDate
-        quantityOnHand
-        quantityReserved
-        quantityAvailable
+// entities.warehouses cursor resolver (replaces removed flat warehouses/warehouse resolvers)
+// When includeInactive is false, filter to isActive: true via where clause.
+// inventory field does NOT exist on WarehouseEntity — omitted; detail falls back to REST /batches.
+const WAREHOUSES_LIST_QUERY = `
+  query WarehousesList($where: WarehouseEntityFilterInput) {
+    entities {
+      warehouses(first: 500, where: $where) {
+        nodes {
+          id
+          code
+          name
+          address
+          latitude
+          longitude
+          warehouseType
+          capacityPallets
+          minStockPerSku
+          isActive
+        }
+        totalCount
       }
     }
   }
 `;
 
-const WAREHOUSE_DETAIL_BASIC_QUERY = `
-  query WarehouseDetailBasic($id: UUID!) {
-    warehouse(id: $id) {
-      id
-      code
-      name
-      address
-      latitude
-      longitude
-      warehouseType
-      capacityPallets
-      minStockPerSku
-      isActive
+const WAREHOUSE_DETAIL_WITH_INV_QUERY = `
+  query WarehouseDetailBasicById($id: UUID!) {
+    entities {
+      warehouses(first: 1, where: { id: { eq: $id } }) {
+        nodes {
+          id
+          code
+          name
+          address
+          latitude
+          longitude
+          warehouseType
+          capacityPallets
+          minStockPerSku
+          isActive
+        }
+      }
     }
   }
 `;
+
 
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
@@ -427,22 +413,20 @@ export const warehouseApi = {
     await patch(`/regions/${id}/status`, { isActive });
   },
 
-  async list(): Promise<Warehouse[]> {
+  async list(includeInactive = true): Promise<Warehouse[]> {
     try {
-      const data = await graphql<{ warehouses: RawWarehouse[] }>(
-        WAREHOUSES_QUERY,
-        {
-          includeInactive: true,
-        },
+      const where = includeInactive ? undefined : { isActive: { eq: true } };
+      const data = await graphql<{ entities: { warehouses: { nodes: RawWarehouse[] } } }>(
+        WAREHOUSES_LIST_QUERY,
+        { where },
       );
-      if (Array.isArray(data?.warehouses)) {
-        const items = data.warehouses
-          .map(normalizeWarehouse)
-          .map(rememberWarehouse);
+      const nodes = data?.entities?.warehouses?.nodes;
+      if (Array.isArray(nodes)) {
+        const items = nodes.map(normalizeWarehouse).map(rememberWarehouse);
         return enrichKeepersFromUsers(items);
       }
-    } catch {
-      // Fallback to REST GET /api/v1/warehouses
+    } catch (err) {
+      console.warn('[warehouseApi.list] GraphQL failed, falling back to REST:', err);
     }
     const res = await getAll<RawWarehouse>("/warehouses", {
       includeInactive: true,
@@ -459,27 +443,15 @@ export const warehouseApi = {
 
     const targetId = await resolveWarehouseId(idOrCode);
     if (isUuid(targetId)) {
-      if (canViewInventory) {
-        try {
-          const data = await graphql<{ warehouse: RawWarehouse | null }>(
-            WAREHOUSE_DETAIL_WITH_INV_QUERY,
-            { id: targetId },
-          );
-          if (data?.warehouse) rawDetail = data.warehouse;
-        } catch {
-          // Fallback to basic query or REST
-        }
-      }
-      if (!rawDetail) {
-        try {
-          const data = await graphql<{ warehouse: RawWarehouse | null }>(
-            WAREHOUSE_DETAIL_BASIC_QUERY,
-            { id: targetId },
-          );
-          if (data?.warehouse) rawDetail = data.warehouse;
-        } catch {
-          // Fallback to REST
-        }
+      try {
+        const data = await graphql<{ entities: { warehouses: { nodes: RawWarehouse[] } } }>(
+          WAREHOUSE_DETAIL_WITH_INV_QUERY,
+          { id: targetId },
+        );
+        const node = data?.entities?.warehouses?.nodes?.[0];
+        if (node) rawDetail = node;
+      } catch (err) {
+        console.warn('[warehouseApi.get] GraphQL detail failed:', err);
       }
     }
     if (!rawDetail) {
