@@ -17,7 +17,7 @@ export function BatchPromoPage() {
   const table = current.data;
   return (
     <>
-      <PageHeader title="Giảm giá theo HSD" subtitle="Bảng giảm theo khoảng % HSD còn lại, áp dụng theo SKU hoặc Category sau khi batch đã được chọn." actions={<Button variant="primary" onClick={() => setEdit(true)}>Publish phiên bản mới</Button>} />
+      <PageHeader title="Giảm giá theo HSD" subtitle="Bảng giảm theo khoảng % HSD còn lại, áp dụng theo SKU hoặc danh mục sau khi lô hàng đã được chọn." actions={<Button variant="primary" onClick={() => setEdit(true)}>Công bố phiên bản mới</Button>} />
       <Tabs value={tab} onChange={setTab} items={[{ key: 'current', label: 'Phiên bản mới nhất', count: table?.tiers.length }, { key: 'history', label: 'Lịch sử phiên bản', count: history.data?.length }]} />
       {tab === 'current' ? <TableCard table={table} loading={current.isLoading} /> : <History tables={history.data ?? []} loading={history.isLoading} />}
       {edit && <ShelfLifeDialog initial={table?.tiers ?? []} currentFrom={table?.effectiveFrom} onClose={() => setEdit(false)} />}

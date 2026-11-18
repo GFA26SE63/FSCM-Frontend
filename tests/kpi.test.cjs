@@ -133,7 +133,7 @@ test('validateReportFilters validates date presence, chronology, future dates an
       ...validFilters,
       salesGroupId: 'invalid--group--uuid',
     }) || '',
-    /mã nhóm sales không hợp lệ/i,
+    /mã nhóm bán hàng không hợp lệ/i,
   );
 
   // Valid salesUserId UUID
@@ -151,7 +151,7 @@ test('validateReportFilters validates date presence, chronology, future dates an
       ...validFilters,
       salesUserId: 'not--a--uuid',
     }) || '',
-    /mã nhân viên sales không hợp lệ/i,
+    /mã nhân viên bán hàng không hợp lệ/i,
   );
 });
 

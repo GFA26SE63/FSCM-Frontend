@@ -48,7 +48,7 @@ export function CategoryMlorPage() {
   const [editing, setEditing] = useState<Category | null>(null);
   const save = useApiMutation(
     ({ id, ratio }: { id: string; ratio: number | null }) => categoryApi.setDefaultMlor(id, ratio),
-    { success: (c) => `Đã cập nhật MLOR mặc định cho ${c.code}.` },
+    { success: (c) => `Đã cập nhật yêu cầu HSD tối thiểu mặc định cho ${c.code}.` },
   );
 
   const categories = useMemo(() => query.data ?? [], [query.data]);
@@ -63,13 +63,13 @@ export function CategoryMlorPage() {
     { key: 'path', header: 'Danh mục', text: (c) => getCategoryPath(categories, c) || c.name },
     {
       key: 'own',
-      header: 'MLOR riêng của danh mục',
+      header: 'Yêu cầu HSD tối thiểu riêng của danh mục',
       width: '190px',
       text: (c) => (c.defaultMlorRatio != null ? pct(c.defaultMlorRatio) : 'Chưa đặt'),
     },
     {
       key: 'effective',
-      header: 'MLOR đang áp dụng',
+      header: 'Yêu cầu HSD tối thiểu đang áp dụng',
       width: '260px',
       render: (c) => {
         const e = effectiveOf(c, byId, systemRatio);
@@ -94,12 +94,12 @@ export function CategoryMlorPage() {
   return (
     <>
       <PageHeader
-        title="MLOR theo danh mục sản phẩm"
+        title="Yêu cầu HSD tối thiểu theo danh mục sản phẩm"
         subtitle="Tỷ lệ hạn sử dụng còn lại tối thiểu mặc định cho từng danh mục sản phẩm."
       />
       <Callout tone="info">
-        Thứ tự áp dụng khi Sales đặt hàng: MLOR riêng của retailer theo SKU → MLOR riêng của retailer theo danh mục →
-        MLOR theo danh mục sản phẩm (danh mục gần nhất có cấu hình, kể cả danh mục cha) → MLOR mặc định hệ thống
+        Thứ tự áp dụng khi nhân viên bán hàng đặt hàng: yêu cầu HSD tối thiểu riêng của điểm bán theo SKU → yêu cầu HSD tối thiểu riêng của điểm bán theo danh mục →
+        yêu cầu HSD tối thiểu theo danh mục sản phẩm (danh mục gần nhất có cấu hình, kể cả danh mục cha) → yêu cầu HSD tối thiểu mặc định hệ thống
         ({pct(systemRatio)}). Thay đổi chỉ áp dụng cho đơn tạo mới.
       </Callout>
       <DataTable
@@ -115,7 +115,7 @@ export function CategoryMlorPage() {
         rowActions={(c) =>
           isAdmin && c.id ? (
             <Button size="sm" variant="primary" onClick={() => setEditing(c)}>
-              Đặt MLOR
+              Đặt yêu cầu HSD tối thiểu
             </Button>
           ) : null
         }
@@ -125,15 +125,15 @@ export function CategoryMlorPage() {
           open
           width={520}
           columns={1}
-          title={`MLOR mặc định · ${editing.code} · ${editing.name}`}
-          subtitle="Để trống để bỏ cấu hình, danh mục sẽ kế thừa danh mục cha hoặc MLOR mặc định hệ thống."
+          title={`Yêu cầu HSD tối thiểu mặc định · ${editing.code} · ${editing.name}`}
+          subtitle="Để trống để bỏ cấu hình, danh mục sẽ kế thừa danh mục cha hoặc yêu cầu HSD tối thiểu mặc định hệ thống."
           submitLabel="Lưu"
           initial={{ percent: editing.defaultMlorRatio != null ? String(Number((editing.defaultMlorRatio * 100).toFixed(3))) : '' }}
           fields={[
             {
               key: 'percent',
               type: 'number',
-              label: 'MLOR tối thiểu (%)',
+              label: 'Tỷ lệ HSD còn lại tối thiểu (%)',
               step: 'any',
               placeholder: `VD: 30 (mặc định hệ thống ${pct(systemRatio)})`,
               hint: 'Phần trăm hạn sử dụng còn lại tối thiểu khi giao, lớn hơn 0 và nhỏ hơn 100.',

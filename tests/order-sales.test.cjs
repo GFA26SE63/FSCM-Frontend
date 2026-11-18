@@ -76,7 +76,7 @@ test('formatSalesName: respects display priority and role labeling, never return
   // Non-sales actors preserved with clear role tag to prevent false attribution to Sales
   assert.equal(
     mod.formatSalesName({ id: ADMIN_ID, fullName: 'Quản Trị Viên', email: 'admin@fscm.vn', role: 'Admin' }),
-    '[Admin] Quản Trị Viên',
+    '[Quản trị viên] Quản Trị Viên',
   );
   assert.equal(
     mod.formatSalesName({ id: RETAILER_ID, fullName: 'Tạp Hóa Bình An', email: 'retailer@fscm.vn', role: 'Retailer' }),
@@ -130,7 +130,7 @@ test('Admin: full name resolved from users API; deduplicated requests; never raw
   assert.equal(salesNameOf(EMAIL_ONLY_ID), 's3.email@fscm.vn');
 
   // Admin (current user local resolution without network request)
-  assert.equal(salesNameOf(ADMIN_ID), '[Admin] Quản trị viên');
+  assert.equal(salesNameOf(ADMIN_ID), '[Quản trị viên] Quản trị viên');
   assert.equal(creatorLabelOf(ADMIN_ID), 'Người đặt đơn');
 
   // Retailer (non-sales role preserved)
@@ -197,7 +197,7 @@ test('OrdersPage and OrderDetailPage source files contain correct unified labels
   assert.ok(ordersPageSrc.includes('salesSearchTextOf('));
   assert.ok(ordersPageSrc.includes('salesNameOf('));
   assert.match(ordersPageSrc, /label:\s*'Người đặt đơn'/);
-  assert.ok(ordersPageSrc.includes("searchPlaceholder=\"Mã đơn, retailer, người đặt, trạng thái…\""));
+  assert.ok(ordersPageSrc.includes("searchPlaceholder=\"Mã đơn, điểm bán, người đặt, trạng thái…\""));
   assert.ok(ordersPageSrc.includes("param: 'sales'"));
 
   // OrderDetailPage detail display uses unified "Người đặt đơn"
@@ -212,12 +212,12 @@ test('OrdersPage and OrderDetailPage source files contain correct unified labels
   // Row 3: Hạn thanh toán, Lần phân bổ, Kết quả phân bổ
   // Row 4: Người đặt đơn
   const fieldOrder = [
-    'Retailer',
+    'Điểm bán',
     'Địa chỉ giao',
     'Ngày yêu cầu nhận',
     'Nguồn',
     'Thanh toán',
-    'Kỳ hạn snapshot',
+    'Kỳ hạn chốt lúc đặt đơn',
     'Hạn thanh toán',
     'Lần phân bổ',
     'Kết quả phân bổ',
@@ -240,7 +240,7 @@ test('OrdersPage: column spacing and rowActions width are optimized to avoid hor
   const { minimumTableWidth } = source('shared/ui/tableLayout.ts');
 
   // Verify compact rowActions width (165px instead of excessive 220px)
-  assert.ok(ordersPageSrc.includes('rowActionsWidth="165px"'));
+  assert.ok(ordersPageSrc.includes('rowActionsWidth="135px"'));
   assert.ok(!ordersPageSrc.includes('rowActionsWidth="220px"'));
 
   // Verify progress column is compact (110px instead of excessive 145px)
@@ -253,7 +253,7 @@ test('OrdersPage: column spacing and rowActions width are optimized to avoid hor
   assert.match(ordersPageSrc, /header:\s*'Đơn hàng',\s*width:\s*'95px'/);
 
   // Verify retailer is flexible (width omitted) to absorb extra horizontal room cleanly
-  assert.match(ordersPageSrc, /key:\s*'retailer',\s*header:\s*'Retailer',\s*text:/);
+  assert.match(ordersPageSrc, /key:\s*'retailer',\s*header:\s*'Điểm bán',\s*text:/);
 
   // Calculate table minimum width with the actual columns
   const mockColumns = [

@@ -36,13 +36,13 @@ export function SalesRankingTable({ rows, filters }: Props) {
     },
     {
       key: 'salesUserName',
-      header: 'Sales',
+      header: 'Nhân viên bán hàng',
       text: (row) => row.salesUserName,
       render: (row) => <strong>{row.salesUserName}</strong>,
     },
     {
       key: 'group',
-      header: 'Nhóm Sales',
+      header: 'Nhóm bán hàng',
       text: (row) =>
         `${row.salesGroupCode} · ${row.salesGroupName}`,
     },
@@ -62,11 +62,11 @@ export function SalesRankingTable({ rows, filters }: Props) {
   return (
     <DataTable
       stateKey="sales"
-      title="Xếp hạng Sales"
+      title="Xếp hạng nhân viên bán hàng"
       rows={rows}
       columns={columns}
       rowKey={(row) => `${row.salesUserId}:${row.salesGroupId}`}
-      searchPlaceholder="Tên Sales, mã hoặc tên nhóm…"
+      searchPlaceholder="Tên nhân viên bán hàng, mã hoặc tên nhóm…"
       onRowClick={openDetail}
       rowActionsWidth="90px"
       rowActions={(row) => (
@@ -74,7 +74,7 @@ export function SalesRankingTable({ rows, filters }: Props) {
           Xem
         </Button>
       )}
-      emptyText="Không có dữ liệu Sales được ghi nhận trong kỳ và phạm vi này."
+      emptyText="Không có dữ liệu nhân viên bán hàng được ghi nhận trong kỳ và phạm vi này."
     />
   );
 }

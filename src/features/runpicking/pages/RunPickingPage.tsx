@@ -4,7 +4,7 @@ import { errorMessage } from '@/shared/api/errors';
 import { useLocation, useNavigate } from '@/shared/router/compat';
 import { parsePage, useEnumParam, useQueryParams, useStringParam } from '@/shared/router/listState';
 import { Button, Callout, Card, Chip, PageHeader, Select, SimpleTable, Stat, type Tone } from '@/shared/ui';
-import { formatCases, formatNumber, formatPercent } from '@/shared/lib';
+import { formatCases, formatNumber, formatPercent, statusLabel } from '@/shared/lib';
 import { formatDate, formatInstantDateTime } from '@/shared/lib/dates';
 import { usePickingListPage, useWarehouseOptions } from '../hooks';
 import { PAGE_SIZES, PICKING_STATUSES, type PageSize } from '../pickingGraphql';
@@ -77,7 +77,7 @@ export function RunPickingPage() {
     <>
       <PageHeader
         title="Phiếu soạn hàng"
-        subtitle="Phiếu được tạo theo từng kho sau khi SO đủ điều kiện thành PO. Mỗi dòng giữ nguyên batch và giá đã chốt từ allocation."
+        subtitle="Phiếu được tạo theo từng kho sau khi đơn bán hàng đủ điều kiện thành đơn thực hiện. Mỗi dòng giữ nguyên lô hàng và giá đã chốt từ phân bổ."
         actions={requestedCode ? <button className="btn" onClick={() => navigate('/runpicking')}>Xem tất cả phiếu</button> : undefined}
       />
       <Card title="Bộ lọc">
@@ -174,11 +174,11 @@ function PickingCard({ list, open, onToggle }: { list: PickingListRow; open: boo
   const meta = STATUS[list.status] ?? { tone: 'neutral' as Tone, label: list.status };
   const columns = [
     { header: 'SKU / sản phẩm', cell: (item: PickingRowItem) => <><strong>{item.sku}</strong><br /><span className="muted small">{item.productName}</span></> },
-    { header: 'Batch / HSD', cell: (item: PickingRowItem) => <><strong>{item.batchCode}</strong><br /><span className="muted small">{formatDate(item.expirationDate)}</span></> },
+    { header: 'Lô hàng / HSD', cell: (item: PickingRowItem) => <><strong>{item.batchCode}</strong><br /><span className="muted small">{formatDate(item.expirationDate)}</span></> },
     { header: 'Cần soạn', align: 'right' as const, cell: (item: PickingRowItem) => formatCases(item.requestedQuantity) },
     { header: 'Đã soạn', align: 'right' as const, cell: (item: PickingRowItem) => formatCases(item.pickedQuantity) },
     { header: 'Còn lại', align: 'right' as const, cell: (item: PickingRowItem) => formatCases(item.remainingQuantity) },
-    { header: 'Trạng thái', cell: (item: PickingRowItem) => item.status },
+    { header: 'Trạng thái', cell: (item: PickingRowItem) => statusLabel('pickingLine', item.status) },
   ];
   return (
     <Card

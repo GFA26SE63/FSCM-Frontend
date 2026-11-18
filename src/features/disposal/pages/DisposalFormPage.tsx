@@ -20,17 +20,17 @@ export function DisposalFormPage() {
   };
   return (
     <>
-      <PageHeader back="/disposal" title="Lập phiếu hủy hàng hết hạn" subtitle="Chọn batch quá HSD còn tồn, không còn giữ chỗ hoặc đang soạn. Mỗi kho tạo một phiếu." />
+      <PageHeader back="/disposal" title="Lập phiếu hủy hàng hết hạn" subtitle="Chọn lô hàng quá HSD còn tồn, không còn giữ chỗ hoặc đang soạn. Mỗi kho tạo một phiếu." />
       <QueryState query={query}>
         {(rows) => (
           <>
-            {rows.length === 0 && <Callout>Không có batch đủ điều kiện xử lý. Batch còn giữ chỗ, đang soạn hoặc có khóa cần giải quyết sẽ chưa được đưa vào danh sách.</Callout>}
+            {rows.length === 0 && <Callout>Không có lô hàng đủ điều kiện xử lý. lô hàng còn giữ chỗ, đang soạn hoặc có khóa cần giải quyết sẽ chưa được đưa vào danh sách.</Callout>}
             <Card flush>
               <SimpleTable<DisposalCandidate>
                 rows={rows}
                 columns={[
                   { header: '', width: '44px', cell: (c) => <Checkbox label="" checked={picked.includes(c.batchCode)} onChange={(v) => toggle(c.batchCode, v)} /> },
-                  { header: 'Batch', cell: (c) => <b>{c.batchCode}</b> },
+                  { header: 'Lô hàng', cell: (c) => <b>{c.batchCode}</b> },
                   { header: 'Kho', cell: (c) => c.warehouseName },
                   { header: 'Sản phẩm', cell: (c) => c.productName },
                   { header: 'HSD', cell: (c) => formatDate(c.expiry) },
@@ -60,7 +60,7 @@ export function DisposalFormPage() {
                   if (r.items[0]) navigate(`/disposal/${r.items[0].code}`);
                 }}
               >
-                Lập phiếu hủy ({picked.length} batch)
+                Lập phiếu hủy ({picked.length} lô hàng)
               </Button>
             </div>
           </>

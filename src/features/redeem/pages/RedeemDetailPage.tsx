@@ -15,7 +15,7 @@ export function RedeemDetailPage() {
       {(x) => (
         <>
           <PageHeader back="/redeem" title={`Yêu cầu ${x.code}`} subtitle={`${x.retailerName} · ${x.giftName}`} chips={<StatusChip domain="gift" value={x.status} />} actions={<RedeemActions x={x} size="md" />} />
-          {x.status === 'Rejected' && <Callout tone="danger">Yêu cầu bị từ chối; điểm đang giữ đã trả lại retailer.</Callout>}
+          {x.status === 'Rejected' && <Callout tone="danger">Yêu cầu bị từ chối; điểm đang giữ đã trả lại điểm bán.</Callout>}
           <Card title="Tiến trình">
             <div className="row-wrap">
               {flow.map((s, i) => (
@@ -28,7 +28,7 @@ export function RedeemDetailPage() {
           </Card>
           <Card title="Thông tin">
             <Fields cols={3} items={[
-              { label: 'Retailer', value: `${x.retailerName} (${x.retailerCode})` },
+              { label: 'Điểm bán', value: `${x.retailerName} (${x.retailerCode})` },
               { label: 'Quà', value: `${x.giftCode} · ${x.giftName}` },
               { label: 'Số lượng', value: x.quantity == null ? 'Chưa lưu (yêu cầu cũ)' : formatNumber(x.quantity) },
               { label: 'Điểm đổi', value: formatNumber(x.points) },

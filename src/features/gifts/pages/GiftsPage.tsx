@@ -26,10 +26,10 @@ export function GiftsPage() {
   const open = (gift: Gift | null) => { setStatusError(''); setNotice(''); setDlg({ gift }); };
   return (
     <>
-      <PageHeader title="Quà đổi điểm" subtitle="Khi Retailer gửi yêu cầu, hệ thống giữ điểm và lượng quà. Từ chối sẽ trả lại phần đã giữ." />
+      <PageHeader title="Quà đổi điểm" subtitle="Khi điểm bán gửi yêu cầu, hệ thống giữ điểm và lượng quà. Từ chối sẽ trả lại phần đã giữ." />
       {notice && <Callout tone="ok">{notice}</Callout>}
-      {programs.isError && <Callout tone="danger">Không tải được chương trình loyalty. <Button size="sm" onClick={() => void programs.refetch()}>Thử lại</Button></Callout>}
-      {programs.isSuccess && programs.data.length === 0 && <Callout tone="info">Cần tạo chương trình loyalty trước khi thêm quà.</Callout>}
+      {programs.isError && <Callout tone="danger">Không tải được chương trình tích điểm. <Button size="sm" onClick={() => void programs.refetch()}>Thử lại</Button></Callout>}
+      {programs.isSuccess && programs.data.length === 0 && <Callout tone="info">Cần tạo chương trình tích điểm trước khi thêm quà.</Callout>}
       <Card title="Danh sách quà" actions={<Button variant="primary" disabled={!programs.isSuccess || !programs.data.length} onClick={() => open(null)}>+ Thêm quà</Button>}>
         <div className="row-wrap" style={{ gap: 12, marginBottom: 16 }}>
           <Input aria-label="Tìm quà" placeholder="Mã hoặc tên quà…" value={search} onChange={e => setSearch(e.target.value)} />

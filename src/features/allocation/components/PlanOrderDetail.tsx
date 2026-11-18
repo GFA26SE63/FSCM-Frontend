@@ -75,14 +75,14 @@ export function PlanOrderDetail({
                 <span>Đặt: <strong>{formatCases(line.orderedQuantity)}</strong></span>
                 <span>Giá cơ sở: <strong>{formatMoney(line.baseNetUnitPrice)}</strong>/thùng</span>
                 <span>
-                  MLOR <strong>{formatPercent(line.effectiveMlorRatio * 100, 1)}</strong> ({MLOR_SOURCES[line.mlorSource]}) → cần còn ≥{' '}
+                  Yêu cầu HSD tối thiểu <strong>{formatPercent(line.effectiveMlorRatio * 100, 1)}</strong> ({MLOR_SOURCES[line.mlorSource]}) → cần còn ≥{' '}
                   <strong>{formatHours(required)}</strong> lúc nhận
                 </span>
               </div>
               <SimpleTable
                 columns={[
                   { header: 'Kho', cell: (r: Part) => r.allocation.warehouseCode },
-                  { header: 'Batch', cell: (r: Part) => r.allocation.batchCode },
+                  { header: 'Lô hàng', cell: (r: Part) => r.allocation.batchCode },
                   { header: 'Lượng', cell: (r: Part) => formatCases(r.allocation.quantity) },
                   { header: 'Dự kiến nhận', cell: (r: Part) => formatInstantDateTime(r.allocation.estimatedArrivalAt) },
                   {
@@ -91,7 +91,7 @@ export function PlanOrderDetail({
                       <span>
                         {formatHours(r.allocation.remainingShelfLifeHours)}{' '}
                         <Chip tone={r.allocation.remainingShelfLifeHours >= required ? 'success' : 'danger'}>
-                          {r.allocation.remainingShelfLifeHours >= required ? 'đạt MLOR' : 'dưới MLOR'}
+                          {r.allocation.remainingShelfLifeHours >= required ? 'đạt yêu cầu HSD tối thiểu' : 'dưới yêu cầu HSD tối thiểu'}
                         </Chip>
                       </span>
                     ),
@@ -116,7 +116,7 @@ export function PlanOrderDetail({
                   },
                 ]}
                 rows={parts}
-                empty="Dòng này chưa có batch nào được chọn."
+                empty="Dòng này chưa có lô hàng nào được chọn."
               />
               {parts.some((p) => !p.price) && (
                 <Callout tone="warn">

@@ -26,12 +26,12 @@ export function assertCreatableRole(
       400,
       'Vai trò không hợp lệ',
       value === 'Admin'
-        ? 'Không được tạo hoặc nâng quyền thành Admin qua form Người dùng.'
+        ? 'Không được tạo hoặc nâng quyền thành quản trị viên qua form Người dùng.'
         : 'Hãy chọn một vai trò được hỗ trợ.',
       'USER_ROLE_NOT_CREATABLE',
       {
         role: [
-          'Chỉ được chọn Operator, Sales Manager, Warehouse Keeper, Sales hoặc Retailer.',
+          'Chỉ được chọn nhân viên vận hành, quản lý bán hàng, thủ kho, nhân viên bán hàng hoặc điểm bán.',
         ],
       },
     );

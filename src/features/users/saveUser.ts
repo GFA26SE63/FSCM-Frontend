@@ -41,7 +41,7 @@ export async function finishUserSave(input: SaveInput) {
   if (current.role === 'Admin') {
     throw new ApiError(
       403,
-      'Không được chỉnh sửa tài khoản Admin.',
+      'Không được chỉnh sửa tài khoản quản trị viên.',
     );
   }
 

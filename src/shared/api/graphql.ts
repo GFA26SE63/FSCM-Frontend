@@ -41,7 +41,9 @@ export async function graphql<T>(
     throw new ApiError(
       status,
       'Không tải được dữ liệu',
-      errors.map((error) => error.message).join('\n'),
+      errors
+        .map((error, index) => errors.length > 1 ? `${index + 1}. ${error.message}` : error.message)
+        .join('\n'),
       code,
     );
   }

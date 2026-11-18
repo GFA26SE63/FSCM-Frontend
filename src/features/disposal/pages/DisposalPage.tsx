@@ -14,7 +14,7 @@ export function DisposalPage() {
     { key: 'at', header: 'Thời gian', width: '150px', text: (d) => formatDateTime(d.createdAt) },
     { key: 'by', header: 'Người lập', width: '150px', text: (d) => d.createdBy },
     { key: 'method', header: 'Hình thức', width: '150px', text: (d) => d.method },
-    { key: 'batches', header: 'Số batch', width: '85px', align: 'right', text: (d) => d.batchCount },
+    { key: 'batches', header: 'Số lô hàng', width: '85px', align: 'right', text: (d) => d.batchCount },
     { key: 'qty', header: 'Tổng SL', width: '100px', align: 'right', text: (d) => formatCases(d.totalQty) },
     { key: 'value', header: 'Giá trị', width: '120px', align: 'right', text: (d) => formatMoney(d.totalValue) },
     { key: 'status', header: 'Trạng thái', width: '115px', render: () => <StatusChip domain="disposal" value="Disposed" /> },
@@ -22,8 +22,8 @@ export function DisposalPage() {
   const n = candidates.data?.length ?? 0;
   return (
     <>
-      <PageHeader title="Hủy hàng hết hạn" subtitle="Lập phiếu hủy cho batch đã quá hạn sử dụng; sau khi hủy tồn batch về 0." actions={<Button variant="primary" onClick={() => navigate('/disposal/new')}>+ Lập phiếu hủy</Button>} />
-      {n > 0 && <Callout tone="warn">Có {n} batch đã hết hạn còn tồn kho, cần lập phiếu hủy.</Callout>}
+      <PageHeader title="Hủy hàng hết hạn" subtitle="Lập phiếu hủy cho lô hàng đã quá hạn sử dụng; sau khi hủy tồn lô hàng về 0." actions={<Button variant="primary" onClick={() => navigate('/disposal/new')}>+ Lập phiếu hủy</Button>} />
+      {n > 0 && <Callout tone="warn">Có {n} lô hàng đã hết hạn còn tồn kho, cần lập phiếu hủy.</Callout>}
       <DataTable
         title="Phiếu hủy hàng"
         rows={query.data}
@@ -31,7 +31,7 @@ export function DisposalPage() {
         error={query.error}
         rowKey={(d) => d.code}
         columns={columns}
-        searchPlaceholder="Mã phiếu, kho, batch…"
+        searchPlaceholder="Mã phiếu, kho, lô hàng…"
         filters={[{ label: 'Kho', options: [...new Set((query.data ?? []).map((d) => d.warehouseName))], value: (d) => d.warehouseName }]}
         onRowClick={(d) => navigate(`/disposal/${d.code}`)}
         rowActionsWidth="90px"

@@ -1,0 +1,197 @@
+[CmdletBinding()]
+param([switch]$InventoryLayout)
+
+$ErrorActionPreference = 'Stop'
+if ($PSVersionTable.PSVersion.Major -lt 7) { throw 'Run this script in PowerShell 7.' }
+$ghExe = (Get-Command gh -ErrorAction Stop).Source
+$packageRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+
+function Invoke-Gh([string[]]$Arguments) {
+    & $ghExe @Arguments
+    if ($LASTEXITCODE -ne 0) { throw "GitHub command failed: gh $($Arguments -join ' '). No checks or protections were bypassed." }
+}
+function Invoke-Git([string]$Root, [string[]]$Arguments) {
+    git -C $Root @Arguments
+    if ($LASTEXITCODE -ne 0) { throw "Git command failed in $Root. Deployment stopped." }
+}
+function Wait-Route([string]$Url, [int]$ExpectedStatus, [int]$Minutes = 15) {
+    $deadline = [DateTimeOffset]::UtcNow.AddMinutes($Minutes)
+    do {
+        try {
+            $response = Invoke-WebRequest -Uri $Url -SkipHttpErrorCheck -TimeoutSec 20
+            if ([int]$response.StatusCode -eq $ExpectedStatus) { Write-Host "Verified HTTP $ExpectedStatus : $Url"; return }
+        } catch { Write-Host 'Waiting for the service to respond...' }
+        Start-Sleep -Seconds 10
+    } while ([DateTimeOffset]::UtcNow -lt $deadline)
+    throw "Deployment was not verified: $Url did not return HTTP $ExpectedStatus. Check Azure pipeline/environment approvals."
+}
+function Wait-Mirror([string]$Repo, [ValidatePattern('^[0-9a-fA-F]{40}$')][string]$Sha) {
+    for ($attempt = 0; $attempt -lt 18; $attempt++) {
+        $runs = @(Invoke-Gh @('run', 'list', '--repo', $Repo, '--branch', 'main', '--commit', $Sha,
+            '--workflow', 'mirror-to-azure.yml', '--json', 'databaseId,status,conclusion,url') | ConvertFrom-Json)
+        if ($runs.Count) {
+            $run = $runs[0]
+            if ($run.status -ne 'completed') {
+                Invoke-Gh @('run', 'watch', [string]$run.databaseId, '--repo', $Repo, '--exit-status', '--interval', '10') | Out-Host
+            } elseif ($run.conclusion -ne 'success') { throw "Azure mirror failed: $($run.url)" }
+            return
+        }
+        Start-Sleep -Seconds 10
+    }
+    throw "No Azure mirror run found for $Repo at $Sha."
+}
+function Wait-ReleaseChecks([string]$Repo, [string]$Number) {
+    & $ghExe pr checks $Number --repo $Repo --watch --fail-fast --interval 10 | Out-Host
+    if ($LASTEXITCODE -eq 0) { return }
+    $detail = Invoke-Gh @('pr', 'view', $Number, '--repo', $Repo, '--json', 'statusCheckRollup') | ConvertFrom-Json
+    $failed = @($detail.statusCheckRollup | Where-Object { $_.conclusion -in @('FAILURE', 'TIMED_OUT', 'ACTION_REQUIRED', 'CANCELLED') -or $_.state -in @('FAILURE', 'ERROR') })
+    $shown = @{}
+    foreach ($check in $failed) {
+        $link = if ($check.detailsUrl) { $check.detailsUrl } else { $check.targetUrl }
+        Write-Host "Failed check: $($check.name) $link"
+        $run = [regex]::Match([string]$link, '/actions/runs/(\d+)')
+        if ($run.Success -and -not $shown.ContainsKey($run.Groups[1].Value)) {
+            $shown[$run.Groups[1].Value] = $true
+            & $ghExe run view $run.Groups[1].Value --repo $Repo --log-failed | Select-Object -Last 80 | Out-Host
+        }
+    }
+    throw "Release PR #$Number has not passed CI. Failure links/logs are printed above; nothing was merged."
+}
+function Publish-Release($Change) {
+    $root = Join-Path $packageRoot $Change.Directory
+    $expectedRemote = "https://github.com/$($Change.Repo).git"
+    if ((Invoke-Git $root @('remote', 'get-url', 'origin')).Trim() -ne $expectedRemote) { throw "Unexpected remote: $root" }
+    if (Invoke-Git $root @('status', '--porcelain')) { throw "Uncommitted changes in $root. Preserve/review them before deploying." }
+    $headSha = (Invoke-Git $root @('rev-parse', $Change.Branch)).Trim()
+    Invoke-Git $root @('push', '-u', 'origin', $Change.Branch) | Out-Host
+    $found = @(Invoke-Gh @('pr', 'list', '--repo', $Change.Repo, '--head', $Change.Branch,
+        '--base', 'main', '--state', 'all', '--json', 'number,state,url,headRefOid') | ConvertFrom-Json)
+    $pr = $found | Where-Object { $_.state -eq 'OPEN' -or ($_.state -eq 'MERGED' -and $_.headRefOid -eq $headSha) } | Select-Object -First 1
+    if (-not $pr) {
+        $bodyFile = [IO.Path]::GetTempFileName()
+        try {
+            [IO.File]::WriteAllText($bodyFile, $Change.Body, [Text.UTF8Encoding]::new($false))
+            Invoke-Gh @('pr', 'create', '--repo', $Change.Repo, '--base', 'main', '--head', $Change.Branch,
+                '--title', $Change.Title, '--body-file', $bodyFile) | Out-Host
+        } finally { Remove-Item -LiteralPath $bodyFile -ErrorAction SilentlyContinue }
+        $pr = @(Invoke-Gh @('pr', 'list', '--repo', $Change.Repo, '--head', $Change.Branch,
+            '--base', 'main', '--state', 'open', '--json', 'number,state,url') | ConvertFrom-Json) | Select-Object -First 1
+    }
+    if (-not $pr) { throw "Could not resolve the release PR for $($Change.Repo)." }
+    Write-Host "Release PR: $($pr.url)"
+    if ($pr.state -eq 'OPEN') {
+        $checksFound = $false
+        for ($attempt = 0; $attempt -lt 30; $attempt++) {
+            $detail = Invoke-Gh @('pr', 'view', [string]$pr.number, '--repo', $Change.Repo,
+                '--json', 'headRefOid,statusCheckRollup') | ConvertFrom-Json
+            if ($detail.headRefOid -ne $headSha) { throw 'The remote PR head changed. Review it before deploying.' }
+            if (@($detail.statusCheckRollup | Where-Object { $_ }).Count) { $checksFound = $true; break }
+            Start-Sleep -Seconds 10
+        }
+        if (-not $checksFound) { throw 'CI checks did not appear. No unchecked merge was performed.' }
+        Wait-ReleaseChecks $Change.Repo ([string]$pr.number) | Out-Host
+        # Normal merge only: required reviews, branch protections and failing checks remain enforced.
+        Invoke-Gh @('pr', 'merge', [string]$pr.number, '--repo', $Change.Repo, '--merge', '--match-head-commit', $headSha) | Out-Host
+    }
+    $merged = Invoke-Gh @('pr', 'view', [string]$pr.number, '--repo', $Change.Repo, '--json', 'state,mergeCommit,url') | ConvertFrom-Json
+    if ($merged.state -ne 'MERGED' -or -not $merged.mergeCommit.oid) { throw "Release not merged: $($merged.url)" }
+    if ($merged.mergeCommit.oid -notmatch '^[0-9a-fA-F]{40}$') { throw 'GitHub did not return a valid merge commit SHA.' }
+    return $merged.mergeCommit.oid
+}
+function Wait-Vercel([ValidatePattern('^[0-9a-fA-F]{40}$')][string]$Sha) {
+    $deadline = [DateTimeOffset]::UtcNow.AddMinutes(15)
+    do {
+        $deployments = @(Invoke-Gh @('api', "repos/GFA26SE63/FSCM-Frontend/deployments?sha=$Sha&per_page=10") | ConvertFrom-Json)
+        foreach ($deployment in ($deployments | Where-Object environment -eq 'Production')) {
+            $statuses = @(Invoke-Gh @('api', "repos/GFA26SE63/FSCM-Frontend/deployments/$($deployment.id)/statuses?per_page=1") | ConvertFrom-Json)
+            $latest = $statuses | Select-Object -First 1
+            if ($latest.state -in @('failure', 'error')) { throw "Vercel deployment failed: $($latest.log_url)" }
+            if ($latest.state -eq 'success') {
+                Write-Host "Vercel deployment: $($latest.environment_url)"
+                return
+            }
+        }
+        Start-Sleep -Seconds 10
+    } while ([DateTimeOffset]::UtcNow -lt $deadline)
+    throw 'Vercel production success has not been confirmed. Do not assume the site was deployed.'
+}
+
+Invoke-Gh @('auth', 'status', '--hostname', 'github.com') | Out-Host
+if ($InventoryLayout) {
+    $change = @{
+        Repo = 'GFA26SE63/FSCM-Frontend'; Directory = 'FSCM-Frontend'; Branch = 'fix/inventory-carton-detail-layout-20261117'
+        Title = 'fix(inventory): contain long codes and show carton details immediately'
+        Body = 'Long carton, pallet, batch and receipt codes stay within fixed-width columns with wrapping. Filters adapt to narrow screens. Clicking a carton opens its history and source trace in a drawer instead of below the full list. Validation: build, lint, 265 frontend tests passed; local fixture UI verified code wrapping and opening/closing details.'
+    }
+    $sha = Publish-Release $change
+    Wait-Vercel $sha
+    $site = 'https://fscm-frontend.vercel.app'
+    $html = [string](Invoke-WebRequest -Uri $site -TimeoutSec 30).Content
+    $entry = [regex]::Match($html, 'src="([^\"]*/assets/index-[^\"]+\.js)"')
+    if (-not $entry.Success) { throw 'Could not identify the production entry bundle.' }
+    $bundle = [string](Invoke-WebRequest -Uri ([Uri]::new([Uri]$site, $entry.Groups[1].Value).AbsoluteUri) -TimeoutSec 30).Content
+    $feature = [regex]::Match($bundle, '(?<![A-Za-z0-9_-])inventory-[A-Za-z0-9_-]+\.js')
+    if (-not $feature.Success) { throw 'Could not identify the inventory bundle.' }
+    $inventory = [string](Invoke-WebRequest -Uri "$site/assets/$($feature.Value)" -TimeoutSec 30).Content
+    if (-not $inventory.Contains('inventory-code') -or -not $inventory.Contains('Chi tiết carton') -or -not $inventory.Contains('Danh sách carton trong kho')) {
+        throw 'Production does not serve the inventory layout and detail drawer fix yet.'
+    }
+    Write-Host "DEPLOYED AND VERIFIED: Inventory layout and carton details at $site"
+    return
+}
+$trace = @{
+    Repo = 'GFA26SE63/FSCM-Traceability'; Directory = 'FSCM-Traceability'; Branch = 'release/factory-dispatches-20261117'
+    Title = 'release: expose dispatched factory pallets for assigned warehouse receiving'
+    Body = @'
+Adds a service-key-protected dispatched-pallet list filtered by destination warehouse. Existing dispatch, manifest and receipt acknowledgement behavior is preserved. No schema migration.
+
+Deploy this release before the FSCM receiving backend and portal releases. Validation: local Release build and factory UI regression checks; backend contract/query tests cover the new endpoint consumer.
+'@
+}
+$backend = @{
+    Repo = 'GFA26SE63/FSCM-Backend'; Directory = 'FSCM-Backend'; Branch = 'fix/receiving-pallet-camera-20261117'
+    Title = 'fix(receiving): require recorded pallet scans before stock receipt'
+    Body = @'
+Records authenticated pallet camera scans against the receipt document, fixed destination, user and server time in the existing audit ledger. Confirmation requires the matching scan and inspection; the old generic scan path cannot post factory stock. Adds printable receipt documents, scan history and inspection details. No schema migration.
+
+Depends on the existing Traceability dispatch-list release. CI must pass before merge. Regression coverage includes missing or unrelated scan evidence, stock unchanged by scans and duplicate confirmation protection.
+'@
+}
+$frontend = @{
+    Repo = 'GFA26SE63/FSCM-Frontend'; Directory = 'FSCM-Frontend'; Branch = 'fix/receiving-pallet-camera-20261117'
+    Title = 'fix(receiving): scan physical pallet QR on mobile receipt documents'
+    Body = @'
+Replaces prefilled pallet preview confirmation with phone camera QR decoding and a server-recorded scan. Shows scan history and printable/PDF receipt documents. Inspection confirmation submits the scan identifier and server document version; opening the receipt or scanning does not add stock.
+
+Requires the Traceability and backend receiving releases to be deployed first. Validation: local frontend tests, lint, build and browser checks using isolated fixture data. No environment files or credentials are part of the release.
+'@
+}
+
+$sourceSha = Publish-Release $trace
+Wait-Mirror $trace.Repo $sourceSha
+Wait-Route 'https://fscm-traceability-ckeke3bwe6fahzhm.southeastasia-01.azurewebsites.net/api/integration/dispatches?warehouseIds=11111111-1111-1111-1111-111111111111' 401
+Wait-Route 'https://fscm-traceability-ckeke3bwe6fahzhm.southeastasia-01.azurewebsites.net/health' 200 2
+
+$backendSha = Publish-Release $backend
+Wait-Mirror $backend.Repo $backendSha
+Wait-Route 'https://app-fmcg-api-dev-e4f6bdg2h2bfehbq.southeastasia-01.azurewebsites.net/api/v1/warehouse-documents/factory-pending' 401
+Wait-Route 'https://app-fmcg-api-dev-e4f6bdg2h2bfehbq.southeastasia-01.azurewebsites.net/api/v1/warehouse-documents/11111111-1111-1111-1111-111111111111/pallet-scans' 401
+Wait-Route 'https://app-fmcg-api-dev-e4f6bdg2h2bfehbq.southeastasia-01.azurewebsites.net/health' 200 2
+
+$frontendSha = Publish-Release $frontend
+Wait-Vercel $frontendSha
+$site = 'https://fscm-frontend.vercel.app'
+$html = Invoke-WebRequest -Uri $site -TimeoutSec 30
+$entry = [regex]::Match([string]$html.Content, 'src="([^\"]*/assets/index-[^\"]+\.js)"')
+if (-not $entry.Success) { throw 'Could not identify the production frontend entry bundle.' }
+$entryUrl = [Uri]::new([Uri]$site, $entry.Groups[1].Value).AbsoluteUri
+$bundle = [string](Invoke-WebRequest -Uri $entryUrl -TimeoutSec 30).Content
+if (-not $bundle.Contains('warehouse-inbound')) { throw 'Production alias does not serve the separated warehouse routes yet.' }
+$feature = [regex]::Match($bundle, 'warehouse-work-[A-Za-z0-9_-]+\.js')
+if (-not $feature.Success) { throw 'Could not verify the production warehouse chunk.' }
+$featureBundle = [string](Invoke-WebRequest -Uri "$site/assets/$($feature.Value)" -TimeoutSec 30).Content
+if (-not $featureBundle.Contains('factory-pending') -or -not $featureBundle.Contains('from-pallet')) { throw 'Production does not serve the new arrivals workflow.' }
+if (-not $featureBundle.Contains('pallet-scans') -or -not $featureBundle.Contains('receipt-print')) { throw 'Production does not serve camera scan confirmation and printable receipts.' }
+Write-Host "DEPLOYED AND VERIFIED: $site"
+Write-Host 'Traceability dispatch list, backend arrivals route and production portal assets are present.'
+Write-Host 'No live warehouse stock was changed by this deployment verification.'

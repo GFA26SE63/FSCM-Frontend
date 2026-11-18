@@ -13,7 +13,7 @@ export const useCreateReplacement = () => useApiMutation(productApi.replacement,
 export const useProducts = () =>
   useQuery({
     queryKey: ['products', 'list'],
-    queryFn: productApi.list,
+    queryFn: productApi.listAll,
   });
 
 export const useProduct = (id: string) =>
