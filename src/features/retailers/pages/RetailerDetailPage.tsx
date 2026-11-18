@@ -14,9 +14,11 @@ import {
   PageHeader,
   QueryState,
   SimpleTable,
+  Stat,
   StatusChip,
   Tabs,
 } from '@/shared/ui';
+import './retailerDetail.css';
 import { formatDate, formatMoney, formatNumber } from '@/shared/lib';
 import {
   useRetailer,
@@ -30,22 +32,34 @@ import { RetailerMlorTab } from '../components/RetailerMlorTab';
 import { RetailerAuditTimeline } from '../components/RetailerAuditTimeline';
 import type { Retailer } from '../types';
 
+/** Credit orders shown first, then this many more per "Hiện thêm". */
+const RECEIVABLE_PAGE = 10;
+
 function DebtTab({ retailer }: { retailer: Retailer }) {
   const rec = useRetailerReceivables(retailer.id, retailer.code);
   const loy = useRetailerLoyalty(retailer.id || retailer.code);
+  const [shown, setShown] = useState(RECEIVABLE_PAGE);
+  const available = loy.data?.availablePoints ?? loy.data?.available ?? 0;
+  const held = loy.data?.heldPoints ?? loy.data?.held ?? 0;
   return (
     <div className="stack" style={{ gap: '20px' }}>
       <CreditTermsCard retailer={retailer} receivables={rec.data ?? []} />
       <Card title="Điểm tích điểm">
-        {loy.data
-          ? `Số dư ${formatNumber(loy.data.availablePoints ?? loy.data.available ?? loy.data.balance ?? 0)} điểm · đang giữ ${formatNumber(loy.data.heldPoints ?? loy.data.held ?? 0)} · khả dụng ${formatNumber(loy.data.availablePoints ?? loy.data.available ?? 0)}`
-          : 'Chưa có thông tin'}
+        {loy.data ? (
+          <div className="retailer-points">
+            <Stat label="Số dư" value={`${formatNumber(available + held)} điểm`} note="Khả dụng + đang giữ" />
+            <Stat label="Đang giữ" value={`${formatNumber(held)} điểm`} note="Giữ cho yêu cầu đổi quà chờ xử lý" />
+            <Stat label="Khả dụng" value={`${formatNumber(available)} điểm`} note="Dùng được để đổi quà" color="var(--c-primary)" />
+          </div>
+        ) : (
+          'Chưa có thông tin'
+        )}
       </Card>
       <Card title="Đơn hàng công nợ" flush>
         <QueryState query={rec}>
-          {(rows) => (
+          {(rows) => <>
             <SimpleTable
-              rows={rows}
+              rows={rows.slice(0, Math.min(shown, rows.length))}
               empty="Điểm bán chưa có đơn công nợ."
               columns={[
                 { header: 'Mã đơn', cell: (r) => r.orderCode },
@@ -91,7 +105,19 @@ function DebtTab({ retailer }: { retailer: Retailer }) {
                 },
               ]}
             />
-          )}
+            {rows.length > 0 && (
+              <div className="retailer-more">
+                <span className="muted small">
+                  Đang hiển thị {formatNumber(Math.min(shown, rows.length))} / {formatNumber(rows.length)} đơn
+                </span>
+                {shown < rows.length && (
+                  <Button size="sm" onClick={() => setShown((n) => Math.min(n, rows.length) + RECEIVABLE_PAGE)}>
+                    Hiện thêm {formatNumber(Math.min(RECEIVABLE_PAGE, rows.length - shown))} đơn
+                  </Button>
+                )}
+              </div>
+            )}
+          </>}
         </QueryState>
       </Card>
     </div>

@@ -86,7 +86,7 @@ export function CategoryMlorPage() {
     {
       key: 'updated',
       header: 'Cập nhật',
-      width: '120px',
+      width: '110px',
       text: (c) => (c.defaultMlorUpdatedAt ? formatDate(c.defaultMlorUpdatedAt) : '—'),
     },
   ];
@@ -104,6 +104,7 @@ export function CategoryMlorPage() {
       </Callout>
       <DataTable
         title="Danh mục sản phẩm"
+        nowrap
         rows={categories}
         loading={query.isLoading}
         error={query.error}
@@ -111,11 +112,11 @@ export function CategoryMlorPage() {
         columns={columns}
         searchPlaceholder="Mã, tên danh mục..."
         rowActionHeader="Thao tác"
-        rowActionsWidth="120px"
+        rowActionsWidth="110px"
         rowActions={(c) =>
           isAdmin && c.id ? (
             <Button size="sm" variant="primary" onClick={() => setEditing(c)}>
-              Đặt yêu cầu HSD tối thiểu
+              Chỉnh sửa
             </Button>
           ) : null
         }

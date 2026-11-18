@@ -78,7 +78,7 @@ export function PromoDetailPage() {
             </Card>}
             <Card title={perSku ? 'SKU áp dụng · điều kiện từng sản phẩm' : 'SKU áp dụng'}
               actions={<Button size="sm" loading={products.isFetching} onClick={() => void products.refetch()}>Tải lại sản phẩm</Button>}>
-              <DataTable key={p.id} urlState={false} title={`Danh sách SKU · ${products.data?.length ?? new Set([...p.productIds, ...rules.keys()]).size}`}
+              <DataTable key={p.id} urlState={false}
                 columns={appliedProductColumns} rows={products.error ? undefined : products.data} loading={products.isLoading} error={products.error}
                 rowKey={product => product.id} pageSize={5} searchPlaceholder="Tìm mã SKU, tên sản phẩm hoặc nhóm hàng…"
                 emptyText={p.categoryIds.length ? 'Phạm vi SKU được xác định theo các nhóm hàng áp dụng bên dưới.' : 'Chương trình chưa có sản phẩm áp dụng.'} />
@@ -93,7 +93,7 @@ export function PromoDetailPage() {
             <Card title="Khách hàng được hưởng ưu đãi"
               actions={<Button size="sm" loading={retailers.isFetching} onClick={() => void retailers.refetch()}>Tải lại khách hàng</Button>}>
               {!p.retailerIds.length && <Callout tone="info">Áp dụng cho tất cả cửa hàng đủ điều kiện. Bảng hiển thị các cửa hàng đang hoạt động hiện tại.</Callout>}
-              <DataTable key={p.id} urlState={false} title={p.retailerIds.length ? `Cửa hàng đã chọn · ${p.retailerIds.length}` : `Cửa hàng đang hoạt động · ${retailers.data?.length ?? '…'}`}
+              <DataTable key={p.id} urlState={false}
                 columns={retailerColumns} rows={retailers.error ? undefined : retailers.data} loading={retailers.isLoading} error={retailers.error}
                 rowKey={retailer => retailer.id} pageSize={5} searchPlaceholder="Tìm mã, tên, liên hệ, số điện thoại hoặc địa chỉ cửa hàng…"
                 emptyText={p.retailerIds.length ? 'Không có dữ liệu khách hàng áp dụng.' : 'Chưa có cửa hàng đang hoạt động.'} />

@@ -277,44 +277,17 @@ export function RegionsPage() {
       key: 'manager',
       header: 'Quản lý bán hàng',
       width: '160px',
-      render: (group) => (
-        <div>
-          <span style={{ fontWeight: 600 }}>{group.managerName}</span>
-          <div className="muted small">Quản lý khu vực</div>
-        </div>
-      ),
+      render: (group) => <span style={{ fontWeight: 600 }}>{group.managerName}</span>,
       text: (group) => group.managerName,
     },
     {
       key: 'members',
-      header: 'Phân công nhân viên trong nhóm',
-      render: (group) => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-            {group.members.map((m) => (
-              <span
-                key={m}
-                style={{
-                  display: 'inline-block',
-                  background: '#EEF2EC',
-                  color: '#1B1F1D',
-                  padding: '2px 8px',
-                  borderRadius: 6,
-                  fontSize: 12.5,
-                  fontWeight: 500,
-                  border: '1px solid #DCE1DA',
-                }}
-              >
-                {m}
-              </span>
-            ))}
-          </div>
-          <span className="muted small" style={{ fontSize: 11.5 }}>
-            Tổng cộng: <b>{group.members.length}</b> nhân viên
-          </span>
-        </div>
-      ),
-      text: (group) => `${group.members.join(', ')} (${group.members.length} nhân viên)`,
+      header: 'Số thành viên',
+      width: '130px',
+      align: 'right',
+      render: (group) => <span>{group.members.length} nhân viên</span>,
+      // Names stay searchable even though the list only shows the count.
+      text: (group) => `${group.members.length} ${group.members.join(' ')}`,
     },
     {
       key: 'retailers',
@@ -446,6 +419,7 @@ export function RegionsPage() {
           key="groups"
           stateKey="groups"
           title="Danh sách nhóm bán hàng"
+          nowrap
           rows={groups.data}
           loading={groups.isLoading}
           error={groups.error}
