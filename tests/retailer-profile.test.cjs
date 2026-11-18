@@ -220,10 +220,10 @@ test('Source Code Integrity: RetailerDetailPage implements 4-group Thông tin ch
   assert.ok(detailCode.includes('Ảnh mặt tiền nhà bán lẻ'));
 
   // Sub-components integrated
-  assert.ok(detailCode.includes('<RetailerMlorTab retailer={r} editing={edit} />'));
+  assert.ok(detailCode.includes('<RetailerMlorTab retailer={r} />'));
   assert.ok(detailCode.includes('<CreditTermsCard retailer={retailer}'));
   assert.ok(detailCode.includes('<RetailerAuditTimeline retailer={r} />'));
-  assert.ok(detailCode.includes('<RetailerInlineEditor retailer={r} onCancel={() => setEdit(false)} />'));
+  assert.ok(detailCode.includes('<RetailerFormDialog open={edit} retailer={r}'));
 });
 
 test('Source Code Integrity: RetailerMlorTab implements F22-FE Category & SKU MLOR with Effective Resolution', () => {
