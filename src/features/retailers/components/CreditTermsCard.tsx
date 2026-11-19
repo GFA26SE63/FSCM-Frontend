@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
-import { Button, Callout, Card, Chip, Fields, FormDialog } from '@/shared/ui';
+import { Button, Card, Chip, Fields, FormDialog } from '@/shared/ui';
 import { formatMoney } from '@/shared/lib';
 import { useRetailerEligibility, useUpdateCreditTerms } from '../hooks';
 import type { Retailer, RetailerReceivable } from '../types';
@@ -35,7 +35,7 @@ export function CreditTermsCard({ retailer, receivables }: CreditTermsCardProps)
 
   const hasCreditPermission = Number(retailer.creditTermDays) > 0;
 
-  // Evaluate eligibility reasons
+  // Local fallback when the eligibility API has not answered; only the yes/no chip is shown.
   const fallbackReasons: string[] = [];
   if (retailer.status !== 'Active') {
     fallbackReasons.push('tài khoản không hoạt động');
@@ -48,9 +48,6 @@ export function CreditTermsCard({ retailer, receivables }: CreditTermsCardProps)
   }
 
   const isEligible = eligibility?.isEligible ?? (fallbackReasons.length === 0);
-  const reasons = (eligibility?.reasons && eligibility.reasons.length > 0)
-    ? eligibility.reasons
-    : fallbackReasons;
 
   return (
     <Card
@@ -112,20 +109,6 @@ export function CreditTermsCard({ retailer, receivables }: CreditTermsCardProps)
             },
           ]}
         />
-
-        {!isEligible && (
-          <div className="stack" style={{ gap: '8px' }}>
-            {reasons.length > 0 && (
-              <div className="small muted" style={{ color: 'var(--c-danger, #d32f2f)' }}>
-                <b>Lý do chưa đủ điều kiện:</b> {reasons.join('; ')}
-              </div>
-            )}
-            <Callout tone="info">
-              Khách hàng hiện chưa đủ điều kiện mua công nợ. Có thể lựa chọn thanh toán trước.
-            </Callout>
-          </div>
-        )}
-
       </div>
 
       {configOpen && (

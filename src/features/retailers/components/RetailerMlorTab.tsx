@@ -96,20 +96,6 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
         <Callout tone="info">Đang tải yêu cầu hạn sử dụng và danh mục sản phẩm…</Callout>}
       {(configsQuery.error || productsQuery.error || categoriesQuery.error) &&
         <Callout tone="danger">Không tải đầy đủ yêu cầu hạn sử dụng hoặc danh mục sản phẩm. Vui lòng tải lại trước khi chỉnh sửa.</Callout>}
-      {/* MLOR Precedence Rule Callout */}
-      <Callout tone="info">
-        <div style={{ display: 'grid', gap: '6px' }}>
-          <strong>Quy tắc thứ tự ưu tiên hạn sử dụng (yêu cầu HSD tối thiểu):</strong>
-          <div>
-            1. <strong>Yêu cầu riêng theo sản phẩm</strong> (Ưu tiên cao nhất) → 
-            2. <strong>Áp dụng theo danh mục</strong> (Mức trung gian) → 
-            3. <strong>Mặc định của sản phẩm</strong> (Mức cơ sở).
-          </div>
-          <div className="muted" style={{ fontSize: '13px' }}>
-            Hệ thống tự động giải quyết theo thứ bậc trên khi tạo đơn, xếp chuyến và xuất kho giao hàng.
-          </div>
-        </div>
-      </Callout>
 
       {/* 1. Yêu cầu theo danh mục */}
       <Card
