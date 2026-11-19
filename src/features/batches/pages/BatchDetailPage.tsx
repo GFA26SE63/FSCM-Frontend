@@ -10,13 +10,67 @@ import { formatDate, formatDateTime } from '@/shared/lib';
 import { formatLockReason } from '@/shared/lib/status';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
-import { useBatch, useBatchLocks } from '../hooks';
+import { useBatch, useBatchCartons, useBatchLocks } from '../hooks';
+import { useReceiptUserNames } from '@/features/receipts/userNames';
 import { QrLabelsPanel } from '@/features/qr-labels';
 import {
   LockBatchDialog,
   ReleaseBatchLockDialog,
 } from '../components/BatchLockDialog';
-import type { InventoryLockItem } from '../types';
+import type { BatchCarton, InventoryHistoryItem, InventoryLockItem } from '../types';
+
+/**
+ * Resolves the pallet IDs associated with a specific transaction in batch history.
+ *
+ * Relationship analysis:
+ * - Receipt transactions (Receipt / GoodsReceipt / PurchaseReceipt / PN-*):
+ *   Cartons created or received via a Goods Receipt have `receiptCode` matching `referenceCode`.
+ *   Each carton records its assigned `palletCode` (or null if unassigned).
+ *   We collect and deduplicate all pallet codes from cartons belonging to that receipt.
+ * - Explicit Carton / Pallet references:
+ *   If referenceCode directly matches a cartonCode or palletCode in the batch's carton inventory.
+ * - Other transactions (Lock, Release, OrderReserve, TransferReserve, Disposal, Adjustment):
+ *   In FSCM, allocation, locking, adjustment, and disposal operate at the batch level, not the pallet level.
+ *   The Backend does not record pallet IDs for these transactions.
+ *   Per specification: "Do not assign the same pallet to every transaction merely because the transactions
+ *   belong to the same Batch. If no pallet is assigned or associated, display 'Chưa gán pallet'."
+ */
+function getPalletsForTransaction(h: InventoryHistoryItem, cartons: BatchCarton[]): string[] {
+  if (!h.referenceCode || !cartons.length) return [];
+  const ref = h.referenceCode.trim().toLowerCase();
+
+  // 1. Match by receiptCode (Goods Receipt transactions)
+  const matchingByReceipt = cartons.filter(
+    (c) => c.receiptCode && c.receiptCode.trim().toLowerCase() === ref,
+  );
+  if (matchingByReceipt.length > 0) {
+    const pallets = matchingByReceipt
+      .map((c) => c.palletCode?.trim())
+      .filter((p): p is string => Boolean(p));
+    return Array.from(new Set(pallets));
+  }
+
+  // 2. Direct match by palletCode (if referenceCode is a Pallet ID)
+  const matchingPallet = cartons.find(
+    (c) => c.palletCode && c.palletCode.trim().toLowerCase() === ref,
+  );
+  if (matchingPallet && matchingPallet.palletCode) {
+    return [matchingPallet.palletCode.trim()];
+  }
+
+  // 3. Direct match by cartonCode (if referenceCode is a Carton ID)
+  const matchingByCarton = cartons.filter(
+    (c) => c.cartonCode && c.cartonCode.trim().toLowerCase() === ref,
+  );
+  if (matchingByCarton.length > 0) {
+    const pallets = matchingByCarton
+      .map((c) => c.palletCode?.trim())
+      .filter((p): p is string => Boolean(p));
+    return Array.from(new Set(pallets));
+  }
+
+  return [];
+}
 
 export function BatchDetailPage() {
   const { code = '' } = useParams();
@@ -41,6 +95,8 @@ export function BatchDetailPage() {
   });
 
   const activeLock = locks.find((l) => l.status === 'Active');
+  const cartons = useBatchCartons(batch?.batchId, batch?.batchCode);
+  const users = useReceiptUserNames((batch?.history ?? []).map((h) => h.createdByUserId));
 
   const handleDisposalNotice = () => {
     toast.show('Chức năng này hiện chưa sử dụng được.');
@@ -279,20 +335,21 @@ export function BatchDetailPage() {
                 <h2 className="sec">Lịch sử nhập – xuất – khóa</h2>
               </div>
               <div className="tbl-wrap">
-                <table className="tbl" style={{ minWidth: 760 }}>
+                <table className="tbl" style={{ minWidth: 960 }}>
                   <thead>
                     <tr>
                       <th style={{ width: '160px' }}>Thời điểm</th>
-                      <th style={{ width: '130px' }}>Loại giao dịch</th>
+                      <th style={{ width: '200px' }}>Loại giao dịch</th>
                       <th style={{ width: '180px' }}>Chứng từ</th>
-                      <th style={{ width: '130px', textAlign: 'right' }}>Số lượng</th>
+                      <th style={{ width: '150px' }}>Pallet ID</th>
+                      <th style={{ width: '120px', textAlign: 'right' }}>Số lượng</th>
                       <th>Người thực hiện</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(b.history ?? []).length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="muted" style={{ textAlign: 'center', padding: '20px 12px' }}>
+                        <td colSpan={6} className="muted" style={{ textAlign: 'center', padding: '20px 12px' }}>
                           Chưa có ghi nhận giao dịch nhập / xuất nào cho lô hàng này.
                         </td>
                       </tr>
@@ -311,6 +368,8 @@ export function BatchDetailPage() {
                                     ? 'Xuất hủy'
                                     : h.transactionType;
 
+                        const pallets = getPalletsForTransaction(h, cartons.data ?? []);
+
                         const qtyDelta =
                           h.onHandDelta !== 0
                             ? (h.onHandDelta > 0 ? `+${h.onHandDelta}` : `${h.onHandDelta}`)
@@ -321,7 +380,7 @@ export function BatchDetailPage() {
                         return (
                           <tr key={h.id || i}>
                             <td>{formatDateTime(h.occurredAt)}</td>
-                            <td>
+                            <td style={{ width: '200px' }}>
                               <span
                                 className="chip"
                                 style={
@@ -339,24 +398,42 @@ export function BatchDetailPage() {
                                 {typeName}
                               </span>
                             </td>
-                            <td>
+                            <td style={{ maxWidth: 180, wordBreak: 'break-all', overflowWrap: 'anywhere' }}>
                               {h.referenceCode ? (
                                 h.referenceCode.startsWith('PN-') ? (
                                   <Link
                                     to={`/receipts/${encodeURIComponent(h.referenceCode)}`}
-                                    style={{ fontWeight: 600 }}
+                                    style={{ fontWeight: 600, wordBreak: 'break-all' }}
+                                    title={h.referenceCode}
                                   >
                                     {h.referenceCode}
                                   </Link>
                                 ) : (
-                                  <span style={{ fontWeight: 600 }}>{h.referenceCode}</span>
+                                  <span style={{ fontWeight: 600, wordBreak: 'break-all' }} title={h.referenceCode}>
+                                    {h.referenceCode}
+                                  </span>
                                 )
                               ) : (
                                 '—'
                               )}
                             </td>
-                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{qtyDelta}</td>
-                            <td>{h.createdByUserId || 'Hệ thống'}</td>
+                            <td style={{ maxWidth: 150, wordBreak: 'break-all', overflowWrap: 'anywhere' }}>
+                              {pallets.length > 0 ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                  {pallets.map((pid) => (
+                                    <span key={pid} style={{ fontWeight: 600, wordBreak: 'break-all' }} title={pid}>
+                                      {pid}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="muted" style={{ fontStyle: 'italic', fontSize: '13px' }}>
+                                  Chưa gán pallet
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{qtyDelta}</td>
+                            <td style={{ wordBreak: 'break-word' }}>{users.nameOf(h.createdByUserId)}</td>
                           </tr>
                         );
                       })

@@ -63,6 +63,14 @@ export const useBatch = (batchIdOrCode: string) =>
     enabled: !!batchIdOrCode,
   });
 
+export const useBatchCartons = (batchId?: string, batchCode?: string) =>
+  useQuery({
+    queryKey: ['batches', 'cartons', batchId],
+    queryFn: () => batchApi.getCartons(batchId!, batchCode!),
+    enabled: !!batchId && !!batchCode,
+    retry: false,
+  });
+
 export const useBatchHistory = (batchId?: string, warehouseId?: string) =>
   useQuery({
     queryKey: ['batches', 'history', batchId, warehouseId],

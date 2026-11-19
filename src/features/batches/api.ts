@@ -3,6 +3,7 @@ import { daysBetween } from '@/shared/lib/dates';
 import type {
   BatchDetail,
   BatchFilters,
+  BatchCarton,
   BatchInventoryItem,
   CreateInventoryLockInput,
   ExpiryStatus,
@@ -211,6 +212,24 @@ export const batchApi = {
       status: params?.status || undefined,
     });
     return Array.isArray(raw) ? raw : [];
+  },
+
+  /** Cartons of one stock batch via /inventory/qr-codes (search by batch code, then exact match on stockBatchId). */
+  getCartons: async (batchId: string, batchCode: string): Promise<BatchCarton[]> => {
+    const pageSize = 100;
+    const out: BatchCarton[] = [];
+    for (let page = 1; page <= 10; page++) {
+      const res = await get<{ items?: BatchCarton[]; totalCount?: number }>('/inventory/qr-codes', {
+        search: batchCode,
+        page,
+        pageSize,
+      });
+      const items = Array.isArray(res?.items) ? res.items : [];
+      out.push(...items.filter((c) => c.stockBatchId && c.stockBatchId.toLowerCase() === batchId.toLowerCase()));
+      const total = res?.totalCount ?? 0;
+      if (page * pageSize >= total || items.length === 0) break;
+    }
+    return out;
   },
 
   getLock: (lockId: string): Promise<InventoryLockItem> =>
