@@ -46,9 +46,13 @@ export function RunPickingPage() {
   const requestedPage = parsePage(params.get('page'));
   const [openId, setOpenId] = useState<string | null>(null);
   const warehouses = useWarehouseOptions();
+  const visibleWarehouses = user?.role === 'WarehouseKeeper'
+    ? (warehouses.data ?? []).filter((warehouse) =>
+        user.scopeLabels?.warehouses.some((scope) => scope.id === warehouse.id))
+    : (warehouses.data ?? []);
   // Kho trên URL không thuộc danh sách kho được phép xem → "Tất cả kho".
-  const warehouseId = !rawWarehouseId || !warehouses.data || warehouses.data.some((w) => w.id === rawWarehouseId) ? rawWarehouseId : '';
-  // Thủ kho chỉ xem phiếu thuộc kho được phân công (Backend không tự giới hạn truy vấn này).
+  const warehouseId = !rawWarehouseId || !warehouses.data || visibleWarehouses.some((w) => w.id === rawWarehouseId) ? rawWarehouseId : '';
+  // Backend bắt buộc scope qua EntityQueryService; danh sách ID này chỉ giúp thu hẹp truy vấn.
   const scopeWarehouseIds = user?.role === 'WarehouseKeeper' ? user.scope?.warehouseIds ?? [] : undefined;
   const lists = usePickingListPage(
     {
@@ -98,7 +102,7 @@ export function RunPickingPage() {
             value={warehouseId}
             onChange={(event) => setWarehouseId(event.target.value)}
             placeholder="Tất cả kho"
-            options={(warehouses.data ?? []).map((warehouse) => ({
+            options={visibleWarehouses.map((warehouse) => ({
               value: warehouse.id,
               label: `${warehouse.code} · ${warehouse.name}`,
             }))}

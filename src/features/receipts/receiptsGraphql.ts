@@ -14,6 +14,7 @@
 import { graphql } from '@/shared/api/graphql';
 import { ApiError } from '@/shared/api/errors';
 import type { PageInfo } from '@/shared/pagination/types';
+import type { ReceiptDetail } from './types';
 
 export const RECEIPTS_PAGE_SIZES = [10, 20, 50] as const;
 export type ReceiptsPageSize = (typeof RECEIPTS_PAGE_SIZES)[number];
@@ -26,6 +27,22 @@ export const RECEIPTS_SORT_MAP = {
 } as const;
 export type ReceiptSortField = keyof typeof RECEIPTS_SORT_MAP;
 export const RECEIPTS_SORTABLE_FIELDS = Object.keys(RECEIPTS_SORT_MAP) as readonly ReceiptSortField[];
+
+export async function fetchReceiptReads(warehouseId?: string): Promise<ReceiptDetail[]> {
+  const data = await graphql<{ entities: { goodsReceiptReads: ReceiptDetail[] } }>(
+    `query GoodsReceiptReads($warehouseId: UUID) {
+      entities {
+        goodsReceiptReads(warehouseId: $warehouseId) {
+          id receiptCode warehouseId warehouseCode warehouseName createdByUserId approvedByUserId
+          status receivedAt approvedAt createdAt version
+          lines { id productId sku productName sourceLotCode receivedQuantity productionDate expirationDate batchId batchCode }
+        }
+      }
+    }`,
+    { warehouseId },
+  );
+  return data.entities.goodsReceiptReads;
+}
 
 export interface ReceiptsPageQuery {
   size: ReceiptsPageSize;
