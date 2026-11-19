@@ -38,3 +38,9 @@ export const usePromoTargets = (promotion: PromoDetail | undefined) => {
 export const useCreatePromo = () => useApiMutation(promoApi.create, { success: (p) => p.isActive ? `Đã lưu và kích hoạt ${p.name}.` : `Đã lưu nháp ${p.name}. Kích hoạt khi sẵn sàng áp dụng.` });
 export const usePausePromo = () => useApiMutation(promoApi.pause, { success: (p) => `Đã tạm dừng ${p.name}. Đơn mới tính giá không còn khuyến mãi này.` });
 export const useActivatePromo = () => useApiMutation(promoApi.activate, { success: (p) => `Đã kích hoạt lại ${p.name}.` });
+export const usePromoUsage = (code: string | undefined) =>
+  useQuery({
+    queryKey: ['promos', 'usage', code],
+    queryFn: () => promoApi.usage(code!),
+    enabled: !!code,
+  });

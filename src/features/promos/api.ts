@@ -60,4 +60,26 @@ export const promoApi = {
   appliedRetailers: (ids: string[]) => ids.length
     ? selectedRecords<RetailerOption>('/retailers', ids)
     : allPages<RetailerOption>('/retailers', { status: 'Active' }),
+  usage: (programCode: string) => get<{
+    items: {
+      id: string;
+      at: string;
+      retailerCode: string;
+      retailerName: string;
+      orderId: string | null;
+      orderCode: string | null;
+      itemCode: string;
+      itemName: string;
+      quantity: number | null;
+      discountAmount: number;
+      status: string;
+    }[];
+    totalCount: number;
+  }>('/reports/operations/promotions', {
+    fromDate: '2020-01-01',
+    toDate: '2030-12-31',
+    program: programCode,
+    page: 1,
+    pageSize: 50,
+  }),
 };
