@@ -1,4 +1,5 @@
 import { get, post, put } from '@/shared/api/http';
+import { graphql } from '@/shared/api/graphql';
 import type { Complaint, ComplaintEvidence } from './types';
 
 export type ComplaintDecision = 'requestEvidence' | 'approve' | 'reject';
@@ -10,8 +11,8 @@ const findId = async (code: string, id?: string) => {
 };
 
 export const complaintApi = {
-  list: () => get<Complaint[]>('/complaints'),
-  get: (code: string) => get<Complaint[]>('/complaints').then((items) => items.find((x) => x.code === code) ?? Promise.reject(new Error('Complaint not found'))),
+  list: () => graphql<{ entities: { complaintReads: Complaint[] } }>(`query ComplaintReads { entities { complaintReads { id code orderCode retailerCode retailerName sku productName expectedQuantity actualQuantity issueType status reviewStatus resolutionType evidenceRequestReason labelCode note evidenceUrl createdAt response finalUnitPrice adjustmentAmount salesOrderId financialAdjustmentApplied requestType settlementMethod approvedSettlementMethod requestedQuantity approvedQuantity handledQuantity requiresCollection physicalHandlingCompleted debtOffsetAmount refundAmount refundId version documents { id code kind status approvedQuantity actualQuantity completedAt note evidenceReference } } } }`).then(x => x.entities.complaintReads),
+  get: (code: string) => complaintApi.list().then((items) => items.find((x) => x.code === code) ?? Promise.reject(new Error('Complaint not found'))),
   resolve: async (v: { code: string; result: string; approved: boolean; id?: string }) => {
     const id = await findId(v.code, v.id);
     return post<Complaint>(`/complaints/${id}/resolve`, { result: v.result, approved: v.approved });

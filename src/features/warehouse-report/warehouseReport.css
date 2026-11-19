@@ -1,0 +1,165 @@
+/* Filters and the refresh button share one row; the button sits on the inputs' baseline. */
+.wr-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+  gap: 12px 16px;
+  align-items: end;
+  padding: 16px;
+}
+.wr-filters > .btn {
+  justify-self: start;
+}
+.wr-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 12px;
+  margin-block: 16px;
+}
+.wr-summary > .stat {
+  min-width: 0;
+  height: 100%;
+}
+@media (max-width: 900px) {
+  .wr-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.wr-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-bottom: 16px;
+}
+.wr-legend-group {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.wr-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/*
+ * Fixed layout at full card width, so a SKU row never needs horizontal scrolling:
+ * action + rank are fixed, the 9 metric columns share ~70%, the product column takes the rest
+ * (SKU on top, name below, cut with an ellipsis; full name in the popup).
+ */
+.wr-grid {
+  width: 100%;
+  table-layout: fixed;
+}
+.wr-grid .wr-col-action {
+  width: 84px;
+}
+.wr-grid .wr-col-rank {
+  width: 34px;
+}
+.wr-grid .wr-col-metric {
+  width: 7.8%;
+}
+.wr-grid th,
+.wr-grid td {
+  padding-inline: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Two header rows: no sticky stacking, and labels may wrap instead of widening the table. */
+.wr-grid th {
+  position: static;
+  white-space: normal;
+  line-height: 1.25;
+}
+.wr-grid td {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+.wr-grid td:first-child {
+  overflow: visible;
+}
+.wr-grid .wr-center {
+  text-align: center;
+}
+.wr-grid .wr-right {
+  text-align: right;
+}
+.wr-grid .wr-group {
+  border-bottom: 2px solid var(--c-border-soft);
+}
+.wr-grid .wr-group-stock {
+  border-bottom-color: var(--c-success, #15703a);
+}
+.wr-grid .wr-group-inbound {
+  border-bottom-color: var(--c-info, #1d4ed8);
+}
+.wr-grid .wr-group-outbound {
+  border-bottom-color: #6b2fbf;
+}
+.wr-product > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wr-grid tfoot td {
+  border-top: 2px solid var(--c-border-soft);
+  background: var(--c-bg);
+}
+
+/* Colour per metric: stock state (green → amber → red → grey → dark), inbound blues, outbound violet/orange. */
+.wr-qty {
+  display: inline-block;
+  max-width: 100%;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+.wr-zero {
+  opacity: 0.45;
+  font-weight: 500;
+}
+.wr-valid {
+  background: var(--c-success-soft, #e5f4ea);
+  color: var(--c-success, #15703a);
+}
+.wr-near {
+  background: var(--c-warn-soft, #fef3e2);
+  color: var(--c-warn, #8a3b09);
+}
+.wr-expired {
+  background: var(--c-danger-soft, #fdecea);
+  color: var(--c-danger, #b42318);
+}
+.wr-locked {
+  background: #eceef0;
+  color: #3f474d;
+}
+.wr-disposed {
+  background: #3f474d;
+  color: #ffffff;
+}
+.wr-in-factory {
+  background: var(--c-info-soft, #e8eefd);
+  color: var(--c-info, #1d4ed8);
+}
+.wr-in-transfer {
+  background: #e0f4f7;
+  color: #0e6f7d;
+}
+.wr-out-sales {
+  background: #f1e9fd;
+  color: #6b2fbf;
+}
+.wr-out-transfer {
+  background: #fdeee3;
+  color: #b4510f;
+}

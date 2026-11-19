@@ -96,20 +96,6 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
         <Callout tone="info">Đang tải yêu cầu hạn sử dụng và danh mục sản phẩm…</Callout>}
       {(configsQuery.error || productsQuery.error || categoriesQuery.error) &&
         <Callout tone="danger">Không tải đầy đủ yêu cầu hạn sử dụng hoặc danh mục sản phẩm. Vui lòng tải lại trước khi chỉnh sửa.</Callout>}
-      {/* MLOR Precedence Rule Callout */}
-      <Callout tone="info">
-        <div style={{ display: 'grid', gap: '6px' }}>
-          <strong>Quy tắc thứ tự ưu tiên hạn sử dụng (yêu cầu HSD tối thiểu):</strong>
-          <div>
-            1. <strong>Yêu cầu riêng theo sản phẩm</strong> (Ưu tiên cao nhất) → 
-            2. <strong>Áp dụng theo danh mục</strong> (Mức trung gian) → 
-            3. <strong>Mặc định của sản phẩm</strong> (Mức cơ sở).
-          </div>
-          <div className="muted" style={{ fontSize: '13px' }}>
-            Hệ thống tự động giải quyết theo thứ bậc trên khi tạo đơn, xếp chuyến và xuất kho giao hàng.
-          </div>
-        </div>
-      </Callout>
 
       {/* 1. Yêu cầu theo danh mục */}
       <Card
@@ -130,7 +116,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
       >
         <SimpleTable
           rows={categoryConfigs}
-          empty="Chưa có yêu cầu hạn sử dụng theo danh mục nào cho điểm bán này."
+          empty="Chưa có yêu cầu hạn sử dụng theo danh mục nào cho nhà bán lẻ này."
           columns={[
             {
               header: 'Mã danh mục',
@@ -194,7 +180,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
       >
         <SimpleTable
           rows={productConfigs}
-          empty="Chưa có yêu cầu riêng theo sản phẩm (SKU) nào cho điểm bán này."
+          empty="Chưa có yêu cầu riêng theo sản phẩm (SKU) nào cho nhà bán lẻ này."
           columns={[
             {
               header: 'SKU',
@@ -243,7 +229,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
       <Card title="3. Tra cứu yêu cầu đang áp dụng">
         <div style={{ display: 'grid', gap: '16px' }}>
           <p className="muted" style={{ margin: 0 }}>
-            Chọn một sản phẩm để kiểm tra quy tắc hạn sử dụng thực tế sẽ được áp dụng cho điểm bán theo thứ bậc ưu tiên.
+            Chọn một sản phẩm để kiểm tra quy tắc hạn sử dụng thực tế sẽ được áp dụng cho nhà bán lẻ theo thứ bậc ưu tiên.
           </p>
 
           <div style={{ maxWidth: '450px' }}>

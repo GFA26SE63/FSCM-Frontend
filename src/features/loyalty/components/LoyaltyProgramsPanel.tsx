@@ -26,7 +26,7 @@ export function LoyaltyProgramsPanel() {
     { key: 'code', header: 'Mã', text: (p) => p.code, width: '110px' },
     { key: 'name', header: 'Tên chương trình', text: (p) => p.name },
     { key: 'rate', header: 'Quy đổi', text: (p) => `${formatMoney(p.spendAmountPerPoint)} = 1 điểm` },
-    { key: 'retailers', header: 'Điểm bán áp dụng', text: (p) => `${p.retailerIds.length} retailer` },
+    { key: 'retailers', header: 'Nhà bán lẻ áp dụng', text: (p) => `${p.retailerIds.length} retailer` },
     { key: 'period', header: 'Hiệu lực (VN)', text: (p) => `${formatInstantDateTime(p.startAt)} – ${formatInstantDateTime(p.endAt)}` },
     { key: 'status', header: 'Trạng thái', text: (p) => programStatus(p, now),
       render: (p) => <Chip tone={p.isActive && Date.parse(p.endAt) >= now ? 'ok' : 'warn'}>{programStatus(p, now)}</Chip> },
@@ -60,7 +60,7 @@ export function LoyaltyProgramsPanel() {
         { label: 'Hiệu lực từ (VN)', value: formatInstantDateTime(detail.startAt) },
         { label: 'Hiệu lực đến (VN)', value: formatInstantDateTime(detail.endAt) },
         { label: 'Điểm hết hạn (VN)', value: detail.pointsExpireAt ? formatInstantDateTime(detail.pointsExpireAt) : 'Không đặt hạn' },
-        { label: 'Điểm bán áp dụng', value: `${detail.retailerIds.length} retailer` },
+        { label: 'Nhà bán lẻ áp dụng', value: `${detail.retailerIds.length} retailer` },
         { label: 'Mô tả', value: detail.description || '—' },
       ]} /></Card>
       <ProgramAudience ids={detail.retailerIds} />
@@ -88,15 +88,15 @@ function ProgramAudience({ ids }: { ids: string[] }) {
   const query = useProgramRetailers();
   const retailers = query.data;
   return <div>
-    <h3>Điểm bán áp dụng</h3>
-    {query.isLoading && <p>Đang tải thông tin điểm bán…</p>}
+    <h3>Nhà bán lẻ áp dụng</h3>
+    {query.isLoading && <p>Đang tải thông tin nhà bán lẻ…</p>}
     {query.error && <div className="callout callout-danger">
-      {errorMessage(query.error)} <Button size="sm" onClick={() => void query.refetch()}>Tải lại điểm bán</Button>
+      {errorMessage(query.error)} <Button size="sm" onClick={() => void query.refetch()}>Tải lại nhà bán lẻ</Button>
     </div>}
     {!query.isLoading && !query.error && retailers && <ul>
       {ids.map((id) => {
         const retailer = retailers.find((r) => r.id === id);
-        return <li key={id}>{retailer ? `${retailer.code} · ${retailer.name}` : `Không tìm thấy thông tin điểm bán (${id})`}</li>;
+        return <li key={id}>{retailer ? `${retailer.code} · ${retailer.name}` : `Không tìm thấy thông tin nhà bán lẻ (${id})`}</li>;
       })}
     </ul>}
   </div>;

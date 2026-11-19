@@ -47,7 +47,7 @@ export function UserDetailPage() {
           },
           {
             kind: 'retailers',
-            label: 'Điểm bán có quyền',
+            label: 'Nhà bán lẻ có quyền',
             ids: user.scope.retailerIds,
           },
         ];

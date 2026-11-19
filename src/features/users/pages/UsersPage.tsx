@@ -26,6 +26,7 @@ function useUserFilters() {
   const rawRole = params.get('role') ?? '';
   const rawActivity = params.get('activity') ?? '';
   const page = parsePage(params.get('page'));
+  const sort = params.get('sort') === 'asc' ? 'asc' : 'desc';
   const filters = useMemo<UserFilters>(
     () => ({
       search,
@@ -33,8 +34,9 @@ function useUserFilters() {
       activity: (ACTIVITIES as string[]).includes(rawActivity) ? (rawActivity as UserFilters['activity']) : '',
       page,
       pageSize: PAGE_SIZE,
+      sort,
     }),
-    [search, rawRole, rawActivity, page],
+    [search, rawRole, rawActivity, page, sort],
   );
   return { filters, setParams };
 }
@@ -151,10 +153,11 @@ export function UsersPage() {
                 }
               />
             </label>
+            <label className="lbl">Ngày tạo<Select value={filters.sort} options={[{ value: 'desc', label: 'Mới nhất' }, { value: 'asc', label: 'Cũ nhất' }]} onChange={event => setParams({ sort: event.target.value === 'asc' ? 'asc' : null, page: null })} /></label>
 
             <Button
               onClick={() =>
-                setParams({ q: null, role: null, activity: null, page: null })
+                setParams({ q: null, role: null, activity: null, sort: null, page: null })
               }
             >
               Đặt lại tất cả

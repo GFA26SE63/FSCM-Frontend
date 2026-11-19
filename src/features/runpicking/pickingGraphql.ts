@@ -17,6 +17,17 @@ export const PAGE_SIZES = [10, 20, 50] as const;
 export type PageSize = (typeof PAGE_SIZES)[number];
 const LOOKUP_PAGE = 100;
 
+/**
+ * Sortable fields for the Picking list.
+ * Picking does not use DataTable, so sort is exposed via a Select control.
+ */
+export const PICKING_SORT_MAP = {
+  createdAt: 'createdAt',
+  pickingCode: 'pickingCode',
+} as const;
+export type PickingSortField = keyof typeof PICKING_SORT_MAP;
+export const PICKING_SORTABLE_FIELDS = Object.keys(PICKING_SORT_MAP) as readonly PickingSortField[];
+
 export interface PickingPageQuery {
   size: PageSize;
   /** Cursor trang sau (first/after) hoặc trang trước (last/before); tối đa một trong hai. */
@@ -27,6 +38,8 @@ export interface PickingPageQuery {
   pickingCode?: string;
   /** Kho được phép xem; undefined = không giới hạn (Admin / Operator). */
   scopeWarehouseIds?: string[];
+  /** User-selected sort. Default when absent: createdAt DESC, id DESC. */
+  sort?: { field: PickingSortField; direction: 'asc' | 'desc' };
 }
 
 interface Connection<T> {
@@ -74,6 +87,15 @@ function buildFilter(q: PickingPageQuery) {
 
 const whereOf = (conditions: string[]) => (conditions.length ? `where: { and: [${conditions.join(', ')}] }` : '');
 
+function buildOrderClause(sort?: PickingPageQuery['sort']): string {
+  if (sort && PICKING_SORT_MAP[sort.field]) {
+    const gqlField = PICKING_SORT_MAP[sort.field];
+    const dir = sort.direction === 'asc' ? 'ASC' : 'DESC';
+    return `order: [{ ${gqlField}: ${dir} }, { id: DESC }]`;
+  }
+  return 'order: [{ createdAt: DESC }, { id: DESC }]';
+}
+
 export function buildPickingPageQuery(q: PickingPageQuery) {
   if (!PAGE_SIZES.includes(q.size)) throw new Error('invalid page size');
   const { conditions, declarations, variables } = buildFilter(q);
@@ -86,7 +108,7 @@ export function buildPickingPageQuery(q: PickingPageQuery) {
     declarations.push('$after: String!');
     variables.after = q.after;
   }
-  const order = 'order: [{ createdAt: DESC }, { id: DESC }]';
+  const order = buildOrderClause(q.sort);
   // Thống kê theo trạng thái: chỉ đếm (totalCount) trên cùng bộ lọc.
   const count = (alias: string, status: PickingStatus) =>
     `${alias}: pickingLists(first: 1, ${whereOf([...conditions, `{ status: { eq: "${status}" } }`])}) { totalCount }`;

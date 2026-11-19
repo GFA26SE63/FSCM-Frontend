@@ -198,7 +198,7 @@ export function GroupDetailPage() {
                   ),
                 },
                 { label: 'Số nhân viên phụ trách', value: `${g.members.length} nhân viên` },
-                { label: 'Số điểm bán phụ trách', value: `${g.retailerCount} điểm bán` },
+                { label: 'Số nhà bán lẻ phụ trách', value: `${g.retailerCount} nhà bán lẻ` },
               ]}
             />
           </Card>
@@ -253,15 +253,15 @@ export function GroupDetailPage() {
           </Card>
 
           <Card
-            title={`Danh sách điểm bán do nhóm ${g.code} phụ trách (${retailersQuery.data?.length ?? g.retailerCount} điểm bán)`}
+            title={`Danh sách nhà bán lẻ do nhóm ${g.code} phụ trách (${retailersQuery.data?.length ?? g.retailerCount} nhà bán lẻ)`}
             flush
           >
             <SimpleTable
               rows={retailersQuery.data ?? []}
-              empty="Chưa có điểm bán nào được phân công cho nhóm này."
+              empty="Chưa có nhà bán lẻ nào được phân công cho nhóm này."
               columns={[
                 {
-                  header: 'Mã điểm bán',
+                  header: 'Mã nhà bán lẻ',
                   cell: (r) => mayOpenRetailers ? (
                     <a
                       href={`/retailers/${r.code}`}
@@ -276,7 +276,7 @@ export function GroupDetailPage() {
                   ) : <span style={{ fontWeight: 600 }}>{r.code}</span>,
                 },
                 {
-                  header: 'Tên điểm bán',
+                  header: 'Tên nhà bán lẻ',
                   cell: (r) => r.name,
                 },
                 {
@@ -312,7 +312,7 @@ export function GroupDetailPage() {
                         size="sm"
                         variant="default"
                         onClick={() => navigate(`/retailers/${r.code}`)}
-                        title="Xem chi tiết điểm bán"
+                        title="Xem chi tiết nhà bán lẻ"
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',

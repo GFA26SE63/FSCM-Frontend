@@ -7,5 +7,5 @@ export const useComplaint = (code: string) => useQuery({ queryKey: ['complaints'
 export const useComplaintEvidence = (id: string | undefined) =>
   useQuery({ queryKey: ['complaints', 'evidence', id], queryFn: () => complaintApi.evidence(id!), enabled: !!id });
 export const useDecideComplaint = () => useApiMutation(complaintApi.decide, { success: (c) => `Đã cập nhật khiếu nại ${c.code}.` });
-export const useResolveComplaint = () => useApiMutation(complaintApi.resolve, { success: (c) => `Đã ghi nhận xử lý khiếu nại ${c.code} và báo điểm bán.` });
+export const useResolveComplaint = () => useApiMutation(complaintApi.resolve, { success: (c) => `Đã ghi nhận xử lý khiếu nại ${c.code} và báo nhà bán lẻ.` });
 export const useCompleteRequestHandling = () => useApiMutation(complaintApi.completeHandling, { success: c => c.status === 'Resolved' ? 'Đã xác nhận xử lý thực tế và chốt phương án.' : 'Đã ghi nhận xử lý thực tế; đang chờ đủ điều kiện chốt tài chính.' });

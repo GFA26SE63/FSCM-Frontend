@@ -1,4 +1,5 @@
 import { get, post } from '@/shared/api/http';
+import { graphql } from '@/shared/api/graphql';
 import type { CategoryOption, ProductOption, PromoDetail, PromoInput, PromoSummary, RetailerOption } from './types';
 
 async function allPages<T extends { id: string }>(url: string, filters: object = {}): Promise<T[]> {
@@ -29,7 +30,19 @@ async function selectedRecords<T>(url: string, ids: string[]): Promise<T[]> {
 
 /** Product/retailer lists use pageSize (not size); detail scopes retrieve exact IDs. */
 export const promoApi = {
-  list: () => get<PromoSummary[]>('/promotions', { includeInactive: true }),
+  list: async () => {
+    const data = await graphql<{ entities: { promotionReads: PromoSummary[] } }>(`
+      query PromotionReads($includeInactive: Boolean!) {
+        entities {
+          promotionReads(includeInactive: $includeInactive) {
+            id code name promotionType minimumQuantity discountPercent
+            startAt endAt isActive
+          }
+        }
+      }
+    `, { includeInactive: true });
+    return data.entities.promotionReads;
+  },
   get: (id: string) => get<PromoDetail>(`/promotions/${id}`),
   create: async (input: PromoInput): Promise<PromoDetail> => {
     const saved = await post<PromoDetail[]>('/promotions/campaigns', input);
@@ -47,4 +60,26 @@ export const promoApi = {
   appliedRetailers: (ids: string[]) => ids.length
     ? selectedRecords<RetailerOption>('/retailers', ids)
     : allPages<RetailerOption>('/retailers', { status: 'Active' }),
+  usage: (programCode: string) => get<{
+    items: {
+      id: string;
+      at: string;
+      retailerCode: string;
+      retailerName: string;
+      orderId: string | null;
+      orderCode: string | null;
+      itemCode: string;
+      itemName: string;
+      quantity: number | null;
+      discountAmount: number;
+      status: string;
+    }[];
+    totalCount: number;
+  }>('/reports/operations/promotions', {
+    fromDate: '2020-01-01',
+    toDate: '2030-12-31',
+    program: programCode,
+    page: 1,
+    pageSize: 50,
+  }),
 };

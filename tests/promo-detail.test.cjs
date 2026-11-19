@@ -11,7 +11,9 @@ function load(file, mocks = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   const module = { exports: {} };
-  new Function('require', 'module', 'exports', code)(name => Object.hasOwn(mocks, name) ? mocks[name] : require(name), module, module.exports);
+  new Function('require', 'module', 'exports', code)(name => Object.hasOwn(mocks, name)
+    ? mocks[name]
+    : name === '@/shared/api/graphql' ? { graphql: async () => ({ entities: { promotionReads: [] } }) } : require(name), module, module.exports);
   return module.exports;
 }
 
@@ -79,9 +81,10 @@ function renderDetail(p = promotion, overrides = {}) {
     [key, { data, refetch() {}, ...overrides[key] }]));
   const wrap = ({ title, children, actions: buttons }) => React.createElement('section', null, title, buttons, children);
   const { PromoDetailPage } = load('features/promos/pages/PromoDetailPage.tsx', {
-    '@/shared/router/compat': { useParams: () => ({ id: p.id }) },
+    '@/shared/router/compat': { useParams: () => ({ id: p.id }), useNavigate: () => () => {} },
     '../hooks': { usePromo: () => ({ data: p }), usePromoTargets: () => targets,
-      usePausePromo: () => ({}), useActivatePromo: () => ({}) },
+      usePausePromo: () => ({}), useActivatePromo: () => ({}),
+      usePromoUsage: () => ({ data: { items: [], totalCount: 0 }, isLoading: false }) },
     '../status': { promoStatus: () => 'Running' },
     '@/shared/lib': { ...load('shared/lib/format.ts'), ...load('shared/lib/dates.ts'), statusLabel: (_, value) => value },
     '@/shared/ui': {

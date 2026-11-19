@@ -3,6 +3,7 @@ import { useNavigate } from '@/shared/router/compat';
 import { Button } from '@/shared/ui';
 import { formatShortDateTime } from '@/shared/lib/dates';
 import { useMarkAllRead, useMarkRead, useNotifications } from '../hooks';
+import { NOTIFICATIONS_MAX_LIMIT, NOTIFICATIONS_PAGE_SIZE } from '../notificationsGraphql';
 
 const portalLink = (deepLink: string | null) => {
   if (!deepLink) return null;
@@ -14,7 +15,8 @@ const portalLink = (deepLink: string | null) => {
 
 /** Bell in the top bar: unread counter + dropdown with latest in-app notifications using common UI components. */
 export function NotificationBell() {
-  const { data = [] } = useNotifications();
+  const [limit, setLimit] = useState(NOTIFICATIONS_PAGE_SIZE);
+  const { data } = useNotifications(limit);
   const markRead = useMarkRead();
   const markAllRead = useMarkAllRead();
   const navigate = useNavigate();
@@ -22,8 +24,11 @@ export function NotificationBell() {
   const [tab, setTab] = useState<'all' | 'unread'>('all');
   const ref = useRef<HTMLDivElement>(null);
 
-  const unreadCount = data.filter((n) => !n.isRead).length;
-  const filtered = tab === 'unread' ? data.filter((n) => !n.isRead) : data;
+  const unreadCount = data?.unread.totalCount ?? 0;
+  const totalCount = data?.all.totalCount ?? 0;
+  const window = tab === 'unread' ? data?.unread : data?.all;
+  const filtered = window?.rows ?? [];
+  const canLoadMore = !!window && window.rows.length < window.totalCount && limit < NOTIFICATIONS_MAX_LIMIT;
 
   useEffect(() => {
     if (!open) return;
@@ -81,7 +86,7 @@ export function NotificationBell() {
               className={`pill${tab === 'all' ? ' active' : ''}`}
               onClick={() => setTab('all')}
             >
-              Tất cả ({data.length})
+              Tất cả ({totalCount})
             </button>
             <button
               type="button"
@@ -118,6 +123,16 @@ export function NotificationBell() {
                   <span className="small muted">{formatShortDateTime(n.createdAt)}</span>
                 </button>
               ))
+            )}
+            {canLoadMore && (
+              <button
+                type="button"
+                className="link-btn small"
+                style={{ display: 'block', margin: '8px auto' }}
+                onClick={() => setLimit((l) => Math.min(l + NOTIFICATIONS_PAGE_SIZE, NOTIFICATIONS_MAX_LIMIT))}
+              >
+                Xem thêm
+              </button>
             )}
           </div>
         </div>

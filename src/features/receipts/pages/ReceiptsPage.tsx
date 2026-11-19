@@ -3,8 +3,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
-import { useEnumParam } from '@/shared/router/listState';
-import { useRestPagination } from '@/shared/pagination';
+import { useEnumParam, useQueryParams, useStringParam } from '@/shared/router/listState';
+import { useCursorPagination } from '@/shared/pagination';
+import { decodeSort, PAGINATION_PARAM_NAMES, PAGINATION_RESETS, parsePageSize } from '@/shared/pagination/urlSync';
 import {
   ActionDropdown,
   type ActionDropdownItem,
@@ -17,31 +18,95 @@ import {
   type Column,
 } from '@/shared/ui';
 import { formatCases, formatDateTime, statusLabels } from '@/shared/lib';
-import { useApproveReceipt, useReceipts } from '../hooks';
+import { useWarehouses } from '@/features/warehouses/hooks';
+import { useApproveReceipt, useReceiptLineTotalsForPage, useReceiptsPage } from '../hooks';
 import { useReceiptUserNames } from '../userNames';
+import {
+  RECEIPTS_PAGE_SIZES,
+  RECEIPTS_SORT_MAP,
+  RECEIPTS_SORTABLE_FIELDS,
+  type ReceiptSortField,
+  type ReceiptsPageSize,
+} from '../receiptsGraphql';
 import type { ReceiptListItem } from '../types';
 
 const RECEIPT_STATUSES = ['', 'Pending', 'Received'] as const;
 type ReceiptStatusFilter = (typeof RECEIPT_STATUSES)[number];
+const PAGE_RESETS = PAGINATION_RESETS;
 
 export function ReceiptsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { params } = useQueryParams();
 
-  // URL-persisted pagination state (client-side data — GET /api/v1/goods-receipts returns flat array)
-  const { page, pageSize, search, pagingProps: basePagingProps } = useRestPagination({
+  const after = params.get('after') ?? undefined;
+  const before = after ? undefined : (params.get('before') ?? undefined);
+  const pageSize = parsePageSize(params.get('size'), RECEIPTS_PAGE_SIZES, 20) as ReceiptsPageSize;
+  const search = params.get('q') ?? undefined;
+
+  const [statusFilter, setStatusFilter] = useEnumParam<ReceiptStatusFilter>(
+    'status', RECEIPT_STATUSES, '', { resets: PAGE_RESETS },
+  );
+  const [warehouseId, setWarehouseId] = useStringParam('wh', { resets: PAGE_RESETS });
+
+  const rawSort = decodeSort(params.get(PAGINATION_PARAM_NAMES.SORT));
+  const activeSort = rawSort?.field && RECEIPTS_SORT_MAP[rawSort.field as ReceiptSortField]
+    ? { field: rawSort.field as ReceiptSortField, direction: rawSort.direction }
+    : undefined;
+
+  // Warehouse names/codes stay on REST (GoodsReceipt has no navigation to Warehouse).
+  const { data: warehouses = [] } = useWarehouses();
+  const warehouseById = useMemo(() => new Map(warehouses.map((w) => [w.id, w])), [warehouses]);
+  const searchWarehouseIds = useMemo(() => {
+    if (!search) return [];
+    const q = search.toLowerCase();
+    return warehouses
+      .filter((w) => w.name?.toLowerCase().includes(q) || w.code?.toLowerCase().includes(q))
+      .map((w) => w.id)
+      .filter((id): id is string => !!id);
+  }, [warehouses, search]);
+
+  const query = useReceiptsPage({
+    size: pageSize,
+    after,
+    before,
+    status: statusFilter || undefined,
+    warehouseId: warehouseId || undefined,
+    search,
+    searchWarehouseIds: search ? searchWarehouseIds : undefined,
+    sort: activeSort,
+  });
+
+  const { pagingProps, sortProps } = useCursorPagination({
+    pageInfo: query.data?.pageInfo,
+    totalCount: query.data?.totalCount,
+    loading: query.isLoading || query.isFetching,
+    error: query.isPlaceholderData ? undefined : query.error,
     defaultPageSize: 20,
-    pageSizeOptions: [10, 20, 50],
+    pageSizeOptions: RECEIPTS_PAGE_SIZES,
     urlState: true,
   });
-  const [statusFilter, setStatusFilter] = useEnumParam<ReceiptStatusFilter>(
-    'status', RECEIPT_STATUSES, '', { resets: ['page'] },
-  );
-  const [warehouseFilter, setWarehouseFilter] = useState('');
 
-  // Load full dataset — no server-side pagination or search available
-  const query = useReceipts();
+  const pageIds = useMemo(() => (query.data?.rows ?? []).map((r) => r.id), [query.data?.rows]);
+  const totalsQuery = useReceiptLineTotalsForPage(pageIds);
+
+  const pageRows: ReceiptListItem[] = useMemo(
+    () => (query.data?.rows ?? []).map((r) => {
+      const wh = warehouseById.get(r.warehouseId);
+      const t = totalsQuery.data?.get(r.id);
+      return {
+        ...r,
+        code: r.receiptCode,
+        warehouseCode: wh?.code ?? '',
+        warehouseName: wh?.name ?? '',
+        lines: [],
+        batchCount: t?.batchCount ?? 0,
+        totalQty: t?.totalQty ?? 0,
+      };
+    }),
+    [query.data?.rows, warehouseById, totalsQuery.data],
+  );
 
   const approveMutation = useApproveReceipt();
   const [approveTarget, setApproveTarget] = useState<ReceiptListItem | null>(null);
@@ -91,8 +156,8 @@ export function ReceiptsPage() {
     if (statusFilter) {
       result = result.filter(r => r.status === statusFilter);
     }
-    return result;
-  }, [query.data, search, warehouseFilter, statusFilter]);
+    return [...result].sort((a, b) => sortOrder === 'desc' ? Date.parse(b.createdAt) - Date.parse(a.createdAt) : Date.parse(a.createdAt) - Date.parse(b.createdAt));
+  }, [query.data, search, warehouseFilter, statusFilter, sortOrder]);
 
   // Client-side pagination on filtered results
   const totalCount = filtered.length;
@@ -111,7 +176,7 @@ export function ReceiptsPage() {
 
   const columns: Column<ReceiptListItem>[] = [
     {
-      key: 'code',
+      key: 'receiptCode',
       header: 'Mã phiếu',
       width: '140px',
       render: (r) => <span className="bold">{r.receiptCode || r.code}</span>,
@@ -182,7 +247,6 @@ export function ReceiptsPage() {
         }
       />
 
-      {/* Filter bar — client-side (Backend: GET /api/v1/goods-receipts only accepts warehouseId) */}
       <div className="row-wrap" style={{ gap: 12, marginBottom: 8 }}>
         <label className="lbl">Trạng thái
           <Select
@@ -197,25 +261,27 @@ export function ReceiptsPage() {
         </label>
         <label className="lbl">Kho nhận
           <Select
-            value={warehouseFilter}
-            onChange={e => { setWarehouseFilter(e.target.value); basePagingProps.onPageChange(1); }}
+            value={warehouseId}
+            onChange={e => setWarehouseId(e.target.value)}
             options={[
               { value: '', label: 'Tất cả kho' },
-              ...warehouseOptions.map(w => ({ value: w, label: w })),
+              ...warehouses.filter(w => w.id).map(w => ({ value: w.id as string, label: w.name })),
             ]}
           />
         </label>
+        <label className="lbl">Thời gian tạo<Select value={sortOrder} onChange={e => setSortOrder(e.target.value as 'desc' | 'asc')} options={[{ value: 'desc', label: 'Mới nhất' }, { value: 'asc', label: 'Cũ nhất' }]} /></label>
       </div>
 
       <DataTable
         title="Danh sách phiếu nhập kho"
         rows={pageRows}
-        loading={query.isLoading}
-        error={query.error}
+        loading={query.isLoading || query.isPlaceholderData}
+        error={query.isPlaceholderData ? undefined : query.error}
         rowKey={(r) => r.id || r.receiptCode || r.code}
         columns={columns}
         searchPlaceholder="Mã phiếu, kho nhận…"
-        server={pagingProps}
+        cursor={pagingProps}
+        serverSort={{ ...sortProps, sortableFields: RECEIPTS_SORTABLE_FIELDS }}
         onRowClick={(r) => navigate(`/receipts/${r.receiptCode || r.id}`)}
         rowActionsWidth="120px"
         rowActions={(r) => {

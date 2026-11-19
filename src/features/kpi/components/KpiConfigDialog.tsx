@@ -169,7 +169,7 @@ export function KpiConfigDialog({ open, onClose, onSaved }: Props) {
           />
         </FormField>
 
-        <FormField label="Trọng số Phát triển điểm bán mới (%)" required>
+        <FormField label="Trọng số Phát triển nhà bán lẻ mới (%)" required>
           <Input
             type="number"
             min="0"
@@ -177,7 +177,7 @@ export function KpiConfigDialog({ open, onClose, onSaved }: Props) {
             step="1"
             value={newWeight}
             disabled={loading || submitting}
-            placeholder="Nhập trọng số điểm bán mới (VD: 15)"
+            placeholder="Nhập trọng số nhà bán lẻ mới (VD: 15)"
             onChange={(e) => setNewWeight(e.target.value)}
           />
         </FormField>

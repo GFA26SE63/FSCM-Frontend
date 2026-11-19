@@ -1,9 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
 import { useApiMutation } from '@/shared/hooks';
 import { promoApi } from './api';
+import { fetchPromosPage, type PromosPageQuery } from './promosGraphql';
 import { useAuth } from '@/shared/auth/AuthContext';
 import type { PromoDetail } from './types';
 
+/** Server-side cursor-paginated promotions via GraphQL entities.promotions. */
+export const usePromosPage = (q: PromosPageQuery) =>
+  useQuery({
+    queryKey: ['promos', 'page', q],
+    queryFn: () => fetchPromosPage(q),
+    placeholderData: (prev) => prev,
+    retry: false,
+    staleTime: 15_000,
+  });
 export const usePromos = () => useQuery({ queryKey: ['promos', 'list'], queryFn: promoApi.list });
 export const usePromo = (id: string) => useQuery({ queryKey: ['promos', 'detail', id], queryFn: () => promoApi.get(id) });
 export const usePromoLookups = () => ({
@@ -28,3 +38,9 @@ export const usePromoTargets = (promotion: PromoDetail | undefined) => {
 export const useCreatePromo = () => useApiMutation(promoApi.create, { success: (p) => p.isActive ? `Đã lưu và kích hoạt ${p.name}.` : `Đã lưu nháp ${p.name}. Kích hoạt khi sẵn sàng áp dụng.` });
 export const usePausePromo = () => useApiMutation(promoApi.pause, { success: (p) => `Đã tạm dừng ${p.name}. Đơn mới tính giá không còn khuyến mãi này.` });
 export const useActivatePromo = () => useApiMutation(promoApi.activate, { success: (p) => `Đã kích hoạt lại ${p.name}.` });
+export const usePromoUsage = (code: string | undefined) =>
+  useQuery({
+    queryKey: ['promos', 'usage', code],
+    queryFn: () => promoApi.usage(code!),
+    enabled: !!code,
+  });

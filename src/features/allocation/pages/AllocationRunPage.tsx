@@ -46,6 +46,7 @@ const STATUS_OPTIONS = [
   { label: 'Hết hàng', value: 'OutOfStock' },
   { label: 'Xung đột allocation', value: 'AllocationConflict' },
 ];
+const SORT_VALUES = ['desc', 'asc'] as const;
 
 export function AllocationRunPage() {
   const navigate = useNavigate();
@@ -56,6 +57,7 @@ export function AllocationRunPage() {
     '',
     { resets: ['page'] },
   );
+  const [sort, setSort] = useEnumParam<'desc' | 'asc'>('sort', SORT_VALUES, 'desc', { resets: ['page'] });
 
   const { page, pageSize, search, pagingProps: basePagingProps } = useRestPagination({
     defaultPageSize: 20,
@@ -68,7 +70,7 @@ export function AllocationRunPage() {
       page,
       size: pageSize,
       search,
-      filters: { status: statusFilter },
+      filters: { status: statusFilter, sort },
     }),
     queryFn: () =>
       fetchAllocationOrdersPage({
@@ -76,6 +78,7 @@ export function AllocationRunPage() {
         pageSize,
         search: search || undefined,
         status: statusFilter || undefined,
+        sort,
       }),
     placeholderData: (prev) => prev,
   });
@@ -98,7 +101,7 @@ export function AllocationRunPage() {
     },
     {
       key: 'order',
-      header: 'Đơn bán hàng / điểm bán',
+      header: 'Đơn bán hàng / nhà bán lẻ',
       width: '220px',
       text: (order) => `${order.orderCode} ${order.retailerCode} ${order.retailerName}`,
       render: (order) => (
@@ -164,7 +167,7 @@ export function AllocationRunPage() {
     <>
       <PageHeader
         title="Giám sát phân bổ theo thời gian thực"
-        subtitle="Mỗi đơn bán hàng được chọn lô hàng/kho ngay khi gửi. Hệ thống giữ tồn sau phân bổ thành công, tính giảm HSD theo lô hàng rồi gửi báo giá cho điểm bán; quản trị viên không duyệt phương án."
+        subtitle="Mỗi đơn bán hàng được chọn lô hàng/kho ngay khi gửi. Hệ thống giữ tồn sau phân bổ thành công, tính giảm HSD theo lô hàng rồi gửi báo giá cho nhà bán lẻ; quản trị viên không duyệt phương án."
       />
       <DataTable
         title="Lịch sử xử lý đơn bán hàng"
@@ -173,14 +176,14 @@ export function AllocationRunPage() {
         error={query.error}
         rowKey={(order) => order.id}
         columns={columns}
-        searchPlaceholder="Mã đơn bán hàng, điểm bán…"
+        searchPlaceholder="Mã đơn bán hàng, nhà bán lẻ…"
         filterExtra={
-          <Select
+          <><Select
             aria-label="Lọc theo trạng thái đơn bán hàng"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as OrderStatusFilter)}
             options={STATUS_OPTIONS}
-          />
+          /><Select aria-label="Sắp xếp theo thời gian" value={sort} onChange={e => setSort(e.target.value as 'desc' | 'asc')} options={[{ value: 'desc', label: 'Mới nhất' }, { value: 'asc', label: 'Cũ nhất' }]} /></>
         }
         server={pagingProps}
         onRowClick={(order) => navigate(`/orders/${order.id}`)}
