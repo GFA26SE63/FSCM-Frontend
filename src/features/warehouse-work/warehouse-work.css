@@ -40,3 +40,167 @@
 @media (max-width: 720px) {
   .warehouse-work-filters { grid-template-columns: 1fr; }
 }
+
+/* Warehouse Inbound 3-Step Process Guide */
+.warehouse-guide-steps {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.warehouse-guide-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.warehouse-guide-step .step-badge {
+  background: #0284c7;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.warehouse-guide-step-arrow {
+  font-size: 20px;
+  color: #94a3b8;
+  font-weight: bold;
+  user-select: none;
+}
+
+.warehouse-guide-step strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 2px;
+  color: var(--text, #0f172a);
+}
+
+.warehouse-guide-step p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted, #64748b);
+  line-height: 1.4;
+}
+
+@media (max-width: 860px) {
+  .warehouse-guide-steps {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .warehouse-guide-step-arrow {
+    display: none;
+  }
+}
+
+/* PNK Summary Header in Detail View */
+.pnk-summary-header {
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+}
+
+.pnk-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.pnk-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  background: var(--surface-subtle, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  padding: 12px 16px;
+  border-radius: 8px;
+}
+
+.pnk-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pnk-meta-item .muted {
+  font-size: 12px;
+}
+
+.pnk-meta-item strong {
+  font-size: 14px;
+}
+
+/* Trace Hierarchy 4-level Grid */
+.trace-hierarchy-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.trace-hierarchy-node {
+  background: var(--surface-subtle, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.trace-hierarchy-node .node-level {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0369a1;
+  text-transform: uppercase;
+}
+
+.trace-hierarchy-node strong {
+  font-size: 13px;
+  color: var(--text, #0f172a);
+}
+
+.trace-hierarchy-node .node-desc {
+  font-size: 11px;
+  color: var(--muted, #64748b);
+  line-height: 1.35;
+}
+
+.trace-arrow {
+  font-size: 18px;
+  color: #94a3b8;
+  font-weight: bold;
+  user-select: none;
+}
+
+@media (max-width: 900px) {
+  .trace-hierarchy-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .trace-arrow {
+    display: none;
+  }
+}
+
+.warehouse-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  padding-bottom: 8px;
+  flex-wrap: wrap;
+}
+
