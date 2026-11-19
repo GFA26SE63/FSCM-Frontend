@@ -48,7 +48,7 @@ export function useUpdateRegionStatus() {
 }
 
 export const useWarehouses = () =>
-  useQuery({ queryKey: ['warehouses', 'list'], queryFn: warehouseApi.list });
+  useQuery({ queryKey: ['warehouses', 'list'], queryFn: () => warehouseApi.list() });
 
 export const useWarehouse = (code: string, canViewInventory = true) =>
   useQuery({
