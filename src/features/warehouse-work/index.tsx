@@ -182,7 +182,6 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [trace, setTrace] = useState('');
   const [search, setSearch] = useStringParam('q');
   const [statusFilter, setStatusFilter] = useStringParam('status');
   const [warehouseFilter, setWarehouseFilter] = useStringParam('warehouse');

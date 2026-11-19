@@ -8,7 +8,8 @@ import type { PickingListPage, PickingListRow, PickingRowItem, PickingStatus } f
  * Ràng buộc của Backend (đã kiểm chứng):
  *  - `first`/`last` và khung `where` phải là literal trong câu truy vấn; truyền qua biến thì bộ
  *    phân tích chi phí từ chối (HC0047). Chỉ các giá trị đơn (id, mã, trạng thái, cursor) đi qua biến.
- *  - `entities.*` không tự giới hạn theo kho được phân công → Thủ kho luôn kèm `warehouseId in` phạm vi.
+ *  - Backend BẮT BUỘC scope kho qua EntityQueryService theo JWT. `scopeWarehouseIds` chỉ là
+ *    gợi ý hiệu năng để thu hẹp truy vấn và không phải cổng bảo mật phía client.
  *  - Mã đơn / retailer: pickingItems.allocationId → allocations → salesOrderLines → salesOrders.
  */
 
@@ -36,7 +37,7 @@ export interface PickingPageQuery {
   warehouseId?: string;
   status?: PickingStatus | '';
   pickingCode?: string;
-  /** Kho được phép xem; undefined = không giới hạn (Admin / Operator). */
+  /** Gợi ý hiệu năng theo kho; Backend vẫn là nơi bắt buộc authorization. */
   scopeWarehouseIds?: string[];
   /** User-selected sort. Default when absent: createdAt DESC, id DESC. */
   sort?: { field: PickingSortField; direction: 'asc' | 'desc' };

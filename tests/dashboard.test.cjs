@@ -133,6 +133,7 @@ test('dashboard picking link shows and expands the requested sheet, with a way b
   const {RunPickingPage}=source('features/runpicking/pages/RunPickingPage.tsx',{
     '@/shared/router/compat':{useLocation:()=>({search}),useNavigate:()=>()=>{}},
     '@/shared/router/listState':{useStringParam:()=>['',()=>{}],useEnumParam:(_n,_a,fallback)=>[fallback,()=>{}],useQueryParams:()=>({params:new URLSearchParams(search),setParams:()=>{}}),parsePage:()=>1},
+    '@/shared/pagination/urlSync':{decodeSort:()=>undefined,encodeSort:()=>null,PAGINATION_PARAM_NAMES:{SORT:'sort'},PAGINATION_RESETS:['after','before','page']},
     '@/shared/auth/AuthContext':{useAuth:()=>({user:{id:'u',role:'Admin'}})},
     '@/shared/api/errors':{errorMessage:String},
     '../pickingGraphql':{PAGE_SIZES:[10,20,50],PICKING_STATUSES:['Pending','InProgress','Completed','Exception']},

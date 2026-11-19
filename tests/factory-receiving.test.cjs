@@ -186,7 +186,7 @@ test('empty receipt cannot close, but recorded all-missing receipt can close', (
 
 
 test('transfer arrivals only offer posted issues for the receiving warehouse and open a receipt', async () => {
-  const values = states(); values[13] = 'Transfer';
+  const values = states(); values[12] = 'Transfer';
   const docs = [
     { document: { id: 'incoming', kind: 'Issue', reason: 'Transfer', status: 'Posted', warehouseId: 'source', destinationWarehouseId: 'warehouse' }, lines: [], cartons: [] },
     { document: { id: 'not-exported', kind: 'Issue', reason: 'Transfer', status: 'Open', warehouseId: 'source', destinationWarehouseId: 'warehouse' }, lines: [], cartons: [] },
