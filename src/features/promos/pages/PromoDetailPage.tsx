@@ -1,16 +1,18 @@
-import { useParams } from '@/shared/router/compat';
-import { Button, Callout, Card, DataTable, Fields, PageHeader, QueryState, StatusChip, type Column } from '@/shared/ui';
-import { formatInstantDate, formatNumber, formatPercent, statusLabel } from '@/shared/lib';
-import { useActivatePromo, usePausePromo, usePromo, usePromoTargets } from '../hooks';
+import { useNavigate, useParams } from '@/shared/router/compat';
+import { Button, Callout, Card, DataTable, Fields, PageHeader, QueryState, SimpleTable, Stat, StatusChip, type Column } from '@/shared/ui';
+import { formatInstantDate, formatInstantDateTime, formatNumber, formatPercent, statusLabel } from '@/shared/lib';
+import { useActivatePromo, usePausePromo, usePromo, usePromoTargets, usePromoUsage } from '../hooks';
 import { promoStatus } from '../status';
 import type { ProductOption, RetailerOption } from '../types';
 
 export function PromoDetailPage() {
+  const navigate = useNavigate();
   const { id = '' } = useParams();
   const query = usePromo(id);
   const { products, categories, retailers } = usePromoTargets(query.data);
   const pause = usePausePromo();
   const activate = useActivatePromo();
+  const usageQuery = usePromoUsage(query.data?.code);
 
   const productColumns: Column<ProductOption>[] = [
     { key: 'sku', header: 'Mã SKU', width: '150px' },
@@ -97,6 +99,74 @@ export function PromoDetailPage() {
                 columns={retailerColumns} rows={retailers.error ? undefined : retailers.data} loading={retailers.isLoading} error={retailers.error}
                 rowKey={retailer => retailer.id} pageSize={5} searchPlaceholder="Tìm mã, tên, liên hệ, số điện thoại hoặc địa chỉ cửa hàng…"
                 emptyText={p.retailerIds.length ? 'Không có dữ liệu khách hàng áp dụng.' : 'Chưa có cửa hàng đang hoạt động.'} />
+            </Card>
+            <Card
+              title="Đơn hàng đã sử dụng & Hiệu quả khuyến mãi"
+              actions={
+                <Button
+                  size="sm"
+                  onClick={() => navigate(`/reports?kind=promotions&program=${encodeURIComponent(p.code)}`)}
+                >
+                  Mở báo cáo đầy đủ
+                </Button>
+              }
+            >
+              {usageQuery.isLoading ? (
+                <div style={{ padding: 16 }} className="muted">Đang tải thống kê áp dụng...</div>
+              ) : !usageQuery.data?.items.length ? (
+                <div style={{ padding: 16 }} className="muted">
+                  Chưa có đơn hàng nào áp dụng chương trình khuyến mãi này.
+                </div>
+              ) : (
+                <>
+                  <div
+                    className="report-summary"
+                    style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', padding: '12px 16px', gap: 12 }}
+                  >
+                    <Stat
+                      label="Số đơn hàng áp dụng"
+                      value={formatNumber(new Set(usageQuery.data.items.map(i => i.orderId).filter(Boolean)).size)}
+                    />
+                    <Stat
+                      label="Tổng giá trị khuyến mãi đã dùng"
+                      value={`${formatNumber(usageQuery.data.items.reduce((sum, i) => sum + (i.discountAmount || 0), 0))} đ`}
+                    />
+                    <Stat
+                      label="Tổng sản lượng tiêu thụ"
+                      value={`${formatNumber(usageQuery.data.items.reduce((sum, i) => sum + (i.quantity || 0), 0))} thùng`}
+                    />
+                  </div>
+                  <SimpleTable
+                    rows={usageQuery.data.items}
+                    columns={[
+                      { header: 'Thời gian', cell: row => formatInstantDateTime(row.at) },
+                      {
+                        header: 'Đơn hàng',
+                        cell: row => (
+                          row.orderId ? (
+                            <Button size="sm" onClick={() => navigate(`/orders/${row.orderId}`)}>
+                              {row.orderCode || row.orderId}
+                            </Button>
+                          ) : (row.orderCode || '—')
+                        ),
+                      },
+                      { header: 'Nhà bán lẻ', cell: row => row.retailerName || row.retailerCode },
+                      { header: 'Sản phẩm', cell: row => `${row.itemName} (${row.itemCode})` },
+                      { header: 'Số lượng', align: 'right', cell: row => formatNumber(row.quantity || 0) },
+                      {
+                        header: 'Tiền giảm',
+                        align: 'right',
+                        cell: row => (
+                          <strong style={{ color: 'var(--color-danger, #e53e3e)' }}>
+                            {formatNumber(row.discountAmount)} đ
+                          </strong>
+                        ),
+                      },
+                      { header: 'Trạng thái', cell: row => row.status },
+                    ]}
+                  />
+                </>
+              )}
             </Card>
           </>
         );

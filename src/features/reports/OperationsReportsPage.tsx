@@ -13,6 +13,18 @@ import { REPORT_TITLES, summaryColumns } from './reportLayout';
 import './reports.css';
 
 type Kind = 'redemptions' | 'loyalty' | 'promotions';
+export interface PromotionProgramSummary {
+  programCode: string;
+  programName: string;
+  orderCount: number;
+  totalQuantity: number;
+  grossAmount: number;
+  discountAmount: number;
+  campaignDiscountAmount: number;
+  shelfLifeDiscountAmount: number;
+  netAmount: number;
+  completedDiscountAmount: number;
+}
 interface Row {
   id: string; at: string; retailerCode: string; retailerName: string; programCode: string; programName: string;
   itemCode: string; itemName: string; status: string; quantity: number | null; points: number; balanceAfter: number | null;
@@ -22,7 +34,15 @@ interface Row {
   regionName: string; createdByName: string | null; approvedByName: string | null; deliveredByName: string | null;
   campaignDiscountAmount: number; shelfLifeDiscountAmount: number;
 }
-interface Result { items: Row[]; totalCount: number; page: number; pageSize: number; summary: { label: string; value: number }[]; notes: string[] }
+interface Result {
+  items: Row[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  summary: { label: string; value: number }[];
+  notes: string[];
+  byProgram?: PromotionProgramSummary[];
+}
 interface Filters { fromDate: string; toDate: string; retailer: string; program: string; status: string; regionId: string }
 const labels: Record<string, string> = {
   Pending: 'Chờ duyệt', Approved: 'Đã duyệt · chờ giao', Delivered: 'Đã giao · chờ xác nhận', Completed: 'Hoàn tất',
@@ -46,7 +66,7 @@ type Column = { key: keyof Row; label: string; date?: boolean; numeric?: boolean
 const TABLE_COLUMNS: Record<Kind, (keyof Row)[]> = {
   redemptions: ['at', 'retailerName', 'itemName', 'quantity', 'points', 'status'],
   loyalty: ['at', 'retailerName', 'programCode', 'status', 'points', 'balanceAfter'],
-  promotions: ['at', 'retailerName', 'orderCode', 'itemCode', 'quantity', 'discountAmount', 'netAmount'],
+  promotions: ['at', 'orderCode', 'retailerName', 'programName', 'itemCode', 'quantity', 'discountAmount', 'netAmount'],
 };
 function columns(kind: Kind): Column[] {
   const common: Column[] = [{ key: 'id', label: 'Mã giao dịch / yêu cầu' }, { key: 'at', label: 'Thời gian', date: true },
@@ -96,7 +116,8 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const params = new URLSearchParams(useLocation().search);
-  const [draft, setDraft] = useState<Filters>(() => ({ ...defaultDashboardDates(), retailer: '', program: '', status: params.get('status') ?? '', regionId: '' }));
+  const [draft, setDraft] = useState<Filters>(() => ({ ...defaultDashboardDates(), retailer: '', program: params.get('program') ?? '', status: params.get('status') ?? '', regionId: '' }));
+  const [promoViewMode, setPromoViewMode] = useState<'programs' | 'orders'>('programs');
   // Filters apply as they change (no "Xem báo cáo" button); typing is debounced.
   const filters = useDebounced(draft, 400);
   const filterKey = JSON.stringify(filters);
@@ -144,22 +165,94 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
       <div className="report-summary" style={{ gridTemplateColumns: `repeat(${summaryColumns(data.summary.length)}, minmax(0, 1fr))` }}>
         {data.summary.map(s => <Stat key={s.label} label={s.label} value={formatNumber(s.value)} />)}
       </div>
-      <Card title={title}>
-        <div className="report-table"><SimpleTable rows={data.items} columns={[
-          ...tableCols.map(col => ({ header: col.label, align: col.numeric ? 'right' as const : undefined, cell: (row: Row) => display(row, col, kind) })),
-          { header: '', align: 'right', cell: row => <div className="report-actions">
-            <Button size="sm" onClick={() => setSelected(row)}>Chi tiết</Button>
-            {kind === 'redemptions' && <Button size="sm" onClick={() => navigate(`/redeem/${row.id}`)}>Yêu cầu</Button>}
-            {kind === 'promotions' && row.orderId && <Button size="sm" onClick={() => navigate(`/orders/${row.orderId}`)}>Đơn hàng</Button>}
-            {kind === 'loyalty' && <Button size="sm" onClick={() => navigate(`/loyalty/${encodeURIComponent(row.retailerCode)}`)}>Thẻ tích điểm</Button>}
-          </div> },
-        ]} /></div>
-        <div className="row-wrap" style={{ padding: 12, gap: 16 }}>
-          <Button disabled={page === 1 || query.isFetching} onClick={() => setPage(p => p - 1)}>Trước</Button>
-          <span>Trang {page} / {Math.max(1, Math.ceil(data.totalCount / data.pageSize))} · {formatNumber(data.totalCount)} bản ghi</span>
-          <Button disabled={page * data.pageSize >= data.totalCount || query.isFetching} onClick={() => setPage(p => p + 1)}>Sau</Button>
+      {kind === 'promotions' && (
+        <div className="row-wrap" style={{ gap: 8, marginBottom: 12 }}>
+          <Button
+            variant={promoViewMode === 'programs' ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={() => setPromoViewMode('programs')}
+          >
+            Tổng hợp theo khuyến mãi
+          </Button>
+          <Button
+            variant={promoViewMode === 'orders' ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={() => setPromoViewMode('orders')}
+          >
+            Chi tiết các đơn hàng áp dụng
+          </Button>
         </div>
-      </Card>
+      )}
+      {draft.program && kind === 'promotions' && (
+        <div style={{ padding: '8px 14px', background: 'var(--bg-subtle, #f1f5f9)', borderRadius: 6, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>Đang lọc theo chương trình: <strong>{draft.program}</strong></span>
+          <Button size="sm" onClick={() => setDraft(f => ({ ...f, program: '' }))}>Xóa lọc chương trình</Button>
+        </div>
+      )}
+      {kind === 'promotions' && promoViewMode === 'programs' ? (
+        <Card title="Tổng hợp giá trị sử dụng theo chương trình khuyến mãi">
+          {(!data.byProgram || data.byProgram.length === 0) ? (
+            <div style={{ padding: 16 }} className="muted">
+              Không có chương trình khuyến mãi nào được áp dụng trong khoảng thời gian này.
+            </div>
+          ) : (
+            <div className="report-table">
+              <SimpleTable
+                rows={data.byProgram}
+                columns={[
+                  { header: 'Mã CTKM', cell: p => <span className="bold">{p.programCode}</span> },
+                  { header: 'Tên chương trình khuyến mãi', cell: p => p.programName },
+                  { header: 'Số đơn áp dụng', align: 'right', cell: p => formatNumber(p.orderCount) },
+                  { header: 'Sản lượng (thùng)', align: 'right', cell: p => formatNumber(p.totalQuantity) },
+                  { header: 'Trước giảm (đ)', align: 'right', cell: p => formatNumber(p.grossAmount) },
+                  {
+                    header: 'Tổng tiền giảm KM (đ)',
+                    align: 'right',
+                    cell: p => (
+                      <strong style={{ color: 'var(--color-danger, #e53e3e)' }}>
+                        {formatNumber(p.discountAmount)}
+                      </strong>
+                    ),
+                  },
+                  { header: 'Sau giảm (đ)', align: 'right', cell: p => formatNumber(p.netAmount) },
+                  {
+                    header: 'Thao tác',
+                    align: 'right',
+                    cell: p => (
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setDraft(f => ({ ...f, program: p.programCode }));
+                          setPromoViewMode('orders');
+                        }}
+                      >
+                        Xem đơn hàng ({formatNumber(p.orderCount)})
+                      </Button>
+                    ),
+                  },
+                ]}
+              />
+            </div>
+          )}
+        </Card>
+      ) : (
+        <Card title={title}>
+          <div className="report-table"><SimpleTable rows={data.items} columns={[
+            ...tableCols.map(col => ({ header: col.label, align: col.numeric ? 'right' as const : undefined, cell: (row: Row) => display(row, col, kind) })),
+            { header: '', align: 'right', cell: row => <div className="report-actions">
+              <Button size="sm" onClick={() => setSelected(row)}>Chi tiết</Button>
+              {kind === 'redemptions' && <Button size="sm" onClick={() => navigate(`/redeem/${row.id}`)}>Yêu cầu</Button>}
+              {kind === 'promotions' && row.orderId && <Button size="sm" onClick={() => navigate(`/orders/${row.orderId}`)}>Đơn hàng</Button>}
+              {kind === 'loyalty' && <Button size="sm" onClick={() => navigate(`/loyalty/${encodeURIComponent(row.retailerCode)}`)}>Thẻ tích điểm</Button>}
+            </div> },
+          ]} /></div>
+          <div className="row-wrap" style={{ padding: 12, gap: 16 }}>
+            <Button disabled={page === 1 || query.isFetching} onClick={() => setPage(p => p - 1)}>Trước</Button>
+            <span>Trang {page} / {Math.max(1, Math.ceil(data.totalCount / data.pageSize))} · {formatNumber(data.totalCount)} bản ghi</span>
+            <Button disabled={page * data.pageSize >= data.totalCount || query.isFetching} onClick={() => setPage(p => p + 1)}>Sau</Button>
+          </div>
+        </Card>
+      )}
     </>}</QueryState>}
     <Modal open={!!selected} width={900} title={selected ? `Chi tiết · ${selected.id}` : ''} subtitle={title}
       onClose={() => setSelected(null)} footer={<Button onClick={() => setSelected(null)}>Đóng</Button>}>
