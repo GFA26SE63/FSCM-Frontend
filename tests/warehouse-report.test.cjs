@@ -14,6 +14,7 @@ function source(file) {
   new Function('require', 'module', 'exports', code)(require, module, module.exports);
   return module.exports;
 }
+// The model only has a type import from '@/shared/lib/excel', which transpiling removes.
 const read = (file) => fs.readFileSync(path.resolve(__dirname, '../src', file), 'utf8');
 const model = source('features/warehouse-report/warehouseReportModel.ts');
 
@@ -75,6 +76,57 @@ test('warehouse report: page sits in the "Tổng quan" sidebar group, Admin/Oper
   assert.ok(page.includes("'/reports/warehouse-logistics'"));
   assert.ok(page.includes('<Modal'));
   assert.ok(page.includes('tài xế') && page.includes(' xe</Chip>'));
+});
+
+const stock = (over) => ({ productId: over.sku, sku: 'S', name: 'N', rank: 1, onHand: 0, valid: 0, nearExpiry: 0,
+  expired: 0, locked: 0, disposed: 0, factoryReceipt: 0, transferReceipt: 0, salesIssue: 0, transferIssue: 0, ...over });
+
+test('warehouse report: metric headers sort nhiều nhất → ít nhất → back to rank, ties by rank', () => {
+  let s = model.nextSort(null, 'valid');
+  assert.deepEqual(s, { key: 'valid', dir: 'desc' });
+  s = model.nextSort(s, 'valid');
+  assert.deepEqual(s, { key: 'valid', dir: 'asc' });
+  assert.equal(model.nextSort(s, 'valid'), null);
+  assert.deepEqual(model.nextSort(s, 'salesIssue'), { key: 'salesIssue', dir: 'desc' });
+  const rows = [stock({ sku: 'A', rank: 1, valid: 5 }), stock({ sku: 'B', rank: 2, valid: 9 }), stock({ sku: 'C', rank: 3, valid: 5 })];
+  assert.deepEqual(model.sortProducts(rows, { key: 'valid', dir: 'desc' }).map((p) => p.sku), ['B', 'A', 'C']);
+  assert.deepEqual(model.sortProducts(rows, { key: 'valid', dir: 'asc' }).map((p) => p.sku), ['A', 'C', 'B']);
+  assert.deepEqual(model.sortProducts([...rows].reverse(), null).map((p) => p.sku), ['A', 'B', 'C']);
+  const page = read('features/warehouse-report/WarehouseReportPage.tsx');
+  assert.ok(page.includes('className={`wr-sort') && page.includes('aria-sort='));
+});
+
+test('warehouse report: Excel has a per-warehouse sheet with Tổng rows and colours, plus a flat sheet', async () => {
+  const ExcelJS = require('exceljs');
+  const excelSrc = path.resolve(__dirname, '../src/shared/lib/excel.ts');
+  const excel = { exports: {} };
+  new Function('require', 'exports', ts.transpileModule(fs.readFileSync(excelSrc, 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText)(require, excel.exports);
+  const w = (code, products) => ({ id: code, code, name: `Kho ${code}`, regionId: 'r', regionName: 'Miền Nam',
+    driverCount: 2, vehicleCount: 3, products });
+  const report = { fromDate: '2026-11-01', toDate: '2026-11-20', regionId: null, top: 10, topProducts: [],
+    warehouses: [w('W1', [stock({ sku: 'MILK', name: 'Sữa', rank: 1, valid: 4, salesIssue: 7 }), stock({ sku: 'YOG', rank: 2, valid: 9 })]), w('W2', [])] };
+  const sheets = model.warehouseReportSheets(report, { sort: { key: 'valid', dir: 'desc' }, exportedAt: '20/11/2026 10:00' });
+  assert.deepEqual(sheets.map((s) => s.name), ['Theo kho', 'Dữ liệu chi tiết']);
+  const [byWarehouse, flat] = sheets;
+  assert.equal(byWarehouse.blocks.length, 2);
+  assert.match(byWarehouse.blocks[0].title, /W1 · Kho W1 · Miền Nam · 2 tài xế · 3 xe/);
+  assert.deepEqual(byWarehouse.blocks[0].rows.map((r) => r[1]), ['YOG', 'MILK'], 'Excel follows the on-screen sort');
+  assert.equal(byWarehouse.blocks[0].totals[1], 'Tổng');
+  assert.equal(byWarehouse.blocks[0].totals[3], 13);
+  assert.equal(flat.blocks[0].rows.length, 2);
+  assert.match(byWarehouse.info[0], /01\/11\/2026 – 20\/11\/2026/);
+
+  const wb = excel.exports.buildWorkbook(new ExcelJS.Workbook(), sheets);
+  const ws = wb.getWorksheet('Theo kho');
+  const values = [];
+  ws.eachRow((row) => values.push(row.values.slice(1)));
+  const totalsRow = values.findIndex((v) => v.includes('Tổng'));
+  assert.ok(totalsRow > 0);
+  const milkRow = ws.getRow(values.findIndex((v) => v.includes('MILK')) + 1);
+  assert.equal(milkRow.getCell(4).fill.fgColor.argb, model.EXCEL_TONES.valid.fill);
+  assert.ok((await wb.xlsx.writeBuffer()).byteLength > 1000);
 });
 
 test('warehouse report: "Chi tiết" leads each SKU row, totals row says "Tổng", table never scrolls sideways', () => {
