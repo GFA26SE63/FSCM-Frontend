@@ -10,7 +10,7 @@ const initials = (name: string) => name.split(' ').slice(-2).map((s) => s[0]).jo
 
 /** Sidebar topics (feature groups). Routes not listed fall into "Khác". */
 const MENU_GROUPS: { key: string; label: string; keys: string[] }[] = [
-  { key: 'overview', label: 'Tổng quan', keys: ['dashboard', 'reports', 'kpi'] },
+  { key: 'overview', label: 'Tổng quan', keys: ['dashboard', 'reports', 'warehouse-report', 'kpi'] },
   { key: 'sales', label: 'Bán hàng & Tài chính', keys: ['orders', 'allocation', 'debts', 'refunds', 'complaints'] },
   { key: 'warehouse', label: 'Kho vận', keys: ['inventory', 'warehouse-inbound', 'warehouse-outbound', 'warehouse-transfers', 'warehouse-trace', 'factory-traceability', 'runpicking', 'readiness', 'receipts', 'batches', 'batchpromo', 'disposal', 'whtransfer', 'rotation', 'fleet'] },
   { key: 'customer', label: 'Khách hàng & Khuyến mãi', keys: ['retailers', 'promos', 'loyalty', 'redeem', 'gifts'] },

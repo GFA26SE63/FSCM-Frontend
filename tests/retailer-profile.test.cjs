@@ -235,7 +235,8 @@ test('Source Code Integrity: RetailerMlorTab implements F22-FE Category & SKU ML
   );
 
   // Hierarchy rules and Vietnamese terminology
-  assert.ok(mlorTabCode.includes('Quy tắc thứ tự ưu tiên hạn sử dụng (yêu cầu HSD tối thiểu)'));
+  // The precedence explanation callout was removed from the UI on request.
+  assert.ok(!mlorTabCode.includes('Quy tắc thứ tự ưu tiên hạn sử dụng'));
   assert.ok(mlorTabCode.includes('1. Áp dụng theo danh mục'));
   assert.ok(mlorTabCode.includes('2. Yêu cầu riêng theo sản phẩm'));
   assert.ok(mlorTabCode.includes('3. Tra cứu yêu cầu đang áp dụng'));
@@ -266,7 +267,8 @@ test('Source Code Integrity: RetailerAuditTimeline complies with architectural r
   );
 
   // Clean business UI check: NEVER expose technical notes or ProfileHistory/AuditLog to users
-  assert.ok(auditCode.includes('Lịch sử thay đổi nhà bán lẻ'));
+  // The "Lịch sử thay đổi điểm bán" explanation callout was removed on request.
+  assert.ok(!auditCode.includes('Lịch sử thay đổi điểm bán'));
   assert.ok(auditCode.includes('Lịch sử thay đổi hồ sơ'));
   assert.ok(!auditCode.includes('ProfileHistory'), 'Should not expose ProfileHistory technical note to business users');
   assert.ok(!auditCode.includes('AuditLog'), 'Should not expose AuditLog technical note to business users');

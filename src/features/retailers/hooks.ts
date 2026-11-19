@@ -140,6 +140,14 @@ export const useRetailerLookups = (enabled = true) => ({
   groups: useQuery({ queryKey: ['retailers', 'groups'], queryFn: retailerApi.groups, enabled }),
 });
 export const useCreateRetailer = () => useApiMutation(retailerApi.create, { permission: 'retailers.create', success: (r) => `Đã tạo nhà bán lẻ ${r.code} · ${r.name}.` });
+export const useSetRetailerStatus = () =>
+  useApiMutation(retailerApi.setStatus, {
+    permission: 'retailers.status',
+    success: (r, v) =>
+      v.isActive
+        ? `Đã kích hoạt lại nhà bán lẻ ${r.code}.`
+        : `Đã chuyển nhà bán lẻ ${r.code} sang ngừng hoạt động.`,
+  });
 export const useUpdateRetailer = () => useApiMutation(retailerApi.update, { permission: 'retailers.edit', success: (r) => `Đã cập nhật nhà bán lẻ ${r.code}.` });
 export const useApproveRegistration = () => useApiMutation(retailerApi.approve, { permission: 'retailers.review', success: (r) => `Đã duyệt ${r.registration.code}: cấp mã nhà bán lẻ ${r.retailer.code} và báo nhân viên bán hàng.` });
 export const useRejectRegistration = () => useApiMutation(retailerApi.reject, { permission: 'retailers.review', success: (r) => `Đã từ chối ${r.code}.` });

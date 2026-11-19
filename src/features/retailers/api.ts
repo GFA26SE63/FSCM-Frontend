@@ -1,4 +1,4 @@
-import { del, get, getAll, post, put } from '@/shared/api/http';
+import { del, get, getAll, patch, post, put } from '@/shared/api/http';
 import { ApiError } from '@/shared/api/errors';
 import type {
   AreaOption,
@@ -62,6 +62,9 @@ export const retailerApi = {
     return get<Retailer>(`/retailers/${encodeURIComponent(match.id)}`);
   },
   create: (v: RetailerInput) => post<Retailer>('/retailers', v),
+  /** PATCH /retailers/{id}/status — Admin only. Active ⇄ Inactive. */
+  setStatus: (v: { retailerId: string; isActive: boolean }) =>
+    patch<Retailer>(`/retailers/${encodeURIComponent(v.retailerId)}/status`, { isActive: v.isActive }),
   update: (v: RetailerInput & { code: string }) => put<Retailer>(`/retailers/${v.code}`, v),
   updateProfile: async (
     retailerId: string,
