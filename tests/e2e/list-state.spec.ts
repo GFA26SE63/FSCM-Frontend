@@ -35,6 +35,27 @@ async function setup(page: Page) {
   })));
   await page.route('**/graphql', async (route) => {
     const body = JSON.parse(route.request().postData() ?? '{}') as { query?: string; variables?: { after?: string; before?: string; st?: string } };
+    if (body.query?.includes('userReads(')) {
+      const variables = body.variables as undefined | {
+        search?: string; role?: string; page?: number; pageSize?: number;
+      };
+      const term = (variables?.search ?? '').toLocaleLowerCase('vi-VN');
+      const matching = users.filter((user) =>
+        (!term || user.fullName.toLocaleLowerCase('vi-VN').includes(term) || user.email.includes(term)) &&
+        (!variables?.role || user.role === variables.role));
+      const page = variables?.page ?? 1;
+      const pageSize = variables?.pageSize ?? 20;
+      const search = new URLSearchParams();
+      if (variables?.search) search.set('search', variables.search);
+      if (variables?.role) search.set('role', variables.role);
+      search.set('page', String(page));
+      search.set('pageSize', String(pageSize));
+      calls.push({ path: '/users', search });
+      return route.fulfill({ json: { data: { entities: { userReads: {
+        items: matching.slice((page - 1) * pageSize, page * pageSize),
+        page, pageSize, totalCount: matching.length,
+      } } } } });
+    }
     if (!body.query?.includes('salesOrders(')) return route.fulfill({ json: { data: {} } });
     const filtered = body.variables?.st ? orders.filter((order) => order.status === body.variables?.st) : orders;
     const pageSize = Number(body.query.match(/(?:first|last): (\d+)/)?.[1] ?? 20);
@@ -95,7 +116,7 @@ test('Orders: filters, search, date and page survive detail → back / breadcrum
   await expect(page.locator('table.tbl tbody tr')).toHaveCount(10);
 
   await label(page, 'Trạng thái').locator('select').selectOption('Delivering');
-  await label(page, 'Từ ngày').locator('input').fill('2026-11-02');
+  await label(page, 'Từ ngày').getByRole('textbox').fill('02/11/2026');
   await label(page, 'Tìm kiếm').locator('input').fill('Cửa hàng');
   await expect.poll(() => params(page).get('q')).toBe('Cửa hàng');
   await page.locator('.pager').getByRole('button', { name: '2', exact: true }).click();
@@ -114,7 +135,7 @@ test('Orders: filters, search, date and page survive detail → back / breadcrum
   await page.goBack();
   await expect(page).toHaveURL(listUrl);
   await expect(label(page, 'Trạng thái').locator('select')).toHaveValue('Delivering');
-  await expect(label(page, 'Từ ngày').locator('input')).toHaveValue('2026-11-02');
+  await expect(label(page, 'Từ ngày').getByRole('textbox')).toHaveValue('02/11/2026');
   await expect(label(page, 'Tìm kiếm').locator('input')).toHaveValue('Cửa hàng');
   await expect(page.locator('.pager .btn-primary')).toHaveText('2');
   await expect(page.locator('table.tbl tbody tr').first().locator('td').first()).toHaveText(firstRowOnPage2);
@@ -154,7 +175,7 @@ test('Orders: invalid URL params fall back to safe defaults', async ({ page }) =
   await page.goto('/orders?status=%3Cscript%3E&size=999&from=2026-99-99');
   await expect(page.locator('table.tbl tbody tr')).toHaveCount(20);
   await expect(label(page, 'Trạng thái').locator('select')).toHaveValue('');
-  await expect(label(page, 'Từ ngày').locator('input')).toHaveValue('');
+  await expect(label(page, 'Từ ngày').getByRole('textbox')).toHaveValue('');
   await expect(page.getByRole('navigation', { name: 'Phân trang dữ liệu' })
     .getByRole('button', { name: '1', exact: true })).toHaveAttribute('aria-current', 'page');
 });
