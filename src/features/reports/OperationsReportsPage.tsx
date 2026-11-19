@@ -168,14 +168,14 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
       {kind === 'promotions' && (
         <div className="row-wrap" style={{ gap: 8, marginBottom: 12 }}>
           <Button
-            variant={promoViewMode === 'programs' ? 'primary' : 'secondary'}
+            variant={promoViewMode === 'programs' ? 'primary' : 'default'}
             size="sm"
             onClick={() => setPromoViewMode('programs')}
           >
             Tổng hợp theo khuyến mãi
           </Button>
           <Button
-            variant={promoViewMode === 'orders' ? 'primary' : 'secondary'}
+            variant={promoViewMode === 'orders' ? 'primary' : 'default'}
             size="sm"
             onClick={() => setPromoViewMode('orders')}
           >
