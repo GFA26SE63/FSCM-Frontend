@@ -52,11 +52,11 @@ test('dashboard translates server card text while preserving figures, links and 
   assert.deepEqual(dashboardCardCopy(original), { ...original, label: 'Phiếu giao hàng chờ xuất',
     note: 'Tại các kho trong bộ lọc · kiểm tra điều kiện trước khi xuất kho' });
   assert.equal(original.label, 'Shipment chờ xuất');
-  assert.equal(dashboardText('Đang chờ Retailer xác nhận PO'), 'Đang chờ điểm bán xác nhận báo giá');
+  assert.equal(dashboardText('Đang chờ Retailer xác nhận PO'), 'Đang chờ nhà bán lẻ xác nhận báo giá');
   assert.equal(dashboardText('Shipment ngoại lệ'), 'Phiếu giao hàng cần xử lý phát sinh');
   assert.equal(dashboardText('Khu vực / nhóm Sales được quản lý'), 'Khu vực / nhóm bán hàng được quản lý');
   const fill = { ...original, key: 'fillRate', note: '1,234/2,000 thùng retailer xác nhận nhận' };
-  assert.equal(dashboardCardCopy(fill).note, '1,234/2,000 thùng điểm bán xác nhận nhận');
+  assert.equal(dashboardCardCopy(fill).note, '1,234/2,000 thùng nhà bán lẻ xác nhận nhận');
   assert.equal(dashboardText('Retailer ABC · Shipment 123: user-entered reason'), 'Retailer ABC · Shipment 123: user-entered reason');
   assert.equal(dashboardCardCopy({ ...original, note: 'Unknown server note' }).note, 'Unknown server note');
 });
@@ -65,14 +65,14 @@ test('Vietnamese role labels retain the authorization codes and portal role memb
   const roles = source('shared/auth/roles.ts');
   assert.deepEqual(roles.PORTAL_ROLES, ['Admin', 'Operator', 'WarehouseKeeper', 'SalesManager']);
   assert.equal(roles.roleLabel.Sales, 'Nhân viên bán hàng');
-  assert.equal(roles.roleLabel.Retailer, 'Điểm bán');
+  assert.equal(roles.roleLabel.Retailer, 'Nhà bán lẻ');
   assert.equal(roles.isPortalRole('Sales'), false);
   assert.equal(roles.isPortalRole('Admin'), true);
 });
 
 test('saved list filter URLs survive translated labels without rewriting API values or real names', () => {
   assert.equal(filters.tableFilterParam('Nhóm bán hàng'), 'nhomsales');
-  assert.equal(filters.tableFilterParam('Điểm bán'), 'diemban');
+  assert.equal(filters.tableFilterParam('Nhà bán lẻ'), 'diemban');
   assert.equal(filters.tableFilterParam('Lô hàng'), 'lohang');
   assert.equal(filters.tableFilterParam('Trạng thái'), 'trangthai');
   assert.equal(filters.tableFilterValue('Inactive', ['Nháp', 'Ngừng bán']), 'Ngừng bán');

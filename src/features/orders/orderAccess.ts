@@ -39,7 +39,7 @@ export function assertCanWithdrawOrder(
     throw new ApiError(
       409,
       'Không thể rút yêu cầu',
-      'Chỉ được rút đơn bán hàng khi còn đang phân bổ. Sau khi có báo giá, điểm bán thực hiện từ chối báo giá.',
+      'Chỉ được rút đơn bán hàng khi còn đang phân bổ. Sau khi có báo giá, nhà bán lẻ thực hiện từ chối báo giá.',
     );
   }
 }

@@ -111,7 +111,7 @@ test.describe('Admin sidebar live smoke', () => {
     expect(debtsText).toMatch(/Chưa phát sinh|\d{2}\/\d{2}\/\d{4}/);
 
     await page.goto('/regions/BD-A');
-    await expect(page.getByText(/Danh sách điểm bán do nhóm BD-A phụ trách/i)).toBeVisible();
+    await expect(page.getByText(/Danh sách nhà bán lẻ do nhóm BD-A phụ trách/i)).toBeVisible();
     const retailerTable = page.locator('table').last();
     await expect(retailerTable).not.toContainText('—');
     await expect(retailerTable).toContainText(/Bình Dương|Chưa cập nhật địa chỉ/);

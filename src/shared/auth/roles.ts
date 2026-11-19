@@ -10,7 +10,7 @@ export const roleLabel: Record<AppRole, string> = {
   WarehouseKeeper: 'Thủ kho',
   SalesManager: 'Quản lý bán hàng',
   Sales: 'Nhân viên bán hàng',
-  Retailer: 'Điểm bán',
+  Retailer: 'Nhà bán lẻ',
 };
 
 export const isPortalRole = (r: string): r is PortalRole => (PORTAL_ROLES as string[]).includes(r);

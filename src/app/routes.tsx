@@ -57,11 +57,12 @@ const complaints = () => import('@/features/complaints');
 const config = () => import('@/features/config');
 const dashboard = () => import('@/features/dashboard');
 const reports = () => import('@/features/reports');
+const warehouseReport = () => import('@/features/warehouse-report');
 
 /** Single source for routing + sidebar menu (matching prototype prod menuAll order and roles). */
 export const APP_ROUTES: AppRoute[] = [
-  { key: 'inventory', label: 'Tồn kho · QR nhà máy', roles: [A, WK, OP], list: page(() => import('@/features/inventory'), 'InventoryPage') },
-  { key: 'factory-traceability', label: 'Nhà máy · truy xuất nguồn gốc', roles: [A], list: page(() => import('@/features/factory-traceability'), 'FactoryTraceabilityPage') },
+  { key: 'inventory', label: 'Tồn kho · QR nhà máy', roles: [A, WK, OP], hidden: true, list: page(() => import('@/features/inventory'), 'InventoryPage') },
+  { key: 'factory-traceability', label: 'Nhà máy · truy xuất nguồn gốc', roles: [A], hidden: true, list: page(() => import('@/features/factory-traceability'), 'FactoryTraceabilityPage') },
   { key: 'warehouse-inbound', label: 'Nhập kho', roles: [A, WK], list: page(() => import('@/features/warehouse-work'), 'WarehouseInboundPage'), sub: [{ path: 'new', element: page(() => import('@/features/warehouse-work'), 'WarehouseInboundPage') }, { path: ':documentId', element: page(() => import('@/features/warehouse-work'), 'WarehouseInboundPage') }] },
   { key: 'warehouse-outbound', label: 'Xuất kho', roles: [A, WK], list: page(() => import('@/features/warehouse-work'), 'WarehouseOutboundPage'), sub: [{ path: 'new', element: page(() => import('@/features/warehouse-work'), 'WarehouseOutboundPage') }, { path: ':documentId', element: page(() => import('@/features/warehouse-work'), 'WarehouseOutboundPage') }] },
   { key: 'warehouse-transfers', label: 'Luân chuyển kho', roles: [A, WK], list: page(() => import('@/features/warehouse-work'), 'WarehouseTransferPage'), sub: [{ path: 'new', element: page(() => import('@/features/warehouse-work'), 'WarehouseTransferPage') }, { path: ':documentId', element: page(() => import('@/features/warehouse-work'), 'WarehouseTransferPage') }] },
@@ -73,6 +74,7 @@ export const APP_ROUTES: AppRoute[] = [
     { key: 'report-loyalty', label: 'Báo cáo tích điểm', to: '/reports?kind=loyalty' },
     { key: 'report-promotions', label: 'Báo cáo khuyến mãi', to: '/reports?kind=promotions' },
   ] },
+  { key: 'warehouse-report', label: 'Báo cáo kho vận', roles: [A, OP], list: page(warehouseReport, 'WarehouseReportPage') },
   { key: 'orders', label: 'Đơn hàng', roles: [A, OP], badge: 'orders', list: page(orders, 'OrdersPage'), sub: [{ path: ':orderId', element: page(orders, 'OrderDetailPage') }] },
   { key: 'allocation', label: 'Phân bổ theo thời gian thực', roles: [A, OP], list: page(allocation, 'AllocationRunPage') },
   { key: 'debts', label: 'Công nợ', roles: [A, OP], badge: 'debts', list: page(debts, 'DebtsPage') },
@@ -93,7 +95,7 @@ export const APP_ROUTES: AppRoute[] = [
     key: 'promos', label: 'Khuyến mãi', roles: [A], list: page(promos, 'PromosPage'),
     sub: [{ path: 'new', element: page(promos, 'PromoFormPage') }, { path: ':id', element: page(promos, 'PromoDetailPage') }],
   },
-  { key: 'retailers', label: 'Điểm bán', roles: [A, OP], badge: 'retailers', list: page(retailers, 'RetailersPage'), sub: [{ path: ':id', element: page(retailers, 'RetailerDetailPage') }] },
+  { key: 'retailers', label: 'Nhà bán lẻ', roles: [A, OP], badge: 'retailers', list: page(retailers, 'RetailersPage'), sub: [{ path: ':id', element: page(retailers, 'RetailerDetailPage') }] },
   { key: 'loyalty', label: 'Tích điểm', roles: [A, OP], list: page(loyalty, 'LoyaltyPage'), sub: [{ path: ':code', element: page(loyalty, 'LoyaltyDetailPage') }] },
   { key: 'redeem', label: 'Đổi quà', roles: [A, OP], badge: 'redeem', list: page(redeem, 'RedeemPage'), sub: [{ path: ':code', element: page(redeem, 'RedeemDetailPage') }] },
   { key: 'gifts', label: 'Danh mục quà đổi điểm', roles: [A], list: page(gifts, 'GiftsPage') },

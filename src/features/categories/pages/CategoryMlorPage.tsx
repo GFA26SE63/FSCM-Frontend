@@ -98,7 +98,7 @@ export function CategoryMlorPage() {
         subtitle="Tỷ lệ hạn sử dụng còn lại tối thiểu mặc định cho từng danh mục sản phẩm."
       />
       <Callout tone="info">
-        Thứ tự áp dụng khi nhân viên bán hàng đặt hàng: yêu cầu HSD tối thiểu riêng của điểm bán theo SKU → yêu cầu HSD tối thiểu riêng của điểm bán theo danh mục →
+        Thứ tự áp dụng khi nhân viên bán hàng đặt hàng: yêu cầu HSD tối thiểu riêng của nhà bán lẻ theo SKU → yêu cầu HSD tối thiểu riêng của nhà bán lẻ theo danh mục →
         yêu cầu HSD tối thiểu theo danh mục sản phẩm (danh mục gần nhất có cấu hình, kể cả danh mục cha) → yêu cầu HSD tối thiểu mặc định hệ thống
         ({pct(systemRatio)}). Thay đổi chỉ áp dụng cho đơn tạo mới.
       </Callout>

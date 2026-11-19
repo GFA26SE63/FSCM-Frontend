@@ -1,10 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
-import { useEnumParam } from '@/shared/router/listState';
+import { useEnumParam, useQueryParams } from '@/shared/router/listState';
+import { useCursorPagination } from '@/shared/pagination';
+import { decodeSort, PAGINATION_PARAM_NAMES, PAGINATION_RESETS, parsePageSize } from '@/shared/pagination/urlSync';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
-import { useRestPagination, paginationQueryKeys } from '@/shared/pagination';
 import {
   Button,
   DataTable,
@@ -13,8 +13,15 @@ import {
   StatusChip,
   type Column,
 } from '@/shared/ui';
-import { retailerApi } from '../api';
-import type { Retailer } from '../types';
+import { useRetailersPage, useRetailerSalesGroupsForPage } from '../hooks';
+import {
+  RETAILERS_PAGE_SIZES,
+  RETAILERS_SORT_MAP,
+  RETAILERS_SORTABLE_FIELDS,
+  type RetailerListRow,
+  type RetailerSortField,
+  type RetailersPageSize,
+} from '../retailersGraphql';
 import { RetailerFormDialog } from '../components/RetailerFormDialog';
 import { RetailerReviewDialog } from '../components/RetailerReviewDialog';
 
@@ -35,60 +42,77 @@ const STATUS_FILTER_OPTIONS = [
   ...Object.entries(statusLabel).map(([value, label]) => ({ label, value })),
 ];
 
-/** Operational retailer queue backed by the current Retailers API. */
+const PAGE_RESETS = PAGINATION_RESETS;
+
+/**
+ * Retailer list — migrated to GraphQL cursor pagination (entities.retailers), Phase C.1.
+ *
+ * Note: the former "Liên hệ" (contact/phone) column is not reproducible via GraphQL —
+ * RetailerDeclarationContact has no entities.* resolver (confirmed REST-only in the
+ * Backend capability audit). Full contact info remains available on the Detail page,
+ * which stays on REST. See docs/audits/FSCM_Phase_C1_Retailers_Migration_Report.md.
+ */
 export function RetailersPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [reviewing, setReviewing] = useState<Retailer | null>(null);
+  const { params } = useQueryParams();
   const [createOpen, setCreateOpen] = useState(false);
+  const [reviewing, setReviewing] = useState<{ id: string; code: string } | null>(null);
 
-  // Status filter — synced to URL, resets page on change
+  const after = params.get('after') ?? undefined;
+  const before = after ? undefined : (params.get('before') ?? undefined);
+  const pageSize = parsePageSize(params.get('size'), RETAILERS_PAGE_SIZES, 20) as RetailersPageSize;
+  const search = params.get('q') ?? undefined;
+
   const [statusFilter, setStatusFilter] = useEnumParam<StatusValue>(
     'status',
     STATUS_VALUES,
     '',
-    { resets: ['page'] },
+    { resets: PAGE_RESETS },
   );
 
-  // Phase 0 REST pagination hook — manages page/size/search from URL
-  // total starts at 0; patched with real totalCount once query data arrives
-  const { page, pageSize, search, pagingProps: basePagingProps } = useRestPagination({
+  const rawSort = decodeSort(params.get(PAGINATION_PARAM_NAMES.SORT));
+  const activeSort = rawSort?.field && RETAILERS_SORT_MAP[rawSort.field as RetailerSortField]
+    ? { field: rawSort.field as RetailerSortField, direction: rawSort.direction }
+    : undefined;
+
+  const query = useRetailersPage({
+    size: pageSize,
+    after,
+    before,
+    status: statusFilter || undefined,
+    search: search || undefined,
+    sort: activeSort,
+  });
+
+  const { pagingProps, sortProps } = useCursorPagination({
+    pageInfo: query.data?.pageInfo,
+    totalCount: query.data?.totalCount,
+    loading: query.isLoading || query.isFetching,
+    error: query.isPlaceholderData ? undefined : query.error,
     defaultPageSize: 20,
-    pageSizeOptions: [10, 20, 50],
+    pageSizeOptions: RETAILERS_PAGE_SIZES,
     urlState: true,
   });
 
-  const query = useQuery({
-    queryKey: paginationQueryKeys.restPage('retailers', {
-      page,
-      size: pageSize,
-      search,
-      filters: { status: statusFilter },
-    }),
-    queryFn: () =>
-      retailerApi.list({
-        page,
-        pageSize,
-        search: search || undefined,
-        status: statusFilter || undefined,
-      }),
-    placeholderData: (prev) => prev,
-  });
+  const pageRetailerIds = useMemo(
+    () => (query.data?.rows ?? []).map((r) => r.id),
+    [query.data?.rows],
+  );
+  const salesGroupsQuery = useRetailerSalesGroupsForPage(pageRetailerIds);
 
-  // Patch pagingProps with real total so DataTable shows correct page count
-  const totalCount = query.data?.totalCount ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-  const pagingProps = { ...basePagingProps, total: totalCount, totalPages };
+  const rows = useMemo(() => {
+    const groups = salesGroupsQuery.data;
+    return (query.data?.rows ?? []).map((r) => ({
+      ...r,
+      salesGroupCode: groups?.get(r.id) ?? null,
+    }));
+  }, [query.data?.rows, salesGroupsQuery.data]);
 
-  const columns: Column<Retailer>[] = [
-    { key: 'code', header: 'Mã', width: '120px', text: (row) => row.code },
-    { key: 'name', header: 'Điểm bán', text: (row) => row.name },
-    {
-      key: 'contact',
-      header: 'Liên hệ',
-      text: (row) => `${row.contactName ?? '—'} · ${row.phone ?? '—'}`,
-    },
-    { key: 'salesGroup', header: 'Nhóm bán hàng', width: '130px', text: (row) => row.salesGroupCode },
+  const columns: Column<RetailerListRow>[] = [
+    { key: 'code', header: 'Mã', width: '120px', sortable: true, text: (row) => row.code },
+    { key: 'name', header: 'Điểm bán', sortable: true, text: (row) => row.name },
+    { key: 'salesGroup', header: 'Nhóm bán hàng', width: '130px', text: (row) => row.salesGroupCode ?? '—' },
     { key: 'type', header: 'Loại hình', text: (row) => row.retailerType },
     {
       key: 'credit',
@@ -107,26 +131,27 @@ export function RetailersPage() {
   return (
     <>
       <PageHeader
-        title="Điểm bán"
-        subtitle="Theo dõi khai báo từ nhân viên bán hàng, duyệt điểm bán và quản lý hồ sơ điểm bán."
+        title="Nhà bán lẻ"
+        subtitle="Theo dõi khai báo từ nhân viên bán hàng, duyệt nhà bán lẻ và quản lý hồ sơ nhà bán lẻ."
         actions={
           can(user, 'retailers.create') ? (
             <Button variant="primary" onClick={() => setCreateOpen(true)}>
-              + Tạo điểm bán
+              + Tạo nhà bán lẻ
             </Button>
           ) : undefined
         }
       />
       <DataTable
         title="Danh sách điểm bán"
-        rows={query.data?.items}
+        rows={rows}
         loading={query.isLoading || query.isPlaceholderData}
         error={query.isPlaceholderData ? undefined : query.error}
-        rowKey={(row) => row.id ?? row.code}
+        rowKey={(row) => row.id}
         columns={columns}
-        onRowClick={(row) => navigate(`/retailers/${row.id || row.code}`)}
-        searchPlaceholder="Mã, tên điểm bán, người liên hệ, SĐT..."
-        server={pagingProps}
+        onRowClick={(row) => navigate(`/retailers/${row.id}`)}
+        searchPlaceholder="Mã, tên điểm bán, địa chỉ..."
+        cursor={pagingProps}
+        serverSort={{ ...sortProps, sortableFields: RETAILERS_SORTABLE_FIELDS }}
         filterExtra={
           <label className="lbl">
             Trạng thái
@@ -144,7 +169,7 @@ export function RetailersPage() {
             <Button
               size="sm"
               variant="default"
-              onClick={() => navigate(`/retailers/${row.id || row.code}`)}
+              onClick={() => navigate(`/retailers/${row.id}`)}
             >
               Xem
             </Button>
@@ -152,7 +177,7 @@ export function RetailersPage() {
               <Button
                 size="sm"
                 variant="primary"
-                onClick={() => setReviewing(row)}
+                onClick={() => setReviewing({ id: row.id, code: row.code })}
               >
                 Xét duyệt
               </Button>
@@ -160,7 +185,7 @@ export function RetailersPage() {
           </div>
         )}
       />
-      {reviewing && reviewing.id && <RetailerReviewDialog retailer={reviewing as Retailer & { id: string }} onClose={() => setReviewing(null)} />}
+      {reviewing && <RetailerReviewDialog retailer={reviewing} onClose={() => setReviewing(null)} />}
       {createOpen && <RetailerFormDialog open retailer={null} onClose={() => setCreateOpen(false)} />}
     </>
   );

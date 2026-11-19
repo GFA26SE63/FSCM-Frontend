@@ -80,7 +80,7 @@ test('formatSalesName: respects display priority and role labeling, never return
   );
   assert.equal(
     mod.formatSalesName({ id: RETAILER_ID, fullName: 'Tạp Hóa Bình An', email: 'retailer@fscm.vn', role: 'Retailer' }),
-    '[Điểm bán] Tạp Hóa Bình An',
+    '[Nhà bán lẻ] Tạp Hóa Bình An',
   );
   assert.equal(
     mod.formatSalesName({ id: 'op-1', fullName: 'Điều Phối Viên', email: 'op@fscm.vn', role: 'Operator' }),
@@ -134,7 +134,7 @@ test('Admin: full name resolved from users API; deduplicated requests; never raw
   assert.equal(creatorLabelOf(ADMIN_ID), 'Người đặt đơn');
 
   // Retailer (non-sales role preserved)
-  assert.equal(salesNameOf(RETAILER_ID), '[Điểm bán] Đại lý Minh Phát');
+  assert.equal(salesNameOf(RETAILER_ID), '[Nhà bán lẻ] Đại lý Minh Phát');
   assert.equal(creatorLabelOf(RETAILER_ID), 'Người đặt đơn');
 
   // Unresolvable fallback
@@ -197,7 +197,7 @@ test('OrdersPage and OrderDetailPage source files contain correct unified labels
   assert.ok(ordersPageSrc.includes('salesSearchTextOf('));
   assert.ok(ordersPageSrc.includes('salesNameOf('));
   assert.match(ordersPageSrc, /label:\s*'Người đặt đơn'/);
-  assert.ok(ordersPageSrc.includes("searchPlaceholder=\"Mã đơn, điểm bán, người đặt, trạng thái…\""));
+  assert.ok(ordersPageSrc.includes("searchPlaceholder=\"Mã đơn, nhà bán lẻ, người đặt, trạng thái…\""));
   assert.ok(ordersPageSrc.includes("param: 'sales'"));
 
   // OrderDetailPage detail display uses unified "Người đặt đơn"
@@ -212,7 +212,7 @@ test('OrdersPage and OrderDetailPage source files contain correct unified labels
   // Row 3: Hạn thanh toán, Lần phân bổ, Kết quả phân bổ
   // Row 4: Người đặt đơn
   const fieldOrder = [
-    'Điểm bán',
+    'Nhà bán lẻ',
     'Địa chỉ giao',
     'Ngày yêu cầu nhận',
     'Nguồn',
@@ -253,7 +253,7 @@ test('OrdersPage: column spacing and rowActions width are optimized to avoid hor
   assert.match(ordersPageSrc, /header:\s*'Đơn hàng',\s*width:\s*'95px'/);
 
   // Verify retailer is flexible (width omitted) to absorb extra horizontal room cleanly
-  assert.match(ordersPageSrc, /key:\s*'retailer',\s*header:\s*'Điểm bán',\s*text:/);
+  assert.match(ordersPageSrc, /key:\s*'retailer',\s*header:\s*'Nhà bán lẻ',\s*text:/);
 
   // Calculate table minimum width with the actual columns
   const mockColumns = [

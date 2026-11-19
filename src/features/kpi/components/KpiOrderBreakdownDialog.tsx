@@ -70,7 +70,7 @@ export function KpiOrderBreakdownDialog({
     },
     {
       key: 'retailer',
-      header: 'Điểm bán',
+      header: 'Nhà bán lẻ',
       text: (row) => `${row.retailerCode} · ${row.retailerName}`,
       render: (row) => (
         <div>
@@ -182,7 +182,7 @@ export function KpiOrderBreakdownDialog({
             rows={orders}
             columns={columns}
             rowKey={(r) => r.orderId}
-            searchPlaceholder="Tìm mã đơn, tên điểm bán…"
+            searchPlaceholder="Tìm mã đơn, tên nhà bán lẻ…"
           />
         )}
       </div>

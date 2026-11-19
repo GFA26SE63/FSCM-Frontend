@@ -16,7 +16,7 @@ import {
   StatusChip,
   type Column,
 } from '@/shared/ui';
-import { formatDate, formatMoney, statusLabels, toIsoDateTime, vietnamDateTimeToIso } from '@/shared/lib';
+import { DATE_SORT_OPTIONS, formatDate, formatMoney, sortByDate, statusLabels, toIsoDateTime, vietnamDateTimeToIso, type DateSortOrder } from '@/shared/lib';
 import { useCollectReceivable, useReceivables } from '../hooks';
 import type { Receivable, ReceivableStatus } from '../types';
 import { useOrderSales } from '@/features/orders/orderSales';
@@ -46,9 +46,12 @@ export function DebtsPage() {
   const [statusFilter, setStatusFilter] = useEnumParam<ReceivableStatusFilter>(
     'status', RECEIVABLE_STATUSES, '', { resets: ['page'] },
   );
+  const [dateSort, setDateSort] = useEnumParam<DateSortOrder>(
+    'sort', ['newest', 'oldest'] as const, 'newest', { resets: ['page'] },
+  );
   const { setParams } = useQueryParams();
-  const hasActiveFilters = !!(search || statusFilter);
-  const clearFilters = () => setParams({ status: null, q: null, page: null });
+  const hasActiveFilters = !!(search || statusFilter || dateSort !== 'newest');
+  const clearFilters = () => setParams({ status: null, q: null, sort: null, page: null });
 
   // ── Refunds: separate URL-persisted pagination (stateKey namespaces the URL params)
   const {
@@ -95,8 +98,8 @@ export function DebtsPage() {
     if (statusFilter) {
       result = result.filter((r) => r.status === statusFilter);
     }
-    return result;
-  }, [rows, search, statusFilter, salesSearchTextOf]);
+    return sortByDate(result, (row) => row.dueDate ?? row.deliveredDate, dateSort);
+  }, [rows, search, statusFilter, salesSearchTextOf, dateSort]);
 
   // Pagination on filtered results
   const totalCount = filtered.length;
@@ -115,7 +118,7 @@ export function DebtsPage() {
 
   const columns: Column<Receivable>[] = [
     { key: 'orderCode', header: 'Mã đơn', width: '104px', render: (r) => <span className="bold">{r.orderCode}</span> },
-    { key: 'retailer', header: 'Điểm bán', text: (r) => `${r.retailerName} ${r.retailerCode}`, render: (r) => (<><div className="strong">{r.retailerName}</div><div className="muted small">{r.retailerCode}</div></>) },
+    { key: 'retailer', header: 'Nhà bán lẻ', text: (r) => `${r.retailerName} ${r.retailerCode}`, render: (r) => (<><div className="strong">{r.retailerName}</div><div className="muted small">{r.retailerCode}</div></>) },
     { key: 'sales', header: 'Nhân viên bán hàng', width: '160px', text: (r) => salesSearchTextOf(r.salesUserId), render: (r) => <span className="strong">{salesNameOf(r.salesUserId)}</span> },
     { key: 'term', header: 'Kỳ hạn', width: '80px', text: (r) => `${r.creditTermDays} ngày` },
     { key: 'delivered', header: 'Ngày giao', width: '110px', text: (r) => r.deliveredDate ? formatDate(r.deliveredDate) : 'Chưa giao' },
@@ -128,7 +131,7 @@ export function DebtsPage() {
 
   return (
     <>
-      <PageHeader title="Công nợ" subtitle="Theo dõi số dư từng đơn sau các lần cấn tự động. điểm bán thanh toán một hoặc nhiều khoản qua PayOS trên Mobile." />
+      <PageHeader title="Công nợ" subtitle="Theo dõi số dư từng đơn sau các lần cấn tự động. nhà bán lẻ thanh toán một hoặc nhiều khoản qua PayOS trên Mobile." />
       <div className="grid-3">
         {/* Stats always reflect global totals (full rows dataset, not filtered/paged) */}
         <Stat label="Chưa thu (trong hạn)" value={formatMoney(sum('Unpaid'))} />
@@ -137,9 +140,10 @@ export function DebtsPage() {
       </div>
       {rows.some((r) => r.status === 'Overdue') && <Callout tone="danger">Có đơn quá hạn thanh toán – lọc "Quá hạn" để xem và liên hệ nhân viên bán hàng phụ trách.</Callout>}
       <div className="row-wrap" style={{ gap: 12, marginBottom: 12 }}>
-        <label className="lbl">Tìm kiếm<Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã đơn, điểm bán, nhân viên bán hàng…" /></label>
+        <label className="lbl">Tìm kiếm<Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã đơn, nhà bán lẻ, nhân viên bán hàng…" /></label>
         <label className="lbl">Trạng thái<Select value={statusFilter} onChange={e => setStatusFilter(e.target.value as ReceivableStatusFilter)}
           options={[{ value: '', label: 'Tất cả trạng thái' }, ...RECEIVABLE_STATUSES.filter(Boolean).map(value => ({ value, label: statusLabels.receivable[value as Exclude<ReceivableStatusFilter, ''>] }))]} /></label>
+        <label className="lbl">Sắp xếp<Select value={dateSort} onChange={e => setDateSort(e.target.value as DateSortOrder)} options={DATE_SORT_OPTIONS} /></label>
         {hasActiveFilters && <Button onClick={clearFilters}>Xóa bộ lọc</Button>}
       </div>
       <DataTable
@@ -178,7 +182,7 @@ export function DebtsPage() {
         submitLabel="Xác nhận đã thu đủ"
         initial={{ method: 'BankTransfer' }}
         fields={[
-          { key: 'info', type: 'info', label: 'Điểm bán / số tiền', info: () => `${target?.retailerName} · ${formatMoney(target?.outstandingAmount)}` },
+          { key: 'info', type: 'info', label: 'Nhà bán lẻ / số tiền', info: () => `${target?.retailerName} · ${formatMoney(target?.outstandingAmount)}` },
           { key: 'method', type: 'info', label: 'Hình thức thu', info: () => 'Chuyển khoản đã đối soát' },
         ]}
         note="Thu đủ khoản được phép thu của đơn. Điểm tích lũy chỉ được xét khi đơn hoàn tất đủ điều kiện nhận hàng, đối soát tiền và xử lý khiếu nại."

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
-import { Button, Callout, Card, Chip, Fields, FormDialog } from '@/shared/ui';
+import { Button, Card, Chip, Fields, FormDialog } from '@/shared/ui';
 import { formatMoney } from '@/shared/lib';
 import { useRetailerEligibility, useUpdateCreditTerms } from '../hooks';
 import type { Retailer, RetailerReceivable } from '../types';
@@ -35,7 +35,7 @@ export function CreditTermsCard({ retailer, receivables }: CreditTermsCardProps)
 
   const hasCreditPermission = Number(retailer.creditTermDays) > 0;
 
-  // Evaluate eligibility reasons
+  // Local fallback when the eligibility API has not answered; only the yes/no chip is shown.
   const fallbackReasons: string[] = [];
   if (retailer.status !== 'Active') {
     fallbackReasons.push('tài khoản không hoạt động');
@@ -48,9 +48,6 @@ export function CreditTermsCard({ retailer, receivables }: CreditTermsCardProps)
   }
 
   const isEligible = eligibility?.isEligible ?? (fallbackReasons.length === 0);
-  const reasons = (eligibility?.reasons && eligibility.reasons.length > 0)
-    ? eligibility.reasons
-    : fallbackReasons;
 
   return (
     <Card
@@ -83,7 +80,9 @@ export function CreditTermsCard({ retailer, receivables }: CreditTermsCardProps)
             },
             {
               label: 'Hạn mức công nợ',
-              value: '— (Kiểm soát theo kỳ hạn và chặn quá hạn)',
+              value: retailer.creditLimit != null
+                ? formatMoney(retailer.creditLimit)
+                : 'Chưa thiết lập',
             },
             {
               label: 'Dư nợ hiện tại',
@@ -110,20 +109,6 @@ export function CreditTermsCard({ retailer, receivables }: CreditTermsCardProps)
             },
           ]}
         />
-
-        {!isEligible && (
-          <div className="stack" style={{ gap: '8px' }}>
-            {reasons.length > 0 && (
-              <div className="small muted" style={{ color: 'var(--c-danger, #d32f2f)' }}>
-                <b>Lý do chưa đủ điều kiện:</b> {reasons.join('; ')}
-              </div>
-            )}
-            <Callout tone="info">
-              Khách hàng hiện chưa đủ điều kiện mua công nợ. Có thể lựa chọn thanh toán trước.
-            </Callout>
-          </div>
-        )}
-
       </div>
 
       {configOpen && (
@@ -136,6 +121,7 @@ export function CreditTermsCard({ retailer, receivables }: CreditTermsCardProps)
           submitLabel="Lưu cấu hình"
           initial={{
             creditTermDays: String(retailer.creditTermDays ?? 0),
+            creditLimit: String(retailer.creditLimit ?? 0),
             reason: '',
           }}
           fields={[
@@ -152,10 +138,17 @@ export function CreditTermsCard({ retailer, receivables }: CreditTermsCardProps)
               ],
             },
             {
+              key: 'creditLimit',
+              label: 'Hạn mức công nợ (VNĐ)',
+              type: 'number',
+              required: true,
+              validate: (value) => Number(value) >= 0 ? undefined : 'Hạn mức công nợ không được âm.',
+            },
+            {
               key: 'reason',
               label: 'Lý do phê duyệt / cập nhật',
               type: 'textarea',
-              placeholder: 'Nhập lý do thay đổi kỳ hạn công nợ cho điểm bán...',
+              placeholder: 'Nhập lý do thay đổi kỳ hạn công nợ cho nhà bán lẻ...',
             },
           ]}
           note="Quyền mua công nợ sẽ được áp dụng cho các đơn hàng tạo mới tiếp theo. Các đơn hàng cũ vẫn giữ nguyên kỳ hạn đã chốt ban đầu."
@@ -164,6 +157,7 @@ export function CreditTermsCard({ retailer, receivables }: CreditTermsCardProps)
             await updateCredit.mutateAsync({
               retailerId: retailer.id ?? retailer.code,
               creditTermDays: Number(v.creditTermDays) as 0 | 7 | 14 | 30,
+              creditLimit: Number(v.creditLimit),
               reason: v.reason || undefined,
             });
             setConfigOpen(false);

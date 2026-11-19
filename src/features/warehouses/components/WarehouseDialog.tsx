@@ -242,12 +242,12 @@ export function WarehouseDialog({
       if (edit && warehouse) {
         await update.mutateAsync({ code: warehouse.code, body: payload });
         toast.show(
-          `Đã cập nhật kho ${payload.code} và tính lại khoảng cách đường bộ tới tất cả điểm bán.`,
+          `Đã cập nhật kho ${payload.code} và tính lại khoảng cách đường bộ tới tất cả nhà bán lẻ.`,
         );
       } else {
         await create.mutateAsync(payload);
         toast.show(
-          `Đã tạo kho ${payload.code} (${payload.name}) và tính khoảng cách đường bộ tới tất cả điểm bán.`,
+          `Đã tạo kho ${payload.code} (${payload.name}) và tính khoảng cách đường bộ tới tất cả nhà bán lẻ.`,
         );
       }
       onClose();
@@ -282,7 +282,7 @@ export function WarehouseDialog({
         }
       >
         <div className="callout">
-          Khi lưu tọa độ, hệ thống tính lại khoảng cách đường bộ (Dijkstra) từ kho tới tất cả điểm bán – dùng cho bước B2a (phạm vi 20 km) và thời gian nhận dự kiến.
+          Khi lưu tọa độ, hệ thống tính lại khoảng cách đường bộ (Dijkstra) từ kho tới tất cả nhà bán lẻ – dùng cho bước B2a (phạm vi 20 km) và thời gian nhận dự kiến.
         </div>
 
         {generalError && <Callout tone="danger">{generalError}</Callout>}

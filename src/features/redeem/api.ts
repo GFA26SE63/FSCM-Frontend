@@ -1,19 +1,11 @@
 import { get, post } from '@/shared/api/http';
+import { fetchRedemptionById } from './redeemGraphql';
 import type { RedeemStep, Redemption, RedemptionApi, RedemptionStatus } from './types';
 
 export const redeemApi = {
   list: () => get<RedemptionApi[]>('/loyalty/redemptions').then((items) => items.map(normalize)),
-  /**
-   * The server addresses a redemption by identifier and offers no by-code read, so the list is
-   * fetched and matched here. Worth replacing with a filtered query once the read side moves to
-   * GraphQL; fetching every redemption to show one is not something to leave in place.
-   */
-  get: (id: string) =>
-    get<RedemptionApi[]>('/loyalty/redemptions').then((items) => {
-      const found = items.find((x) => x.id === id);
-      if (!found) throw new Error(`Không tìm thấy yêu cầu đổi quà ${id}.`);
-      return normalize(found);
-    }),
+  /** By-id read via GraphQL (one row + one batched enrichment); REST has no by-id read. */
+  get: (id: string) => fetchRedemptionById(id).then(normalize),
   step: (v: { code: string; step: RedeemStep }) =>
     post<RedemptionApi>(`/loyalty/redemptions/${v.code}/${v.step}`).then(normalize),
 };
@@ -22,6 +14,7 @@ export const redeemApi = {
 const toStatus = (status: string): RedemptionStatus =>
   status === 'Pending' ? 'Requested' : status === 'Completed' ? 'Done' : (status as RedemptionStatus);
 
+export function normalizeRedemption(x: RedemptionApi): Redemption { return normalize(x); }
 function normalize(x: RedemptionApi): Redemption {
   return {
     code: x.id,

@@ -1,7 +1,34 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApiMutation } from '@/shared/hooks';
 import { retailerApi } from './api';
+import { fetchRetailersPage, fetchRetailerSalesGroups, type RetailersPageQuery } from './retailersGraphql';
 import type { RetailerRow, SetMlorPayload, UpdateRetailerDeclarationPayload, UpdateRetailerProfilePayload } from './types';
+
+/** Server-side cursor-paginated retailers via GraphQL entities.retailers. */
+export const useRetailersPage = (q: RetailersPageQuery) =>
+  useQuery({
+    queryKey: ['retailers', 'page', q],
+    queryFn: () => fetchRetailersPage(q),
+    placeholderData: (prev) => prev,
+    retry: false,
+    staleTime: 15_000,
+  });
+
+/**
+ * Batch-fetch active sales-group codes for the given retailer IDs via
+ * entities.retailerSalesAssignments + entities.salesGroups.
+ * Returns a Map<retailerId, salesGroupCode>. Never throws — errors yield an empty map.
+ */
+export const useRetailerSalesGroupsForPage = (retailerIds: string[]) => {
+  const sortedIds = [...retailerIds].sort();
+  return useQuery({
+    queryKey: ['retailers', 'salesGroups', sortedIds],
+    queryFn: () => fetchRetailerSalesGroups(sortedIds),
+    enabled: sortedIds.length > 0,
+    staleTime: 60_000,
+    retry: false,
+  });
+};
 
 /** Retailers + pending/rejected registrations merged into one list (Approved registrations already exist as retailers). */
 export const useRetailerRows = () =>
@@ -77,7 +104,7 @@ export const useUpdateRetailerProfile = () => {
       retailerApi.updateProfile(retailerId, payload),
     {
       permission: 'retailers.edit',
-      success: 'Đã cập nhật hồ sơ điểm bán.',
+      success: 'Đã cập nhật hồ sơ nhà bán lẻ.',
       onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['retailers'] }); },
     },
   );
@@ -89,7 +116,7 @@ export const useUpdateRetailerDeclaration = () => {
       retailerApi.updateDeclaration(retailerId, payload),
     {
       permission: 'retailers.edit',
-      success: 'Cập nhật thông tin điểm bán thành công.',
+      success: 'Cập nhật thông tin nhà bán lẻ thành công.',
       onSuccess: () => {
         void queryClient.invalidateQueries({ queryKey: ['retailers'] });
       },
@@ -112,11 +139,19 @@ export const useRetailerLookups = (enabled = true) => ({
   areas: useQuery({ queryKey: ['retailers', 'areas'], queryFn: retailerApi.areas, enabled }),
   groups: useQuery({ queryKey: ['retailers', 'groups'], queryFn: retailerApi.groups, enabled }),
 });
-export const useCreateRetailer = () => useApiMutation(retailerApi.create, { permission: 'retailers.create', success: (r) => `Đã tạo điểm bán ${r.code} · ${r.name}.` });
-export const useUpdateRetailer = () => useApiMutation(retailerApi.update, { permission: 'retailers.edit', success: (r) => `Đã cập nhật điểm bán ${r.code}.` });
-export const useApproveRegistration = () => useApiMutation(retailerApi.approve, { permission: 'retailers.review', success: (r) => `Đã duyệt ${r.registration.code}: cấp mã điểm bán ${r.retailer.code} và báo nhân viên bán hàng.` });
+export const useCreateRetailer = () => useApiMutation(retailerApi.create, { permission: 'retailers.create', success: (r) => `Đã tạo nhà bán lẻ ${r.code} · ${r.name}.` });
+export const useSetRetailerStatus = () =>
+  useApiMutation(retailerApi.setStatus, {
+    permission: 'retailers.status',
+    success: (r, v) =>
+      v.isActive
+        ? `Đã kích hoạt lại nhà bán lẻ ${r.code}.`
+        : `Đã chuyển nhà bán lẻ ${r.code} sang ngừng hoạt động.`,
+  });
+export const useUpdateRetailer = () => useApiMutation(retailerApi.update, { permission: 'retailers.edit', success: (r) => `Đã cập nhật nhà bán lẻ ${r.code}.` });
+export const useApproveRegistration = () => useApiMutation(retailerApi.approve, { permission: 'retailers.review', success: (r) => `Đã duyệt ${r.registration.code}: cấp mã nhà bán lẻ ${r.retailer.code} và báo nhân viên bán hàng.` });
 export const useRejectRegistration = () => useApiMutation(retailerApi.reject, { permission: 'retailers.review', success: (r) => `Đã từ chối ${r.code}.` });
-export const useSaveMlor = () => useApiMutation(retailerApi.saveMlor, { permission: 'mlor.manage', success: 'Đã lưu yêu cầu HSD tối thiểu của điểm bán.' });
+export const useSaveMlor = () => useApiMutation(retailerApi.saveMlor, { permission: 'mlor.manage', success: 'Đã lưu yêu cầu HSD tối thiểu của nhà bán lẻ.' });
 export const useRetailerEligibility = (retailerId: string, enabled = true) =>
   useQuery({
     queryKey: ['retailers', 'eligibility', retailerId],
@@ -126,5 +161,5 @@ export const useRetailerEligibility = (retailerId: string, enabled = true) =>
 export const useUpdateCreditTerms = () =>
   useApiMutation(retailerApi.updateCreditTerms, {
     permission: 'retailers.review',
-    success: (r) => `Đã cập nhật kỳ hạn công nợ cho điểm bán ${r.code}.`,
+    success: (r) => `Đã cập nhật kỳ hạn công nợ cho nhà bán lẻ ${r.code}.`,
   });

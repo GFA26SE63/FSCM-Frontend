@@ -135,7 +135,7 @@ function AddressLocationViewer({
         lat: lat!,
         lng: lng!,
         kind: entityKind,
-        label: entityName || (entityKind === 'ret' ? 'Điểm bán' : 'Kho'),
+        label: entityName || (entityKind === 'ret' ? 'Nhà bán lẻ' : 'Kho'),
         sub: address,
       },
     ];
@@ -384,7 +384,7 @@ function AddressLocationEditor({
               lat: current[0],
               lng: current[1],
               kind: entityKind,
-              label: entityName || (entityKind === 'ret' ? 'Điểm bán' : 'Kho'),
+              label: entityName || (entityKind === 'ret' ? 'Nhà bán lẻ' : 'Kho'),
               sub: address,
             },
           ]

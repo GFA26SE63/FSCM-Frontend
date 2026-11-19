@@ -15,7 +15,8 @@ test('approval and physical confirmation preserve concurrency, quantity, settlem
   const calls = [];
   const {complaintApi: api} = source('features/complaints/api.ts', {'@/shared/api/http': {
     get: async () => {throw Error('id supplied; no ambiguous lookup');},
-    post: async (url,body) => {calls.push({url,body});}, put:async()=>{}}
+    post: async (url,body) => {calls.push({url,body});}, put:async()=>{}},
+    '@/shared/api/graphql': {graphql: async () => ({complaintReads: []})}
   });
   await api.decide({code:'KN-1',id:'request',decision:'approve',text:'Approved', approvedQuantity:2,
     settlementMethod:'CashRefund',expectedVersion:4,waivePhysicalHandling:true,waiverReason:'Confirmed disposal'});

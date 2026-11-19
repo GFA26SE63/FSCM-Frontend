@@ -31,7 +31,7 @@ export function assertCreatableRole(
       'USER_ROLE_NOT_CREATABLE',
       {
         role: [
-          'Chỉ được chọn nhân viên vận hành, quản lý bán hàng, thủ kho, nhân viên bán hàng hoặc điểm bán.',
+          'Chỉ được chọn nhân viên vận hành, quản lý bán hàng, thủ kho, nhân viên bán hàng hoặc nhà bán lẻ.',
         ],
       },
     );

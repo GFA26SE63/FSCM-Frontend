@@ -33,7 +33,7 @@ test('operator reports filter, show details, switch kinds and export every page'
   // The report filter is a native select nested inside its visible label; use that
   // supported structure rather than an inferred accessible-name association.
   await page.locator('label.lbl', { hasText: 'Khu vực' }).locator('select').selectOption('region-hcm');
-  await page.getByPlaceholder('Mã hoặc tên điểm bán').fill('An Phú');
+  await page.getByPlaceholder('Mã hoặc tên nhà bán lẻ').fill('An Phú');
   await expect.poll(() => requests.at(-1)?.searchParams.get('retailer')).toBe('An Phú');
   await expect.poll(() => requests.at(-1)?.searchParams.get('regionId')).toBe('region-hcm');
   await page.getByRole('button', { name: 'Sau', exact: true }).click();

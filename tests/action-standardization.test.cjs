@@ -7,6 +7,8 @@ const regionsPageCode = fs.readFileSync(path.resolve(__dirname, '../src/features
 const warehousesPageCode = fs.readFileSync(path.resolve(__dirname, '../src/features/warehouses/pages/WarehousesPage.tsx'), 'utf8');
 const regionWarehousesPageCode = fs.readFileSync(path.resolve(__dirname, '../src/features/warehouses/pages/RegionWarehousesPage.tsx'), 'utf8');
 const warehouseDetailPageCode = fs.readFileSync(path.resolve(__dirname, '../src/features/warehouses/pages/WarehouseDetailPage.tsx'), 'utf8');
+const warehouseFormPageCode = fs.readFileSync(path.resolve(__dirname, '../src/features/warehouses/pages/WarehouseFormPage.tsx'), 'utf8');
+const warehouseApiCode = fs.readFileSync(path.resolve(__dirname, '../src/features/warehouses/api.ts'), 'utf8');
 const groupDetailPageCode = fs.readFileSync(path.resolve(__dirname, '../src/features/regions/pages/GroupDetailPage.tsx'), 'utf8');
 
 test('Region deactivation blocking message complies with mandatory business rule', () => {
@@ -53,7 +55,6 @@ test('Nested detail tables provide standardized "Thao tác" actions', () => {
 });
 
 test('All user-facing occurrences of "Vùng kho" are replaced with "Vùng hoạt động"', () => {
-  const warehouseFormPageCode = fs.readFileSync(path.resolve(__dirname, '../src/features/warehouses/pages/WarehouseFormPage.tsx'), 'utf8');
   assert.equal(/vùng\s+kho/i.test(warehousesPageCode), false, 'WarehousesPage must not contain "vùng kho"');
   assert.equal(/vùng\s+kho/i.test(regionWarehousesPageCode), false, 'RegionWarehousesPage must not contain "vùng kho"');
   assert.equal(/vùng\s+kho/i.test(warehouseDetailPageCode), false, 'WarehouseDetailPage must not contain "vùng kho"');
@@ -67,6 +68,19 @@ test('All user-facing occurrences of "Vùng kho" are replaced with "Vùng hoạt
   assert.ok(warehouseDetailPageCode.includes('Vùng hoạt động: '));
   assert.ok(warehouseFormPageCode.includes('Vui lòng chọn vùng hoạt động.'));
   assert.ok(warehouseFormPageCode.includes('Chọn vùng hoạt động'));
+});
+
+test('UT-Warehouse Config-UTCID01/02: Admin warehouse form requires Region and sends no hierarchy or central flags', () => {
+  assert.ok(warehouseFormPageCode.includes("regionId: ''"));
+  assert.ok(warehouseFormPageCode.includes("if (!form.regionId) nextErr.regionId = ['Vui lòng chọn vùng hoạt động.'];"));
+  assert.ok(warehouseFormPageCode.includes('regionId: form.regionId'));
+
+  const createPayload = warehouseApiCode.slice(
+    warehouseApiCode.indexOf('// OpenAPI CreateWarehouseRequest:'),
+    warehouseApiCode.indexOf('const res = await post<RawWarehouse>("/warehouses"'),
+  );
+  assert.ok(createPayload.includes('regionId: body.regionId'));
+  assert.equal(/parentWarehouseId|warehouseType|isCentral/i.test(createPayload), false);
 });
 
 

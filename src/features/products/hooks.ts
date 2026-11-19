@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useApiMutation } from '@/shared/hooks';
 import { productApi } from './api';
 import { saveProductDraft } from './saveDraft';
+import { fetchProductsPage, fetchProductPrices, type ProductsPageQuery } from './productsGraphql';
 
 export const useSaveProductDraft = () => useApiMutation(saveProductDraft, {
   permission: 'products.manage', success: (p) => 'Đã lưu bản nháp ' + p.sku + '.',
@@ -15,6 +16,32 @@ export const useProducts = () =>
     queryKey: ['products', 'list'],
     queryFn: productApi.listAll,
   });
+
+/** Server-side cursor-paginated products via GraphQL entities.products. */
+export const useProductsPage = (q: ProductsPageQuery) =>
+  useQuery({
+    queryKey: ['products', 'page', q],
+    queryFn: () => fetchProductsPage(q),
+    placeholderData: (prev) => prev,
+    retry: false,
+    staleTime: 15_000,
+  });
+
+/**
+ * Batch-fetch active prices for the given product IDs via entities.productPrices.
+ * Returns a Map<productId, unitPrice>. Never throws — errors yield an empty map.
+ * The key is sorted so React Query deduplicates across re-renders with the same set.
+ */
+export const useProductPricesForPage = (productIds: string[]) => {
+  const sortedIds = [...productIds].sort();
+  return useQuery({
+    queryKey: ['products', 'prices', sortedIds],
+    queryFn: () => fetchProductPrices(sortedIds),
+    enabled: sortedIds.length > 0,
+    staleTime: 60_000,
+    retry: false,
+  });
+};
 
 export const useProduct = (id: string) =>
   useQuery({

@@ -27,15 +27,15 @@ const vietnameseMessages: Record<string, string> = {
   'An out-of-stock reward cannot be activated.': 'Không thể kích hoạt quà đã hết số lượng.',
   'Quantity must be greater than zero.': 'Số lượng phải lớn hơn 0.',
   'Client request id is required and must be at most 100 characters.': 'Mã yêu cầu bắt buộc có và không được quá 100 ký tự.',
-  'The account is not linked to an active retailer.': 'Tài khoản chưa liên kết với điểm bán đang hoạt động.',
-  'The account is not linked to a retailer.': 'Tài khoản chưa liên kết với điểm bán.',
-  'No active loyalty program applies to this retailer.': 'Chưa có chương trình tích điểm đang hoạt động áp dụng cho điểm bán này.',
+  'The account is not linked to an active retailer.': 'Tài khoản chưa liên kết với nhà bán lẻ đang hoạt động.',
+  'The account is not linked to a retailer.': 'Tài khoản chưa liên kết với nhà bán lẻ.',
+  'No active loyalty program applies to this retailer.': 'Chưa có chương trình tích điểm đang hoạt động áp dụng cho nhà bán lẻ này.',
   'The requested reward quantity is not available.': 'Không đủ số lượng quà để đáp ứng yêu cầu.',
   'Insufficient available loyalty points.': 'Không đủ điểm khả dụng để đổi quà.',
   'This redemption request was already submitted.': 'Yêu cầu đổi quà này đã được gửi trước đó.',
   'The reward inventory changed concurrently. Retry the request.': 'Số lượng quà vừa thay đổi. Vui lòng thử lại yêu cầu.',
   'Redemption request was not found.': 'Không tìm thấy yêu cầu đổi quà.',
-  'Retailer loyalty balance was not found.': 'Không tìm thấy số dư tích điểm của điểm bán.',
+  'Retailer loyalty balance was not found.': 'Không tìm thấy số dư tích điểm của nhà bán lẻ.',
   'Held loyalty points are inconsistent.': 'Số điểm đang giữ không khớp. Cần đối soát trước khi tiếp tục.',
   'Image storage is not configured on the server.': 'Máy chủ chưa được cấu hình dịch vụ lưu ảnh.',
   'Image storage is unavailable.': 'Dịch vụ lưu ảnh hiện không khả dụng.',
@@ -43,6 +43,11 @@ const vietnameseMessages: Record<string, string> = {
   'Page size must be between 1 and 100.': 'Số bản ghi mỗi trang phải từ 1 đến 100.',
   'Notification type cannot exceed 50 characters.': 'Loại thông báo không được quá 50 ký tự.',
   'Notification identifier is required.': 'Thiếu mã thông báo.',
+  'Retailer was not found.': 'Không tìm thấy nhà bán lẻ.',
+  'Only an active Retailer can be inactivated.': 'Chỉ nhà bán lẻ đang hoạt động mới chuyển được sang ngừng hoạt động.',
+  'Only an inactive Retailer can be reactivated.': 'Chỉ nhà bán lẻ đang ngừng hoạt động mới kích hoạt lại được.',
+  'A Retailer declaration requires at least one valid Category or SKU MLOR entry before review or activation.':
+    'Nhà bán lẻ cần ít nhất một yêu cầu HSD tối thiểu hợp lệ (theo danh mục hoặc SKU) trước khi duyệt hoặc kích hoạt.',
 };
 
 export const localizeApiMessage = (message: string): string => vietnameseMessages[message] ?? message;

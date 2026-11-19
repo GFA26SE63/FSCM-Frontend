@@ -102,16 +102,9 @@ function normalizeUserPage(raw: RawUserPage | RawUserItem[] | null | undefined, 
 
 export const userApi = {
   list: async (filters: UserFilters): Promise<UserPage> => {
-    const raw = await get<RawUserPage | RawUserItem[]>('/users', {
-      search: filters.search.trim() || undefined,
-      role: filters.role || undefined,
-      isActive:
-        filters.activity === ''
-          ? undefined
-          : filters.activity === 'active',
-      page: filters.page,
-      pageSize: filters.pageSize,
-    });
+    const variables = { search: filters.search.trim() || undefined, role: filters.role || undefined, isActive: filters.activity === '' ? undefined : filters.activity === 'active', page: filters.page, pageSize: filters.pageSize, sort: filters.sort };
+    const data = await graphql<{ entities: { userReads: RawUserPage } }>(`query UserReads($search: String, $role: String, $isActive: Boolean, $page: Int!, $pageSize: Int!, $sort: String!) { entities { userReads(search: $search, role: $role, isActive: $isActive, page: $page, pageSize: $pageSize, sort: $sort) { items { id email phone fullName role isActive identityProvider createdAt updatedAt } page pageSize totalCount } } }`, variables);
+    const raw = data.entities.userReads;
     return normalizeUserPage(raw, filters);
   },
 

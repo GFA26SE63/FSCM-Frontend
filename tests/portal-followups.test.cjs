@@ -94,6 +94,7 @@ test('export metadata requests lightweight scoped entities and refuses missing d
     '@/shared/api/http': {},
     '@/shared/api/graphql': { graphql: async (query, variables) => { calls.push({ query, variables }); return response; } },
     '@/shared/api/errors': { ApiError: class extends Error {} },
+    './shipmentsGraphql': { fetchShipmentsForOrder: async () => [] },
   });
   assert.equal((await shipmentsApi.exportOrders(['a', 'a'])).length, 1);
   assert.deepEqual(calls[0].variables.ids, ['a']);

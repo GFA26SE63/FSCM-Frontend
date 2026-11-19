@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { useNavigate } from '@/shared/router/compat';
-import { useEnumParam } from '@/shared/router/listState';
+import { useEnumParam, useQueryParams, useStringParam } from '@/shared/router/listState';
+import { useCursorPagination } from '@/shared/pagination';
+import { decodeSort, PAGINATION_PARAM_NAMES, PAGINATION_RESETS, parsePageSize } from '@/shared/pagination/urlSync';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
 import { errorMessage } from '@/shared/api/errors';
@@ -10,15 +12,23 @@ import {
   Callout,
   DataTable,
   PageHeader,
+  Select,
   Tabs,
   type Column,
 } from '@/shared/ui';
 
 import {
-  useDrivers,
+  useFleetCount,
+  useFleetPage,
   useFleetWarehouses,
-  useVehicles,
 } from '../hooks';
+import {
+  FLEET_PAGE_SIZES,
+  FLEET_SORTABLE_FIELDS,
+  type FleetActivity,
+  type FleetKind,
+  type FleetPageSize,
+} from '../fleetGraphql';
 import {
   activeText,
   warehouseText,
@@ -37,11 +47,89 @@ export function FleetPage() {
   const { user } = useAuth();
   const allowed = can(user, 'fleet.manage');
 
-  const vehicles = useVehicles();
-  const drivers = useDrivers();
   const warehouses = useFleetWarehouses();
 
-  const [tab, setTab] = useEnumParam('tab', FLEET_TABS, 'vehicles');
+  // Switching tabs must drop the other tab's cursor, sort, search and filters.
+  const [tab, setTab] = useEnumParam('tab', FLEET_TABS, 'vehicles', {
+    resets: [...PAGINATION_RESETS, PAGINATION_PARAM_NAMES.SORT, PAGINATION_PARAM_NAMES.SEARCH, 'status', 'wh'],
+  });
+  const kind: FleetKind = tab;
+  const { params } = useQueryParams();
+  const after = params.get('after') ?? undefined;
+  const before = after ? undefined : (params.get('before') ?? undefined);
+  const pageSize = parsePageSize(params.get('size'), FLEET_PAGE_SIZES, 20) as FleetPageSize;
+  const search = params.get('q') ?? undefined;
+  const [activity, setActivity] = useEnumParam<FleetActivity | 'active' | 'inactive'>(
+    'status', ['', 'active', 'inactive'] as const, '', { resets: PAGINATION_RESETS },
+  );
+  const [warehouseId, setWarehouseId] = useStringParam('wh', { resets: PAGINATION_RESETS });
+  const sortable = FLEET_SORTABLE_FIELDS[kind];
+  const rawSort = decodeSort(params.get(PAGINATION_PARAM_NAMES.SORT));
+  const activeSort = rawSort?.field && sortable.includes(rawSort.field)
+    ? { field: rawSort.field, direction: rawSort.direction }
+    : undefined;
+
+  const searchWarehouseIds = useMemo(() => {
+    if (!search) return [];
+    const q = search.toLowerCase();
+    return (warehouses.data ?? [])
+      .filter((w) => w.name?.toLowerCase().includes(q) || w.code?.toLowerCase().includes(q))
+      .map((w) => w.id);
+  }, [warehouses.data, search]);
+
+  const listQuery = {
+    kind,
+    size: pageSize,
+    after,
+    before,
+    activity,
+    warehouseId: warehouseId || undefined,
+    search,
+    searchWarehouseIds: search ? searchWarehouseIds : undefined,
+    sort: activeSort,
+  };
+  // Only the visible tab is fetched.
+  const current = useFleetPage<Vehicle | Driver>(listQuery);
+  const loading = current.isLoading || current.isPlaceholderData;
+  const listError = current.isPlaceholderData ? undefined : current.error;
+  const vehicleCount = useFleetCount('vehicles');
+  const driverCount = useFleetCount('drivers');
+  const { pagingProps, sortProps } = useCursorPagination({
+    pageInfo: current.data?.pageInfo,
+    totalCount: current.data?.totalCount,
+    loading: current.isLoading || current.isFetching,
+    error: current.isPlaceholderData ? undefined : current.error,
+    defaultPageSize: 20,
+    pageSizeOptions: FLEET_PAGE_SIZES,
+    urlState: true,
+  });
+  const filterExtra = (
+    <>
+      <label className="lbl">
+        Trạng thái
+        <Select
+          value={activity}
+          onChange={(e) => setActivity(e.target.value as FleetActivity)}
+          options={[
+            { value: '', label: 'Tất cả' },
+            { value: 'active', label: 'Hoạt động' },
+            { value: 'inactive', label: 'Ngừng hoạt động' },
+          ]}
+        />
+      </label>
+      <label className="lbl">
+        Kho
+        <Select
+          value={warehouseId}
+          onChange={(e) => setWarehouseId(e.target.value)}
+          options={[
+            { value: '', label: 'Tất cả' },
+            ...(warehouses.data ?? []).map((w) => ({ value: w.id, label: w.name })),
+          ]}
+        />
+      </label>
+    </>
+  );
   const [vehicleDialog, setVehicleDialog] =
     useState<{ item: Vehicle | null } | null>(null);
   const [driverDialog, setDriverDialog] =
@@ -55,13 +143,15 @@ export function FleetPage() {
   const vehicleColumns: Column<Vehicle>[] = [
     {
       key: 'plateNumber',
+      sortable: true,
       header: 'Biển số',
       text: (item) => item.plateNumber,
       render: (item) => <strong>{item.plateNumber}</strong>,
     },
-    { key: 'vehicleType', header: 'Loại xe' },
+    { key: 'vehicleType', header: 'Loại xe', sortable: true },
     {
       key: 'capacity',
+      sortable: true,
       header: 'Sức chứa',
       align: 'right',
       text: (item) => `${item.capacity.toLocaleString('vi-VN')} thùng`,
@@ -79,10 +169,10 @@ export function FleetPage() {
   ];
 
   const driverColumns: Column<Driver>[] = [
-    { key: 'code', header: 'Mã tài xế' },
-    { key: 'fullName', header: 'Họ tên' },
-    { key: 'phone', header: 'Điện thoại' },
-    { key: 'licenseNumber', header: 'Số GPLX' },
+    { key: 'code', header: 'Mã tài xế', sortable: true },
+    { key: 'fullName', header: 'Họ tên', sortable: true },
+    { key: 'phone', header: 'Điện thoại', sortable: true },
+    { key: 'licenseNumber', header: 'Số GPLX', sortable: true },
     {
       key: 'warehouse',
       header: 'Kho quản lý',
@@ -122,12 +212,12 @@ export function FleetPage() {
           {
             key: 'vehicles',
             label: 'Xe giao hàng',
-            count: vehicles.data?.length,
+            count: vehicleCount.data,
           },
           {
             key: 'drivers',
             label: 'Tài xế',
-            count: drivers.data?.length,
+            count: driverCount.data,
           },
         ]}
       />
@@ -135,33 +225,19 @@ export function FleetPage() {
       {tab === 'vehicles' ? (
         <DataTable
           key="vehicles"
-          stateKey="vehicles"
           title="Danh sách xe"
-          rows={vehicles.data}
-          loading={vehicles.isLoading}
-          error={vehicles.error}
+          rows={current.data?.rows as Vehicle[] | undefined}
+          loading={loading}
+          error={listError}
           rowKey={(item) => item.id}
           columns={vehicleColumns}
           searchPlaceholder="Biển số, loại xe, kho…"
-          filters={[
-            {
-              label: 'Trạng thái',
-              options: ['Hoạt động', 'Ngừng hoạt động'],
-              value: (item) => activeText(item.isActive),
-            },
-            {
-              label: 'Kho',
-              options: [...new Set(
-                (vehicles.data ?? []).map(
-                  (item) => warehouseLabel(item.warehouseId),
-                ),
-              )],
-              value: (item) => warehouseLabel(item.warehouseId),
-            },
-          ]}
+          cursor={pagingProps}
+          serverSort={{ ...sortProps, sortableFields: sortable }}
+          filterExtra={filterExtra}
           actions={
             <>
-              <Button onClick={() => void vehicles.refetch()}>
+              <Button onClick={() => void current.refetch()}>
                 Tải lại
               </Button>
               <Button
@@ -200,33 +276,19 @@ export function FleetPage() {
       ) : (
         <DataTable
           key="drivers"
-          stateKey="drivers"
           title="Danh sách tài xế"
-          rows={drivers.data}
-          loading={drivers.isLoading}
-          error={drivers.error}
+          rows={current.data?.rows as Driver[] | undefined}
+          loading={loading}
+          error={listError}
           rowKey={(item) => item.id}
           columns={driverColumns}
           searchPlaceholder="Mã, họ tên, điện thoại, số GPLX, kho…"
-          filters={[
-            {
-              label: 'Trạng thái',
-              options: ['Hoạt động', 'Ngừng hoạt động'],
-              value: (item) => activeText(item.isActive),
-            },
-            {
-              label: 'Kho',
-              options: [...new Set(
-                (drivers.data ?? []).map(
-                  (item) => warehouseLabel(item.warehouseId),
-                ),
-              )],
-              value: (item) => warehouseLabel(item.warehouseId),
-            },
-          ]}
+          cursor={pagingProps}
+          serverSort={{ ...sortProps, sortableFields: sortable }}
+          filterExtra={filterExtra}
           actions={
             <>
-              <Button onClick={() => void drivers.refetch()}>
+              <Button onClick={() => void current.refetch()}>
                 Tải lại
               </Button>
               <Button

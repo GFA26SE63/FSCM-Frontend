@@ -46,10 +46,10 @@ export const loyaltyApi = {
       const data = await get<{ items: ProgramRetailerOption[]; totalCount: number }>('/retailers', { page, pageSize: 100 });
       if (!data || !Array.isArray(data.items) || !Number.isInteger(data.totalCount) || data.totalCount < 0 ||
           data.items.some((r) => !r.id || !r.code || !r.name || typeof r.status !== 'string')) {
-        throw new ApiError(502, 'Phản hồi danh sách điểm bán không hợp lệ.');
+        throw new ApiError(502, 'Phản hồi danh sách nhà bán lẻ không hợp lệ.');
       }
       if (data.items.length === 0 && result.length < data.totalCount) {
-        throw new ApiError(502, 'Danh sách điểm bán chưa được tải đầy đủ.');
+        throw new ApiError(502, 'Danh sách nhà bán lẻ chưa được tải đầy đủ.');
       }
       result.push(...data.items);
       if (result.length >= data.totalCount) return result;

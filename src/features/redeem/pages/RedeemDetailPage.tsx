@@ -16,7 +16,7 @@ export function RedeemDetailPage() {
           <PageHeader back="/redeem" title={`Yêu cầu ${x.code}`} subtitle={`${x.retailerName} · ${x.giftName}`} chips={<StatusChip domain="gift" value={x.status} />} actions={<RedeemActions x={x} size="md" />} />
           <Card title="Thông tin">
             <Fields cols={3} items={[
-              { label: 'Điểm bán', value: `${x.retailerName} (${x.retailerCode})` },
+              { label: 'Nhà bán lẻ', value: `${x.retailerName} (${x.retailerCode})` },
               { label: 'Quà', value: `${x.giftCode} · ${x.giftName}` },
               { label: 'Số lượng', value: x.quantity == null ? 'Chưa lưu (yêu cầu cũ)' : formatNumber(x.quantity) },
               { label: 'Điểm đổi', value: formatNumber(x.points) },
