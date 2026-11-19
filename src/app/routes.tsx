@@ -60,8 +60,8 @@ const reports = () => import('@/features/reports');
 
 /** Single source for routing + sidebar menu (matching prototype prod menuAll order and roles). */
 export const APP_ROUTES: AppRoute[] = [
-  { key: 'inventory', label: 'Tồn kho · QR nhà máy', roles: [A, WK, OP], list: page(() => import('@/features/inventory'), 'InventoryPage') },
-  { key: 'factory-traceability', label: 'Nhà máy · truy xuất nguồn gốc', roles: [A], list: page(() => import('@/features/factory-traceability'), 'FactoryTraceabilityPage') },
+  { key: 'inventory', label: 'Tồn kho · QR nhà máy', roles: [A, WK, OP], hidden: true, list: page(() => import('@/features/inventory'), 'InventoryPage') },
+  { key: 'factory-traceability', label: 'Nhà máy · truy xuất nguồn gốc', roles: [A], hidden: true, list: page(() => import('@/features/factory-traceability'), 'FactoryTraceabilityPage') },
   { key: 'warehouse-inbound', label: 'Nhập kho', roles: [A, WK], list: page(() => import('@/features/warehouse-work'), 'WarehouseInboundPage'), sub: [{ path: 'new', element: page(() => import('@/features/warehouse-work'), 'WarehouseInboundPage') }, { path: ':documentId', element: page(() => import('@/features/warehouse-work'), 'WarehouseInboundPage') }] },
   { key: 'warehouse-outbound', label: 'Xuất kho', roles: [A, WK], list: page(() => import('@/features/warehouse-work'), 'WarehouseOutboundPage'), sub: [{ path: 'new', element: page(() => import('@/features/warehouse-work'), 'WarehouseOutboundPage') }, { path: ':documentId', element: page(() => import('@/features/warehouse-work'), 'WarehouseOutboundPage') }] },
   { key: 'warehouse-transfers', label: 'Luân chuyển kho', roles: [A, WK], list: page(() => import('@/features/warehouse-work'), 'WarehouseTransferPage'), sub: [{ path: 'new', element: page(() => import('@/features/warehouse-work'), 'WarehouseTransferPage') }, { path: ':documentId', element: page(() => import('@/features/warehouse-work'), 'WarehouseTransferPage') }] },
