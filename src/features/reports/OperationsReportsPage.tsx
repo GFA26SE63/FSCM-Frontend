@@ -4,11 +4,12 @@ import { get, getAll } from '@/shared/api/http';
 import { errorMessage } from '@/shared/api/errors';
 import { useLocation, useNavigate } from '@/shared/router/compat';
 import { Button, Callout, Card, DateInput, Fields, Modal, PageHeader, QueryState, SimpleTable, Stat } from '@/shared/ui';
-import { formatNumber } from '@/shared/lib';
+import { formatDate, formatNumber } from '@/shared/lib';
 import { formatInstantDateTime } from '@/shared/lib/dates';
+import { downloadExcel, type ExcelSheet } from '@/shared/lib/excel';
 import { defaultDashboardDates } from '@/features/dashboard/dashboardModel';
 import { useAuth } from '@/shared/auth/AuthContext';
-import { csvCell, loadAllReportRows } from './reportCsv';
+import { loadAllReportRows } from './reportExport';
 import { REPORT_TITLES, summaryColumns } from './reportLayout';
 import './reports.css';
 
@@ -79,7 +80,7 @@ function columns(kind: Kind): Column[] {
     { key: 'discountAmount', label: 'Tiền giảm (đ)', numeric: true }, { key: 'netAmount', label: 'Sau giảm (đ)', numeric: true });
   else common.push({ key: 'points', label: kind === 'loyalty' ? 'Biến động điểm' : 'Điểm đổi', numeric: true });
   if (kind === 'loyalty') common.push({ key: 'balanceAfter', label: 'Số dư thẻ sau giao dịch', numeric: true });
-  // Kept for the detail popup and CSV; which columns the list shows is TABLE_COLUMNS.
+  // Kept for the detail popup and Excel export; which columns the list shows is TABLE_COLUMNS.
   common.push({ key: 'orderCode', label: 'Đơn hàng' });
   if (kind === 'redemptions') common.push({ key: 'createdByName', label: 'Người tạo' }, { key: 'createdByUserId', label: 'Người tạo (ID)' },
     { key: 'approvedByName', label: 'Người duyệt' }, { key: 'approvedByUserId', label: 'Người duyệt (ID)' }, { key: 'approvedAt', label: 'Ngày duyệt', date: true },
@@ -134,22 +135,51 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
   // Only the columns needed to scan the list; everything else is in the detail popup.
   const tableCols = TABLE_COLUMNS[kind].flatMap(key => cols.filter(c => c.key === key));
   const title = REPORT_TITLES[kind];
-  async function exportCsv() {
+  async function exportExcel() {
     setExporting(true); setExportError('');
     try {
       const rows = await loadAllReportRows((p, size) => load(kind, filters, p, size));
-      const lines = [cols.map(c => csvCell(c.label)).join(','), ...rows.map(row => cols.map(c => {
-        const value = row[c.key];
-        return c.numeric && value != null ? String(value) : csvCell(display(row, c, kind));
-      }).join(','))];
-      const url = URL.createObjectURL(new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' }));
-      const link = document.createElement('a'); link.href = url; link.download = `bao-cao-${kind}-${filters.fromDate}-${filters.toDate}.csv`; link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      const regionName = regions.data?.find(r => r.id === filters.regionId)?.name;
+      const info = [
+        `Khoảng thời gian: ${formatDate(filters.fromDate)} – ${formatDate(filters.toDate)}`,
+        `Khu vực: ${regionName ?? 'Tất cả khu vực'}`,
+        ...(filters.retailer ? [`Nhà bán lẻ: ${filters.retailer}`] : []),
+        ...(filters.program ? [`Chương trình: ${filters.program}`] : []),
+        ...(filters.status ? [`Trạng thái: ${labels[filters.status] ?? filters.status}`] : []),
+        `Số bản ghi: ${formatNumber(rows.length)} · Xuất lúc ${formatInstantDateTime(new Date().toISOString())}`,
+      ];
+      const sheets: ExcelSheet[] = [{
+        name: title, title, info,
+        blocks: [{
+          columns: cols.map(c => ({ header: c.label, numeric: c.numeric, width: c.numeric ? 16 : c.date ? 18 : 24 })),
+          rows: rows.map(row => cols.map(c => {
+            const value = row[c.key];
+            return c.numeric ? (value == null ? null : Number(value)) : display(row, c, kind);
+          })),
+        }],
+      }];
+      if (kind === 'promotions' && query.data?.byProgram?.length) {
+        sheets.unshift({
+          name: 'Tổng hợp theo chương trình', title: `${title} · Tổng hợp theo chương trình`, info: info.slice(0, -1),
+          blocks: [{
+            columns: [
+              { header: 'Mã CTKM', width: 16 }, { header: 'Tên chương trình khuyến mãi', width: 36 },
+              { header: 'Số đơn áp dụng', numeric: true }, { header: 'Sản lượng (thùng)', numeric: true },
+              { header: 'Trước giảm (đ)', numeric: true, width: 18 }, { header: 'Giảm chiến dịch (đ)', numeric: true, width: 18 },
+              { header: 'Giảm HSD (đ)', numeric: true, width: 18 }, { header: 'Tổng tiền giảm KM (đ)', numeric: true, width: 18, font: 'FFB42318' },
+              { header: 'Sau giảm (đ)', numeric: true, width: 18 },
+            ],
+            rows: query.data.byProgram.map(p => [p.programCode, p.programName, p.orderCount, p.totalQuantity, p.grossAmount,
+              p.campaignDiscountAmount, p.shelfLifeDiscountAmount, p.discountAmount, p.netAmount]),
+          }],
+        });
+      }
+      await downloadExcel(`bao-cao-${kind}-${filters.fromDate}-${filters.toDate}.xlsx`, sheets);
     } catch (error) { setExportError(errorMessage(error)); }
     finally { setExporting(false); }
   }
   return <>
-    <PageHeader title={title} actions={<Button disabled={!valid || !query.data || query.isFetching} loading={exporting} onClick={() => void exportCsv()}>Xuất CSV · toàn bộ bộ lọc</Button>} />
+    <PageHeader title={title} actions={<Button disabled={!valid || !query.data || query.isFetching} loading={exporting} onClick={() => void exportExcel()}>Xuất Excel</Button>} />
     <div className="card report-filters">
       <label className="lbl">Từ ngày<DateInput required value={draft.fromDate} onChange={fromDate => setDraft(f => ({ ...f, fromDate }))} /></label>
       <label className="lbl">Đến ngày<DateInput required min={draft.fromDate} value={draft.toDate} onChange={toDate => setDraft(f => ({ ...f, toDate }))} /></label>

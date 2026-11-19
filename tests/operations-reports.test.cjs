@@ -3,19 +3,49 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
-const filename = path.resolve(__dirname, '../src/features/reports/reportCsv.ts');
+const filename = path.resolve(__dirname, '../src/features/reports/reportExport.ts');
 const code = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
 const loaded = { exports: {} };
 new Function('exports', code)(loaded.exports);
-const { csvCell, loadAllReportRows } = loaded.exports;
+const { loadAllReportRows } = loaded.exports;
+const ExcelJS = require('exceljs');
+const excelFile = path.resolve(__dirname, '../src/shared/lib/excel.ts');
+const excel = { exports: {} };
+new Function('require', 'exports', ts.transpileModule(fs.readFileSync(excelFile, 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText)(require, excel.exports);
 
-test('report CSV preserves Vietnamese, quotes and multiline notes while neutralizing formulas', () => {
-  assert.equal(csvCell('Quà "Tết", giao\nđợt 2'), '"Quà ""Tết"", giao\nđợt 2"');
-  for (const input of ['=HYPERLINK("x")', '+1', '-1', '@SUM(1)', ' \t=1'])
-    assert.equal(csvCell(input).startsWith('"\''), true);
-  assert.equal(csvCell('Nguyễn Văn An'), '"Nguyễn Văn An"');
+test('report Excel keeps Vietnamese text, numbers as numbers, formulas as plain text, styled header', async () => {
+  const wb = excel.exports.buildWorkbook(new ExcelJS.Workbook(), [{
+    name: 'Báo cáo: đổi/quà?', title: 'Báo cáo đổi quà', info: ['Khoảng thời gian: 01/11/2026 – 20/11/2026'],
+    blocks: [{ columns: [{ header: 'Nhà bán lẻ' }, { header: 'Điểm', numeric: true }],
+      rows: [['Quà "Tết", giao\nđợt 2', 1200], ['=HYPERLINK("x")', null]] }],
+  }]);
+  const ws = wb.worksheets[0];
+  assert.equal(ws.name, 'Báo cáo  đổi quà');
+  assert.equal(ws.getCell('A1').value, 'Báo cáo đổi quà');
+  const header = ws.getRow(4);
+  assert.equal(header.getCell(1).value, 'Nhà bán lẻ');
+  assert.equal(header.getCell(1).font.bold, true);
+  assert.equal(header.getCell(1).fill.fgColor.argb, 'FF14655B');
+  assert.equal(ws.getCell('A5').value, 'Quà "Tết", giao\nđợt 2');
+  assert.equal(ws.getCell('B5').value, 1200);
+  assert.equal(ws.getCell('B5').numFmt, '#,##0.##');
+  // A string cell is never a formula cell.
+  assert.equal(ws.getCell('A6').value, '=HYPERLINK("x")');
+  assert.equal(ws.getCell('A6').type, ExcelJS.ValueType.String);
+  assert.deepEqual(ws.autoFilter, { from: { row: 4, column: 1 }, to: { row: 4, column: 2 } });
+  const buffer = await wb.xlsx.writeBuffer();
+  assert.ok(buffer.byteLength > 1000);
+});
+
+test('operations reports export Excel instead of CSV', () => {
+  const page = fs.readFileSync(path.resolve(__dirname, '../src/features/reports/OperationsReportsPage.tsx'), 'utf8');
+  assert.ok(page.includes('Xuất Excel'));
+  assert.ok(page.includes('downloadExcel(') && page.includes('.xlsx'));
+  assert.ok(!/csv/i.test(page.replace(/reportExport/g, '')));
 });
 
 test('report export collects all filtered records across pages and handles empty results', async () => {
