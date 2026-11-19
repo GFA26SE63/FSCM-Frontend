@@ -184,7 +184,7 @@ test('5. Real API Integration: receiptApi.create attaches Idempotency-Key header
       post: () => Promise.resolve({}),
     },
     '@/shared/api/errors': errors,
-    '@/shared/api/graphql': { graphql: async () => ({ goodsReceiptReads: [] }) },
+    './receiptsGraphql': { findReceiptIdByCode: async () => null },
   });
 
   const payload = {

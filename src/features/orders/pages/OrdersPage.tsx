@@ -3,7 +3,7 @@ import { Eye, LogOut, RotateCcw } from 'lucide-react';
 import { useNavigate } from '@/shared/router/compat';
 import { useDateParam, useEnumParam, useQueryParams } from '@/shared/router/listState';
 import { useCursorPagination } from '@/shared/pagination';
-import { parsePageSize } from '@/shared/pagination/urlSync';
+import { decodeSort, PAGINATION_PARAM_NAMES, PAGINATION_RESETS, parsePageSize } from '@/shared/pagination/urlSync';
 import {
   ActionDropdown,
   Button,
@@ -27,7 +27,7 @@ import { useApiMutation } from '@/shared/hooks';
 import { canWithdrawOrder } from '../orderAccess';
 import { orderApi } from '../api';
 import { useOrdersPage } from '../hooks';
-import { ORDER_PAGE_SIZES, type OrderPageSize } from '../ordersGraphql';
+import { ORDER_PAGE_SIZES, ORDER_SORT_MAP, ORDER_SORTABLE_FIELDS, type OrderPageSize, type OrderSortField } from '../ordersGraphql';
 import type { OrderSummary } from '../types';
 import { useOrderSales } from '../orderSales';
 import { WithdrawOrderDialog } from '../components/OrderDialogs';
@@ -39,7 +39,7 @@ const STATUS_VALUES = ['', 'Allocating', 'Quoted', 'AllocationFailed', 'OutOfSto
 type StatusFilterValue = (typeof STATUS_VALUES)[number];
 
 const SIZE_VALUES = ORDER_PAGE_SIZES.map(String) as `${OrderPageSize}`[];
-const PAGE_RESETS = ['after', 'before', 'page'];
+const PAGE_RESETS = PAGINATION_RESETS;
 
 const statusFilterOptions = [
   { label: 'Tất cả', value: '' },
@@ -70,6 +70,12 @@ export function OrdersPage() {
   // The raw value is not used directly — pageSize is derived above via parsePageSize.
   useEnumParam<`${OrderPageSize}`>('size', SIZE_VALUES, '20', { resets: PAGE_RESETS });
 
+  // Read sort from URL synchronously — available before query runs
+  const rawSort = decodeSort(params.get(PAGINATION_PARAM_NAMES.SORT));
+  const activeSort = rawSort?.field && ORDER_SORT_MAP[rawSort.field as OrderSortField]
+    ? { field: rawSort.field as OrderSortField, direction: rawSort.direction }
+    : undefined;
+
   // GraphQL cursor-paginated query
   const query = useOrdersPage({
     size: pageSize,
@@ -79,11 +85,11 @@ export function OrdersPage() {
     from: from || undefined,
     source,
     search,
-    sort,
+    sort: activeSort,
   });
 
-  // Phase 0 cursor pagination hook — reads same URL params, provides navigation callbacks
-  const { pagingProps } = useCursorPagination({
+  // Phase 0 cursor pagination hook — reads same URL params, provides navigation + sort callbacks
+  const { pagingProps, sortProps } = useCursorPagination({
     pageInfo: query.data?.pageInfo,
     totalCount: query.data?.totalCount,
     loading: query.isLoading || query.isFetching,
@@ -120,6 +126,7 @@ export function OrdersPage() {
       key: 'orderCode',
       header: 'Mã đơn',
       width: '104px',
+      sortable: true,
       render: (order) => <span className="bold">{order.orderCode}</span>,
     },
     {
@@ -160,6 +167,7 @@ export function OrdersPage() {
       key: 'createdAt',
       header: 'Server nhận',
       width: '105px',
+      sortable: true,
       text: (order) => formatShortDateTime(order.createdAt),
     },
     {
@@ -184,6 +192,7 @@ export function OrdersPage() {
       header: 'Giá trị',
       width: '115px',
       align: 'right',
+      sortable: true,
       render: (order) => (
         <>
           {formatMoney(order.officialAmount ?? order.indicativeAmount)}
@@ -240,6 +249,7 @@ export function OrdersPage() {
         columns={columns}
         searchPlaceholder="Mã đơn, nhà bán lẻ, người đặt, trạng thái…"
         cursor={pagingProps}
+        serverSort={{ ...sortProps, sortableFields: ORDER_SORTABLE_FIELDS }}
         filters={[
           {
             label: 'Người đặt đơn',

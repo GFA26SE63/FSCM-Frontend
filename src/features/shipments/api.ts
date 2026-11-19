@@ -1,6 +1,7 @@
 import { get, getAll, patch, post } from '@/shared/api/http';
 import { graphql } from '@/shared/api/graphql';
 import { ApiError } from '@/shared/api/errors';
+import { fetchShipmentsForOrder } from './shipmentsGraphql';
 import type { DeliveryDriver, DeliveryVehicle, ExportOrder, OrderShipmentReadiness, Shipment } from './types';
 
 async function exportOrders(orderIds: string[]): Promise<ExportOrder[]> {
@@ -37,7 +38,8 @@ export const shipmentsApi = {
    * has no view of.
    */
   readiness: (orderId: string) => get<OrderShipmentReadiness>(`/shipments/orders/${orderId}/readiness`),
-  list: (orderId: string) => getAll<Shipment>('/shipments', { orderId }),
+  /** Order-scoped read via GraphQL (see shipmentsGraphql.ts); writes below stay REST. */
+  list: (orderId: string) => fetchShipmentsForOrder(orderId),
   drivers: () => getAll<DeliveryDriver>('/deliveries/drivers', { includeInactive: false }),
   vehicles: () => getAll<DeliveryVehicle>('/deliveries/vehicles', { includeInactive: false }),
   issue: (shipment: Shipment) =>

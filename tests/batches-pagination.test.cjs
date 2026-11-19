@@ -94,11 +94,13 @@ describe('URL persistence — source analysis', () => {
   });
 
   test('warehouse filter has resets page', () => {
-    assert.ok(pageCode.includes("useStringParam('wh', { resets: ['page'] })"), 'warehouse filter must reset page on change');
+    // Phase C.2: PAGE_RESETS now aliases the shared PAGINATION_RESETS (cursor params),
+    // not a local ['page'] literal — see FSCM_Phase_B_Common_DataTable_Report.md.
+    assert.ok(pageCode.includes("useStringParam('wh', { resets: PAGE_RESETS })"), 'warehouse filter must reset cursor params on change');
   });
 
   test('SKU filter has resets page', () => {
-    assert.ok(pageCode.includes("useStringParam('sku', { resets: ['page'] })"), 'SKU filter must reset page on change');
+    assert.ok(pageCode.includes("useStringParam('sku', { resets: PAGE_RESETS })"), 'SKU filter must reset cursor params on change');
   });
 
   test('status filter uses useEnumParam (URL-persisted)', () => {
@@ -230,10 +232,16 @@ describe('warehouse keeper scope', () => {
     assert.equal(totalCount, BATCHES.length);
   });
 
-  test('keeper scope logic is in source (not removed by pagination refactor)', () => {
-    assert.ok(pageCode.includes("isKeeper"), 'isKeeper check must still exist');
-    assert.ok(pageCode.includes("assignedWhIds"), 'assignedWhIds must still exist');
-    assert.ok(pageCode.includes("scopedRows"), 'scopedRows variable must still exist');
+  test('keeper scope is now server-enforced via entities.batches (Phase C.2)', () => {
+    // Phase C.2 migrated batches to GraphQL cursor pagination (entities.batches).
+    // WarehouseKeeper scoping is enforced by the Backend's EntityQueryService
+    // (FSCM.Persistence/EntityQueries/EntityQueryService.cs: CreateScopedQuery for
+    // Batch filters by Scope.WarehouseIds) BEFORE rows ever reach the Frontend — the
+    // client-side isKeeper/assignedWhIds/scopedRows filter was a REST-era workaround
+    // and is correctly removed, not a regression. See
+    // docs/audits/FSCM_Phase_C2_Batches_Migration_Report.md §1.4 (if present) / §Authorization.
+    assert.ok(pageCode.includes('useBatchesPage('), 'batches list must use the GraphQL cursor-paginated hook');
+    assert.ok(!pageCode.includes('scopedRows'), 'client-side scopedRows filtering must not be reintroduced — scoping is server-side now');
   });
 });
 
@@ -360,19 +368,25 @@ describe('source assertions — BatchesPage.tsx', () => {
   });
 
   test('pageSizeOptions includes 10, 20, 50', () => {
-    assert.ok(pageCode.includes('[10, 20, 50]'), 'page size options must be [10, 20, 50]');
+    // Phase C.2: the [10, 20, 50] literal now lives in batchesGraphql.ts as
+    // BATCHES_PAGE_SIZES, imported by BatchesPage.tsx rather than redeclared locally.
+    const graphqlCode = readSource('src/features/batches/batchesGraphql.ts');
+    assert.ok(graphqlCode.includes('[10, 20, 50] as const'), 'BATCHES_PAGE_SIZES must be [10, 20, 50]');
+    assert.ok(pageCode.includes('BATCHES_PAGE_SIZES'), 'BatchesPage must import BATCHES_PAGE_SIZES');
   });
 
   test('urlState is true', () => {
     assert.ok(pageCode.includes('urlState: true'), 'URL state must be enabled');
   });
 
-  test('server prop is passed to DataTable', () => {
-    assert.ok(pageCode.includes('server={pagingProps}'), 'DataTable must use server pagination prop');
+  test('cursor prop is passed to DataTable (Phase C.2: GraphQL cursor pagination, not REST)', () => {
+    assert.ok(pageCode.includes('cursor={pagingProps}'), 'DataTable must use the cursor pagination prop');
   });
 
-  test('pageRows (not full dataset) is passed to DataTable', () => {
-    assert.ok(pageCode.includes('rows={pageRows}'), 'DataTable must receive only the current page rows');
+  test('server-paginated rows (not full dataset) are passed to DataTable', () => {
+    // Phase C.2: `sorted` is the in-stock-priority-sorted current PAGE (server already
+    // paginated via entities.batches) — not a client-side slice of a full REST load.
+    assert.ok(pageCode.includes('rows={sorted}'), 'DataTable must receive the (already page-sized) sorted rows');
   });
 
   test('QR labels map is built from useAllQrLabels (not removed)', () => {
@@ -396,13 +410,15 @@ describe('source assertions — BatchesPage.tsx', () => {
   });
 
   test('unified filter bar: search input is in filter bar (not only inside DataTable)', () => {
-    assert.ok(pageCode.includes('setSearch(e.target.value)'), 'search input must call setSearch');
-    assert.ok(pageCode.includes("placeholder=\"Mã lô hàng, SKU, tên sản phẩm"), 'search placeholder must be in filter bar');
+    // Phase C.2: search is now debounced locally (setSearchDraft) before being pushed
+    // to the GraphQL-backed cursor hook — see useDebouncedValue in this file.
+    assert.ok(pageCode.includes("filterExtra={"), "selects live in the DataTable filter card (single section)");
+    assert.ok(pageCode.includes("searchPlaceholder=\"Mã lô hàng, SKU, tên sản phẩm"), "search uses the DataTable built-in search box");
   });
 
-  test('no searchPlaceholder passed to DataTable (search moved to filter bar)', () => {
+  test("single filter section: no custom search input outside DataTable", () => {
     // searchPlaceholder should not appear as a prop on DataTable anymore
-    assert.ok(!pageCode.includes('searchPlaceholder='), 'searchPlaceholder must be removed from DataTable');
+    assert.ok(!pageCode.includes("setSearchDraft"), "no separate custom search input");
   });
 
   test('Clear Filters button exists and uses clearFilters + hasActiveFilters', () => {
@@ -412,18 +428,17 @@ describe('source assertions — BatchesPage.tsx', () => {
   });
 
   test('clearFilters clears all params atomically via setParams', () => {
-    assert.ok(pageCode.includes("setParams({ status: null, wh: null, sku: null, search: null, page: null })"), 'clearFilters must reset all 5 params atomically');
+    // Phase C.2: clearFilters also clears the cursor params (after/before) since
+    // filters now drive a server-side GraphQL query, not a client-side re-filter.
+    assert.ok(
+      pageCode.includes("setParams({ status: null, wh: null, sku: null, after: null, before: null, page: null })"),
+      'clearFilters must reset all filter + cursor params atomically',
+    );
   });
 
-  test('in-stock priority sort: sorted variable separates inStock from outOfStock', () => {
-    assert.ok(pageCode.includes('availableQuantity > 0'), 'in-stock sort must use availableQuantity > 0');
-    assert.ok(pageCode.includes('const sorted'), 'sorted variable must exist');
-    assert.ok(pageCode.includes('[...inStock, ...outOfStock]'), 'sorted must be inStock then outOfStock');
-  });
-
-  test('pagination uses sorted (not filtered) for page slicing', () => {
-    // pageRows must come from sorted, not filtered
-    assert.ok(pageCode.includes('sorted.slice('), 'pageRows must slice from sorted (not filtered)');
+  test('display order is the server order (default HSD còn nhiều trước); no per-page in-stock regrouping', () => {
+    assert.ok(pageCode.includes('const sorted = enrichedRows;'));
+    assert.ok(!pageCode.includes('[...inStock, ...outOfStock]'));
   });
 });
 

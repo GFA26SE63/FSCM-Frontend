@@ -7,11 +7,12 @@ import { Button, Callout, Card, Chip, PageHeader, Select, SimpleTable, Stat, typ
 import { formatCases, formatNumber, formatPercent, statusLabel } from '@/shared/lib';
 import { formatDate, formatInstantDateTime } from '@/shared/lib/dates';
 import { usePickingListPage, useWarehouseOptions } from '../hooks';
-import { PAGE_SIZES, PICKING_STATUSES, type PageSize } from '../pickingGraphql';
+import { PAGE_SIZES, PICKING_SORT_MAP, PICKING_STATUSES, type PageSize, type PickingSortField } from '../pickingGraphql';
+import { decodeSort, encodeSort, PAGINATION_PARAM_NAMES, PAGINATION_RESETS } from '@/shared/pagination/urlSync';
 import type { PickingListRow, PickingRowItem, PickingStatus } from '../types';
 
 /** Đổi bộ lọc / số dòng → về trang đầu. */
-const PAGE_RESETS = ['after', 'before', 'page'];
+const PAGE_RESETS = PAGINATION_RESETS;
 const SIZE_VALUES = PAGE_SIZES.map(String) as `${PageSize}`[];
 
 const STATUS: Record<PickingStatus, { tone: Tone; label: string }> = {
@@ -32,6 +33,16 @@ export function RunPickingPage() {
   const size = Number(sizeParam) as PageSize;
   const after = params.get('after') ?? '';
   const before = after ? '' : params.get('before') ?? '';
+
+  // Sort state: read from URL param 'sort', write via setParams (resets cursors)
+  const rawSort = decodeSort(params.get(PAGINATION_PARAM_NAMES.SORT));
+  const activeSort = rawSort?.field && PICKING_SORT_MAP[rawSort.field as PickingSortField]
+    ? { field: rawSort.field as PickingSortField, direction: rawSort.direction }
+    : undefined;
+  const setSort = (field: PickingSortField | '', direction?: 'asc' | 'desc') => {
+    const encoded = field ? encodeSort(field, direction) : null;
+    setParams({ [PAGINATION_PARAM_NAMES.SORT]: encoded, after: null, before: null, page: null });
+  };
   const requestedPage = parsePage(params.get('page'));
   const [openId, setOpenId] = useState<string | null>(null);
   const warehouses = useWarehouseOptions();
@@ -48,6 +59,7 @@ export function RunPickingPage() {
       status,
       pickingCode: requestedCode || undefined,
       scopeWarehouseIds,
+      sort: activeSort,
     },
     !!user && (!rawWarehouseId || !!warehouses.data),
   );
@@ -96,6 +108,23 @@ export function RunPickingPage() {
             onChange={(event) => setStatus(event.target.value as PickingStatus | '')}
             placeholder="Tất cả trạng thái"
             options={Object.entries(STATUS).map(([code, meta]) => ({ value: code, label: meta.label }))}
+          />
+          <Select
+            aria-label="Sắp xếp"
+            value={activeSort ? `${activeSort.field}:${activeSort.direction}` : ''}
+            onChange={(event) => {
+              const val = event.target.value;
+              if (!val) { setSort(''); return; }
+              const [field, dir] = val.split(':') as [PickingSortField, 'asc' | 'desc'];
+              setSort(field, dir);
+            }}
+            options={[
+              { value: '', label: 'Mặc định (mới nhất)' },
+              { value: 'createdAt:asc', label: 'Ngày tạo ↑ (cũ nhất)' },
+              { value: 'createdAt:desc', label: 'Ngày tạo ↓ (mới nhất)' },
+              { value: 'pickingCode:asc', label: 'Mã phiếu ↑ A→Z' },
+              { value: 'pickingCode:desc', label: 'Mã phiếu ↓ Z→A' },
+            ]}
           />
         </div>
       </Card>

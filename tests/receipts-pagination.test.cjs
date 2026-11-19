@@ -352,7 +352,7 @@ test('batch: mapReceiptListItem derives batchCount and totalQty from lines', () 
   const { mapReceiptListItem } = source('features/receipts/api.ts', {
     '@/shared/api/http': { http: {}, get: () => {}, getAll: () => {} },
     '@/shared/api/errors': { ApiError: class {} },
-    '@/shared/api/graphql': { graphql: async () => ({ goodsReceiptReads: [] }) },
+    './receiptsGraphql': { findReceiptIdByCode: async () => null },
   });
   const detail = {
     id: 'r1', receiptCode: 'RC-0001', warehouseId: 'wh1', warehouseCode: 'WH', warehouseName: 'Kho',
@@ -373,7 +373,7 @@ test('batch: receipt with zero lines gives batchCount=0 and totalQty=0', () => {
   const { mapReceiptListItem } = source('features/receipts/api.ts', {
     '@/shared/api/http': { http: {}, get: () => {}, getAll: () => {} },
     '@/shared/api/errors': { ApiError: class {} },
-    '@/shared/api/graphql': { graphql: async () => ({ goodsReceiptReads: [] }) },
+    './receiptsGraphql': { findReceiptIdByCode: async () => null },
   });
   const detail = {
     id: 'r2', receiptCode: 'RC-0002', warehouseId: 'wh1', warehouseCode: 'WH', warehouseName: 'Kho',
@@ -407,7 +407,7 @@ test('ReceiptsPage source: default pageSize is 20 per project convention', () =>
     'utf8',
   );
   assert.ok(src.includes('defaultPageSize: 20'), 'default page size must be 20');
-  assert.ok(src.includes('[10, 20, 50]'), 'page size options must be [10, 20, 50]');
+  assert.ok(src.includes('RECEIPTS_PAGE_SIZES'), 'page size options come from RECEIPTS_PAGE_SIZES [10, 20, 50]');
 });
 
 test('ReceiptsPage source: warehouse filter resets to page 1 on change', () => {
@@ -416,7 +416,7 @@ test('ReceiptsPage source: warehouse filter resets to page 1 on change', () => {
     'utf8',
   );
   assert.ok(
-    src.includes('basePagingProps.onPageChange(1)'),
+    src.includes("useStringParam('wh', { resets: PAGE_RESETS })"),
     'warehouse filter must reset page to 1',
   );
 });
@@ -426,7 +426,7 @@ test('ReceiptsPage source: status filter uses useEnumParam with resets page', ()
     path.resolve(__dirname, '../src/features/receipts/pages/ReceiptsPage.tsx'),
     'utf8',
   );
-  assert.ok(src.includes("resets: ['page']"), 'status filter must reset page via useEnumParam');
+  assert.ok(src.includes('resets: PAGE_RESETS'), 'status filter must reset cursors via useEnumParam');
   assert.ok(src.includes('urlState: true'), 'pagination state must persist to URL');
 });
 

@@ -522,6 +522,11 @@ function OrderBody({
             title="Giá dự kiến và giá chính thức"
             flush
           >
+            <div style={{ padding: '12px 16px 0 16px' }}>
+              <p className="muted small" style={{ margin: 0 }}>
+                * Khuyến mãi thương mại tự động áp dụng chương trình có mức chiết khấu cao nhất cho từng SKU (không cộng dồn giữa các CTKM thương mại). Chiết khấu HSD được tính thêm theo từng phần lô phân bổ thực tế bên dưới.
+              </p>
+            </div>
             <SimpleTable
               rows={order.lines}
               columns={[
@@ -565,7 +570,7 @@ function OrderBody({
                 },
                 {
                   header:
-                    'KM thường',
+                    'KM thương mại',
                   align: 'right',
                   cell: (line) => (
                     <>
@@ -575,8 +580,8 @@ function OrderBody({
                       <br />
                       <span className="muted small">
                         {line.ordinaryPromotion
-                          ?.name ??
-                          'Không có'}
+                          ? `${line.ordinaryPromotion.name} (−${line.ordinaryPromotion.discountPercent}%)`
+                          : 'Không có'}
                       </span>
                     </>
                   ),

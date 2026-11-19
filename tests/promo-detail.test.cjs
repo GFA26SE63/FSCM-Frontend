@@ -81,9 +81,10 @@ function renderDetail(p = promotion, overrides = {}) {
     [key, { data, refetch() {}, ...overrides[key] }]));
   const wrap = ({ title, children, actions: buttons }) => React.createElement('section', null, title, buttons, children);
   const { PromoDetailPage } = load('features/promos/pages/PromoDetailPage.tsx', {
-    '@/shared/router/compat': { useParams: () => ({ id: p.id }) },
+    '@/shared/router/compat': { useParams: () => ({ id: p.id }), useNavigate: () => () => {} },
     '../hooks': { usePromo: () => ({ data: p }), usePromoTargets: () => targets,
-      usePausePromo: () => ({}), useActivatePromo: () => ({}) },
+      usePausePromo: () => ({}), useActivatePromo: () => ({}),
+      usePromoUsage: () => ({ data: { items: [], totalCount: 0 }, isLoading: false }) },
     '../status': { promoStatus: () => 'Running' },
     '@/shared/lib': { ...load('shared/lib/format.ts'), ...load('shared/lib/dates.ts'), statusLabel: (_, value) => value },
     '@/shared/ui': {

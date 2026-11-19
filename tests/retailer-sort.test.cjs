@@ -110,12 +110,16 @@ test('Retailer Sorting: handles missing or invalid createdAt safely', () => {
 });
 
 test('RetailersPage preserves incoming server pagination and review navigation', () => {
+  // Phase C.1: migrated from REST offset pagination to GraphQL cursor pagination
+  // (entities.retailers). Server-side pagination, search, filter, and review
+  // navigation are all preserved — only the transport and hook changed.
   const pageCode = fs.readFileSync(path.resolve(__dirname, '../src/features/retailers/pages/RetailersPage.tsx'), 'utf8');
-  assert.ok(pageCode.includes('useRestPagination('));
-  assert.ok(pageCode.includes('retailerApi.list({'));
+  assert.ok(pageCode.includes('useCursorPagination('));
+  assert.ok(pageCode.includes('useRetailersPage({'));
   assert.ok(pageCode.includes('pageSize,') && pageCode.includes('search: search || undefined'));
-  assert.ok(pageCode.includes('rows={query.data?.items}') && pageCode.includes('server={pagingProps}'));
+  assert.ok(pageCode.includes('rows={rows}') && pageCode.includes('cursor={pagingProps}'));
   assert.ok(pageCode.includes('STATUS_FILTER_OPTIONS'));
   assert.ok(pageCode.includes("can(user, 'retailers.review')"));
-  assert.ok(pageCode.includes('onRowClick={(row) => navigate(`/retailers/${row.id || row.code}`)}'));
+  // GraphQL rows always carry a non-null id (entity primary key) — no code fallback needed.
+  assert.ok(pageCode.includes('onRowClick={(row) => navigate(`/retailers/${row.id}`)}'));
 });
