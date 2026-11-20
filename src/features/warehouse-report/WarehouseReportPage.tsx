@@ -5,17 +5,24 @@ import { errorMessage } from '@/shared/api/errors';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { Button, Callout, Card, Chip, DateInput, EmptyState, Fields, Modal, PageHeader, QueryState, Stat } from '@/shared/ui';
 import { formatDate, formatNumber } from '@/shared/lib';
+import { formatInstantDateTime } from '@/shared/lib/dates';
+import { downloadExcel } from '@/shared/lib/excel';
 import { defaultDashboardDates } from '@/features/dashboard/dashboardModel';
 import {
   DEFAULT_TOP,
   GROUP_LABELS,
   METRICS,
   TOP_OPTIONS,
+  nextSort,
   rangeError,
   reportSummary,
+  sortProducts,
   toReportParams,
+  warehouseReportSheets,
   warehouseTotals,
   type MetricGroup,
+  type MetricKey,
+  type MetricSort,
   type WarehouseReport,
   type WarehouseReportFilters,
   type WarehouseReportProductStock,
@@ -44,8 +51,14 @@ function Legend() {
   );
 }
 
-function WarehouseCard({ warehouse, onSelect }: { warehouse: WarehouseReportWarehouse; onSelect: (p: WarehouseReportProductStock) => void }) {
+function WarehouseCard({ warehouse, sort, onSort, onSelect }: {
+  warehouse: WarehouseReportWarehouse;
+  sort: MetricSort;
+  onSort: (key: MetricKey) => void;
+  onSelect: (p: WarehouseReportProductStock) => void;
+}) {
   const totals = warehouseTotals(warehouse);
+  const products = sortProducts(warehouse.products, sort);
   return (
     <Card
       flush
@@ -81,11 +94,26 @@ function WarehouseCard({ warehouse, onSelect }: { warehouse: WarehouseReportWare
               ))}
             </tr>
             <tr>
-              {METRICS.map((m) => <th key={m.key} className="wr-right" title={m.hint}>{m.short}</th>)}
+              {METRICS.map((m) => {
+                const active = sort?.key === m.key ? sort.dir : null;
+                return (
+                  <th key={m.key} className="wr-right" aria-sort={active === 'desc' ? 'descending' : active === 'asc' ? 'ascending' : 'none'}>
+                    <button
+                      type="button"
+                      className={`wr-sort${active ? ' active' : ''}`}
+                      title={`${m.hint}. Nhấn để sắp xếp: nhiều nhất → ít nhất → theo hạng bán chạy`}
+                      onClick={() => onSort(m.key)}
+                    >
+                      {m.short}
+                      <span className="wr-sort-icon" aria-hidden>{active === 'desc' ? '▼' : active === 'asc' ? '▲' : '↕'}</span>
+                    </button>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
-            {warehouse.products.map((p) => (
+            {products.map((p) => (
               <tr key={p.productId}>
                 <td><Button size="sm" onClick={() => onSelect(p)}>Chi tiết</Button></td>
                 <td className="wr-center">{p.rank}</td>
@@ -126,10 +154,40 @@ export function WarehouseReportPage() {
     queryFn: () => loadReport(filters),
     enabled: !invalid && !!user,
   });
+  // One sort for every warehouse table so warehouses stay comparable; the Excel file uses it too.
+  const [sort, setSort] = useState<MetricSort>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
+
+  async function exportExcel() {
+    if (!report.data) return;
+    setExporting(true);
+    setExportError('');
+    try {
+      const sheets = warehouseReportSheets(report.data, {
+        regionName: regions.data?.find((r) => r.id === filters.regionId)?.name,
+        sort,
+        exportedAt: formatInstantDateTime(new Date().toISOString()),
+      });
+      await downloadExcel(`bao-cao-kho-van-${filters.fromDate}-${filters.toDate}.xlsx`, sheets);
+    } catch (error) {
+      setExportError(errorMessage(error));
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <>
-      <PageHeader title="Báo cáo kho vận" />
+      <PageHeader
+        title="Báo cáo kho vận"
+        actions={
+          <Button disabled={!!invalid || !report.data || report.isFetching} loading={exporting} onClick={() => void exportExcel()}>
+            Xuất Excel
+          </Button>
+        }
+      />
+      {exportError && <Callout tone="danger">{exportError}</Callout>}
       <div className="card wr-filters">
         <label className="lbl">Từ ngày<DateInput required value={filters.fromDate} onChange={(fromDate) => setFilters((f) => ({ ...f, fromDate }))} /></label>
         <label className="lbl">Đến ngày<DateInput required min={filters.fromDate} value={filters.toDate} onChange={(toDate) => setFilters((f) => ({ ...f, toDate }))} /></label>
@@ -173,7 +231,13 @@ export function WarehouseReportPage() {
                 ) : (
                   <div className="stack" style={{ gap: 16 }}>
                     {data.warehouses.map((w) => (
-                      <WarehouseCard key={w.id} warehouse={w} onSelect={(product) => setSelected({ warehouse: w, product })} />
+                      <WarehouseCard
+                        key={w.id}
+                        warehouse={w}
+                        sort={sort}
+                        onSort={(key) => setSort((s) => nextSort(s, key))}
+                        onSelect={(product) => setSelected({ warehouse: w, product })}
+                      />
                     ))}
                   </div>
                 )}
