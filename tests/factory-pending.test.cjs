@@ -51,5 +51,5 @@ test('admin observes unstarted arrivals and only opens an existing receipt', () 
   const { table } = render([{ id: 'W1', name: 'Kho A' }], [], '', true);
   const actions = table.props.columns.at(-1);
   assert.equal(actions.cell({ receiptDocumentId: null }), 'Chờ thủ kho kiểm đếm');
-  assert.equal(actions.cell({ receiptDocumentId: 'R1' }).props.children, 'Xem phiếu nhập');
+  assert.equal(actions.cell({ receiptDocumentId: 'R1' }).props.children, 'Xem tiến độ kiểm đếm');
 });
