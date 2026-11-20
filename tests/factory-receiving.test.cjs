@@ -42,7 +42,7 @@ function all(node, predicate) {
   if (!node || typeof node !== 'object') return [];
   return [...(predicate(node) ? [node] : []), ...[node.props?.children].flat(Infinity).flatMap(child => all(child, predicate))];
 }
-function states(scan = '') { return ['warehouse', '', [], [], 'delivery note', scan, false, '', '', '', '', '', '', null]; }
+function states(scan = '') { return ['warehouse', '', [], [], 'delivery note', scan, false, '', '', '', '', '', '', '', null]; }
 
 test('factory receipt starts from the selected pallet without sending a warehouse chosen by the keeper', async () => {
   const writes = [];
