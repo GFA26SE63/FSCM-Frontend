@@ -180,7 +180,7 @@ test('incomplete inspection and damage without quarantine location cannot be rec
 test('empty receipt cannot close, but recorded all-missing receipt can close', () => {
   for (const hasReport of [false, true]) {
     const tree = inspection(['', undefined, [], '', false], { reports: hasReport ? [{ palletCode: 'PID-1', cartons: [{ cartonCode: 'A', disposition: 'Missing', reason: 'Absent' }] }] : [] });
-    assert.equal(all(tree, n => n.type === 'button' && n.props.children === 'Hoàn tất phiếu nhập')[0].props.disabled, !hasReport);
+    assert.equal(all(tree, n => n.type === 'button' && n.props.children === 'Hoàn tất & Thực hiện nhập kho')[0].props.disabled, !hasReport);
   }
 });
 

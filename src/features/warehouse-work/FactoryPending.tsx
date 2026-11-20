@@ -1,4 +1,5 @@
-import { Card, QueryState, SimpleTable } from '@/shared/ui';
+import { useState } from 'react';
+import { Card, ConfirmDialog, QueryState, SimpleTable } from '@/shared/ui';
 import { formatDate, formatInstantDateTime } from '@/shared/lib/dates';
 import { useStringParam } from '@/shared/router/listState';
 
@@ -13,6 +14,7 @@ export function FactoryPending({ query, warehouses, admin, busy, onOpen, refresh
   warehouses: { id: string; name: string }[];
   admin: boolean; busy: boolean; onOpen: (pallet: FactoryInboundPallet) => void; refresh: () => void;
 }) {
+  const [confirmingPallet, setConfirmingPallet] = useState<FactoryInboundPallet | null>(null);
   const [warehouseFilter, setWarehouseFilter] = useStringParam('incomingWarehouse');
   const [search, setSearch] = useStringParam('incomingQuery');
   const effectiveWarehouse = warehouses.length === 1 ? warehouses[0].id : warehouses.some(w => w.id === warehouseFilter) ? warehouseFilter : '';
@@ -32,7 +34,36 @@ export function FactoryPending({ query, warehouses, admin, busy, onOpen, refresh
       { header: 'Sản phẩm / lô hàng', width: '240px', cell: p => <>{p.sku} · {p.productName}<div className="muted">{p.batchCode} · HSD {formatDate(p.expirationDate)}</div></> },
       { header: 'Kho nhận cố định', width: '180px', cell: p => warehouses.find(w => w.id === p.destinationWarehouseId)?.name ?? p.destinationWarehouseId },
       { header: 'Thùng', width: '100px', cell: p => p.cartonCount },
-      { header: 'Thao tác', width: '210px', cell: p => admin && !p.receiptDocumentId ? 'Chờ thủ kho kiểm đếm' : <button className="btn btn-sm" disabled={busy} onClick={() => onOpen(p)}>{admin ? 'Xem tiến độ kiểm đếm' : p.receiptDocumentId ? 'Tiếp tục kiểm đếm' : 'Bắt đầu kiểm đếm'}</button> },
+      { header: 'Thao tác', width: '210px', cell: p => {
+        if (admin && !p.receiptDocumentId) return 'Chờ thủ kho kiểm đếm';
+        if (admin) return <button className="btn btn-sm" disabled={busy} onClick={() => onOpen(p)}>Xem tiến độ kiểm đếm</button>;
+        if (p.receiptDocumentId) return <button className="btn btn-sm btn-primary" disabled={busy} onClick={() => onOpen(p)}>Tiếp tục kiểm đếm</button>;
+        return <button className="btn btn-sm btn-primary" disabled={busy} onClick={() => setConfirmingPallet(p)}>Bắt đầu kiểm đếm</button>;
+      } },
     ]} empty="Không có pallet chờ nhận tại các kho được phân công." />}</QueryState>
+    {confirmingPallet && <ConfirmDialog
+      open={true}
+      title="Xác nhận thực hiện kiểm đếm pallet"
+      confirmLabel="Bắt đầu kiểm đếm"
+      onClose={() => setConfirmingPallet(null)}
+      onConfirm={() => {
+        const target = confirmingPallet;
+        setConfirmingPallet(null);
+        onOpen(target);
+      }}
+      message={<div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <p>Bạn sắp mở phiếu tiếp nhận và bắt đầu kiểm đếm cho pallet sau:</p>
+        <div style={{ background: 'var(--c-bg-subtle, #f8f9fa)', padding: 12, borderRadius: 8, fontSize: 14 }}>
+          <div><b>Mã Pallet:</b> <span className="warehouse-pallet-code">{confirmingPallet.palletCode}</span></div>
+          <div><b>Sản phẩm:</b> {confirmingPallet.sku} - {confirmingPallet.productName}</div>
+          <div><b>Lô sản xuất:</b> {confirmingPallet.batchCode} · HSD: {formatDate(confirmingPallet.expirationDate)}</div>
+          <div><b>Số lượng dự kiến:</b> {confirmingPallet.cartonCount} thùng</div>
+          <div><b>Kho nhận cố định:</b> {warehouses.find(w => w.id === confirmingPallet.destinationWarehouseId)?.name ?? confirmingPallet.destinationWarehouseId}</div>
+        </div>
+        <p style={{ margin: 0, fontSize: 13, color: 'var(--c-text-muted, #666)' }}>
+          Lưu ý: Sau khi xác nhận, hệ thống sẽ mở phiếu kiểm đếm để bạn quét mã thùng (CID). Tồn kho chỉ được ghi nhận sau khi bạn quét kiểm và hoàn tất phiếu nhập.
+        </p>
+      </div>}
+    />}
   </Card>;
 }

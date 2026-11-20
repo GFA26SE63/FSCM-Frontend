@@ -79,7 +79,7 @@ export function PalletReceiving({ documentId, version, editable, receivedCount =
         <button className="btn btn-primary" disabled={busy || !valid} onClick={() => void receive()}>Xác nhận kết quả và nhận pallet</button>
         <button className="btn" disabled={busy} onClick={() => { setManifest(undefined); setRows([]); setScan(undefined); }}>Hủy kiểm đếm chưa lưu</button>
       </>}
-      <button className="btn" disabled={busy || !!manifest || (!reports.data?.length && receivedCount === 0)} onClick={() => void close()}>Hoàn tất phiếu nhập</button>
+      <button className="btn btn-primary" disabled={busy || !!manifest || (!reports.data?.length && receivedCount === 0)} onClick={() => void close()}>Hoàn tất & Thực hiện nhập kho</button>
     </>}
     {scans.isError && <p role="alert">{errorMessage(scans.error)}</p>}
     <h3>Lịch sử quét pallet trên phiếu</h3>
