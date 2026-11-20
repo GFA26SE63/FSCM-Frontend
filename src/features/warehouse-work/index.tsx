@@ -284,7 +284,7 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
           <div className="step-badge">Bước 1</div>
           <div>
             <strong>Tiếp nhận Pallet (PID)</strong>
-            <p>Xe nhà máy chở pallet đến kho. Chọn pallet trong bảng chờ nhận bên dưới để mở phiếu kiểm đếm.</p>
+            <p>Xe nhà máy chở pallet đến kho. Chọn pallet và bấm Bắt đầu kiểm đếm để mở phiếu kiểm đếm.</p>
           </div>
         </div>
         <div className="warehouse-guide-step-arrow">➔</div>
@@ -300,7 +300,7 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
           <div className="step-badge">Bước 3</div>
           <div>
             <strong>Ghi sổ PNK & Map Lô kho</strong>
-            <p>Bấm Hoàn tất phiếu nhập. Thùng đạt tự động map vào Lô kho FSCM để bán và gửi ACK về nhà máy.</p>
+            <p>Bấm Hoàn tất & Thực hiện nhập kho. Thùng đạt tự động map vào Lô kho FSCM để bán và gửi ACK về nhà máy.</p>
           </div>
         </div>
       </div>}
