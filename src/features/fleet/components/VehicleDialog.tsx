@@ -61,10 +61,13 @@ export function VehicleDialog({ vehicle, onClose }: Props) {
             label: 'Kho quản lý',
             type: 'select' as const,
             required: true,
-            options: activeWarehouses.map((item) => ({
-              value: item.id,
-              label: `${item.code} · ${item.name}`,
-            })),
+            options: [
+              { value: '', label: 'Chọn kho quản lý', disabled: true },
+              ...activeWarehouses.map((item) => ({
+                value: item.id,
+                label: `${item.code} · ${item.name}`,
+              })),
+            ],
           },
           {
             key: 'plateNumber',
