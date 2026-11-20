@@ -104,6 +104,16 @@ export interface InventoryHistoryItem {
   occurredAt: string;
 }
 
+/** Subset of the /inventory/qr-codes row (FactoryQrInventoryRow). */
+export interface BatchCarton {
+  cartonCode: string;
+  palletCode: string | null;
+  stockBatchId: string;
+  status: string;
+  receiptCode: string | null;
+  receivedAt: string | null;
+}
+
 export interface BatchFilters {
   warehouseId?: string;
   productId?: string;

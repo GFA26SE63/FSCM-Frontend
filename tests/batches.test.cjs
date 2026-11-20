@@ -105,4 +105,112 @@ test('inventory lock reasons map exactly to backend enum and Vietnamese labels',
   assert.deepEqual(values, ['Expired', 'Damaged', 'QualityHold', 'Recall', 'Other']);
 });
 
+test('Batch Detail Page: "Thông tin nhập kho" and "Danh sách carton" sections are completely removed', () => {
+  const detailFile = path.resolve(__dirname, '../src/features/batches/pages/BatchDetailPage.tsx');
+  const detailCode = fs.readFileSync(detailFile, 'utf8');
+
+  assert.equal(detailCode.includes('Thông tin nhập kho'), false);
+  assert.equal(detailCode.includes('Danh sách carton'), false);
+  assert.equal(detailCode.includes('receiptEntries'), false);
+  assert.equal(detailCode.includes('isReceiptTx'), false);
+});
+
+test('Batch Detail Page: Table headers order has Pallet ID immediately after Chứng từ', () => {
+  const detailFile = path.resolve(__dirname, '../src/features/batches/pages/BatchDetailPage.tsx');
+  const detailCode = fs.readFileSync(detailFile, 'utf8');
+
+  const historySectionMatch = detailCode.match(/Lịch sử nhập – xuất – khóa[\s\S]*?<table className="tbl"[^>]*>[\s\S]*?<\/thead>/);
+  assert.ok(historySectionMatch, 'History table section must exist');
+  const tableHead = historySectionMatch[0];
+
+  assert.ok(tableHead.includes('Thời điểm'));
+  assert.ok(tableHead.includes('Loại giao dịch'));
+  assert.ok(tableHead.includes('Chứng từ'));
+  assert.ok(tableHead.includes('Pallet ID'));
+  assert.ok(tableHead.includes('Số lượng'));
+  assert.ok(tableHead.includes('Người thực hiện'));
+
+  const chungTuIdx = tableHead.indexOf('Chứng từ');
+  const palletIdx = tableHead.indexOf('Pallet ID');
+  const soLuongIdx = tableHead.indexOf('Số lượng');
+
+  assert.ok(chungTuIdx < palletIdx, 'Pallet ID must come after Chứng từ');
+  assert.ok(palletIdx < soLuongIdx, 'Pallet ID must come before Số lượng');
+  assert.ok(detailCode.includes('colSpan={6}'), 'Empty history row must span all 6 columns');
+});
+
+test('Batch Detail Page: Pallet ID mapping logic matches receiptCode and handles multiple pallets', () => {
+  const detailFile = path.resolve(__dirname, '../src/features/batches/pages/BatchDetailPage.tsx');
+  const detailCode = fs.readFileSync(detailFile, 'utf8');
+
+  assert.ok(detailCode.includes('getPalletsForTransaction'));
+  assert.ok(detailCode.includes('Chưa gán pallet'));
+
+  const cartons = [
+    { cartonCode: 'C1', palletCode: 'PAL-01', stockBatchId: 'B1', receiptCode: 'PN-01', status: 'Available', receivedAt: null },
+    { cartonCode: 'C2', palletCode: 'PAL-02', stockBatchId: 'B1', receiptCode: 'PN-01', status: 'Available', receivedAt: null },
+    { cartonCode: 'C3', palletCode: 'PAL-03', stockBatchId: 'B1', receiptCode: 'PN-02', status: 'Available', receivedAt: null },
+    { cartonCode: 'C4', palletCode: null, stockBatchId: 'B1', receiptCode: 'PN-03', status: 'Available', receivedAt: null },
+  ];
+
+  const fnMatch = detailCode.match(/function getPalletsForTransaction[\s\S]*?\n\}/);
+  assert.ok(fnMatch, 'getPalletsForTransaction must be defined');
+
+  const jsCode = ts.transpileModule(fnMatch[0], {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText;
+  const getPallets = new Function('h', 'cartons', `${jsCode}; return getPalletsForTransaction(h, cartons);`);
+
+  // Multiple pallets for single receipt PN-01
+  const p1 = getPallets({ referenceCode: 'PN-01', transactionType: 'Receipt' }, cartons);
+  assert.deepEqual(p1, ['PAL-01', 'PAL-02']);
+
+  // Single pallet for PN-02
+  const p2 = getPallets({ referenceCode: 'PN-02', transactionType: 'Receipt' }, cartons);
+  assert.deepEqual(p2, ['PAL-03']);
+
+  // Receipt with null pallet
+  const p3 = getPallets({ referenceCode: 'PN-03', transactionType: 'Receipt' }, cartons);
+  assert.deepEqual(p3, []);
+
+  // Non-receipt transaction without carton/pallet match (OrderReserve, Lock, Disposal)
+  const pOrder = getPallets({ referenceCode: 'ORD-999', transactionType: 'OrderReserve' }, cartons);
+  assert.deepEqual(pOrder, []);
+
+  const pLock = getPallets({ referenceCode: 'LOCK-1', transactionType: 'Lock' }, cartons);
+  assert.deepEqual(pLock, []);
+
+  const pNoRef = getPallets({ referenceCode: undefined, transactionType: 'Disposal' }, cartons);
+  assert.deepEqual(pNoRef, []);
+});
+
+test('Batch Detail Page: Transaction type column has sufficient width and preserves exact labels and styles', () => {
+  const detailFile = path.resolve(__dirname, '../src/features/batches/pages/BatchDetailPage.tsx');
+  const detailCode = fs.readFileSync(detailFile, 'utf8');
+
+  // Verify column width is adjusted to 200px to fit labels like AdjustmentDecrease without overflowing
+  assert.ok(detailCode.includes("<th style={{ width: '200px' }}>Loại giao dịch</th>"));
+  assert.ok(detailCode.includes("<td style={{ width: '200px' }}>"));
+
+  // Verify strict preservation: keeps original badge styles and exact typeName mapping
+  assert.ok(detailCode.includes("typeName === 'Nhập kho'"));
+  assert.ok(detailCode.includes("background: '#E5F4EA', color: '#15703A'"));
+  assert.ok(detailCode.includes("background: '#E8EEFD', color: '#1D4ED8'"));
+  assert.ok(detailCode.includes("background: '#FDECEA', color: '#B42318'"));
+  assert.ok(detailCode.includes("background: '#FEF3E2', color: '#8A3B09'"));
+  assert.ok(detailCode.includes("background: '#ECEEF1', color: '#374151'"));
+
+  // Verify raw transaction types (OrderReserve, AdjustmentDecrease, etc.) fall through untouched to h.transactionType
+  assert.ok(detailCode.includes(": h.transactionType;"));
+});
+
+test('Batch Detail Page: Operator name column resolves through users.nameOf without raw user ID', () => {
+  const detailFile = path.resolve(__dirname, '../src/features/batches/pages/BatchDetailPage.tsx');
+  const detailCode = fs.readFileSync(detailFile, 'utf8');
+
+  assert.ok(detailCode.includes('useReceiptUserNames'));
+  assert.ok(detailCode.includes('users.nameOf(h.createdByUserId)'));
+  assert.equal(detailCode.includes('h.createdByUserId ||'), false, 'Must not fallback directly to raw user ID');
+});
+
 
