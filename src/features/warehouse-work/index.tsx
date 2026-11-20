@@ -24,10 +24,12 @@ const kinds = { Request: 'Yêu cầu kho', Picking: 'Phiếu soạn hàng', Issu
 const reasons = { Transfer: 'Luân chuyển kho', Order: 'Xuất cho đơn hàng', Factory: 'Nhận từ nhà máy' };
 const statuses: Record<string, string> = { Open: 'Chờ thực hiện', Prepared: 'Đã soạn đủ · chờ xuất', Posted: 'Đã ghi sổ', Fulfilled: 'Đã thực hiện', Cancelled: 'Đã hủy' };
 const inboundStatuses: Record<string, string> = { Open: 'Chờ thực hiện', Posted: 'Đã ghi sổ', Cancelled: 'Đã hủy' };
+const receiptsStatuses: Record<string, string> = { Posted: 'Đã ghi sổ', Cancelled: 'Đã hủy' };
 const outboundStatuses: Record<string, string> = { Open: 'Chờ thực hiện', Prepared: 'Đã soạn đủ · chờ xuất', Posted: 'Đã ghi sổ', Fulfilled: 'Đã thực hiện', Cancelled: 'Đã hủy' };
 
 function getWorkflowStatuses(workflow: WarehouseWorkflow): Record<string, string> {
-  if (workflow === 'inbound' || workflow === 'receipts') return inboundStatuses;
+  if (workflow === 'receipts') return receiptsStatuses;
+  if (workflow === 'inbound') return inboundStatuses;
   if (workflow === 'outbound') return outboundStatuses;
   return statuses;
 }
@@ -209,7 +211,9 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
       else history.push(warehouseDocumentPath(work.document));
     }
   };
-  const workflowRows = (docs.data ?? []).filter(w => belongsToWorkflow(w.document, workflow) && (!['inbound', 'receipts', 'outbound'].includes(workflow) || w.document.reason === operationReason));
+  const workflowRows = (docs.data ?? []).filter(w => belongsToWorkflow(w.document, workflow)
+    && (!['inbound', 'receipts', 'outbound'].includes(workflow) || w.document.reason === operationReason)
+    && (workflow !== 'receipts' || w.document.status !== 'Open'));
   const transferArrivals = (docs.data ?? []).filter(w => w.document.reason === 'Transfer' && w.document.kind === 'Issue' && w.document.status === 'Posted'
     && (admin || user?.scope?.warehouseIds.includes(w.document.destinationWarehouseId ?? ''))
     && !docs.data?.some(r => r.document.kind === 'Receipt' && r.document.sourceDocumentId === w.document.id));
@@ -344,7 +348,7 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
             <label>Trạng thái<select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="">Tất cả trạng thái</option>{Object.entries(filterStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
             <label>Lọc theo kho<select value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho</option>{warehouses.data?.filter(w => admin || user?.scope?.warehouseIds.includes(w.id)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
           </div>
-          <p className="muted">{visibleRows.length} chứng từ · Chọn mã PNK để xem chi tiết thông tin lần nhập hàng đó.</p>
+          <p className="muted">{visibleRows.length} chứng từ · Danh sách các phiếu nhập kho đã ghi nhận tồn. Chọn mã PNK để xem chi tiết hoặc in phiếu.</p>
           <QueryState query={docs}>{() => <SimpleTable rows={visibleRows} columns={[
             { header: 'Mã PNK', width: '320px', cell: w => <button className="btn btn-sm warehouse-document-code" onClick={() => { setSelected(w.document.id); setError(''); }}><span>{w.document.code}</span></button> },
             { header: 'Loại chứng từ', width: '250px', cell: w => documentTypeLabel(w.document.kind, w.document.reason) },
