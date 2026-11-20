@@ -1,7 +1,8 @@
-export type WarehouseWorkflow = 'inbound' | 'outbound' | 'transfer' | 'trace';
+export type WarehouseWorkflow = 'inbound' | 'receipts' | 'outbound' | 'transfer' | 'trace';
 
 export const warehouseScreens = {
-  inbound: { path: '/warehouse-inbound', title: 'Nhập kho', description: 'Nhập từ nhà máy hoặc nhận hàng luân chuyển từ kho khác; quét và xác nhận trên phiếu nhập.', create: '' },
+  inbound: { path: '/warehouse-inbound', title: 'Tiếp nhận hàng', description: 'Tiếp nhận kiện pallet từ nhà máy hoặc hàng luân chuyển từ kho khác; quét và kiểm đếm trước khi ghi sổ.', create: '' },
+  receipts: { path: '/warehouse-receipts', title: 'Phiếu nhập kho (PNK)', description: 'Quản lý, tra cứu và in các phiếu nhập kho đã lập hoặc đã ghi nhận tồn.', create: '' },
   outbound: { path: '/warehouse-outbound', title: 'Xuất kho', description: 'Phát hành yêu cầu xuất cho đơn đã có đơn thực hiện, soạn thùng và xác nhận xuất kho.', create: 'Tạo yêu cầu xuất kho' },
   transfer: { path: '/warehouse-transfers', title: 'Luân chuyển kho', description: 'Admin lập lệnh điều chuyển nội bộ giữa hai kho. Thủ kho gửi xuất hàng; thủ kho nhận kiểm đếm và ghi sổ nhập kho.', create: 'Lập lệnh điều chuyển kho' },
   trace: { path: '/warehouse-trace', title: 'Tra cứu thùng', description: 'Tra cứu mã thùng và lịch sử chứng từ qua các kho.', create: '' },
@@ -11,7 +12,7 @@ type DocumentReference = { kind?: string; reason: 'Factory' | 'Order' | 'Transfe
 
 export function belongsToWorkflow(document: DocumentReference, workflow: WarehouseWorkflow) {
   if (workflow === 'trace') return true;
-  if (workflow === 'inbound') return document.reason === 'Factory' || document.reason === 'Transfer' && document.kind === 'Receipt';
+  if (workflow === 'inbound' || workflow === 'receipts') return document.reason === 'Factory' || document.reason === 'Transfer' && document.kind === 'Receipt';
   if (workflow === 'outbound') return document.reason === 'Order' || document.reason === 'Transfer' && ['Picking', 'Issue'].includes(document.kind ?? '');
   return document.reason === 'Transfer';
 }
