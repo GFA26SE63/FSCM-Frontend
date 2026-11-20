@@ -25,10 +25,12 @@ const reasons = { Transfer: 'Luân chuyển kho', Order: 'Xuất cho đơn hàng
 const statuses: Record<string, string> = { Open: 'Chờ thực hiện', Prepared: 'Đã soạn đủ · chờ xuất', Posted: 'Đã ghi sổ', Fulfilled: 'Đã thực hiện', Cancelled: 'Đã hủy' };
 const inboundStatuses: Record<string, string> = { Open: 'Chờ thực hiện', Posted: 'Đã ghi sổ', Cancelled: 'Đã hủy' };
 const receiptsStatuses: Record<string, string> = { Posted: 'Đã ghi sổ', Cancelled: 'Đã hủy' };
+const issuesStatuses: Record<string, string> = { Posted: 'Đã ghi sổ', Cancelled: 'Đã hủy' };
 const outboundStatuses: Record<string, string> = { Open: 'Chờ thực hiện', Prepared: 'Đã soạn đủ · chờ xuất', Posted: 'Đã ghi sổ', Fulfilled: 'Đã thực hiện', Cancelled: 'Đã hủy' };
 
 function getWorkflowStatuses(workflow: WarehouseWorkflow): Record<string, string> {
   if (workflow === 'receipts') return receiptsStatuses;
+  if (workflow === 'issues') return issuesStatuses;
   if (workflow === 'inbound') return inboundStatuses;
   if (workflow === 'outbound') return outboundStatuses;
   return statuses;
@@ -57,6 +59,7 @@ export function WarehouseInboundPage() { const location = useLocation(); return 
 export function WarehouseReceiptsPage() { const location = useLocation(); return location.pathname.endsWith('/new') ? <Redirect to="/warehouse-receipts" /> : <WarehouseOperationsPage key="receipts" workflow="receipts" />; }
 export function WarehouseInboundCreatePage() { return <Redirect to="/warehouse-inbound" />; }
 export function WarehouseOutboundPage() { return <WarehouseOperationsPage key="outbound" workflow="outbound" />; }
+export function WarehouseIssuesPage() { const location = useLocation(); return location.pathname.endsWith('/new') ? <Redirect to="/warehouse-issues" /> : <WarehouseOperationsPage key="issues" workflow="issues" />; }
 export function WarehouseTransferPage() { return <WarehouseOperationsPage key="transfer" workflow="transfer" />; }
 export function WarehouseTracePage() { return <WarehouseOperationsPage key="trace" workflow="trace" />; }
 
@@ -189,6 +192,7 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
   const [statusFilter, setStatusFilter] = useStringParam('status');
   const [warehouseFilter, setWarehouseFilter] = useStringParam('warehouse');
   const [operationSource, setOperationSource] = useStringParam('source');
+  const [outboundKind, setOutboundKind] = useStringParam('kind');
   const operationReason = operationSource === 'Transfer' ? 'Transfer' : (workflow === 'inbound' || workflow === 'receipts') ? 'Factory' : 'Order';
   const [cartonEdit, setCartonEdit] = useState<{ documentId: string; cartonCode: string; replace: boolean; replacementCode: string; reason: string } | null>(null);
   const scanInput = useRef<HTMLInputElement>(null);
@@ -208,12 +212,15 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
     const work = docs.data?.find(w => w.document.id === id);
     if (work) {
       if (workflow === 'receipts') history.push(`/warehouse-receipts/${encodeURIComponent(work.document.id)}`);
+      else if (workflow === 'issues') history.push(`/warehouse-issues/${encodeURIComponent(work.document.id)}`);
       else history.push(warehouseDocumentPath(work.document));
     }
   };
   const workflowRows = (docs.data ?? []).filter(w => belongsToWorkflow(w.document, workflow)
-    && (!['inbound', 'receipts', 'outbound'].includes(workflow) || w.document.reason === operationReason)
-    && (workflow !== 'receipts' || w.document.status !== 'Open'));
+    && (!['inbound', 'receipts', 'outbound', 'issues'].includes(workflow) || w.document.reason === operationReason)
+    && (workflow !== 'receipts' || w.document.status !== 'Open')
+    && (workflow !== 'issues' || (w.document.kind === 'Issue' && w.document.status !== 'Open'))
+    && (workflow !== 'outbound' || w.document.kind !== 'Issue' || w.document.status !== 'Posted'));
   const transferArrivals = (docs.data ?? []).filter(w => w.document.reason === 'Transfer' && w.document.kind === 'Issue' && w.document.status === 'Posted'
     && (admin || user?.scope?.warehouseIds.includes(w.document.destinationWarehouseId ?? ''))
     && !docs.data?.some(r => r.document.kind === 'Receipt' && r.document.sourceDocumentId === w.document.id));
@@ -221,7 +228,8 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
     const text = [w.document.code, w.document.note, ...w.lines.flatMap(l => [l.sku, l.batchCode, l.orderCode])].join(' ').toLocaleLowerCase('vi');
     return (!search.trim() || text.includes(search.trim().toLocaleLowerCase('vi')))
       && (!statusFilter || w.document.status === statusFilter)
-      && (!warehouseFilter || [w.document.warehouseId, w.document.destinationWarehouseId].includes(warehouseFilter));
+      && (!warehouseFilter || [w.document.warehouseId, w.document.destinationWarehouseId].includes(warehouseFilter))
+      && (!outboundKind || w.document.kind === outboundKind);
   });
   const filterStatuses = getWorkflowStatuses(workflow);
   const selectable = (pickings.data ?? []).filter(p => p.status === 'Pending' && !docs.data?.some(d => d.document.kind === 'Request' && d.document.status !== 'Cancelled' && d.lines.some(l => l.orderCode === p.orderCode) && d.document.warehouseId === wh));
@@ -255,12 +263,13 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
     }
     finally { inFlight.current = false; setBusy(false); scanInput.current?.focus(); }
   }
-  async function printLabels(stock = false, receipt = false) {
+  async function printLabels(stock = false, receipt = false, issue = false) {
     if (!active) return;
     const win = window.open('', '_blank');
     if (!win) { setError('Cho phép mở cửa sổ để in nhãn.'); return; }
     try {
-      const { data } = await http.get<string>(`${base}/${active.document.id}/${receipt ? 'receipt-print' : stock ? 'stock-labels' : 'labels'}`, { responseType: 'text' });
+      const endpoint = receipt ? 'receipt-print' : issue ? 'issue-print' : stock ? 'stock-labels' : 'labels';
+      const { data } = await http.get<string>(`${base}/${active.document.id}/${endpoint}`, { responseType: 'text' });
       win.document.open(); win.document.write(data); win.document.close();
     } catch (e) { win.close(); setError(errorMessage(e)); }
   }
@@ -270,11 +279,13 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
     <PageHeader title={selected ? `Chi tiết ${screen.title.toLocaleLowerCase('vi')}` : creating ? screen.create : screen.title} subtitle={screen.description}
       back={selected || creating ? screen.path + (d?.reason === 'Transfer' && workflow !== 'transfer' ? '?source=Transfer' : '') : undefined}
       actions={!selected && !creating && canCreate ? <Link className="btn btn-primary" to={`${screen.path}/new`}>{screen.create}</Link> : undefined} />
-    {!selected && !creating && (workflow === 'inbound' || workflow === 'receipts' || workflow === 'outbound') && <div className="row-wrap" role="group" aria-label="Loại nghiệp vụ kho" style={{ gap: 12, marginBottom: 16 }}>
-      <button className={`btn ${operationReason !== 'Transfer' ? 'btn-primary' : ''}`} aria-pressed={operationReason !== 'Transfer'} onClick={() => setOperationSource('')}>{workflow === 'outbound' ? 'Xuất bán hàng' : workflow === 'receipts' ? 'Phiếu nhập từ nhà máy' : 'Nhập từ nhà máy'}</button>
-      <button className={`btn ${operationReason === 'Transfer' ? 'btn-primary' : ''}`} aria-pressed={operationReason === 'Transfer'} onClick={() => setOperationSource('Transfer')}>{workflow === 'outbound' ? 'Xuất luân chuyển' : workflow === 'receipts' ? 'Phiếu nhập luân chuyển' : 'Nhập luân chuyển'}</button>
+    {!selected && !creating && (workflow === 'inbound' || workflow === 'receipts' || workflow === 'outbound' || workflow === 'issues') && <div className="row-wrap" role="group" aria-label="Loại nghiệp vụ kho" style={{ gap: 12, marginBottom: 16 }}>
+      <button className={`btn ${operationReason !== 'Transfer' ? 'btn-primary' : ''}`} aria-pressed={operationReason !== 'Transfer'} onClick={() => setOperationSource('')}>{workflow === 'outbound' ? 'Xuất bán hàng' : workflow === 'receipts' ? 'Phiếu nhập từ nhà máy' : workflow === 'issues' ? 'Phiếu xuất bán hàng' : 'Nhập từ nhà máy'}</button>
+      <button className={`btn ${operationReason === 'Transfer' ? 'btn-primary' : ''}`} aria-pressed={operationReason === 'Transfer'} onClick={() => setOperationSource('Transfer')}>{workflow === 'outbound' ? 'Xuất luân chuyển' : workflow === 'receipts' ? 'Phiếu nhập luân chuyển' : workflow === 'issues' ? 'Phiếu xuất luân chuyển' : 'Nhập luân chuyển'}</button>
       {workflow === 'inbound' && <Link to="/warehouse-receipts" className="btn" style={{ marginLeft: 'auto' }}>📋 Xem danh sách Phiếu Nhập Kho (PNK) ➔</Link>}
       {workflow === 'receipts' && <Link to="/warehouse-inbound" className="btn" style={{ marginLeft: 'auto' }}>📥 Tiếp nhận hàng chờ nhập ➔</Link>}
+      {workflow === 'outbound' && <Link to="/warehouse-issues" className="btn" style={{ marginLeft: 'auto' }}>📋 Xem danh sách Phiếu Xuất Kho (PXK) ➔</Link>}
+      {workflow === 'issues' && <Link to="/warehouse-outbound" className="btn" style={{ marginLeft: 'auto' }}>📦 Soạn hàng & Xuất kho ➔</Link>}
     </div>}
     {workflow === 'trace' && <WarehouseTraceCenter warehouses={warehouses.data ?? []} docs={docs} setSelected={setSelected} />}
     {error && <p role="alert" className="danger">{error}</p>}{notice && <p role="status">{notice}</p>}
@@ -357,8 +368,29 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
             { header: 'Trạng thái', width: '150px', cell: w => <span className={`chip ${w.document.status === 'Posted' ? 'chip-ok' : ''}`}>{filterStatuses[w.document.status] ?? statuses[w.document.status] ?? w.document.status}</span> },
           ]} empty="Không có chứng từ phù hợp." />}</QueryState>
         </Card>
+      ) : workflow === 'issues' ? (
+        <Card title={operationReason === 'Transfer' ? 'Danh sách Phiếu Xuất Luân Chuyển (PXK)' : 'Danh sách Phiếu Xuất Kho (PXK)'}>
+          <div className="warehouse-work-filters">
+            <label>Tìm chứng từ<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã PXK, đơn hàng, SKU hoặc mã lô" /></label>
+            <label>Trạng thái<select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="">Tất cả trạng thái</option>{Object.entries(filterStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <label>Lọc theo kho<select value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho</option>{warehouses.data?.filter(w => admin || user?.scope?.warehouseIds.includes(w.id)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
+          </div>
+          <p className="muted">{visibleRows.length} chứng từ · Danh sách các phiếu xuất kho đã ghi sổ trừ tồn và bàn giao vận chuyển. Chọn mã PXK để xem chi tiết hoặc in phiếu.</p>
+          <QueryState query={docs}>{() => <SimpleTable rows={visibleRows} columns={[
+            { header: 'Mã PXK', width: '320px', cell: w => <button className="btn btn-sm warehouse-document-code" onClick={() => { setSelected(w.document.id); setError(''); }}><span>{w.document.code}</span></button> },
+            { header: 'Loại chứng từ', width: '250px', cell: w => documentTypeLabel(w.document.kind, w.document.reason) },
+            { header: 'Kho xuất', width: '220px', cell: w => `${whName(w.document.warehouseId)}${w.document.destinationWarehouseId && w.document.destinationWarehouseId !== w.document.warehouseId ? ' → ' + whName(w.document.destinationWarehouseId) : ''}` },
+            { header: 'Đơn / thùng', width: '130px', cell: w => `${new Set(w.lines.map(l => l.orderCode).filter(Boolean)).size} đơn · ${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
+            { header: 'Trạng thái', width: '150px', cell: w => <span className={`chip ${w.document.status === 'Posted' ? 'chip-ok' : ''}`}>{filterStatuses[w.document.status] ?? statuses[w.document.status] ?? w.document.status}</span> },
+          ]} empty="Không có phiếu xuất kho phù hợp." />}</QueryState>
+        </Card>
       ) : (
         <Card title={`Danh sách ${screen.title.toLocaleLowerCase('vi')}`}>
+          {workflow === 'outbound' && <div className="row-wrap" role="group" aria-label="Lọc loại chứng từ xuất kho" style={{ gap: 8, marginBottom: 12 }}>
+            <button type="button" className={`btn btn-sm ${!outboundKind ? 'btn-primary' : ''}`} onClick={() => setOutboundKind('')}>Tất cả ({workflowRows.length})</button>
+            <button type="button" className={`btn btn-sm ${outboundKind === 'Request' ? 'btn-primary' : ''}`} onClick={() => setOutboundKind('Request')}>📋 Lệnh xuất kho (YCK) ({workflowRows.filter(w => w.document.kind === 'Request').length})</button>
+            <button type="button" className={`btn btn-sm ${outboundKind === 'Picking' ? 'btn-primary' : ''}`} onClick={() => setOutboundKind('Picking')}>📦 Phiếu soạn hàng (PSO) ({workflowRows.filter(w => w.document.kind === 'Picking').length})</button>
+          </div>}
           <div className="warehouse-work-filters">
             <label>Tìm chứng từ<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã chứng từ, đơn hàng, SKU hoặc lô hàng" /></label>
             <label>Trạng thái<select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="">Tất cả trạng thái</option>{Object.entries(filterStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
@@ -392,6 +424,32 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
           </div>
           <div className="pnk-meta-item">
             <span className="muted">Kho tiếp nhận</span>
+            <strong>{whName(d.warehouseId)}</strong>
+          </div>
+          <div className="pnk-meta-item">
+            <span className="muted">Trạng thái ghi sổ</span>
+            <strong style={{ color: d.status === 'Posted' ? '#166534' : '#b45309' }}>{statuses[d.status] ?? d.status}</strong>
+          </div>
+          <div className="pnk-meta-item">
+            <span className="muted">Thời gian lập phiếu</span>
+            <strong>{formatInstantDateTime(d.createdAt)}</strong>
+          </div>
+        </div>
+      </div> : d.kind === 'Issue' ? <div className="pnk-summary-header">
+        <div className="pnk-title-row">
+          <div>
+            <span className="badge" style={{ background: '#059669', color: '#fff', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>Phiếu Xuất Kho (PXK)</span>
+            <h2 style={{ margin: '6px 0 0 0' }}>{d.code}</h2>
+          </div>
+          <button className="btn btn-primary" onClick={() => void printLabels(false, false, true)}>📄 In / Xuất PDF phiếu xuất kho</button>
+        </div>
+        <div className="pnk-meta-grid">
+          <div className="pnk-meta-item">
+            <span className="muted">Loại xuất kho</span>
+            <strong>{d.reason === 'Order' ? '🛒 Xuất bán hàng (Bán lẻ / Đơn hàng)' : '🔄 Xuất luân chuyển sang kho khác'}</strong>
+          </div>
+          <div className="pnk-meta-item">
+            <span className="muted">Kho xuất hàng</span>
             <strong>{whName(d.warehouseId)}</strong>
           </div>
           <div className="pnk-meta-item">

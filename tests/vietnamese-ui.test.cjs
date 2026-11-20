@@ -28,7 +28,8 @@ test('Vietnamese navigation preserves the new warehouse routes, document paths a
   const expected = [
     ['warehouse-inbound', 'inbound', 'Tiếp nhận hàng'],
     ['warehouse-receipts', 'receipts', 'Phiếu nhập kho (PNK)'],
-    ['warehouse-outbound', 'outbound', 'Xuất kho'],
+    ['warehouse-outbound', 'outbound', 'Soạn hàng & Xuất kho'],
+    ['warehouse-issues', 'issues', 'Phiếu xuất kho (PXK)'],
     ['warehouse-transfers', 'transfer', 'Luân chuyển kho'],
     ['warehouse-trace', 'trace', 'Tra cứu thùng'],
   ];
