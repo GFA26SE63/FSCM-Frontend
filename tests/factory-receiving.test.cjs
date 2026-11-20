@@ -60,7 +60,7 @@ test('factory receipt starts from the selected pallet without sending a warehous
 
 test('warehouse lists isolate factory, order and transfer documents with separate detail links', () => {
   const docs = ['Factory', 'Order', 'Transfer'].map(reason => ({ document: { id: reason, reason, kind: 'Receipt', status: 'Open', code: reason, warehouseId: 'warehouse' }, lines: [], cartons: [] }));
-  for (const [workflow, reason] of [['inbound', 'Factory'], ['outbound', 'Order'], ['transfer', 'Transfer']]) {
+  for (const [workflow, reason] of [['receipts', 'Factory'], ['outbound', 'Order'], ['transfer', 'Transfer']]) {
     const navigations = [];
     const tree = page(states(), docs, undefined, { workflow, search: '', push: path => navigations.push(path) });
     assert.equal(all(tree, n => n.type === 'form').length, 0, 'list must not expose a creation form');
@@ -69,7 +69,7 @@ test('warehouse lists isolate factory, order and transfer documents with separat
     assert.deepEqual(table.props.rows.map(w => w.document.reason), [reason]);
     const button = table.props.columns[0].cell(table.props.rows[0]);
     button.props.onClick();
-    assert.equal(navigations[0], workflowModule.exports.warehouseDocumentPath(table.props.rows[0].document));
+    assert.equal(navigations[0], workflow === 'receipts' ? '/warehouse-receipts/' + table.props.rows[0].document.id : workflowModule.exports.warehouseDocumentPath(table.props.rows[0].document));
   }
 });
 
