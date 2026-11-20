@@ -1,4 +1,5 @@
 /** "Báo cáo kho vận" — types and pure helpers (GET /reports/warehouse-logistics). */
+import type { ExcelColumn, ExcelSheet } from '@/shared/lib/excel';
 
 export interface WarehouseReportTopProduct {
   productId: string;
@@ -120,4 +121,90 @@ export function reportSummary(report: WarehouseReport) {
     vehicles: report.warehouses.reduce((s, w) => s + w.vehicleCount, 0),
     products: report.topProducts.length,
   };
+}
+
+/** Column sort chosen by clicking a metric header; null = best-seller rank. */
+export type MetricSort = { key: MetricKey; dir: 'desc' | 'asc' } | null;
+
+/** Header click cycle: nhiều nhất → ít nhất → back to rank order. */
+export function nextSort(current: MetricSort, key: MetricKey): MetricSort {
+  if (!current || current.key !== key) return { key, dir: 'desc' };
+  return current.dir === 'desc' ? { key, dir: 'asc' } : null;
+}
+
+/** Sorted copy; ties keep the best-seller rank order. */
+export function sortProducts(products: WarehouseReportProductStock[], sort: MetricSort): WarehouseReportProductStock[] {
+  const byRank = [...products].sort((a, b) => a.rank - b.rank);
+  if (!sort) return byRank;
+  const sign = sort.dir === 'desc' ? -1 : 1;
+  return byRank.sort((a, b) => sign * ((a[sort.key] ?? 0) - (b[sort.key] ?? 0)) || a.rank - b.rank);
+}
+
+/** Excel colours (ARGB) matching the on-screen chips in warehouseReport.css. */
+export const EXCEL_TONES: Record<string, { fill: string; font: string }> = {
+  valid: { fill: 'FFE5F4EA', font: 'FF15703A' },
+  near: { fill: 'FFFEF3E2', font: 'FF8A3B09' },
+  expired: { fill: 'FFFDECEA', font: 'FFB42318' },
+  locked: { fill: 'FFECEEF0', font: 'FF3F474D' },
+  disposed: { fill: 'FF3F474D', font: 'FFFFFFFF' },
+  'in-factory': { fill: 'FFE8EEFD', font: 'FF1D4ED8' },
+  'in-transfer': { fill: 'FFE0F4F7', font: 'FF0E6F7D' },
+  'out-sales': { fill: 'FFF1E9FD', font: 'FF6B2FBF' },
+  'out-transfer': { fill: 'FFFDEEE3', font: 'FFB4510F' },
+};
+const GROUP_FILLS: Record<MetricGroup, string> = { stock: 'FF15703A', inbound: 'FF1D4ED8', outbound: 'FF6B2FBF' };
+
+const ddmmyyyy = (iso: string) => (/^\d{4}-\d{2}-\d{2}/.test(iso) ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : iso);
+
+/**
+ * Workbook for "Báo cáo kho vận": sheet 1 has one block per warehouse laid out like the page (grouped headers,
+ * coloured metrics, Tổng row); sheet 2 is a flat table (one row per warehouse × SKU) with filters for analysis.
+ */
+export function warehouseReportSheets(report: WarehouseReport, opts: { regionName?: string; sort: MetricSort; exportedAt: string }): ExcelSheet[] {
+  const info = [
+    `Nhập / xuất trong kỳ: ${ddmmyyyy(report.fromDate)} – ${ddmmyyyy(report.toDate)} · Tồn kho và Hủy: theo hiện tại của kho`,
+    `Khu vực: ${opts.regionName ?? 'Tất cả khu vực'} · Top ${report.top} sản phẩm bán chạy`,
+    `Xuất lúc ${opts.exportedAt}`,
+  ];
+  const metricColumns: ExcelColumn[] = METRICS.map((m) => ({ header: m.short, numeric: true, width: 12, ...EXCEL_TONES[m.tone] }));
+  const groups = (lead: number) => [
+    { label: '', span: lead },
+    ...(Object.keys(GROUP_LABELS) as MetricGroup[]).map((g) => ({
+      label: GROUP_LABELS[g], span: METRICS.filter((m) => m.group === g).length, fill: GROUP_FILLS[g],
+    })),
+  ];
+  const byWarehouse: ExcelSheet = {
+    name: 'Theo kho',
+    title: 'Báo cáo kho vận',
+    info,
+    blocks: report.warehouses.map((w) => {
+      const totals = warehouseTotals(w);
+      return {
+        title: `${w.code} · ${w.name}${w.regionName ? ` · ${w.regionName}` : ''} · ${w.driverCount} tài xế · ${w.vehicleCount} xe`,
+        groups: groups(3),
+        columns: [{ header: '#', width: 6, numeric: true }, { header: 'SKU', width: 16 }, { header: 'Sản phẩm', width: 34 }, ...metricColumns],
+        rows: sortProducts(w.products, opts.sort).map((p) => [p.rank, p.sku, p.name, ...METRICS.map((m) => p[m.key])]),
+        totals: [null, 'Tổng', null, ...METRICS.map((m) => totals[m.key])],
+      };
+    }),
+  };
+  const flat: ExcelSheet = {
+    name: 'Dữ liệu chi tiết',
+    title: 'Báo cáo kho vận · dữ liệu chi tiết',
+    info,
+    blocks: [{
+      columns: [
+        { header: 'Mã kho', width: 14 }, { header: 'Kho', width: 26 }, { header: 'Khu vực', width: 18 },
+        { header: 'Tài xế', numeric: true, width: 9 }, { header: 'Xe', numeric: true, width: 9 },
+        { header: 'Hạng', numeric: true, width: 8 }, { header: 'SKU', width: 16 }, { header: 'Sản phẩm', width: 34 },
+        { header: 'Tồn vật lý', numeric: true, width: 12 },
+        ...METRICS.map((m) => ({ header: m.label, numeric: true, width: 14, ...EXCEL_TONES[m.tone] })),
+      ],
+      rows: report.warehouses.flatMap((w) => sortProducts(w.products, opts.sort).map((p) => [
+        w.code, w.name, w.regionName, w.driverCount, w.vehicleCount, p.rank, p.sku, p.name, p.onHand,
+        ...METRICS.map((m) => p[m.key]),
+      ])),
+    }],
+  };
+  return [byWarehouse, flat];
 }

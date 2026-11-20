@@ -1,8 +1,4 @@
-// Quote every text cell and prevent spreadsheet applications from interpreting formulas.
-export function csvCell(value: string) {
-  return `"${(/^[\s]*[=+\-@]/.test(value) ? "'" + value : value).replace(/"/g, '""')}"`;
-}
-
+/** Loads every page of the filtered report for the Excel export; fails if the data changes meanwhile. */
 export async function loadAllReportRows<T extends { id: string }>(
   fetchPage: (page: number, pageSize: number) => Promise<{ items: T[]; totalCount: number }>,
 ): Promise<T[]> {
