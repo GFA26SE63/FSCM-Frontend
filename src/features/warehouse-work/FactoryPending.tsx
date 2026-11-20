@@ -32,7 +32,7 @@ export function FactoryPending({ query, warehouses, admin, busy, onOpen, refresh
       { header: 'Sản phẩm / lô hàng', width: '240px', cell: p => <>{p.sku} · {p.productName}<div className="muted">{p.batchCode} · HSD {formatDate(p.expirationDate)}</div></> },
       { header: 'Kho nhận cố định', width: '180px', cell: p => warehouses.find(w => w.id === p.destinationWarehouseId)?.name ?? p.destinationWarehouseId },
       { header: 'Thùng', width: '100px', cell: p => p.cartonCount },
-      { header: 'Thao tác', width: '190px', cell: p => admin && !p.receiptDocumentId ? 'Chờ thủ kho kiểm đếm' : <button className="btn btn-sm" disabled={busy} onClick={() => onOpen(p)}>{admin ? 'Xem phiếu nhập' : p.receiptDocumentId ? 'Tiếp tục kiểm đếm' : 'Chọn pallet'}</button> },
+      { header: 'Thao tác', width: '210px', cell: p => admin && !p.receiptDocumentId ? 'Chờ thủ kho kiểm đếm' : <button className="btn btn-sm" disabled={busy} onClick={() => onOpen(p)}>{admin ? 'Xem tiến độ kiểm đếm' : p.receiptDocumentId ? 'Tiếp tục kiểm đếm' : 'Bắt đầu kiểm đếm'}</button> },
     ]} empty="Không có pallet chờ nhận tại các kho được phân công." />}</QueryState>
   </Card>;
 }
