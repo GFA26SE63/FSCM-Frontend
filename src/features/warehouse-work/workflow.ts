@@ -1,9 +1,9 @@
 export type WarehouseWorkflow = 'inbound' | 'receipts' | 'outbound' | 'issues' | 'transfer' | 'trace';
 
 export const warehouseScreens = {
-  inbound: { path: '/warehouse-inbound', title: 'Tiếp nhận hàng', description: 'Tiếp nhận kiện pallet từ nhà máy hoặc hàng luân chuyển từ kho khác; quét và kiểm đếm trước khi ghi sổ.', create: '' },
+  inbound: { path: '/warehouse-inbound', title: 'Nhập kho', description: 'Tiếp nhận kiện pallet từ nhà máy hoặc hàng luân chuyển từ kho khác; kiểm đếm và ghi sổ phiếu nhập kho.', create: '' },
   receipts: { path: '/warehouse-receipts', title: 'Phiếu nhập kho (PNK)', description: 'Quản lý, tra cứu và in các phiếu nhập kho đã lập hoặc đã ghi nhận tồn.', create: '' },
-  outbound: { path: '/warehouse-outbound', title: 'Soạn hàng & Xuất kho', description: 'Phát hành yêu cầu xuất cho đơn đã có đơn thực hiện, soạn thùng và xác nhận xuất kho.', create: 'Tạo yêu cầu xuất kho' },
+  outbound: { path: '/warehouse-outbound', title: 'Xuất kho', description: 'Phát hành yêu cầu xuất cho đơn đã có đơn thực hiện, soạn thùng và xác nhận xuất kho.', create: 'Tạo yêu cầu xuất kho' },
   issues: { path: '/warehouse-issues', title: 'Phiếu xuất kho (PXK)', description: 'Quản lý, tra cứu và in các phiếu xuất kho đã ghi sổ trừ tồn và bàn giao vận chuyển.', create: '' },
   transfer: { path: '/warehouse-transfers', title: 'Luân chuyển kho', description: 'Admin lập lệnh điều chuyển nội bộ giữa hai kho. Thủ kho gửi xuất hàng; thủ kho nhận kiểm đếm và ghi sổ nhập kho.', create: 'Lập lệnh điều chuyển kho' },
   trace: { path: '/warehouse-trace', title: 'Tra cứu thùng', description: 'Tra cứu mã thùng và lịch sử chứng từ qua các kho.', create: '' },

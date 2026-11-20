@@ -26,9 +26,9 @@ test('Vietnamese navigation preserves the new warehouse routes, document paths a
   const { APP_ROUTES } = source('app/routes.tsx');
   const workflow = source('features/warehouse-work/workflow.ts');
   const expected = [
-    ['warehouse-inbound', 'inbound', 'Tiếp nhận hàng'],
+    ['warehouse-inbound', 'inbound', 'Nhập kho'],
     ['warehouse-receipts', 'receipts', 'Phiếu nhập kho (PNK)'],
-    ['warehouse-outbound', 'outbound', 'Soạn hàng & Xuất kho'],
+    ['warehouse-outbound', 'outbound', 'Xuất kho'],
     ['warehouse-issues', 'issues', 'Phiếu xuất kho (PXK)'],
     ['warehouse-transfers', 'transfer', 'Luân chuyển kho'],
     ['warehouse-trace', 'trace', 'Tra cứu thùng'],
