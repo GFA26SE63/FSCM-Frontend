@@ -59,7 +59,7 @@ test('factory receipt starts from the selected pallet without sending a warehous
 });
 
 test('warehouse lists isolate factory, order and transfer documents with separate detail links', () => {
-  const docs = ['Factory', 'Order', 'Transfer'].map(reason => ({ document: { id: reason, reason, kind: 'Receipt', status: 'Open', code: reason, warehouseId: 'warehouse' }, lines: [], cartons: [] }));
+  const docs = ['Factory', 'Order', 'Transfer'].map(reason => ({ document: { id: reason, reason, kind: 'Receipt', status: 'Posted', code: reason, warehouseId: 'warehouse' }, lines: [], cartons: [] }));
   for (const [workflow, reason] of [['receipts', 'Factory'], ['outbound', 'Order'], ['transfer', 'Transfer']]) {
     const navigations = [];
     const tree = page(states(), docs, undefined, { workflow, search: '', push: path => navigations.push(path) });
