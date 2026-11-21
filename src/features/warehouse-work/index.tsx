@@ -446,7 +446,7 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
             </button> },
           ]} empty="Không có chứng từ cần xuất kho." />}</QueryState>
         </Card>
-      ) : (
+      ) : workflow === 'transfer' ? (
         <Card title={`Danh sách ${screen.title.toLocaleLowerCase('vi')}`}>
           <div className="warehouse-work-filters">
             <label>Tìm chứng từ<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã chứng từ, đơn hàng, SKU hoặc lô hàng" /></label>
@@ -462,7 +462,7 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
             { header: 'Trạng thái', width: '150px', cell: w => filterStatuses[w.document.status] ?? statuses[w.document.status] ?? w.document.status },
           ]} empty="Không có chứng từ phù hợp." />}</QueryState>
         </Card>
-      )
+      ) : null
     )}
     {selected && <QueryState query={docs}>{() => !active && <Card title="Không tìm thấy chứng từ"><p>Chứng từ không thuộc màn hình này hoặc ngoài phạm vi kho của bạn.</p><Link className="btn" to={screen.path}>Về danh sách</Link></Card>}</QueryState>}
     {active && d && <Card title={`${documentTypeLabel(d.kind, d.reason)} · ${d.code}`}>

@@ -49,10 +49,14 @@ test('Vietnamese navigation preserves the new warehouse routes, document paths a
 
 test('dashboard translates server card text while preserving figures, links and unknown content', () => {
   const { dashboardCardCopy, dashboardText } = source('features/dashboard/dashboardCopy.ts');
-  const original = { key: 'shipmentsReady', label: 'Shipment chờ xuất', value: 17, unit: 'count',
-    note: 'Tại các kho trong bộ lọc · kiểm tra readiness trước xuất', tone: 'warn', href: '/readiness', previousValue: 9 };
-  assert.deepEqual(dashboardCardCopy(original), { ...original, label: 'Phiếu giao hàng chờ xuất',
-    note: 'Tại các kho trong bộ lọc · kiểm tra điều kiện trước khi xuất kho' });
+  const original = {
+    key: 'shipmentsReady', label: 'Shipment chờ xuất', value: 17, unit: 'count',
+    note: 'Tại các kho trong bộ lọc · kiểm tra readiness trước xuất', tone: 'warn', href: '/readiness', previousValue: 9
+  };
+  assert.deepEqual(dashboardCardCopy(original), {
+    ...original, label: 'Phiếu giao hàng chờ xuất',
+    note: 'Tại các kho trong bộ lọc · kiểm tra điều kiện trước khi xuất kho'
+  });
   assert.equal(original.label, 'Shipment chờ xuất');
   assert.equal(dashboardText('Đang chờ Retailer xác nhận PO'), 'Đang chờ nhà bán lẻ xác nhận báo giá');
   assert.equal(dashboardText('Shipment ngoại lệ'), 'Phiếu giao hàng cần xử lý phát sinh');
