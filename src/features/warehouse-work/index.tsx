@@ -519,15 +519,16 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
           </div>
         </div>
       </div> : <p>{reasons[d.reason]} · {whName(d.warehouseId)}{d.destinationWarehouseId && d.destinationWarehouseId !== d.warehouseId ? ` → ${whName(d.destinationWarehouseId)}` : ''} · {statuses[d.status]} · {formatInstantDateTime(d.createdAt)}</p>}
-      {d.sourceDocumentId && <p>Chứng từ nguồn: <button className="btn btn-sm warehouse-document-code" onClick={() => setSelected(d.sourceDocumentId!)}><span>{docs.data?.find(w => w.document.id === d.sourceDocumentId)?.document.code}</span></button></p>}
-      {d.note && <p>{d.note}</p>}
+      {d.sourceDocumentId && <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0 12px 0' }}>
+        <span className="muted" style={{ fontWeight: 600 }}>Chứng từ nguồn (Lệnh gốc):</span>
+        <button type="button" className="btn btn-sm warehouse-document-code" onClick={() => setSelected(d.sourceDocumentId!)} title="Bấm để xem chứng từ gốc ban đầu"><span>{docs.data?.find(w => w.document.id === d.sourceDocumentId)?.document.code ?? d.sourceDocumentId}</span></button>
+      </div>}
+      {d.note && <p className="muted" style={{ fontStyle: 'italic', margin: '4px 0 12px 0' }}>Ghi chú: {d.note}</p>}
       {d.reason === 'Factory' && d.kind === 'Receipt' && <div className="notice-banner" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px 16px', borderRadius: 8, marginBottom: 16 }}>
         <strong>Liên kết truy xuất nguồn gốc nhập kho:</strong>
         <p style={{ margin: '4px 0 0 0' }}>Lô SX Nhà máy (BID) ➔ Pallet đóng gói (PID) ➔ Thùng carton (CID) ➔ Phiếu Nhập Kho (PNK: <b>{d.code}</b>) ➔ Lô kho FSCM (Batch)</p>
         <p style={{ margin: '4px 0 0 0', fontSize: 13, color: '#166534' }}>Thủ kho quét kiểm đếm từng thùng từ Pallet. Khi hoàn tất phiếu nhập, các thùng Đạt tự động được ghi tăng tồn khả dụng và gửi xác nhận (ACK) về hệ thống Traceability nhà máy.</p>
       </div>}
-      {d.sourceDocumentId && <p>Chứng từ nguồn: <button className="btn btn-sm warehouse-document-code" onClick={() => setSelected(d.sourceDocumentId!)}><span>{docs.data?.find(w => w.document.id === d.sourceDocumentId)?.document.code}</span></button></p>}
-      {d.note && <p>{d.note}</p>}
       {d.reason === 'Transfer' && d.kind === 'Request' && <div className="notice-banner" style={{ background: '#fff7ed', border: '1px solid #fed7aa', padding: '12px 16px', borderRadius: 8, marginBottom: 16 }}>
         <strong>Lệnh điều chuyển kho do Quản trị viên lập:</strong>
         <p style={{ margin: '4px 0 0 0' }}>Kho gửi <b>{whName(d.warehouseId)}</b> chịu trách nhiệm xuất hàng đến kho nhận <b>{whName(d.destinationWarehouseId)}</b>. Thủ kho gửi bấm "Bắt đầu xuất luân chuyển & quét" để tạo phiếu xuất và quét từng thùng.</p>
