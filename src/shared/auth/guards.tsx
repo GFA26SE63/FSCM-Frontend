@@ -38,9 +38,11 @@ export function RequireAuth({
 
 export function RequireRole({
   roles,
+  routeKey,
   children,
 }: {
   roles: readonly PortalRole[];
+  routeKey?: string;
   children: ReactNode;
 }) {
   const { status, user } = useAuth();
@@ -53,7 +55,14 @@ export function RequireRole({
     );
   }
 
-  if (!user || (user.role !== 'Admin' && !roles.includes(user.role))) {
+  const isAllowed = user && (
+    user.role === 'Admin' ||
+    (routeKey && user.permissions?.includes(routeKey)) ||
+    (!routeKey && user.permissions && user.permissions.length > 0) ||
+    roles.includes(user.role)
+  );
+
+  if (!user || !isAllowed) {
     return (
       <EmptyState
         title="403 – Không có quyền truy cập"

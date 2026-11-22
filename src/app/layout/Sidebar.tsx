@@ -15,7 +15,7 @@ const MENU_GROUPS: { key: string; label: string; keys: string[] }[] = [
   { key: 'warehouse', label: 'Kho vận', keys: ['warehouse-inbound', 'warehouse-outbound', 'warehouse-transfers', 'batches', 'warehouse-trace', 'readiness', 'batchpromo', 'disposal', 'fleet'] },
   { key: 'customer', label: 'Khách hàng & Khuyến mãi', keys: ['retailers', 'promos', 'loyalty', 'redeem', 'gifts'] },
   { key: 'catalog', label: 'Danh mục', keys: ['regions', 'cats', 'catmlor', 'skus', 'whs'] },
-  { key: 'system', label: 'Hệ thống', keys: ['users', 'config'] },
+  { key: 'system', label: 'Hệ thống', keys: ['users', 'roles', 'config'] },
 ];
 
 function buildGroups(items: AppRoute[]) {
@@ -36,7 +36,14 @@ export function Sidebar() {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
   const items = user
-    ? APP_ROUTES.filter((r) => !r.hidden && (user.role === 'Admin' || r.roles.includes(user.role)))
+    ? APP_ROUTES.filter((r) => {
+        if (r.hidden) return false;
+        if (user.role === 'Admin') return true;
+        if (user.permissions && user.permissions.length > 0) {
+          return user.permissions.includes(r.key);
+        }
+        return r.roles.includes(user.role);
+      })
     : [];
   const groups = buildGroups(items);
   const activeGroup = groups.find((g) => g.items.some((r) => isActivePath(pathname, r.key)))?.key ?? null;

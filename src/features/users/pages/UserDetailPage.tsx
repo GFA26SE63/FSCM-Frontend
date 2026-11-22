@@ -84,7 +84,7 @@ export function UserDetailPage() {
                   },
                   {
                     label: 'Vai trò',
-                    value: roleLabel[user.role],
+                    value: roleLabel[user.role] ?? user.role,
                   },
                 ]}
               />
