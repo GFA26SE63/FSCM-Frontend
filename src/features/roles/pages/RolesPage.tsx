@@ -1,0 +1,447 @@
+import { useEffect, useState } from 'react';
+import { Button, ConfirmDialog, Input, PageHeader } from '@/shared/ui';
+import { Shield, Plus, Search, Edit2, Trash2, Users, Layers, AlertCircle, RefreshCw } from 'lucide-react';
+import { roleApi } from '../api';
+import { RoleDialog } from '../components/RoleDialog';
+import { ALL_SCREEN_KEYS, type RoleItem } from '../types';
+
+export function RolesPage() {
+  const [roles, setRoles] = useState<RoleItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+
+  // Dialog state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingRole, setEditingRole] = useState<RoleItem | null>(null);
+
+  // Delete dialog state
+  const [deletingRole, setDeletingRole] = useState<RoleItem | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function loadRoles() {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await roleApi.list(search);
+      setRoles(data);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Không thể tải danh sách vai trò.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadRoles();
+  }, [search]);
+
+  function handleCreateClick() {
+    setEditingRole(null);
+    setDialogOpen(true);
+  }
+
+  function handleEditClick(role: RoleItem) {
+    setEditingRole(role);
+    setDialogOpen(true);
+  }
+
+  function handleSaved(saved: RoleItem) {
+    setRoles((prev) => {
+      const index = prev.findIndex((r) => r.id === saved.id);
+      if (index >= 0) {
+        const next = [...prev];
+        next[index] = saved;
+        return next;
+      }
+      return [...prev, saved];
+    });
+  }
+
+  async function handleDeleteConfirm() {
+    if (!deletingRole || deleteBusy) return;
+    setDeleteBusy(true);
+    setDeleteError(null);
+    try {
+      await roleApi.delete(deletingRole.id);
+      setRoles((prev) => prev.filter((r) => r.id !== deletingRole.id));
+      setDeletingRole(null);
+    } catch (err: unknown) {
+      setDeleteError(err instanceof Error ? err.message : 'Không thể xóa vai trò này.');
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
+  const systemCount = roles.filter((r) => r.isSystem).length;
+  const customCount = roles.length - systemCount;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <PageHeader
+        title="Vai trò & Phân quyền"
+        subtitle="Quản trị các vai trò trong hệ thống và thiết lập quyền truy cập màn hình chức năng cho từng nhóm người dùng."
+        actions={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button variant="ghost" onClick={loadRoles} disabled={loading} aria-label="Tải lại">
+              <RefreshCw size={16} className={loading ? 'spin' : ''} />
+            </Button>
+            <Button variant="primary" onClick={handleCreateClick}>
+              <Plus size={16} style={{ marginRight: 6 }} />
+              Tạo vai trò mới
+            </Button>
+          </div>
+        }
+      />
+
+      {/* Summary stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+        <div className="card" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 8,
+              backgroundColor: '#e0f2fe',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Shield size={22} color="#0284c7" />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>Tổng số vai trò</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a' }}>{roles.length}</div>
+          </div>
+        </div>
+
+        <div className="card" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 8,
+              backgroundColor: '#f1f5f9',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Layers size={22} color="#475569" />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>Vai trò hệ thống</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a' }}>{systemCount}</div>
+          </div>
+        </div>
+
+        <div className="card" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 8,
+              backgroundColor: '#f0fdf4',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Users size={22} color="#16a34a" />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>Vai trò tùy chỉnh</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a' }}>{customCount}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter bar */}
+      <div className="card" style={{ padding: '12px 16px', display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: 1, maxWidth: 360 }}>
+          <Search size={16} style={{ position: 'absolute', left: 10, top: 11, color: '#94a3b8' }} />
+          <Input
+            placeholder="Tìm kiếm theo tên hoặc mã vai trò…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ paddingLeft: 32 }}
+          />
+        </div>
+      </div>
+
+      {/* Error alert */}
+      {error && (
+        <div
+          style={{
+            padding: '12px 16px',
+            backgroundColor: '#fef2f2',
+            color: '#b91c1c',
+            border: '1px solid #fecaca',
+            borderRadius: 6,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <AlertCircle size={18} />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Table list */}
+      <div className="card" style={{ overflow: 'hidden' }}>
+        <div className="table-responsive">
+          <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+                <th style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
+                  Vai trò
+                </th>
+                <th style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
+                  Loại
+                </th>
+                <th style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
+                  Màn hình được cấp
+                </th>
+                <th style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
+                  Người dùng
+                </th>
+                <th style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
+                  Mô tả
+                </th>
+                <th style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569', textAlign: 'right' }}>
+                  Thao tác
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && roles.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: 32, textAlign: 'center', color: '#64748b' }}>
+                    Đang tải danh sách vai trò…
+                  </td>
+                </tr>
+              ) : roles.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: 32, textAlign: 'center', color: '#64748b' }}>
+                    Không tìm thấy vai trò nào phù hợp.
+                  </td>
+                </tr>
+              ) : (
+                roles.map((role) => {
+                  const isAdmin = role.code.toLowerCase() === 'admin';
+                  const isMobileOnly = role.code === 'Sales' || role.code === 'Retailer';
+                  const permCount = isAdmin ? ALL_SCREEN_KEYS.length : role.permissions.length;
+
+                  return (
+                    <tr
+                      key={role.id}
+                      style={{
+                        borderBottom: '1px solid #f1f5f9',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                    >
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <span style={{ fontWeight: 600, fontSize: 14, color: '#0f172a' }}>
+                            {role.name}
+                          </span>
+                          <code
+                            style={{
+                              fontSize: 11,
+                              color: '#64748b',
+                              backgroundColor: '#f1f5f9',
+                              padding: '1px 5px',
+                              borderRadius: 4,
+                              width: 'fit-content',
+                            }}
+                          >
+                            {role.code}
+                          </code>
+                        </div>
+                      </td>
+
+                      <td style={{ padding: '12px 16px' }}>
+                        {role.isSystem ? (
+                          <span
+                            style={{
+                              fontSize: 12,
+                              padding: '2px 8px',
+                              borderRadius: 12,
+                              backgroundColor: '#e0f2fe',
+                              color: '#0369a1',
+                              fontWeight: 500,
+                            }}
+                          >
+                            Hệ thống
+                          </span>
+                        ) : (
+                          <span
+                            style={{
+                              fontSize: 12,
+                              padding: '2px 8px',
+                              borderRadius: 12,
+                              backgroundColor: '#f1f5f9',
+                              color: '#475569',
+                              fontWeight: 500,
+                            }}
+                          >
+                            Tùy chỉnh
+                          </span>
+                        )}
+                      </td>
+
+                      <td style={{ padding: '12px 16px' }}>
+                        {isAdmin ? (
+                          <span
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: '#16a34a',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 4,
+                            }}
+                          >
+                            <Shield size={14} /> Toàn quyền ({ALL_SCREEN_KEYS.length} màn hình)
+                          </span>
+                        ) : isMobileOnly ? (
+                          <span style={{ fontSize: 12, color: '#94a3b8' }}>
+                            Ứng dụng di động (Mobile App)
+                          </span>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div
+                              style={{
+                                width: 70,
+                                height: 6,
+                                borderRadius: 3,
+                                backgroundColor: '#e2e8f0',
+                                overflow: 'hidden',
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: `${Math.round((permCount / ALL_SCREEN_KEYS.length) * 100)}%`,
+                                  height: '100%',
+                                  backgroundColor: '#0284c7',
+                                }}
+                              />
+                            </div>
+                            <span style={{ fontSize: 13, color: '#334155', fontWeight: 500 }}>
+                              {permCount} / {ALL_SCREEN_KEYS.length}
+                            </span>
+                          </div>
+                        )}
+                      </td>
+
+                      <td style={{ padding: '12px 16px' }}>
+                        <span
+                          style={{
+                            fontSize: 12,
+                            padding: '2px 8px',
+                            borderRadius: 12,
+                            backgroundColor: role.userCount > 0 ? '#f0fdf4' : '#f8fafc',
+                            color: role.userCount > 0 ? '#15803d' : '#94a3b8',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {role.userCount} tài khoản
+                        </span>
+                      </td>
+
+                      <td style={{ padding: '12px 16px', maxWidth: 260 }}>
+                        <div
+                          style={{
+                            fontSize: 13,
+                            color: '#64748b',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                          title={role.description ?? ''}
+                        >
+                          {role.description || '—'}
+                        </div>
+                      </td>
+
+                      <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditClick(role)}
+                            aria-label={`Chỉnh sửa ${role.name}`}
+                            title="Chỉnh sửa vai trò"
+                          >
+                            <Edit2 size={14} style={{ marginRight: 4 }} />
+                            Chỉnh sửa
+                          </Button>
+
+                          {!role.isSystem && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setDeleteError(null);
+                                setDeletingRole(role);
+                              }}
+                              disabled={role.userCount > 0}
+                              aria-label={`Xóa ${role.name}`}
+                              title={
+                                role.userCount > 0
+                                  ? 'Không thể xóa vai trò đang có người dùng'
+                                  : 'Xóa vai trò'
+                              }
+                              style={{ color: role.userCount > 0 ? undefined : '#dc2626' }}
+                            >
+                              <Trash2 size={14} />
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Role Dialog (2 tabs: General Info & Permissions) */}
+      {dialogOpen && (
+        <RoleDialog
+          role={editingRole}
+          onClose={() => setDialogOpen(false)}
+          onSuccess={handleSaved}
+        />
+      )}
+
+      {/* Delete Confirmation */}
+      {deletingRole && (
+        <ConfirmDialog
+          open
+          title="Xác nhận xóa vai trò"
+          message={
+            <div>
+              Bạn có chắc chắn muốn xóa vai trò <strong>{deletingRole.name}</strong> (mã:{' '}
+              <code>{deletingRole.code}</code>) khỏi hệ thống không?
+              {deleteError && (
+                <div style={{ color: '#dc2626', marginTop: 10, fontSize: 13 }}>
+                  {deleteError}
+                </div>
+              )}
+            </div>
+          }
+          confirmLabel={deleteBusy ? 'Đang xóa…' : 'Xóa vai trò'}
+          danger
+          onClose={() => setDeletingRole(null)}
+          onConfirm={handleDeleteConfirm}
+        />
+      )}
+    </div>
+  );
+}
