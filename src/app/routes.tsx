@@ -52,6 +52,7 @@ const categories = () => import('@/features/categories');
 const products = () => import('@/features/products');
 const warehouses = () => import('@/features/warehouses');
 const users = () => import('@/features/users');
+const roles = () => import('@/features/roles');
 const kpi = () => import('@/features/kpi');
 const complaints = () => import('@/features/complaints');
 const config = () => import('@/features/config');
@@ -119,6 +120,7 @@ export const APP_ROUTES: AppRoute[] = [
     { path: ':code', element: page(warehouses, 'WarehouseDetailPage') },
   ] },
   { key: 'users', label: 'Người dùng', roles: [A], list: page(users, 'UsersPage'), sub: [{ path: ':id', element: page(users, 'UserDetailPage') }] },
+  { key: 'roles', label: 'Vai trò & phân quyền', roles: [A], list: page(roles, 'RolesPage') },
   { key: 'kpi', label: 'KPI & Xếp hạng kinh doanh', roles: [A, OP, SM], list: page(kpi, 'KpiPage'), sub: [{ path: 'sales/:salesUserId/:groupId', element: page(kpi, 'KpiDetailPage') }] },
   { key: 'complaints', label: 'Yêu cầu', roles: [A, OP], badge: 'complaints', list: page(complaints, 'ComplaintsPage'), sub: [{ path: ':code', element: page(complaints, 'ComplaintDetailPage') }] },
   { key: 'config', label: 'Cấu hình hệ thống', roles: [A], list: page(config, 'ConfigPage') },

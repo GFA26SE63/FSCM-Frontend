@@ -30,7 +30,7 @@ function useUserFilters() {
   const filters = useMemo<UserFilters>(
     () => ({
       search,
-      role: rawRole in roleLabel ? rawRole : '',
+      role: rawRole ?? '',
       activity: (ACTIVITIES as string[]).includes(rawActivity) ? (rawActivity as UserFilters['activity']) : '',
       page,
       pageSize: PAGE_SIZE,
@@ -67,7 +67,7 @@ export function UsersPage() {
     {
       key: 'role',
       header: 'Vai trò',
-      text: (user) => roleLabel[user.role],
+      text: (user) => roleLabel[user.role] ?? user.role,
     },
     {
       key: 'active',
@@ -88,7 +88,25 @@ export function UsersPage() {
     <>
       <PageHeader
         title="Người dùng"
-        subtitle="Quản lý tài khoản và assignment theo vai trò."
+        subtitle="Quản lý tài khoản và phân quyền vai trò cho nhân sự."
+        actions={
+          auth.user?.role === 'Admin' && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button
+                variant="ghost"
+                onClick={() => navigate('/roles')}
+              >
+                Vai trò & phân quyền
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => setCreating(true)}
+              >
+                + Tạo tài khoản
+              </Button>
+            </div>
+          )
+        }
       />
 
       <DataTable
