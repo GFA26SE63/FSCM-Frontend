@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
-import { Button, Callout, Card, DataTable, FormField, Input, PageHeader, Select, type Column } from '@/shared/ui';
+import { Button, Callout, Card, DataTable, DateInput, FormField, Input, PageHeader, Select, type Column } from '@/shared/ui';
 import { addDays, vietnamDate } from '@/shared/lib';
 import { errorMessage } from '@/shared/api/errors';
 import { useCreatePromo, usePromoLookups } from '../hooks';
@@ -75,8 +75,8 @@ export function PromoFormPage() {
     <Card title="Thông tin chung"><div className="form-grid cols-2">
       <FormField label="Tên chương trình" required><Input maxLength={200} value={name} onChange={(e) => setName(e.target.value)} /></FormField>
       <FormField label="Loại chương trình"><Select value={mode} onChange={(e) => setMode(e.target.value as typeof mode)} options={[{ value: 'PerSku', label: 'Loại 1 · Theo từng SKU' }, { value: 'ProductGroup', label: 'Loại 2 · Theo nhóm sản phẩm' }]} /></FormField>
-      <FormField label="Hiệu lực từ" required><Input type="date" min={today} value={from} onChange={(e) => setFrom(e.target.value)} /></FormField>
-      <FormField label="Hiệu lực đến" required><Input type="date" min={from || today} value={to} onChange={(e) => setTo(e.target.value)} /></FormField>
+      <FormField label="Hiệu lực từ" required><DateInput required min={today} value={from} onChange={setFrom} aria-label="Hiệu lực từ" /></FormField>
+      <FormField label="Hiệu lực đến" required><DateInput required min={from || today} value={to} onChange={setTo} aria-label="Hiệu lực đến" /></FormField>
     </div></Card>
     <Card title={mode === 'PerSku' ? 'Loại 1 · Điều kiện riêng cho từng SKU' : 'Loại 2 · Điều kiện theo nhóm sản phẩm'}
       actions={<Button aria-label="Thêm sản phẩm" onClick={() => setPicker('products')}>Thêm</Button>}>
