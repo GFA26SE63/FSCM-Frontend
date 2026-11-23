@@ -1,5 +1,5 @@
 import { del, get, patch, post, put } from '@/shared/api/http';
-import type { Category, CategoryDetail, CategoryInput, CategoryProduct } from './types';
+import type { Category, CategoryDetail, CategoryInput, CategoryProduct, FmcgCategoryCatalog, FmcgCategoryCatalogVersion, FmcgCategoryEvaluation } from './types';
 
 interface BackendCategory {
   id: string;
@@ -280,6 +280,7 @@ export const categoryApi = {
       code,
       name: v.name.trim(),
       description: v.description?.trim() || null,
+      acknowledgeNonFmcgWarning: v.acknowledgeNonFmcgWarning ?? false,
     };
 
     const res = await post<BackendCategory>('/categories', payload);
@@ -315,6 +316,7 @@ export const categoryApi = {
       parentCategoryId: v.parentCategoryId || null,
       name: v.name.trim(),
       description: v.description?.trim() || null,
+      acknowledgeNonFmcgWarning: v.acknowledgeNonFmcgWarning ?? false,
     };
 
     const res = await put<BackendCategory>(`/categories/${target}`, payload);
@@ -335,6 +337,11 @@ export const categoryApi = {
 
     return updated;
   },
+
+  getFmcgCatalog: () => get<FmcgCategoryCatalog>('/fmcg-category-catalog'),
+  getFmcgCatalogHistory: () => get<FmcgCategoryCatalogVersion[]>('/fmcg-category-catalog/history'),
+  saveFmcgCatalog: (document: { categories: Array<{ name: string; description: string }> }) => put<FmcgCategoryCatalogVersion>('/fmcg-category-catalog', document),
+  evaluateFmcgCategory: (name: string, description?: string) => post<FmcgCategoryEvaluation>('/fmcg-category-catalog/evaluate', { name, description: description || null }),
 
   /**
    * PATCH /api/v1/categories/{categoryId}/status
