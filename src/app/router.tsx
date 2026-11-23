@@ -5,6 +5,7 @@ import { useAuth } from '@/shared/auth/AuthContext';
 import { AppLayout } from './layout/AppLayout';
 import { LoginPage } from './pages/LoginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { PayOsCallbackPage } from './pages/PayOsCallbackPage';
 import { APP_ROUTES, HOME_BY_ROLE } from './routes';
 
 const Loading = () => (
@@ -23,6 +24,7 @@ export function AppRouter() {
   return (
     <Switch>
       <Route path="/login" exact><LoginPage /></Route>
+      <Route path="/payments/payos/:result" exact><PayOsCallbackPage /></Route>
       <Route path="/">
         <RequireAuth>
           <AppLayout>
