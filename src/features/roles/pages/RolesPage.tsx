@@ -1,15 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Button, ConfirmDialog, Input, PageHeader } from '@/shared/ui';
-import { Shield, Plus, Search, Edit2, Trash2, Users, Layers, AlertCircle, RefreshCw } from 'lucide-react';
+import { Shield, Plus, Search, Edit2, Trash2, Users, Layers, AlertCircle, RefreshCw, Smartphone, Monitor } from 'lucide-react';
 import { roleApi } from '../api';
 import { RoleDialog } from '../components/RoleDialog';
-import { ALL_SCREEN_KEYS, type RoleItem } from '../types';
+import {
+  ALL_WEB_SCREEN_KEYS,
+  ALL_MOBILE_SCREEN_KEYS,
+  type RoleItem,
+} from '../types';
 
 export function RolesPage() {
   const [roles, setRoles] = useState<RoleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [platformFilter, setPlatformFilter] = useState<'all' | 'web' | 'mobile'>('all');
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -76,6 +81,45 @@ export function RolesPage() {
 
   const systemCount = roles.filter((r) => r.isSystem).length;
   const customCount = roles.length - systemCount;
+
+  const webRolesCount = useMemo(() => {
+    return roles.filter((r) => {
+      if (r.code.toLowerCase() === 'admin') return true;
+      return r.permissions.some((p) => !p.startsWith('mobile-'));
+    }).length;
+  }, [roles]);
+
+  const mobileRolesCount = useMemo(() => {
+    return roles.filter((r) => {
+      if (r.code.toLowerCase() === 'admin') return true;
+      return (
+        r.permissions.some((p) => p.startsWith('mobile-')) ||
+        r.code === 'Sales' ||
+        r.code === 'Retailer'
+      );
+    }).length;
+  }, [roles]);
+
+  const filteredRoles = useMemo(() => {
+    if (platformFilter === 'all') return roles;
+    if (platformFilter === 'web') {
+      return roles.filter((r) => {
+        if (r.code.toLowerCase() === 'admin') return true;
+        return r.permissions.some((p) => !p.startsWith('mobile-'));
+      });
+    }
+    if (platformFilter === 'mobile') {
+      return roles.filter((r) => {
+        if (r.code.toLowerCase() === 'admin') return true;
+        return (
+          r.permissions.some((p) => p.startsWith('mobile-')) ||
+          r.code === 'Sales' ||
+          r.code === 'Retailer'
+        );
+      });
+    }
+    return roles;
+  }, [roles, platformFilter]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -159,8 +203,18 @@ export function RolesPage() {
       </div>
 
       {/* Filter bar */}
-      <div className="card" style={{ padding: '12px 16px', display: 'flex', gap: 12, alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1, maxWidth: 360 }}>
+      <div
+        className="card"
+        style={{
+          padding: '12px 16px',
+          display: 'flex',
+          gap: 12,
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ position: 'relative', flex: 1, minWidth: 260, maxWidth: 360 }}>
           <Search size={16} style={{ position: 'absolute', left: 10, top: 11, color: '#94a3b8' }} />
           <Input
             placeholder="Tìm kiếm theo tên hoặc mã vai trò…"
@@ -168,6 +222,70 @@ export function RolesPage() {
             onChange={(e) => setSearch(e.target.value)}
             style={{ paddingLeft: 32 }}
           />
+        </div>
+
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <span style={{ fontSize: 13, color: '#64748b', marginRight: 4 }}>Nền tảng:</span>
+          <button
+            type="button"
+            onClick={() => setPlatformFilter('all')}
+            style={{
+              padding: '6px 12px',
+              fontSize: 13,
+              borderRadius: 6,
+              border: '1px solid',
+              borderColor: platformFilter === 'all' ? '#0f766e' : '#e2e8f0',
+              backgroundColor: platformFilter === 'all' ? '#f0fdfa' : '#fff',
+              color: platformFilter === 'all' ? '#0f766e' : '#475569',
+              fontWeight: platformFilter === 'all' ? 600 : 500,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            Tất cả ({roles.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setPlatformFilter('web')}
+            style={{
+              padding: '6px 12px',
+              fontSize: 13,
+              borderRadius: 6,
+              border: '1px solid',
+              borderColor: platformFilter === 'web' ? '#0284c7' : '#e2e8f0',
+              backgroundColor: platformFilter === 'web' ? '#f0f9ff' : '#fff',
+              color: platformFilter === 'web' ? '#0284c7' : '#475569',
+              fontWeight: platformFilter === 'web' ? 600 : 500,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Monitor size={14} /> Cổng Web ({webRolesCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setPlatformFilter('mobile')}
+            style={{
+              padding: '6px 12px',
+              fontSize: 13,
+              borderRadius: 6,
+              border: '1px solid',
+              borderColor: platformFilter === 'mobile' ? '#7c3aed' : '#e2e8f0',
+              backgroundColor: platformFilter === 'mobile' ? '#f5f3ff' : '#fff',
+              color: platformFilter === 'mobile' ? '#7c3aed' : '#475569',
+              fontWeight: platformFilter === 'mobile' ? 600 : 500,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <Smartphone size={14} /> Ứng dụng Di động ({mobileRolesCount})
+          </button>
         </div>
       </div>
 
@@ -200,10 +318,10 @@ export function RolesPage() {
                   Vai trò
                 </th>
                 <th style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
-                  Loại
+                  Nền tảng & Loại
                 </th>
                 <th style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
-                  Màn hình được cấp
+                  Màn hình / Tính năng được cấp
                 </th>
                 <th style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
                   Người dùng
@@ -223,17 +341,21 @@ export function RolesPage() {
                     Đang tải danh sách vai trò…
                   </td>
                 </tr>
-              ) : roles.length === 0 ? (
+              ) : filteredRoles.length === 0 ? (
                 <tr>
                   <td colSpan={6} style={{ padding: 32, textAlign: 'center', color: '#64748b' }}>
                     Không tìm thấy vai trò nào phù hợp.
                   </td>
                 </tr>
               ) : (
-                roles.map((role) => {
+                filteredRoles.map((role) => {
                   const isAdmin = role.code.toLowerCase() === 'admin';
-                  const isMobileOnly = role.code === 'Sales' || role.code === 'Retailer';
-                  const permCount = isAdmin ? ALL_SCREEN_KEYS.length : role.permissions.length;
+                  const isSalesOrRetailer = role.code === 'Sales' || role.code === 'Retailer';
+                  const webPerms = role.permissions.filter((p) => !p.startsWith('mobile-'));
+                  const mobilePerms = role.permissions.filter((p) => p.startsWith('mobile-'));
+
+                  const hasWeb = isAdmin || webPerms.length > 0;
+                  const hasMobile = isAdmin || mobilePerms.length > 0 || isSalesOrRetailer;
 
                   return (
                     <tr
@@ -264,53 +386,171 @@ export function RolesPage() {
                       </td>
 
                       <td style={{ padding: '12px 16px' }}>
-                        {role.isSystem ? (
-                          <span
-                            style={{
-                              fontSize: 12,
-                              padding: '2px 8px',
-                              borderRadius: 12,
-                              backgroundColor: '#e0f2fe',
-                              color: '#0369a1',
-                              fontWeight: 500,
-                            }}
-                          >
-                            Hệ thống
-                          </span>
-                        ) : (
-                          <span
-                            style={{
-                              fontSize: 12,
-                              padding: '2px 8px',
-                              borderRadius: 12,
-                              backgroundColor: '#f1f5f9',
-                              color: '#475569',
-                              fontWeight: 500,
-                            }}
-                          >
-                            Tùy chỉnh
-                          </span>
-                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                          {/* Platform Badge */}
+                          {isAdmin ? (
+                            <span
+                              style={{
+                                fontSize: 11,
+                                padding: '2px 8px',
+                                borderRadius: 6,
+                                backgroundColor: '#f0fdf4',
+                                color: '#166534',
+                                border: '1px solid #bbf7d0',
+                                fontWeight: 600,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}
+                            >
+                              🖥️ Web & 📱 Mobile
+                            </span>
+                          ) : isSalesOrRetailer || (!hasWeb && hasMobile) ? (
+                            <span
+                              style={{
+                                fontSize: 11,
+                                padding: '2px 8px',
+                                borderRadius: 6,
+                                backgroundColor: '#f5f3ff',
+                                color: '#6d28d9',
+                                border: '1px solid #ddd6fe',
+                                fontWeight: 600,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}
+                            >
+                              📱 Mobile App
+                            </span>
+                          ) : hasWeb && hasMobile ? (
+                            <span
+                              style={{
+                                fontSize: 11,
+                                padding: '2px 8px',
+                                borderRadius: 6,
+                                backgroundColor: '#f0f9ff',
+                                color: '#0369a1',
+                                border: '1px solid #bae6fd',
+                                fontWeight: 600,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}
+                            >
+                              🖥️ Web & 📱 Mobile
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                fontSize: 11,
+                                padding: '2px 8px',
+                                borderRadius: 6,
+                                backgroundColor: '#f8fafc',
+                                color: '#475569',
+                                border: '1px solid #e2e8f0',
+                                fontWeight: 600,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}
+                            >
+                              🖥️ Cổng Web
+                            </span>
+                          )}
+
+                          {/* Role type */}
+                          {role.isSystem ? (
+                            <span
+                              style={{
+                                fontSize: 11,
+                                padding: '1px 6px',
+                                borderRadius: 4,
+                                backgroundColor: '#f1f5f9',
+                                color: '#64748b',
+                                fontWeight: 500,
+                              }}
+                            >
+                              Hệ thống
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                fontSize: 11,
+                                padding: '1px 6px',
+                                borderRadius: 4,
+                                backgroundColor: '#fffbeb',
+                                color: '#b45309',
+                                fontWeight: 500,
+                              }}
+                            >
+                              Tùy chỉnh
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       <td style={{ padding: '12px 16px' }}>
                         {isAdmin ? (
-                          <span
-                            style={{
-                              fontSize: 12,
-                              fontWeight: 600,
-                              color: '#16a34a',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 4,
-                            }}
-                          >
-                            <Shield size={14} /> Toàn quyền ({ALL_SCREEN_KEYS.length} màn hình)
-                          </span>
-                        ) : isMobileOnly ? (
-                          <span style={{ fontSize: 12, color: '#94a3b8' }}>
-                            Ứng dụng di động (Mobile App)
-                          </span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <span
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: '#16a34a',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                              }}
+                            >
+                              <Shield size={14} /> Toàn quyền hệ thống
+                            </span>
+                            <span style={{ fontSize: 11, color: '#64748b' }}>
+                              {ALL_WEB_SCREEN_KEYS.length} Web + {ALL_MOBILE_SCREEN_KEYS.length} Mobile
+                            </span>
+                          </div>
+                        ) : isSalesOrRetailer || (!hasWeb && hasMobile) ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div
+                                style={{
+                                  width: 60,
+                                  height: 6,
+                                  borderRadius: 3,
+                                  backgroundColor: '#ede9fe',
+                                  overflow: 'hidden',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: `${Math.round((mobilePerms.length / ALL_MOBILE_SCREEN_KEYS.length) * 100)}%`,
+                                    height: '100%',
+                                    backgroundColor: '#7c3aed',
+                                  }}
+                                />
+                              </div>
+                              <span style={{ fontSize: 12, color: '#6d28d9', fontWeight: 600 }}>
+                                {mobilePerms.length} / {ALL_MOBILE_SCREEN_KEYS.length} tính năng Mobile
+                              </span>
+                            </div>
+                            <span style={{ fontSize: 11, color: '#94a3b8' }}>
+                              Dành cho ứng dụng di động FSCM
+                            </span>
+                          </div>
+                        ) : hasWeb && hasMobile ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <Monitor size={12} color="#0284c7" />
+                              <span style={{ fontSize: 12, color: '#334155', fontWeight: 500 }}>
+                                {webPerms.length} / {ALL_WEB_SCREEN_KEYS.length} Web
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <Smartphone size={12} color="#7c3aed" />
+                              <span style={{ fontSize: 12, color: '#6d28d9', fontWeight: 500 }}>
+                                {mobilePerms.length} / {ALL_MOBILE_SCREEN_KEYS.length} Mobile
+                              </span>
+                            </div>
+                          </div>
                         ) : (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <div
@@ -324,14 +564,14 @@ export function RolesPage() {
                             >
                               <div
                                 style={{
-                                  width: `${Math.round((permCount / ALL_SCREEN_KEYS.length) * 100)}%`,
+                                  width: `${Math.round((webPerms.length / ALL_WEB_SCREEN_KEYS.length) * 100)}%`,
                                   height: '100%',
                                   backgroundColor: '#0284c7',
                                 }}
                               />
                             </div>
                             <span style={{ fontSize: 13, color: '#334155', fontWeight: 500 }}>
-                              {permCount} / {ALL_SCREEN_KEYS.length}
+                              {webPerms.length} / {ALL_WEB_SCREEN_KEYS.length}
                             </span>
                           </div>
                         )}
