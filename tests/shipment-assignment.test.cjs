@@ -45,6 +45,17 @@ test('assignment is disabled when the warehouse has no suitable vehicle', () => 
   assert.match(html, /chưa có xe đang hoạt động đủ tải/);
 });
 
+test('assignment waits until active transport assignments are loaded', () => {
+  const html = renderToStaticMarkup(React.createElement(mod.exports.ShipmentActionRow, {
+    shipment,
+    mayDispatch: true,
+    drivers: [driver],
+    vehicles: [vehicle],
+    assignmentLoaded: false,
+  }));
+  assert.match(html, /<button disabled/);
+});
+
 test('a driver from another warehouse cannot enable assignment', () => {
   const html = render([{ ...driver, warehouseId: 'warehouse-b' }], [vehicle]);
   assert.match(html, /<button disabled/);

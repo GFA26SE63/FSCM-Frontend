@@ -37,7 +37,8 @@ function page(states, docs = [], post = async () => ({ data: { document: { id: '
     '@/shared/auth/AuthContext': { useAuth: () => ({ user: { role, scope: { warehouseIds: ['warehouse'] } } }) },
     '@/shared/api/http': { get() {}, http: { post } },
     '@/shared/api/errors': { errorMessage: e => e.message },
-    '@/shared/ui': { Card: 'section', PageHeader: 'header', QueryState: 'query', SimpleTable: 'table' },
+    '@/shared/ui': { Button: 'button', Card: 'section', PageHeader: 'header', QueryState: 'query', SimpleTable: 'table' },
+    '@/shared/lib/excel': { downloadExcel: async () => {} },
     '@/features/receipts/api': { receiptApi: {} }, '@/features/runpicking/api': { pickingApi: {} },
     '@/features/factory-traceability': { TraceLookup: 'trace' },
     '@/shared/lib/dates': { formatDate: x => x, formatInstantDateTime: x => x },
@@ -52,7 +53,7 @@ function all(node, predicate) {
   if (!node || typeof node !== 'object') return [];
   return [...(predicate(node) ? [node] : []), ...[node.props?.children].flat(Infinity).flatMap(child => all(child, predicate))];
 }
-function states(scan = '') { return ['warehouse', '', [], [], 'delivery note', scan, false, '', '', '', '', '', '', '', null]; }
+function states(scan = '') { return ['warehouse', '', [], [], 'delivery note', scan, false, '', '', false, '', '', '', '', '', null]; }
 
 test('a dispatch-note row opens one PNK for the whole note without sending a warehouse chosen by the keeper', async () => {
   const writes = [];
@@ -282,7 +283,7 @@ test('an empty reason is refused, and a missing pallet counts as handled so the 
 });
 
 test('transfer arrivals only offer posted issues for the receiving warehouse and open a receipt', async () => {
-  const values = states(); values[12] = 'Transfer';
+  const values = states(); values[13] = 'Transfer';
   const docs = [
     { document: { id: 'incoming', kind: 'Issue', reason: 'Transfer', status: 'Posted', warehouseId: 'source', destinationWarehouseId: 'warehouse' }, lines: [], cartons: [] },
     { document: { id: 'not-exported', kind: 'Issue', reason: 'Transfer', status: 'Open', warehouseId: 'source', destinationWarehouseId: 'warehouse' }, lines: [], cartons: [] },

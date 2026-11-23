@@ -19,8 +19,21 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
+  min-height: 44px;
   padding: 4px 6px;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 8px;
+}
+.brand:hover {
+  color: inherit;
+  text-decoration: none;
+}
+.brand-copy {
+  min-width: 0;
+  display: flex;
+  align-items: center;
 }
 .brand-logo {
   width: 36px;
@@ -43,6 +56,7 @@
 .brand-name {
   font-weight: 700;
   font-size: 16px;
+  line-height: 1.2;
 }
 .brand-sub {
   font-size: 11.5px;
