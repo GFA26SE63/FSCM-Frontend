@@ -204,3 +204,9 @@
   flex-wrap: wrap;
 }
 
+/* Pallet receiving: the action rows and the scan history each get their own breathing room. */
+.pallet-camera { margin-bottom: 16px; }
+.pallet-receiving-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+.pallet-receiving-history { margin-top: 28px; }
+/* Dispatch-note PNK: the pallets to receive, above the scanner. */
+.pallet-expected { margin: 12px 0 16px; padding: 12px 14px; border: 1px solid var(--c-border-soft, #e2e5e0); border-radius: 8px; background: var(--c-bg, #f3f4f1); }

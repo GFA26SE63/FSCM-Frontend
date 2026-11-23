@@ -51,6 +51,29 @@ export interface WarehouseReportFilters {
   toDate: string;
   regionId: string;
   top: number;
+  /** Warehouses picked by the user; the report loads only once at least one is chosen. */
+  warehouseIds?: string[];
+}
+
+export interface WarehouseOption {
+  id: string;
+  code: string;
+  name: string;
+  regionId: string;
+}
+
+/** Same limit as the backend; keeps one screen from rendering too many warehouse tables. */
+export const MAX_WAREHOUSES = 50;
+
+/** Warehouses offered in the picker: those of the chosen region (all when no region), sorted by code. */
+export function selectableWarehouses(all: WarehouseOption[], regionId: string): WarehouseOption[] {
+  return all.filter((w) => !regionId || w.regionId === regionId).sort((a, b) => a.code.localeCompare(b.code, 'vi'));
+}
+
+/** Keeps only the picked ids that are still selectable (e.g. after the region filter changes). */
+export function keepSelectable(ids: string[], options: WarehouseOption[]): string[] {
+  const allowed = new Set(options.map((w) => w.id));
+  return ids.filter((id) => allowed.has(id));
 }
 
 export const DEFAULT_TOP = 10;
@@ -104,6 +127,7 @@ export function toReportParams(f: WarehouseReportFilters): Record<string, string
     toDate: f.toDate,
     top: clampTop(f.top),
     ...(f.regionId ? { regionId: f.regionId } : {}),
+    ...(f.warehouseIds?.length ? { warehouseIds: f.warehouseIds.join(',') } : {}),
   };
 }
 
