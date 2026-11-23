@@ -31,7 +31,8 @@ export function GiftDialog({ gift, programs, statusError, imageFile, targetStatu
       gift ? { key: 'program', type: 'info', label: 'Chương trình loyalty', span: 2,
         info: () => { const p = programs.find(item => item.id === gift.loyaltyProgramId); return p ? `${p.code} · ${p.name}` : gift.loyaltyProgramId; } }
         : { key: 'loyaltyProgramId', type: 'select', label: 'Chương trình loyalty', required: true, span: 2,
-          options: programs.map(p => ({ value: p.id, label: `${p.code} · ${p.name}${p.isActive ? '' : ' · Tạm ngừng'}` })) },
+          options: [{ value: '', label: 'Chọn chương trình tích điểm', disabled: true },
+            ...programs.map(p => ({ value: p.id, label: `${p.code} · ${p.name}` }))] },
       { key: 'name', label: 'Tên quà', required: true, span: 2,
         validate: value => String(value).trim().length < 2 || String(value).trim().length > 200 ? 'Tên quà từ 2 đến 200 ký tự.' : undefined },
       { key: 'description', label: 'Mô tả', type: 'textarea', span: 2 },

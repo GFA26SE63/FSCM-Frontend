@@ -19,17 +19,17 @@ export function GiftsPage() {
   const query = useGifts(filters);
   const create = useCreateGift();
   const update = useUpdateGift();
-  const programs = useGiftPrograms();
   const [dlg, setDlg] = useState<{ gift: Gift | null; imageFile?: File | null; targetStatus?: Gift['status']; revision?: number } | null>(null);
+  const programs = useGiftPrograms(!dlg?.gift);
   const [statusError, setStatusError] = useState('');
   const [notice, setNotice] = useState('');
-  const open = (gift: Gift | null) => { setStatusError(''); setNotice(''); setDlg({ gift }); };
+  const open = (gift: Gift | null) => { setStatusError(''); setNotice(''); setDlg({ gift }); if (!gift) void programs.refetch(); };
   return (
     <>
       <PageHeader title="Quà đổi điểm" subtitle="Khi nhà bán lẻ gửi yêu cầu, hệ thống giữ điểm và lượng quà. Từ chối sẽ trả lại phần đã giữ." />
       {notice && <Callout tone="ok">{notice}</Callout>}
       {programs.isError && <Callout tone="danger">Không tải được chương trình tích điểm. <Button size="sm" onClick={() => void programs.refetch()}>Thử lại</Button></Callout>}
-      {programs.isSuccess && programs.data.length === 0 && <Callout tone="info">Cần tạo chương trình tích điểm trước khi thêm quà.</Callout>}
+      {programs.isSuccess && programs.data.length === 0 && <Callout tone="info">Chưa có chương trình tích điểm đang hoạt động và trong thời gian hiệu lực để thêm quà.</Callout>}
       <Card title="Danh sách quà" actions={<Button variant="primary" disabled={!programs.isSuccess || !programs.data.length} onClick={() => open(null)}>+ Thêm quà</Button>}>
         <div className="row-wrap" style={{ gap: 12, marginBottom: 16 }}>
           <Input aria-label="Tìm quà" placeholder="Mã hoặc tên quà…" value={search} onChange={e => setSearch(e.target.value)} />

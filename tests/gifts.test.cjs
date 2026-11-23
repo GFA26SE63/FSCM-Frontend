@@ -62,6 +62,35 @@ test('gift list uses server GraphQL filters/paging and derives redeemed quantiti
   assert.equal(calls, 2);
 });
 
+test('new gift program lookup filters active and effective programs on the server across pages', async () => {
+  const requests = [];
+  const gifts = api({ graphql: async (query, variables) => {
+    requests.push({ query, variables });
+    assert.match(query, /isActive: \{ eq: true \}/);
+    assert.match(query, /startAt: \{ lte: \$now \}/);
+    assert.match(query, /endAt: \{ gte: \$now \}/);
+    assert.ok(Number.isFinite(Date.parse(variables.now)));
+    return { entities: { loyaltyPrograms: {
+      nodes: [{ id: `program-${requests.length}`, code: 'LP', name: 'Program', isActive: true }],
+      pageInfo: { hasNextPage: requests.length === 1, endCursor: 'next' },
+    } } };
+  } });
+  const rows = await gifts.programs(true);
+  assert.equal(rows.length, 2);
+  assert.equal(requests[1].variables.after, 'next');
+  assert.equal(requests[1].variables.now, requests[0].variables.now);
+});
+
+test('editing can still resolve an inactive program already linked to a gift', async () => {
+  const inactive = { id: 'old-program', code: 'OLD', name: 'Old program', isActive: false };
+  const gifts = api({ graphql: async (query, variables) => {
+    assert.ok(!query.includes('where:'));
+    assert.ok(!Object.hasOwn(variables, 'now'));
+    return { entities: { loyaltyPrograms: { nodes: [inactive], pageInfo: { hasNextPage: false } } } };
+  } });
+  assert.deepEqual(await gifts.programs(), [inactive]);
+});
+
 test('create explicitly activates, and activation failure preserves reward identity for safe retry', async () => {
   const calls = [];
   const gifts = api({ post: async (url, body) => {
