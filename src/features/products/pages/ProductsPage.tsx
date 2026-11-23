@@ -209,13 +209,13 @@ export function ProductsPage() {
           </Can>
         }
         onRowClick={(p) => navigate('/skus/' + p.id)}
-        rowActionsWidth="410px"
+        rowActionsWidth="120px"
         rowActions={(p) => (
           <>
             <Button size="sm" onClick={() => navigate('/skus/' + p.id)}>
               Xem
             </Button>
-            <ProductActions p={p} />
+            <ProductActions p={p} dropdown />
           </>
         )}
       />
