@@ -7,6 +7,7 @@ import { formatMoney, statusLabel } from '@/shared/lib';
 import { useToast } from '@/shared/ui/Toast';
 import { useCategories, useCategory, useUpdateCategoryStatus, useDeleteCategory } from '../hooks';
 import { CategoryDialog } from '../components/CategoryDialog';
+import { FmcgCatalogManager } from '../components/FmcgCatalogManager';
 import type { Category } from '../types';
 import {
   findCategory,
@@ -268,6 +269,7 @@ export function CategoriesPage() {
 
   return (
     <>
+      {isAdmin && <div style={{ padding: '20px 24px 0' }}><FmcgCatalogManager /></div>}
       {/* Category Tree Layout matching Prototype HTML */}
       <div
         style={{

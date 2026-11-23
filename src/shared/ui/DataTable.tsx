@@ -11,6 +11,7 @@ import { minimumTableWidth } from './tableLayout';
 import { tableFilterParam, tableFilterValue } from './tableFilterLabels';
 import type { CursorServerPaging, RestServerPaging, ServerPaging, ServerSort, SortDirection } from '../pagination/types';
 import { PaginationControls } from '../pagination/PaginationControls';
+import { downloadExcel } from '../lib/excel';
 
 export type { ServerPaging, CursorServerPaging, RestServerPaging, ServerSort, SortDirection };
 
@@ -78,6 +79,8 @@ interface DataTableProps<T> {
   stateKey?: string;
   /** false: giữ trạng thái cục bộ, không ghi lên URL (bảng trong form). Bảng trong Modal/Drawer tự động là false. */
   urlState?: boolean;
+  /** Enables a consistent Excel export of the currently filtered table rows. */
+  excelFileName?: string;
 }
 
 const ALL = 'Tất cả';
@@ -229,8 +232,10 @@ export function DataTable<T>({
   stateKey,
   urlState = true,
   nowrap = false,
+  excelFileName,
 }: DataTableProps<T>) {
   const inUrlScope = useContext(UrlStateScope);
+  const effectiveExcelFileName = excelFileName ?? (typeof title === 'string' ? title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'danh-sach');
   const state = useTableState(filters, urlState && inUrlScope, stateKey);
   const { search, fv, page } = state;
 
@@ -263,6 +268,14 @@ export function DataTable<T>({
   const size = cursor ? cursor.size : server ? server.size : pageSize;
   const pageCount = Math.max(1, Math.ceil(total / (size || 1)));
   const ready = !loading && rows !== undefined;
+  const [exporting, setExporting] = useState(false);
+  const exportExcel = async () => {
+    if (!effectiveExcelFileName) return;
+    setExporting(true);
+    try {
+      await downloadExcel(`${effectiveExcelFileName}.xlsx`, [{ name: 'Dữ liệu', title: typeof title === 'string' ? title : 'Danh sách dữ liệu', blocks: [{ columns: columns.map(c => ({ header: c.header })), rows: filtered.map(row => columns.map(c => cellText(c, row))) }] }]);
+    } finally { setExporting(false); }
+  };
 
   // Ensure current page is within valid range for REST mode
   const curPage = cursor
@@ -346,7 +359,7 @@ export function DataTable<T>({
         </section>
       )}
 
-      {(title || actions) && (
+      {(title || actions || effectiveExcelFileName) && (
         <div className="row" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
           <div className="spacer" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <div>
@@ -360,6 +373,7 @@ export function DataTable<T>({
               </span>
             )}
           </div>
+          {effectiveExcelFileName && <Button loading={exporting} disabled={!ready || filtered.length === 0} onClick={() => void exportExcel()}>Xuất Excel</Button>}
           {actions}
         </div>
       )}
