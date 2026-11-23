@@ -5,6 +5,7 @@ import { useNavigate } from '@/shared/router/compat';
 import { errorMessage } from '@/shared/api/errors';
 import { Button, Callout, Card, Chip, DataTable, FormDialog, PageHeader, Select, Stat, type Column, type Tone } from '@/shared/ui';
 import { DATE_SORT_OPTIONS, formatDateTime, formatMoney, sortByDate, type DateSortOrder } from '@/shared/lib';
+import { downloadExcel } from '@/shared/lib/excel';
 import { useCreateRefund, useRefundObligations, useRefunds } from '../hooks';
 import { OPEN_REFUND_STATUSES, REFUND_STATUS_LABEL, type Refund, type RefundObligation, type RefundStatus } from '../types';
 
@@ -34,10 +35,28 @@ export function RefundsPage() {
   const create = useCreateRefund();
   const [target, setTarget] = useState<RefundObligation | null>(null);
   const [dateSort, setDateSort] = useState<DateSortOrder>('newest');
+  const [exportingObligations, setExportingObligations] = useState(false);
 
   const rows = refunds.data ?? [];
   const open = rows.filter((refund) => OPEN_REFUND_STATUSES.includes(refund.status));
   const sum = (items: Refund[]) => items.reduce((total, refund) => total + refund.amount, 0);
+  const obligationRows = (obligations.data ?? []).filter((item) => item.unrequestedAmount > 0);
+
+  const exportObligations = async () => {
+    setExportingObligations(true);
+    try {
+      await downloadExcel('khoan-can-tao-ho-so-hoan.xlsx', [{
+        name: 'Khoản cần hoàn',
+        title: 'Khoản cần tạo hồ sơ hoàn',
+        blocks: [{
+          columns: ['Đơn', 'Nhà bán lẻ', 'Đã thu', 'Phải thu sau điều chỉnh', 'Đã hoàn', 'Đang có hồ sơ', 'Chưa có hồ sơ'].map((header) => ({ header })),
+          rows: obligationRows.map((item) => [item.orderCode, item.retailerName, item.confirmedAmount, item.adjustedAmount, item.refundedAmount, item.pendingRefundAmount, item.unrequestedAmount]),
+        }],
+      }]);
+    } finally {
+      setExportingObligations(false);
+    }
+  };
 
   const columns: Column<Refund>[] = [
     { key: 'order', header: 'Đơn', width: '110px', render: (r) => <span className="bold">{r.orderCode}</span>, text: (r) => r.orderCode },
@@ -62,16 +81,20 @@ export function RefundsPage() {
       </div>
 
       {mayManage && (
-        <Card title="Khoản cần tạo hồ sơ hoàn" flush>
+        <Card
+          title={<div><h2 className="sec" style={{ margin: 0 }}>Khoản cần tạo hồ sơ hoàn</h2><p className="muted" style={{ margin: '4px 0 0' }}>Các khoản đã thu vượt phần phải thu sau điều chỉnh và chưa có hồ sơ hoàn.</p></div>}
+          actions={<Button loading={exportingObligations} disabled={obligations.isLoading || obligationRows.length === 0} onClick={() => void exportObligations()}>Xuất Excel</Button>}
+        >
           {obligations.isError ? (
             <Callout tone="danger">Không tải được các khoản cần hoàn.\n{errorMessage(obligations.error)}</Callout>
           ) : (
             <DataTable
               stateKey="obligations"
-              rows={(obligations.data ?? []).filter((item) => item.unrequestedAmount > 0)}
+              rows={obligationRows}
               loading={obligations.isLoading}
               rowKey={(item) => item.paymentId}
               searchable={false}
+              excelFileName=""
               emptyText="Không có khoản nào đã thu vượt mức phải thu mà chưa có hồ sơ hoàn."
               columns={[
                 { key: 'order', header: 'Đơn', width: '110px', render: (r: RefundObligation) => <span className="bold">{r.orderCode}</span>, text: (r: RefundObligation) => r.orderCode },
