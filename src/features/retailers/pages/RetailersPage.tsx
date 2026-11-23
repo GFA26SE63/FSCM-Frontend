@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { ClipboardCheck, Eye } from 'lucide-react';
 import { useNavigate } from '@/shared/router/compat';
 import { useEnumParam, useQueryParams } from '@/shared/router/listState';
 import { useCursorPagination } from '@/shared/pagination';
@@ -6,6 +7,7 @@ import { decodeSort, PAGINATION_PARAM_NAMES, PAGINATION_RESETS, parsePageSize } 
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
 import {
+  ActionDropdown,
   Button,
   DataTable,
   PageHeader,
@@ -163,24 +165,21 @@ export function RetailersPage() {
           </label>
         }
         rowActionHeader="Thao tác"
-        rowActionsWidth="170px"
+        rowActionsWidth="150px"
         rowActions={(row) => (
-          <div style={{ display: 'inline-flex', gap: '6px', justifyContent: 'flex-end', width: '100%' }}>
+          <div className="table-actions-inline">
             <Button
               size="sm"
               variant="default"
               onClick={() => navigate(`/retailers/${row.id}`)}
             >
-              Xem
+              <Eye size={14} /> Xem
             </Button>
             {row.status === 'PendingApproval' && can(user, 'retailers.review') && (
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => setReviewing({ id: row.id, code: row.code })}
-              >
-                Xét duyệt
-              </Button>
+              <ActionDropdown triggerTitle={`Thao tác nhà bán lẻ ${row.code}`} items={[{
+                key: 'review', label: 'Xét duyệt', icon: <ClipboardCheck size={16} />,
+                onClick: () => setReviewing({ id: row.id, code: row.code }),
+              }]} />
             )}
           </div>
         )}

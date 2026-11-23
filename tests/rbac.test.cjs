@@ -150,6 +150,8 @@ test('Operator can view loyalty but cannot open its edit form or run program mut
   const Wrapper = ({ children, actions }) => React.createElement('div', null, actions, children);
   const ui = {
     Button: ({ children, onClick }) => React.createElement('button', { onClick }, children),
+    ActionDropdown: ({ items }) => React.createElement('div', null,
+      items.map(item => React.createElement('button', { key: item.key, disabled: item.disabled, onClick: item.onClick }, item.label))),
     Card: Wrapper, Modal: () => null, Fields: () => null, Chip: Wrapper,
     DataTable: ({ rows, rowActions, actions }) => React.createElement('div', null,
       actions, rows?.map((r) => React.createElement('div', { key: r.id }, rowActions(r)))),

@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Button, Callout, Card, Input, PageHeader, QueryState, Select, SimpleTable, StatusChip } from '@/shared/ui';
+import { Eye, Pencil } from 'lucide-react';
+import { ActionDropdown, Button, Callout, Card, Input, PageHeader, QueryState, Select, SimpleTable, StatusChip } from '@/shared/ui';
 import { formatNumber } from '@/shared/lib';
 import { parsePage, useEnumParam, useQueryParams, useStringParam } from '@/shared/router/listState';
 import { useCreateGift, useGiftPrograms, useGifts, useUpdateGift } from '../hooks';
 import { GIFT_PAGE_SIZE } from '../api';
 import { GiftDialog } from '../components/GiftDialog';
+import { GiftDetailDialog } from '../components/GiftDetailDialog';
 import type { Gift, GiftFilters } from '../types';
 
 /** "Quà đổi điểm" – catalogue of gifts retailers can redeem with loyalty points. */
@@ -20,7 +22,8 @@ export function GiftsPage() {
   const create = useCreateGift();
   const update = useUpdateGift();
   const [dlg, setDlg] = useState<{ gift: Gift | null; imageFile?: File | null; targetStatus?: Gift['status']; revision?: number } | null>(null);
-  const programs = useGiftPrograms(!dlg?.gift);
+  const [detail, setDetail] = useState<Gift | null>(null);
+  const programs = useGiftPrograms(!dlg?.gift && !detail);
   const [statusError, setStatusError] = useState('');
   const [notice, setNotice] = useState('');
   const open = (gift: Gift | null) => { setStatusError(''); setNotice(''); setDlg({ gift }); if (!gift) void programs.refetch(); };
@@ -50,7 +53,12 @@ export function GiftsPage() {
               { header: 'Còn có thể cấp', align: 'right', cell: g => g.stock === null ? 'Không giới hạn' : g.stock === 0 ? 'Hết quà' : formatNumber(g.stock) },
               { header: 'Đã đổi', align: 'right', cell: g => g.redeemed === null ? 'Chưa xác định' : formatNumber(g.redeemed) },
               { header: 'Trạng thái', cell: g => <StatusChip domain="active" value={g.status} /> },
-              { header: 'Thao tác', cell: g => <Button size="sm" onClick={() => open(g)}>Sửa</Button> },
+              { header: 'Thao tác', width: '150px', cell: g => <div className="table-actions-inline">
+                <Button size="sm" onClick={() => setDetail(g)}><Eye size={14} /> Xem</Button>
+                <ActionDropdown triggerTitle={`Thao tác quà ${g.code}`} items={[{
+                  key: 'edit', label: 'Sửa', icon: <Pencil size={16} />, onClick: () => open(g),
+                }]} />
+              </div> },
             ]} />
             <div className="pager">
               <span>{page.totalCount} quà · Trang {current} / {Math.max(1, Math.ceil(page.totalCount / GIFT_PAGE_SIZE))}</span>
@@ -68,6 +76,8 @@ export function GiftsPage() {
         }}</QueryState>
         {query.isError && (filters.after || filters.before) && <Button size="sm" onClick={() => setParams({ page: null, after: null, before: null })}>Về trang đầu</Button>}
       </Card>
+      {detail && <GiftDetailDialog gift={detail} program={programs.data?.find(p => p.id === detail.loyaltyProgramId)}
+        loading={programs.isLoading} error={programs.error} onRetry={() => void programs.refetch()} onClose={() => setDetail(null)} />}
       {dlg && <GiftDialog key={`${dlg.gift?.id ?? 'new'}-${dlg.revision ?? 0}`} gift={dlg.gift} imageFile={dlg.imageFile}
         targetStatus={dlg.targetStatus} programs={programs.data ?? []} statusError={statusError}
         onClose={() => setDlg(null)} onSubmit={async input => {
