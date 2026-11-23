@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button, FormField, Input, Modal, Tabs, type TabItem } from '@/shared/ui';
-import { Check, Shield, Layers, AlertCircle } from 'lucide-react';
+import { Check, Shield, Layers, AlertCircle, ChevronDown, ChevronRight, Search } from 'lucide-react';
 import { ALL_SCREEN_KEYS, SCREEN_GROUPS, type CreateRoleInput, type RoleItem, type UpdateRoleInput } from '../types';
 import { roleApi } from '../api';
 
@@ -29,6 +29,12 @@ export function RoleDialog({ role, onClose, onSuccess }: Props) {
     () => new Set(isAdminRole ? ALL_SCREEN_KEYS : (role?.permissions ?? []))
   );
 
+  // Group accordion state (default all groups expanded)
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
+    () => new Set(SCREEN_GROUPS.map((g) => g.key))
+  );
+  const [screenSearch, setScreenSearch] = useState('');
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -49,6 +55,49 @@ export function RoleDialog({ role, onClose, onSuccess }: Props) {
       setCode(generated);
     }
   }
+
+  function toggleExpandGroup(groupKey: string) {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupKey)) {
+        next.delete(groupKey);
+      } else {
+        next.add(groupKey);
+      }
+      return next;
+    });
+  }
+
+  function expandAll() {
+    setExpandedGroups(new Set(SCREEN_GROUPS.map((g) => g.key)));
+  }
+
+  function collapseAll() {
+    setExpandedGroups(new Set());
+  }
+
+  const isGroupExpanded = (groupKey: string) => {
+    if (screenSearch.trim()) return true; // auto-expand when searching
+    return expandedGroups.has(groupKey);
+  };
+
+  const filteredGroups = useMemo(() => {
+    const q = screenSearch.trim().toLowerCase();
+    if (!q) return SCREEN_GROUPS;
+
+    return SCREEN_GROUPS.map((group) => {
+      const matchingScreens = group.screens.filter(
+        (s) =>
+          s.name.toLowerCase().includes(q) ||
+          s.key.toLowerCase().includes(q) ||
+          s.description.toLowerCase().includes(q)
+      );
+      return {
+        ...group,
+        screens: matchingScreens,
+      };
+    }).filter((group) => group.screens.length > 0);
+  }, [screenSearch]);
 
   function togglePermission(key: string) {
     if (isAdminRole) return;
@@ -267,14 +316,14 @@ export function RoleDialog({ role, onClose, onSuccess }: Props) {
 
         {/* TAB 2: CÁC MÀN HÌNH CHỨC NĂNG */}
         {activeTab === 'permissions' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 4 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 4 }}>
             {isAdminRole ? (
               <div
                 style={{
-                  padding: 16,
+                  padding: 14,
                   backgroundColor: '#f0fdf4',
                   border: '1px solid #bbf7d0',
-                  borderRadius: 6,
+                  borderRadius: 8,
                   color: '#15803d',
                   fontSize: 14,
                   display: 'flex',
@@ -282,170 +331,266 @@ export function RoleDialog({ role, onClose, onSuccess }: Props) {
                   gap: 12,
                 }}
               >
-                <Shield size={24} color="#16a34a" />
+                <Shield size={24} color="#16a34a" style={{ flexShrink: 0 }} />
                 <div>
-                  <strong>Toàn quyền truy cập:</strong> Tài khoản có vai trò Quản trị viên (Admin) được cấp quyền truy cập toàn bộ màn hình và tính năng trong hệ thống.
+                  <strong>Toàn quyền truy cập:</strong> Tài khoản có vai trò Quản trị viên (Admin) luôn được cấp quyền truy cập toàn bộ {ALL_SCREEN_KEYS.length} màn hình chức năng trong hệ thống.
                 </div>
               </div>
             ) : (
               <div
                 style={{
                   display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '8px 12px',
+                  flexDirection: 'column',
+                  gap: 10,
+                  padding: '10px 14px',
                   backgroundColor: '#f8fafc',
                   border: '1px solid #e2e8f0',
-                  borderRadius: 6,
+                  borderRadius: 8,
                 }}
               >
-                <div style={{ fontSize: 13, color: '#475569' }}>
-                  Tick chọn các màn hình chức năng mà người dùng thuộc vai trò này được phép truy cập trên cổng Web:
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                  <div style={{ fontSize: 13, color: '#475569' }}>
+                    Tick chọn các màn hình chức năng mà người dùng thuộc vai trò này được phép truy cập trên cổng Web:
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={selectAll}
+                      style={{ fontSize: 12, padding: '3px 8px' }}
+                    >
+                      Chọn tất cả ({ALL_SCREEN_KEYS.length})
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={deselectAll}
+                      style={{ fontSize: 12, padding: '3px 8px' }}
+                    >
+                      Bỏ chọn tất cả
+                    </button>
+                    <span style={{ color: '#cbd5e1' }}>|</span>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={expandAll}
+                      style={{ fontSize: 12, padding: '3px 8px' }}
+                    >
+                      Mở rộng tất cả
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={collapseAll}
+                      style={{ fontSize: 12, padding: '3px 8px' }}
+                    >
+                      Thu gọn tất cả
+                    </button>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={selectAll}
-                    style={{ fontSize: 12, padding: '2px 8px' }}
-                  >
-                    Chọn tất cả ({ALL_SCREEN_KEYS.length})
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={deselectAll}
-                    style={{ fontSize: 12, padding: '2px 8px' }}
-                  >
-                    Bỏ chọn tất cả
-                  </button>
+
+                {/* Quick search input */}
+                <div style={{ position: 'relative' }}>
+                  <Search size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  <input
+                    type="text"
+                    value={screenSearch}
+                    onChange={(e) => setScreenSearch(e.target.value)}
+                    placeholder="Tìm nhanh màn hình theo tên hoặc mã chức năng (ví dụ: kho, xuất kho, đơn hàng, người dùng...)"
+                    style={{
+                      width: '100%',
+                      padding: '6px 30px 6px 32px',
+                      fontSize: 13,
+                      border: '1px solid #cbd5e1',
+                      borderRadius: 6,
+                      backgroundColor: '#ffffff',
+                      outline: 'none',
+                    }}
+                  />
+                  {screenSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setScreenSearch('')}
+                      style={{
+                        position: 'absolute',
+                        right: 8,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'transparent',
+                        border: 'none',
+                        fontSize: 12,
+                        color: '#94a3b8',
+                        cursor: 'pointer',
+                        padding: '2px 6px',
+                      }}
+                    >
+                      Xóa
+                    </button>
+                  )}
                 </div>
               </div>
             )}
 
             <div
               style={{
-                maxHeight: '440px',
+                maxHeight: '480px',
                 overflowY: 'auto',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 16,
+                gap: 12,
                 paddingRight: 4,
               }}
             >
-              {SCREEN_GROUPS.map((group) => {
-                const groupKeys = group.screens.map((s) => s.key);
-                const selectedInGroup = groupKeys.filter((k) => selectedPermissions.has(k)).length;
-                const allInGroupSelected = selectedInGroup === groupKeys.length;
+              {filteredGroups.length === 0 ? (
+                <div style={{ padding: 24, textAlign: 'center', color: '#64748b', fontSize: 13, backgroundColor: '#f8fafc', borderRadius: 8, border: '1px dashed #cbd5e1' }}>
+                  Không tìm thấy màn hình chức năng nào khớp với từ khóa "{screenSearch}".
+                </div>
+              ) : (
+                filteredGroups.map((group) => {
+                  const groupKeys = group.screens.map((s) => s.key);
+                  const selectedInGroup = groupKeys.filter((k) => selectedPermissions.has(k)).length;
+                  const allInGroupSelected = groupKeys.length > 0 && selectedInGroup === groupKeys.length;
+                  const expanded = isGroupExpanded(group.key);
 
-                return (
-                  <div
-                    key={group.key}
-                    style={{
-                      border: '1px solid #e2e8f0',
-                      borderRadius: 8,
-                      overflow: 'hidden',
-                      backgroundColor: '#ffffff',
-                    }}
-                  >
+                  return (
                     <div
+                      key={group.key}
                       style={{
-                        padding: '10px 14px',
-                        backgroundColor: '#f8fafc',
-                        borderBottom: '1px solid #e2e8f0',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: 8,
+                        overflow: 'hidden',
+                        backgroundColor: '#ffffff',
+                        flexShrink: 0,
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Layers size={16} color="#64748b" />
-                        <span style={{ fontWeight: 600, fontSize: 14, color: '#1e293b' }}>
-                          {group.label}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: 11,
-                            padding: '1px 6px',
-                            borderRadius: 12,
-                            backgroundColor: selectedInGroup > 0 ? '#e0f2fe' : '#f1f5f9',
-                            color: selectedInGroup > 0 ? '#0369a1' : '#64748b',
-                            fontWeight: 500,
-                          }}
-                        >
-                          {selectedInGroup}/{groupKeys.length}
-                        </span>
-                      </div>
-
-                      {!isAdminRole && (
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          style={{ fontSize: 12, padding: '2px 8px' }}
-                          onClick={() => toggleGroup(groupKeys, !allInGroupSelected)}
-                        >
-                          {allInGroupSelected ? 'Bỏ chọn nhóm' : 'Chọn cả nhóm'}
-                        </button>
-                      )}
-                    </div>
-
-                    <div style={{ padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {group.screens.map((screen) => {
-                        const checked = isAdminRole || selectedPermissions.has(screen.key);
-
-                        return (
-                          <label
-                            key={screen.key}
+                      {/* Group Header (Clickable Accordion) */}
+                      <div
+                        onClick={() => toggleExpandGroup(group.key)}
+                        style={{
+                          padding: '10px 14px',
+                          backgroundColor: expanded ? '#f8fafc' : '#ffffff',
+                          borderBottom: expanded ? '1px solid #e2e8f0' : 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          cursor: 'pointer',
+                          userSelect: 'none',
+                          transition: 'background-color 0.15s ease',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ color: '#64748b', display: 'flex', alignItems: 'center' }}>
+                            {expanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                          </span>
+                          <Layers size={16} color="#64748b" />
+                          <span style={{ fontWeight: 600, fontSize: 14, color: '#1e293b' }}>
+                            {group.label}
+                          </span>
+                          <span
                             style={{
-                              display: 'flex',
-                              alignItems: 'flex-start',
-                              gap: 10,
-                              padding: '8px 10px',
-                              borderRadius: 6,
-                              cursor: isAdminRole ? 'default' : 'pointer',
-                              backgroundColor: checked ? '#f0fdf4' : 'transparent',
-                              transition: 'background-color 0.15s ease',
-                              border: checked ? '1px solid #bbf7d0' : '1px solid transparent',
+                              fontSize: 11,
+                              padding: '2px 8px',
+                              borderRadius: 12,
+                              backgroundColor:
+                                allInGroupSelected
+                                  ? '#dcfce7'
+                                  : selectedInGroup > 0
+                                  ? '#e0f2fe'
+                                  : '#f1f5f9',
+                              color:
+                                allInGroupSelected
+                                  ? '#15803d'
+                                  : selectedInGroup > 0
+                                  ? '#0369a1'
+                                  : '#64748b',
+                              fontWeight: 600,
                             }}
                           >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              disabled={isAdminRole}
-                              onChange={() => togglePermission(screen.key)}
-                              style={{ marginTop: 3, cursor: isAdminRole ? 'default' : 'pointer' }}
-                            />
-                            <div style={{ flex: 1 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <span style={{ fontWeight: 600, fontSize: 13, color: '#1e293b' }}>
-                                  {screen.name}
-                                </span>
-                                <code
+                            {selectedInGroup}/{groupKeys.length}
+                          </span>
+                        </div>
+
+                        {!isAdminRole && (
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            style={{ fontSize: 12, padding: '3px 10px' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleGroup(groupKeys, !allInGroupSelected);
+                            }}
+                          >
+                            {allInGroupSelected ? 'Bỏ chọn nhóm' : 'Chọn cả nhóm'}
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Group Screen Items */}
+                      {expanded && (
+                        <div style={{ padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {group.screens.map((screen) => {
+                            const checked = isAdminRole || selectedPermissions.has(screen.key);
+
+                            return (
+                              <label
+                                key={screen.key}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'flex-start',
+                                  gap: 10,
+                                  padding: '8px 10px',
+                                  borderRadius: 6,
+                                  cursor: isAdminRole ? 'default' : 'pointer',
+                                  backgroundColor: checked ? '#f0fdf4' : 'transparent',
+                                  transition: 'background-color 0.15s ease',
+                                  border: checked ? '1px solid #bbf7d0' : '1px solid transparent',
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  disabled={isAdminRole}
+                                  onChange={() => togglePermission(screen.key)}
                                   style={{
-                                    fontSize: 11,
-                                    backgroundColor: '#f1f5f9',
-                                    color: '#475569',
-                                    padding: '1px 5px',
-                                    borderRadius: 4,
+                                    marginTop: 3,
+                                    flexShrink: 0,
+                                    cursor: isAdminRole ? 'default' : 'pointer',
+                                    accentColor: '#16a34a',
                                   }}
-                                >
-                                  {screen.key}
-                                </code>
-                              </div>
-                              <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-                                {screen.description}
-                              </div>
-                            </div>
-                            {checked && (
-                              <Check size={16} color="#16a34a" style={{ flexShrink: 0, marginTop: 3 }} />
-                            )}
-                          </label>
-                        );
-                      })}
+                                />
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                    <span style={{ fontWeight: 600, fontSize: 13, color: '#1e293b' }}>
+                                      {screen.name}
+                                    </span>
+                                    <code
+                                      style={{
+                                        fontSize: 11,
+                                        backgroundColor: '#f1f5f9',
+                                        color: '#475569',
+                                        padding: '1px 5px',
+                                        borderRadius: 4,
+                                      }}
+                                    >
+                                      {screen.key}
+                                    </code>
+                                  </div>
+                                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, lineHeight: 1.4 }}>
+                                    {screen.description}
+                                  </div>
+                                </div>
+                                {checked && (
+                                  <Check size={16} color="#16a34a" style={{ flexShrink: 0, marginTop: 3 }} />
+                                )}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
         )}
