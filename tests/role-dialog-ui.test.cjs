@@ -28,10 +28,13 @@ function source(file, mocks = {}) {
   return module.exports;
 }
 
-test('RoleDialog UI layout guarantees flexShrink: 0 and accordion toggle on all 6 screen groups', () => {
+test('RoleDialog UI layout guarantees flexShrink: 0 and accordion toggle on screen groups with dedicated Mobile tab', () => {
   const roleTypes = source('features/roles/types.ts');
-  assert.equal(roleTypes.SCREEN_GROUPS.length, 6, 'Should have 6 screen groups');
-  assert.equal(roleTypes.ALL_SCREEN_KEYS.length, 31, 'Should have 31 total screens');
+  assert.equal(roleTypes.WEB_SCREEN_GROUPS.length, 6, 'Should have 6 web screen groups');
+  assert.equal(roleTypes.ALL_WEB_SCREEN_KEYS.length, 31, 'Should have 31 web screens');
+  assert.equal(roleTypes.MOBILE_SCREEN_GROUPS.length, 3, 'Should have 3 mobile screen groups');
+  assert.equal(roleTypes.ALL_MOBILE_SCREEN_KEYS.length, 23, 'Should have 23 mobile screens');
+  assert.equal(roleTypes.ALL_SCREEN_KEYS.length, 54, 'Should have 54 total screens');
 
   const roleDialogSource = fs.readFileSync(path.resolve(__dirname, '../src/features/roles/components/RoleDialog.tsx'), 'utf8');
 
@@ -43,6 +46,12 @@ test('RoleDialog UI layout guarantees flexShrink: 0 and accordion toggle on all 
   assert.ok(roleDialogSource.includes('Mở rộng tất cả'), 'Must have Expand All button');
   assert.ok(roleDialogSource.includes('Thu gọn tất cả'), 'Must have Collapse All button');
   assert.ok(roleDialogSource.includes('Tìm nhanh màn hình'), 'Must have search/filter box for screens');
+
+  // Verify Web & Mobile tabs and platform scopes
+  assert.ok(roleDialogSource.includes('Cổng Web'), 'Must have Web tab');
+  assert.ok(roleDialogSource.includes('Ứng dụng Di động'), 'Must have Mobile tab');
+  assert.ok(roleDialogSource.includes("activeTab === 'web'"), 'Must have conditional rendering for web tab');
+  assert.ok(roleDialogSource.includes("activeTab === 'mobile'"), 'Must have conditional rendering for mobile tab');
 
   // Verify mock rendering of RoleDialog
   const { RoleDialog } = source('features/roles/components/RoleDialog.tsx', {
@@ -61,6 +70,8 @@ test('RoleDialog UI layout guarantees flexShrink: 0 and accordion toggle on all 
       ChevronDown: () => React.createElement('span', null, '▼'),
       ChevronRight: () => React.createElement('span', null, '▶'),
       Search: () => React.createElement('span', null, '🔍'),
+      Smartphone: () => React.createElement('span', null, '📱'),
+      Monitor: () => React.createElement('span', null, '🖥'),
     },
     '../types': roleTypes,
     '../api': { roleApi: {} },
