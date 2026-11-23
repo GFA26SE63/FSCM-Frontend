@@ -26,6 +26,10 @@
   text-decoration: none;
   border-radius: 8px;
 }
+.brand:hover {
+  color: inherit;
+  text-decoration: none;
+}
 .brand-copy {
   min-width: 0;
   display: flex;

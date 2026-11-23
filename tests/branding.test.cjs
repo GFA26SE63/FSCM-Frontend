@@ -45,7 +45,7 @@ test('Branding Sidebar: displays fscm-logo with object-fit: contain and proper a
   assert.ok(layoutCss.includes('.brand-logo-img'), 'layout.css must define .brand-logo-img');
   assert.ok(layoutCss.includes('object-fit: contain'), 'Logo image must preserve aspect ratio via object-fit: contain');
   assert.ok(layoutCss.includes('.brand-copy'), 'Sidebar title must use the compact brand alignment');
-  assert.ok(!layoutCss.includes('.brand:hover'), 'Sidebar brand must not change appearance on hover');
+  assert.match(layoutCss, /\.brand:hover\s*\{\s*color: inherit;/, 'Sidebar brand text must retain its color on hover');
 });
 
 test('Branding LoginPage: displays fscm-logo on login card with object-fit: contain and proper layout', () => {
