@@ -149,7 +149,7 @@ export const giftApi = {
       const page = result.entities?.loyaltyPrograms;
       if (!page || !Array.isArray(page.nodes) || !page.pageInfo ||
           (page.pageInfo.hasNextPage && (!page.pageInfo.endCursor || page.pageInfo.endCursor === after))) {
-        throw new ApiError(502, 'Không tải đủ chương trình loyalty.');
+        throw new ApiError(502, 'Không tải đủ chương trình khách hàng thân thiết.');
       }
       rows.push(...page.nodes);
       after = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;

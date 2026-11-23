@@ -28,8 +28,8 @@ export function GiftsPage() {
     <>
       <PageHeader title="Quà đổi điểm" subtitle="Khi nhà bán lẻ gửi yêu cầu, hệ thống giữ điểm và lượng quà. Từ chối sẽ trả lại phần đã giữ." />
       {notice && <Callout tone="ok">{notice}</Callout>}
-      {programs.isError && <Callout tone="danger">Không tải được chương trình tích điểm. <Button size="sm" onClick={() => void programs.refetch()}>Thử lại</Button></Callout>}
-      {programs.isSuccess && programs.data.length === 0 && <Callout tone="info">Chưa có chương trình tích điểm đang hoạt động và trong thời gian hiệu lực để thêm quà.</Callout>}
+      {programs.isError && <Callout tone="danger">Không tải được chương trình khách hàng thân thiết. <Button size="sm" onClick={() => void programs.refetch()}>Thử lại</Button></Callout>}
+      {programs.isSuccess && programs.data.length === 0 && <Callout tone="info">Chưa có chương trình khách hàng thân thiết đang hoạt động và trong thời gian hiệu lực để thêm quà.</Callout>}
       <Card title="Danh sách quà" actions={<Button variant="primary" disabled={!programs.isSuccess || !programs.data.length} onClick={() => open(null)}>+ Thêm quà</Button>}>
         <div className="row-wrap" style={{ gap: 12, marginBottom: 16 }}>
           <Input aria-label="Tìm quà" placeholder="Mã hoặc tên quà…" value={search} onChange={e => setSearch(e.target.value)} />

@@ -26,14 +26,14 @@ export function LoyaltyProgramsPanel() {
     { key: 'code', header: 'Mã', text: (p) => p.code, width: '110px' },
     { key: 'name', header: 'Tên chương trình', text: (p) => p.name },
     { key: 'rate', header: 'Quy đổi', text: (p) => `${formatMoney(p.spendAmountPerPoint)} = 1 điểm` },
-    { key: 'retailers', header: 'Nhà bán lẻ áp dụng', text: (p) => `${p.retailerIds.length} retailer` },
+    { key: 'retailers', header: 'Nhà bán lẻ áp dụng', text: (p) => `${p.retailerIds.length} nhà bán lẻ` },
     { key: 'period', header: 'Hiệu lực (VN)', text: (p) => `${formatInstantDateTime(p.startAt)} – ${formatInstantDateTime(p.endAt)}` },
     { key: 'status', header: 'Trạng thái', text: (p) => programStatus(p, now),
       render: (p) => <Chip tone={p.isActive && Date.parse(p.endAt) >= now ? 'ok' : 'warn'}>{programStatus(p, now)}</Chip> },
   ];
 
   return <>
-    <DataTable stateKey="programs" title="Chương trình tích điểm" rows={query.data}
+    <DataTable stateKey="programs" title="Chương trình khách hàng thân thiết" rows={query.data}
       loading={query.isLoading} error={query.error} columns={columns}
       rowKey={(p) => p.id} searchPlaceholder="Mã hoặc tên chương trình…"
       emptyText="Chưa có chương trình tích điểm phù hợp."
@@ -60,7 +60,7 @@ export function LoyaltyProgramsPanel() {
         { label: 'Hiệu lực từ (VN)', value: formatInstantDateTime(detail.startAt) },
         { label: 'Hiệu lực đến (VN)', value: formatInstantDateTime(detail.endAt) },
         { label: 'Điểm hết hạn (VN)', value: detail.pointsExpireAt ? formatInstantDateTime(detail.pointsExpireAt) : 'Không đặt hạn' },
-        { label: 'Nhà bán lẻ áp dụng', value: `${detail.retailerIds.length} retailer` },
+        { label: 'Nhà bán lẻ áp dụng', value: `${detail.retailerIds.length} nhà bán lẻ` },
         { label: 'Mô tả', value: detail.description || '—' },
       ]} /></Card>
       <ProgramAudience ids={detail.retailerIds} />
