@@ -269,7 +269,6 @@ export function CategoriesPage() {
 
   return (
     <>
-      {isAdmin && <div style={{ padding: '20px 24px 0' }}><FmcgCatalogManager /></div>}
       {/* Category Tree Layout matching Prototype HTML */}
       <div
         style={{
@@ -671,6 +670,8 @@ export function CategoriesPage() {
           )}
         </div>
       </div>
+
+      {isAdmin && <div style={{ padding: '0 24px 20px' }}><FmcgCatalogManager /></div>}
 
       {/* Category Create/Edit Modal matching Prototype */}
       <CategoryDialog

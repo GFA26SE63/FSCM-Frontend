@@ -1,15 +1,18 @@
-import { useEffect, useState } from 'react';
-import { Button, Callout, Card } from '@/shared/ui';
+import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { Button, Callout, Card, Modal } from '@/shared/ui';
 import { categoryApi } from '../api';
 import type { FmcgCategoryCatalogVersion } from '../types';
 
 const template = JSON.stringify({ categories: [{ name: 'Đồ uống', description: 'Nước uống đóng chai, nước giải khát và đồ uống tiêu dùng nhanh.' }] }, null, 2);
 
 export function FmcgCatalogManager() {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [open, setOpen] = useState(false);
   const [json, setJson] = useState(template);
   const [history, setHistory] = useState<FmcgCategoryCatalogVersion[]>([]);
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const load = async () => {
     const [current, versions] = await Promise.all([categoryApi.getFmcgCatalog(), categoryApi.getFmcgCatalogHistory()]);
     if (current.document.categories.length) setJson(JSON.stringify(current.document, null, 2));
@@ -25,13 +28,55 @@ export function FmcgCatalogManager() {
       setMessage('Đã lưu và kích hoạt phiên bản cấu hình FMCG mới.'); await load();
     } catch (e) { setMessage(e instanceof Error ? e.message : 'JSON không hợp lệ.'); } finally { setSaving(false); }
   };
-  const file = async (value?: File) => { if (value) setJson(await value.text()); };
+  const readFile = async (value?: File) => {
+    if (!value) return;
+    if (!value.name.toLowerCase().endsWith('.json') && value.type !== 'application/json') {
+      setMessage('Vui lòng chọn tệp JSON hợp lệ.');
+      return;
+    }
+    setMessage('');
+    setJson(await value.text());
+  };
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDragging(false);
+    void readFile(event.dataTransfer.files?.[0]);
+  };
   const download = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' })); a.download = 'danh-muc-fmcg.json'; a.click(); URL.revokeObjectURL(a.href); };
-  return <Card title="Danh mục FMCG chuẩn (chỉ Admin)">
-    <p className="muted">Tải file JSON hoặc dán nội dung. Cấu hình này độc lập với danh mục sản phẩm trong database.</p>
-    <input type="file" accept="application/json,.json" onChange={e => void file(e.target.files?.[0])} />
-    <textarea className="inp" rows={12} value={json} onChange={e => setJson(e.target.value)} aria-label="JSON danh mục FMCG" />
-    <div className="row-wrap"><Button loading={saving} variant="primary" onClick={() => void save()}>Lưu phiên bản mới</Button><Button onClick={download}>Tải JSON hiện tại</Button><span className="muted">{history.length ? `${history.length} phiên bản · đang dùng v${history.find(x => x.isActive)?.version ?? '—'}` : 'Chưa có phiên bản'}</span></div>
-    {message && <Callout tone={message.startsWith('Đã') ? 'ok' : 'danger'}>{message}</Callout>}
-  </Card>;
+  const activeVersion = history.find((version) => version.isActive)?.version;
+
+  return <>
+    <Card title="Danh mục FMCG chuẩn" actions={<Button variant="primary" size="sm" onClick={() => setOpen(true)}>Upload file</Button>}>
+      <div className="muted" style={{ fontSize: 13 }}>
+        Cập nhật bộ danh mục chuẩn dùng để kiểm tra tính phù hợp của danh mục sản phẩm.
+        {history.length > 0 && ` ${history.length} phiên bản · đang dùng v${activeVersion ?? '—'}.`}
+      </div>
+    </Card>
+
+    <Modal
+      open={open}
+      title="Cập nhật danh mục FMCG chuẩn"
+      subtitle="Tải lên một tệp JSON mới hoặc chỉnh sửa nội dung cấu hình hiện tại."
+      width={760}
+      onClose={() => setOpen(false)}
+      footer={<><Button onClick={download}>Tải JSON hiện tại</Button><Button variant="primary" loading={saving} onClick={() => void save()}>Lưu phiên bản mới</Button></>}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {message && <Callout tone={message.startsWith('Đã') ? 'ok' : 'danger'}>{message}</Callout>}
+        <input ref={inputRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={event => void readFile(event.target.files?.[0])} />
+        <div
+          onDragEnter={event => { event.preventDefault(); setDragging(true); }}
+          onDragOver={event => event.preventDefault()}
+          onDragLeave={event => { if (event.currentTarget === event.target) setDragging(false); }}
+          onDrop={handleDrop}
+          style={{ border: `1px dashed ${dragging ? '#0F5E55' : '#B8C2BC'}`, background: dragging ? '#F0F8F5' : '#F8FAF8', borderRadius: 8, padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}
+        >
+          <div><div style={{ fontWeight: 600, marginBottom: 3 }}>Kéo thả tệp JSON vào đây</div><div className="muted" style={{ fontSize: 13 }}>hoặc chọn tệp từ thiết bị của bạn</div></div>
+          <Button onClick={() => inputRef.current?.click()}>Choose File</Button>
+        </div>
+        <label htmlFor="fmcg-catalog-json" style={{ fontWeight: 600, fontSize: 13 }}>Nội dung danh mục hiện tại</label>
+        <textarea id="fmcg-catalog-json" className="inp" rows={15} value={json} onChange={event => setJson(event.target.value)} aria-label="JSON danh mục FMCG" style={{ resize: 'vertical', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12.5, lineHeight: 1.5 }} />
+      </div>
+    </Modal>
+  </>;
 }
