@@ -268,10 +268,6 @@ export function BatchesPage() {
     [productCatalog],
   );
 
-  const handleExportExcel = () => {
-    toast.show('Đã xuất danh sách lô hàng ra file Excel.');
-  };
-
   const handleDisposalNotice = () => {
     toast.show('Chức năng này hiện chưa sử dụng được.');
   };
@@ -519,11 +515,6 @@ export function BatchesPage() {
           </>
         }
         serverSort={{ ...sortProps, sortableFields: BATCHES_SORTABLE_FIELDS }}
-        actions={
-          <Button onClick={handleExportExcel}>
-            Xuất Excel
-          </Button>
-        }
         onRowClick={(b) => navigate(`/batches/${b.batchId || b.batchCode}`)}
         rowActionsWidth="135px"
         rowActionHeader="Thao tác"

@@ -4,6 +4,7 @@ import { useStringParam } from '@/shared/router/listState';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { ConfirmDialog, Modal, Button } from '@/shared/ui';
 import { formatMoney, statusLabel } from '@/shared/lib';
+import { downloadExcel } from '@/shared/lib/excel';
 import { useToast } from '@/shared/ui/Toast';
 import { useCategories, useCategory, useUpdateCategoryStatus, useDeleteCategory } from '../hooks';
 import { CategoryDialog } from '../components/CategoryDialog';
@@ -33,6 +34,7 @@ export function CategoriesPage() {
   const [selectedCode, setSelectedCode] = useStringParam('selected');
   const [searchTree, setSearchTree] = useStringParam('q');
   const [openState, setOpenState] = useState<Record<string, boolean>>({});
+  const [exporting, setExporting] = useState(false);
 
   // Dialog & Modal states
   const [dialogState, setDialogState] = useState<{
@@ -77,6 +79,16 @@ export function CategoriesPage() {
     () => buildFlatTree(categories, openState, searchTree),
     [categories, openState, searchTree],
   );
+  const exportExcel = async () => {
+    if (!categories.length) return;
+    setExporting(true);
+    try {
+      await downloadExcel('cay-danh-muc.xlsx', [{ name: 'Danh mục', title: 'Cây danh mục sản phẩm', blocks: [{
+        columns: ['Mã danh mục', 'Tên danh mục', 'Danh mục cha', 'Cấp', 'Trạng thái', 'Số sản phẩm', 'Mô tả'].map((header) => ({ header })),
+        rows: categories.map((category) => [category.code, category.name, findCategory(categories, category.parentCategoryId)?.name ?? 'Danh mục gốc', getCategoryDepth(categories, category) + 1, category.isActive === false || category.status === 'Inactive' ? 'Ngừng hoạt động' : 'Hoạt động', category.productCount ?? 0, category.description ?? '']),
+      }] }]);
+    } finally { setExporting(false); }
+  };
 
   // Expand / Collapse all handlers
   const handleExpandAll = () => {
@@ -269,7 +281,6 @@ export function CategoriesPage() {
 
   return (
     <>
-      {isAdmin && <div style={{ padding: '20px 24px 0' }}><FmcgCatalogManager /></div>}
       {/* Category Tree Layout matching Prototype HTML */}
       <div
         style={{
@@ -302,6 +313,7 @@ export function CategoriesPage() {
                   · {categories.length} danh mục
                 </span>
               </span>
+              <Button size="sm" loading={exporting} disabled={query.isLoading || categories.length === 0} onClick={() => void exportExcel()}>Xuất Excel</Button>
               {canManage && (
                 <button
                   type="button"
@@ -671,6 +683,8 @@ export function CategoriesPage() {
           )}
         </div>
       </div>
+
+      {isAdmin && <div style={{ padding: '0 24px 20px' }}><FmcgCatalogManager /></div>}
 
       {/* Category Create/Edit Modal matching Prototype */}
       <CategoryDialog

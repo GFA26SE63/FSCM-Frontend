@@ -47,72 +47,13 @@ test('RBAC: retailers.review permission is granted strictly to Admin and Operato
   assert.doesNotThrow(() => permissions.assertPermission(user('Operator'), 'retailers.review'));
 });
 
-test('Credit Eligibility Logic: accurately checks active status, granted term, and overdue debts', () => {
-  function evaluateEligibility(retailer, receivables = []) {
-    const activeReceivables = receivables.filter((r) => r.status !== 'Paid' && r.status !== 'Cancelled');
-    const overdueItems = activeReceivables.filter((r) => r.status === 'Overdue');
-    const hasCreditPermission = Number(retailer.creditTermDays) > 0;
+test('Credit grant is the authorized term-and-limit configuration, not Sales order eligibility', () => {
+  const cardCode = fs.readFileSync(path.resolve(__dirname, '../src/features/retailers/components/CreditTermsCard.tsx'), 'utf8');
 
-    const reasons = [];
-    if (retailer.status !== 'Active') {
-      reasons.push('tài khoản không hoạt động');
-    }
-    if (!hasCreditPermission) {
-      reasons.push('chưa được cấp kỳ hạn công nợ');
-    }
-    if (overdueItems.length > 0) {
-      reasons.push('có khoản quá hạn');
-    }
-
-    const isEligible = reasons.length === 0;
-    const fallbackMessage = !isEligible
-      ? 'Khách hàng hiện chưa đủ điều kiện mua công nợ. Có thể lựa chọn thanh toán trước.'
-      : null;
-
-    return { isEligible, reasons, fallbackMessage };
-  }
-
-  // 1. Fully eligible retailer
-  const eligibleRetailer = { status: 'Active', creditTermDays: 14 };
-  const res1 = evaluateEligibility(eligibleRetailer, [
-    { orderCode: 'ORD-001', status: 'Unpaid', outstandingAmount: 5000000 },
-  ]);
-  assert.equal(res1.isEligible, true);
-  assert.equal(res1.reasons.length, 0);
-  assert.equal(res1.fallbackMessage, null);
-
-  // 2. Retailer with creditTermDays = 0 (Prepaid only)
-  const prepaidRetailer = { status: 'Active', creditTermDays: 0 };
-  const res2 = evaluateEligibility(prepaidRetailer, []);
-  assert.equal(res2.isEligible, false);
-  assert.ok(res2.reasons.includes('chưa được cấp kỳ hạn công nợ'));
-  assert.equal(res2.fallbackMessage, 'Khách hàng hiện chưa đủ điều kiện mua công nợ. Có thể lựa chọn thanh toán trước.');
-
-  // 3. Retailer with Overdue receivable
-  const overdueRetailer = { status: 'Active', creditTermDays: 7 };
-  const res3 = evaluateEligibility(overdueRetailer, [
-    { orderCode: 'ORD-002', status: 'Overdue', outstandingAmount: 2000000 },
-  ]);
-  assert.equal(res3.isEligible, false);
-  assert.ok(res3.reasons.includes('có khoản quá hạn'));
-  assert.equal(res3.fallbackMessage, 'Khách hàng hiện chưa đủ điều kiện mua công nợ. Có thể lựa chọn thanh toán trước.');
-
-  // 4. Retailer locked / inactive
-  const lockedRetailer = { status: 'Locked', creditTermDays: 30 };
-  const res4 = evaluateEligibility(lockedRetailer, []);
-  assert.equal(res4.isEligible, false);
-  assert.ok(res4.reasons.includes('tài khoản không hoạt động'));
-
-  // 5. Multiple disqualifications
-  const badRetailer = { status: 'Locked', creditTermDays: 0 };
-  const res5 = evaluateEligibility(badRetailer, [
-    { orderCode: 'ORD-003', status: 'Overdue', outstandingAmount: 1000000 },
-  ]);
-  assert.equal(res5.isEligible, false);
-  assert.equal(res5.reasons.length, 3);
-  assert.ok(res5.reasons.includes('tài khoản không hoạt động'));
-  assert.ok(res5.reasons.includes('chưa được cấp kỳ hạn công nợ'));
-  assert.ok(res5.reasons.includes('có khoản quá hạn'));
+  assert.match(cardCode, /\[7, 14, 30\]\.includes\(Number\(retailer\.creditTermDays\)\)/);
+  assert.match(cardCode, /Number\(retailer\.creditLimit \?\? 0\) > 0/);
+  assert.match(cardCode, /Đã được người có thẩm quyền cấp/);
+  assert.doesNotMatch(cardCode, /useRetailerEligibility|Đủ điều kiện mua công nợ/);
 });
 
 test('Term Snapshot Preservation: modifying retailer credit terms does not mutate existing orders', () => {

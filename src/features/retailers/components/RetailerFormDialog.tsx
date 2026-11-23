@@ -345,6 +345,10 @@ export function RetailerFormDialog({
           });
         }
         onClose();
+        // A save can issue both profile and credit mutations. Give the Admin
+        // one final, explicit acknowledgement after every requested update
+        // has completed instead of relying on a transient mutation toast.
+        toast.show(edit ? 'Cập nhật thông tin nhà bán lẻ thành công.' : 'Đã tạo hồ sơ nhà bán lẻ thành công.');
       }}
     />
   );

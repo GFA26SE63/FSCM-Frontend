@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Eye, Pencil } from 'lucide-react';
 import { ActionDropdown, Button, Callout, Card, Input, PageHeader, QueryState, Select, SimpleTable, StatusChip } from '@/shared/ui';
 import { formatNumber } from '@/shared/lib';
+import { downloadExcel } from '@/shared/lib/excel';
 import { parsePage, useEnumParam, useQueryParams, useStringParam } from '@/shared/router/listState';
 import { useCreateGift, useGiftPrograms, useGifts, useUpdateGift } from '../hooks';
 import { GIFT_PAGE_SIZE } from '../api';
@@ -26,14 +27,26 @@ export function GiftsPage() {
   const programs = useGiftPrograms(!dlg?.gift && !detail);
   const [statusError, setStatusError] = useState('');
   const [notice, setNotice] = useState('');
+  const [exporting, setExporting] = useState(false);
   const open = (gift: Gift | null) => { setStatusError(''); setNotice(''); setDlg({ gift }); if (!gift) void programs.refetch(); };
+  const exportExcel = async () => {
+    const gifts = query.data?.items ?? [];
+    if (!gifts.length) return;
+    setExporting(true);
+    try {
+      await downloadExcel('danh-sach-qua-doi-diem.xlsx', [{ name: 'Quà đổi điểm', title: 'Danh sách quà đổi điểm', blocks: [{
+        columns: ['Mã quà', 'Tên quà', 'Điểm / quà', 'Còn có thể cấp', 'Đã đổi', 'Trạng thái'].map((header) => ({ header })),
+        rows: gifts.map((gift) => [gift.code, gift.name, gift.points, gift.stock ?? 'Không giới hạn', gift.redeemed ?? 'Chưa xác định', gift.status]),
+      }] }]);
+    } finally { setExporting(false); }
+  };
   return (
     <>
       <PageHeader title="Quà đổi điểm" subtitle="Khi nhà bán lẻ gửi yêu cầu, hệ thống giữ điểm và lượng quà. Từ chối sẽ trả lại phần đã giữ." />
       {notice && <Callout tone="ok">{notice}</Callout>}
       {programs.isError && <Callout tone="danger">Không tải được chương trình khách hàng thân thiết. <Button size="sm" onClick={() => void programs.refetch()}>Thử lại</Button></Callout>}
       {programs.isSuccess && programs.data.length === 0 && <Callout tone="info">Chưa có chương trình khách hàng thân thiết đang hoạt động và trong thời gian hiệu lực để thêm quà.</Callout>}
-      <Card title="Danh sách quà" actions={<Button variant="primary" disabled={!programs.isSuccess || !programs.data.length} onClick={() => open(null)}>+ Thêm quà</Button>}>
+      <Card title="Danh sách quà" actions={<div className="row-wrap" style={{ gap: 8 }}><Button loading={exporting} disabled={query.isLoading || !(query.data?.items.length)} onClick={() => void exportExcel()}>Xuất Excel</Button><Button variant="primary" disabled={!programs.isSuccess || !programs.data.length} onClick={() => open(null)}>+ Thêm quà</Button></div>}>
         <div className="row-wrap" style={{ gap: 12, marginBottom: 16 }}>
           <Input aria-label="Tìm quà" placeholder="Mã hoặc tên quà…" value={search} onChange={e => setSearch(e.target.value)} />
           <Select aria-label="Trạng thái quà" value={status} onChange={e => setStatus(e.target.value as typeof status)}

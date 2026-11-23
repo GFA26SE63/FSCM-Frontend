@@ -53,7 +53,7 @@ export function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div className="brand">
+      <NavLink to="/" exact className="brand" aria-label="Về trang mặc định">
         <div className="brand-logo">
           <img
             src={FSCM_LOGO_URL}
@@ -67,11 +67,10 @@ export function Sidebar() {
             className="brand-logo-img"
           />
         </div>
-        <div>
+        <div className="brand-copy">
           <div className="brand-name">Cổng quản trị FSCM</div>
-          <div className="brand-sub">Quản lý hàng tiêu dùng hạn ngắn</div>
         </div>
-      </div>
+      </NavLink>
 
       <nav className="menu-list" aria-label="Danh mục chức năng">
         {groups.map((g) => {
