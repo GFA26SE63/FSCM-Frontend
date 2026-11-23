@@ -29,10 +29,11 @@ test('search/region/group resolve to bounded id lookups; empty search match retu
   assert.ok(gql.includes('{ regionId: { eq: $regionId } }') && gql.includes('{ unassignedAt: { eq: null } }'));
   assert.ok(hooks.includes('useRedeemScope'));
 });
-test('one batched enrichment request per page (no per-row calls)', () => {
-  assert.ok(gql.includes('retailers(first: 100, where: { id: { in: $retailerIds } })'));
-  assert.ok(gql.includes('retailerLoyalties(first: 100, where: { retailerId: { in: $retailerIds } })'));
-  assert.ok((gql.match(/async function enrich/g) || []).length === 1);
+test('page enrichment uses bounded cursor queries for page IDs (no per-row calls)', () => {
+  assert.ok(gql.includes('retailers(first: 100, after: $after, where: { id: { in: $retailerIds } }'));
+  assert.ok(gql.includes('retailerLoyalties(first: 100, after: $after, where: { retailerId: { in: $retailerIds } }'));
+  assert.ok(!gql.includes('first: 1000'));
+  assert.ok((gql.match(/async function enrich\(/g) || []).length === 1);
 });
 test('no loyalty calculation in the client; mutations stay REST', () => {
   assert.ok(!/currentPoints\s*[-+]|heldPoints\s*[-+]/.test(gql));

@@ -4,7 +4,7 @@ import type { RedeemStep, Redemption, RedemptionApi, RedemptionStatus } from './
 
 export const redeemApi = {
   list: () => get<RedemptionApi[]>('/loyalty/redemptions').then((items) => items.map(normalize)),
-  /** By-id read via GraphQL (one row + one batched enrichment); REST has no by-id read. */
+  /** By-id read via GraphQL (one row + bounded enrichment); REST has no by-id read. */
   get: (id: string) => fetchRedemptionById(id).then(normalize),
   step: (v: { code: string; step: RedeemStep }) =>
     post<RedemptionApi>(`/loyalty/redemptions/${v.code}/${v.step}`).then(normalize),
