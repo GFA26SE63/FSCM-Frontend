@@ -26,11 +26,6 @@
   text-decoration: none;
   border-radius: 8px;
 }
-.brand:hover,
-.brand:focus-visible {
-  background: var(--c-sidebar-2);
-  outline: none;
-}
 .brand-copy {
   min-width: 0;
   display: flex;
