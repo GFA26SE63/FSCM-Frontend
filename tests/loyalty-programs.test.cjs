@@ -75,6 +75,7 @@ test('scheduled, inactive and expired are separate states; enabled does not mean
 test('list includes inactive programs; create/update use UUID and separate state endpoints', async () => {
   const calls = [];
   const { loyaltyApi } = source('features/loyalty/api.ts', {
+    '@/shared/api/graphql': { graphql: () => { throw Error('Unexpected GraphQL query'); } },
     '@/shared/api/errors': errors,
     '@/shared/api/http': {
       get: async (url, params) => { calls.push({ method: 'GET', url, params }); return [program]; },
@@ -101,6 +102,7 @@ test('retailer picker loads all pages with pageSize 100 and propagates failed re
   const calls = [];
   let fail = false;
   const { loyaltyApi } = source('features/loyalty/api.ts', {
+    '@/shared/api/graphql': { graphql: () => { throw Error('Unexpected GraphQL query'); } },
     '@/shared/api/errors': errors,
     '@/shared/api/http': {
       get: async (url, params) => {
@@ -122,28 +124,28 @@ test('retailer picker loads all pages with pageSize 100 and propagates failed re
 
 test('missing program audience is not treated as an empty business result', async () => {
   const { loyaltyApi } = source('features/loyalty/api.ts', {
+    '@/shared/api/graphql': { graphql: () => { throw Error('Unexpected GraphQL query'); } },
     '@/shared/api/errors': errors,
     '@/shared/api/http': { get: async () => [{ ...program, retailerIds: undefined }] },
   });
   await assert.rejects(loyaltyApi.programs(), { status: 502 });
 });
 
-test('F69 preserves balances and retailer detail navigation on the existing loyalty page', () => {
-  let table;
+test('loyalty page retains program management without the removed balances table or request', () => {
+  let header;
   const { LoyaltyPage } = source('features/loyalty/pages/LoyaltyPage.tsx', {
     '@/shared/router/compat': { useNavigate: () => () => {} },
     '@/shared/lib': { formatDate: String, formatNumber: String },
     '@/shared/ui': {
-      PageHeader: () => null, Button: () => null,
-      DataTable: (props) => { table = props; return null; },
+      PageHeader: props => { header = props; return null; }, Button: () => null,
+      DataTable: () => { throw Error('Balances table was explicitly removed'); },
     },
-    '../hooks': { useBalances: () => ({ data: [{ retailerCode: '1001' }] }) },
+    '../hooks': { useBalances: () => { throw Error('Removed table must not load balances'); } },
     '../components/LoyaltyProgramsPanel': { LoyaltyProgramsPanel: () => React.createElement('p', null, 'PROGRAMS') },
   });
   assert.match(renderToStaticMarkup(React.createElement(LoyaltyPage)), /PROGRAMS/);
-  assert.equal(table.rows[0].retailerCode, '1001');
-  assert.equal(typeof table.onRowClick, 'function');
-  assert.equal(typeof table.rowActions, 'function');
+  assert.equal(header.title, 'Khách hàng thân thiết');
+  assert.ok(!header.subtitle.includes('Completed'));
 });
 
 test('program dialog uses real retailer selection and keeps backend errors without closing', async () => {
@@ -171,7 +173,8 @@ test('program dialog uses real retailer selection and keeps backend errors witho
     program, onClose: () => { closed += 1; },
   }));
   assert.equal(props.fields.find((f) => f.key === 'retailerIds').type, 'custom');
-  assert.equal(props.fields.find((f) => f.key === 'startAt').type, 'datetime-local');
+  assert.equal(props.fields.find((f) => f.key === 'startAt').type, 'custom');
+  assert.equal(props.fields.find((f) => f.key === 'startAt').validate('', { ...props.initial, startAt: '' }), 'Nhập ngày và giờ hợp lệ.');
   await props.onSubmit(props.initial);
   assert.equal(request.id, program.id);
   assert.deepEqual(request.retailerIds, [retailerId]);

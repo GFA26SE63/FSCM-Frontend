@@ -99,7 +99,10 @@ export const APP_ROUTES: AppRoute[] = [
     sub: [{ path: 'new', element: page(promos, 'PromoFormPage') }, { path: ':id', element: page(promos, 'PromoDetailPage') }],
   },
   { key: 'retailers', label: 'Nhà bán lẻ', roles: [A, OP], badge: 'retailers', list: page(retailers, 'RetailersPage'), sub: [{ path: ':id', element: page(retailers, 'RetailerDetailPage') }] },
-  { key: 'loyalty', label: 'Tích điểm', roles: [A, OP], list: page(loyalty, 'LoyaltyPage'), sub: [{ path: ':code', element: page(loyalty, 'LoyaltyDetailPage') }] },
+  { key: 'loyalty', label: 'Khách hàng thân thiết', roles: [A, OP], list: page(loyalty, 'LoyaltyPage'), sub: [
+    { path: 'new', element: page(loyalty, 'ProgramCreatePage') },
+    { path: ':code', element: page(loyalty, 'LoyaltyDetailPage') },
+  ] },
   { key: 'redeem', label: 'Đổi quà', roles: [A, OP], badge: 'redeem', list: page(redeem, 'RedeemPage'), sub: [{ path: ':code', element: page(redeem, 'RedeemDetailPage') }] },
   { key: 'gifts', label: 'Danh mục quà đổi điểm', roles: [A], list: page(gifts, 'GiftsPage') },
   { key: 'regions', label: 'Khu vực & nhóm bán hàng', roles: [A, SM], list: page(regions, 'RegionsPage'), sub: [{ path: ':code', element: page(regions, 'GroupDetailPage') }] },
