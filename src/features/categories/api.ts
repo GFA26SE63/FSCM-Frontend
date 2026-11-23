@@ -174,7 +174,8 @@ export const categoryApi = {
     const categories = (await fetchCategoriesGraphql()).map(mapCategory);
     const baseCat = categories.find(
       (category) =>
-        (category.id || category.code).toLowerCase() === idOrCode.toLowerCase(),
+        category.id?.toLowerCase() === idOrCode.toLowerCase() ||
+        category.code.toLowerCase() === idOrCode.toLowerCase(),
     );
     if (!baseCat) throw new Error("Không tìm thấy danh mục.");
     const branchIds = new Set<string>([baseCat.id!.toLowerCase()]);
