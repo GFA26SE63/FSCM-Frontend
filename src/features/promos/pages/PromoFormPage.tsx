@@ -79,7 +79,7 @@ export function PromoFormPage() {
       <FormField label="Hiệu lực đến" required><Input type="date" min={from || today} value={to} onChange={(e) => setTo(e.target.value)} /></FormField>
     </div></Card>
     <Card title={mode === 'PerSku' ? 'Loại 1 · Điều kiện riêng cho từng SKU' : 'Loại 2 · Điều kiện theo nhóm sản phẩm'}
-      actions={<Button aria-label="Add sản phẩm" onClick={() => setPicker('products')}>Add</Button>}>
+      actions={<Button aria-label="Thêm sản phẩm" onClick={() => setPicker('products')}>Thêm</Button>}>
       <DataTable urlState={false} title={`Sản phẩm đã thêm · ${selectedProductIds.length}`}
         columns={mode === 'PerSku' ? [...productColumns,
           { key: 'minimumQuantity', header: 'Số lượng tối thiểu', width: '180px', render: p => <Input
@@ -91,7 +91,7 @@ export function PromoFormPage() {
             value={rows.find(r => r.productId === p.id)?.discountPercent ?? ''}
             onChange={e => update(p.id, { discountPercent: e.target.value })} /> },
         ] : productColumns} rows={selectedProducts} rowKey={p => p.id} searchable={false} pageSize={5}
-        loading={products.isLoading} error={products.error} emptyText="Chưa thêm sản phẩm. Nhấn Add để tìm kiếm và chọn SKU."
+        loading={products.isLoading} error={products.error} emptyText="Chưa thêm sản phẩm. Nhấn Thêm để tìm kiếm và chọn SKU."
         rowActionsWidth="100px" rowActions={p => <Button size="sm" onClick={() => mode === 'PerSku'
           ? setRows(items => items.filter(r => r.productId !== p.id))
           : setProductIds(ids => ids.filter(id => id !== p.id))}>Bỏ chọn</Button>} />
@@ -105,7 +105,7 @@ export function PromoFormPage() {
     </Card>
     {products.isLoading && <Callout>Đang tải sản phẩm…</Callout>}
     {products.error && <Callout tone="danger">{errorMessage(products.error)}</Callout>}
-    <Card title="Khách hàng được hưởng ưu đãi" actions={<Button aria-label="Add khách hàng" onClick={() => setPicker('retailers')}>Add</Button>}>
+    <Card title="Khách hàng được hưởng ưu đãi" actions={<Button aria-label="Thêm khách hàng" onClick={() => setPicker('retailers')}>Thêm</Button>}>
       <p className="muted small">Không chọn cửa hàng nào là áp dụng cho tất cả cửa hàng đủ điều kiện. Đơn đã chốt không tự thay đổi khi kích hoạt khuyến mãi.</p>
       <div className="promo-retailer-picker">
       <DataTable urlState={false} title={`Cửa hàng đã thêm · ${retailerIds.length}`}
