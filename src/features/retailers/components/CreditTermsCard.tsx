@@ -148,6 +148,7 @@ export function CreditTermsCard({ retailer, receivables }: CreditTermsCardProps)
               key: 'reason',
               label: 'Lý do phê duyệt / cập nhật',
               type: 'textarea',
+              required: true,
               placeholder: 'Nhập lý do thay đổi kỳ hạn công nợ cho nhà bán lẻ...',
             },
           ]}

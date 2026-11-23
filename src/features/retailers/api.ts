@@ -168,19 +168,10 @@ export const retailerApi = {
   eligibility: (retailerId: string) =>
     get<RetailerOrderEligibility>(`/retailers/${encodeURIComponent(retailerId)}/order-eligibility`),
   updateCreditTerms: async (v: ReviewCreditTermsInput): Promise<Retailer> => {
-    try {
-      return await post<Retailer>(`/retailers/${encodeURIComponent(v.retailerId)}/review`, {
-        approve: true,
-        creditTermDays: v.creditTermDays,
-        ...(v.creditLimit !== undefined ? { creditLimit: v.creditLimit } : {}),
-        reason: v.reason ?? null,
-      });
-    } catch {
-      return await put<Retailer>(`/retailers/${encodeURIComponent(v.retailerId)}`, {
-        creditTermDays: v.creditTermDays,
-        ...(v.creditLimit !== undefined ? { creditLimit: v.creditLimit } : {}),
-        reviewReason: v.reason ?? null,
-      });
-    }
+    return put<Retailer>(`/retailers/${encodeURIComponent(v.retailerId)}/credit-terms`, {
+      creditTermDays: v.creditTermDays,
+      creditLimit: v.creditLimit ?? 0,
+      reason: v.reason ?? null,
+    });
   },
 };
