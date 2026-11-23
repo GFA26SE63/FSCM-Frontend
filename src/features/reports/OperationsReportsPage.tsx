@@ -43,6 +43,8 @@ interface Result {
   summary: { label: string; value: number }[];
   notes: string[];
   byProgram?: PromotionProgramSummary[];
+  /** Loyalty only: received / used / net points over the whole filter, not just this page. */
+  pointsTotal?: { received: number; used: number; net: number } | null;
 }
 interface Filters { fromDate: string; toDate: string; retailer: string; program: string; status: string; regionId: string }
 const labels: Record<string, string> = {
@@ -89,6 +91,18 @@ function columns(kind: Kind): Column[] {
     { key: 'transactionId', label: 'Giao dịch điểm liên quan' });
   common.push({ key: 'note', label: 'Ghi chú / lô hàng' });
   return common;
+}
+const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${formatNumber(Math.abs(n))}`;
+/** Loyalty totals row: label in the first column, net change (with received / used) under "Biến động điểm". */
+function loyaltyFooter(tableCols: Column[], total: NonNullable<Result['pointsTotal']>) {
+  return [...tableCols.map((col, i) => {
+    if (i === 0) return 'Tổng (toàn bộ bộ lọc)';
+    if (col.key !== 'points') return null;
+    return <span title={`Nhận +${formatNumber(total.received)} · Dùng −${formatNumber(total.used)}`}>
+      {signed(total.net)}
+      <span className="muted small" style={{ display: 'block', fontWeight: 500 }}>Nhận +{formatNumber(total.received)} · Dùng −{formatNumber(total.used)}</span>
+    </span>;
+  }), null];
 }
 function display(row: Row, col: Column, kind: Kind): string {
   const value = row[col.key];
@@ -156,6 +170,10 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
             const value = row[c.key];
             return c.numeric ? (value == null ? null : Number(value)) : display(row, c, kind);
           })),
+          totals: kind === 'loyalty' && query.data?.pointsTotal
+            ? cols.map((c, i) => i === 0 ? `Tổng · Nhận +${formatNumber(query.data!.pointsTotal!.received)} · Dùng −${formatNumber(query.data!.pointsTotal!.used)}`
+              : c.key === 'points' ? query.data!.pointsTotal!.net : null)
+            : undefined,
         }],
       }];
       if (kind === 'promotions' && query.data?.byProgram?.length) {
@@ -267,7 +285,7 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
         </Card>
       ) : (
         <Card title={title}>
-          <div className="report-table"><SimpleTable rows={data.items} columns={[
+          <div className="report-table"><SimpleTable rows={data.items} footer={kind === 'loyalty' && data.pointsTotal ? loyaltyFooter(tableCols, data.pointsTotal) : undefined} columns={[
             ...tableCols.map(col => ({ header: col.label, align: col.numeric ? 'right' as const : undefined, cell: (row: Row) => display(row, col, kind) })),
             { header: '', align: 'right', cell: row => <div className="report-actions">
               <Button size="sm" onClick={() => setSelected(row)}>Chi tiết</Button>

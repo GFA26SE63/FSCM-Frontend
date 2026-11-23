@@ -35,4 +35,10 @@ export interface CategoryInput {
   name: string;
   description?: string;
   status?: Category['status'];
+  acknowledgeNonFmcgWarning?: boolean;
 }
+
+export interface FmcgCategoryEntry { name: string; description: string }
+export interface FmcgCategoryCatalog { version: number; updatedAt: string | null; document: { categories: FmcgCategoryEntry[] } }
+export interface FmcgCategoryEvaluation { isFmcgRelated: boolean; matchedCategories: string[]; catalogVersion: number }
+export interface FmcgCategoryCatalogVersion { version: number; updatedAt: string; updatedByUserId: string | null; isActive: boolean }

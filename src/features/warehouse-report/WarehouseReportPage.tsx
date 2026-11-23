@@ -20,6 +20,10 @@ import {
   toReportParams,
   warehouseReportSheets,
   warehouseTotals,
+  MAX_WAREHOUSES,
+  keepSelectable,
+  selectableWarehouses,
+  type WarehouseOption,
   type MetricGroup,
   type MetricKey,
   type MetricSort,
@@ -141,7 +145,7 @@ function WarehouseCard({ warehouse, sort, onSort, onSelect }: {
 
 export function WarehouseReportPage() {
   const { user } = useAuth();
-  const [filters, setFilters] = useState<WarehouseReportFilters>(() => ({ ...defaultDashboardDates(), regionId: '', top: DEFAULT_TOP }));
+  const [filters, setFilters] = useState<WarehouseReportFilters>(() => ({ ...defaultDashboardDates(), regionId: '', top: DEFAULT_TOP, warehouseIds: [] }));
   const [selected, setSelected] = useState<{ warehouse: WarehouseReportWarehouse; product: WarehouseReportProductStock } | null>(null);
   const invalid = rangeError(filters.fromDate, filters.toDate);
   const regions = useQuery({
@@ -149,10 +153,22 @@ export function WarehouseReportPage() {
     queryFn: () => getAll<{ id: string; name: string }>('/regions'),
     enabled: !!user,
   });
+  const warehouseList = useQuery({
+    queryKey: ['warehouse-report-warehouses', user?.id],
+    queryFn: () => getAll<WarehouseOption>('/warehouses'),
+    enabled: !!user,
+  });
+  const options = selectableWarehouses(warehouseList.data ?? [], filters.regionId);
+  const picked = filters.warehouseIds ?? [];
+  const togglePicked = (id: string) => setFilters((f) => {
+    const ids = f.warehouseIds ?? [];
+    return { ...f, warehouseIds: ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id].slice(0, MAX_WAREHOUSES) };
+  });
+  // The report loads only for the warehouses the user picked, so one screen never renders every warehouse.
   const report = useQuery({
     queryKey: ['warehouse-logistics-report', user?.id, filters],
     queryFn: () => loadReport(filters),
-    enabled: !invalid && !!user,
+    enabled: !invalid && !!user && picked.length > 0,
   });
   // One sort for every warehouse table so warehouses stay comparable; the Excel file uses it too.
   const [sort, setSort] = useState<MetricSort>(null);
@@ -193,7 +209,18 @@ export function WarehouseReportPage() {
         <label className="lbl">Đến ngày<DateInput required min={filters.fromDate} value={filters.toDate} onChange={(toDate) => setFilters((f) => ({ ...f, toDate }))} /></label>
         <label className="lbl">
           Khu vực
-          <select className="inp" value={filters.regionId} onChange={(e) => setFilters((f) => ({ ...f, regionId: e.target.value }))}>
+          <select
+            className="inp"
+            value={filters.regionId}
+            onChange={(e) => {
+              const regionId = e.target.value;
+              setFilters((f) => ({
+                ...f,
+                regionId,
+                warehouseIds: keepSelectable(f.warehouseIds ?? [], selectableWarehouses(warehouseList.data ?? [], regionId)),
+              }));
+            }}
+          >
             <option value="">Tất cả khu vực</option>
             {regions.data?.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
@@ -204,8 +231,42 @@ export function WarehouseReportPage() {
             {TOP_OPTIONS.map((n) => <option key={n} value={n}>Top {n}</option>)}
           </select>
         </label>
-        <Button onClick={() => void report.refetch()} loading={report.isFetching} disabled={!!invalid}>Làm mới</Button>
+        <Button onClick={() => void report.refetch()} loading={report.isFetching} disabled={!!invalid || picked.length === 0}>Làm mới</Button>
       </div>
+      <Card
+        title={`Chọn kho hiển thị · đã chọn ${formatNumber(picked.length)} / ${formatNumber(options.length)}`}
+        actions={
+          <div className="wr-chips">
+            <Button size="sm" disabled={options.length === 0} onClick={() => setFilters((f) => ({ ...f, warehouseIds: options.slice(0, MAX_WAREHOUSES).map((w) => w.id) }))}>
+              {options.length > MAX_WAREHOUSES ? `Chọn ${MAX_WAREHOUSES} kho đầu` : 'Chọn tất cả'}
+            </Button>
+            <Button size="sm" disabled={picked.length === 0} onClick={() => setFilters((f) => ({ ...f, warehouseIds: [] }))}>Bỏ chọn</Button>
+          </div>
+        }
+      >
+        <QueryState query={warehouseList}>
+          {() => options.length === 0 ? (
+            <p className="muted" style={{ margin: 0 }}>Không có kho đang hoạt động trong khu vực đã chọn.</p>
+          ) : (
+            <div className="wr-picker" role="group" aria-label="Chọn kho hiển thị">
+              {options.map((w) => {
+                const on = picked.includes(w.id);
+                return (
+                  <label key={w.id} className={`wr-pick${on ? ' on' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      disabled={!on && picked.length >= MAX_WAREHOUSES}
+                      onChange={() => togglePicked(w.id)}
+                    />
+                    <span><b>{w.code}</b> · {w.name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </QueryState>
+      </Card>
       {regions.isError && (
         <Callout tone="danger">
           Không tải được danh sách khu vực.{'\n'}{errorMessage(regions.error)} <Button size="sm" onClick={() => void regions.refetch()}>Thử lại</Button>
@@ -213,6 +274,8 @@ export function WarehouseReportPage() {
       )}
       {invalid ? (
         <Callout tone="danger">{invalid}</Callout>
+      ) : picked.length === 0 ? (
+        <EmptyState title="Chọn ít nhất một kho để xem báo cáo." description="Đánh dấu các kho cần xem ở khung “Chọn kho hiển thị” phía trên." />
       ) : (
         <QueryState query={report}>
           {(data) => {

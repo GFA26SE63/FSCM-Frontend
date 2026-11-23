@@ -42,6 +42,15 @@ export const shipmentsApi = {
   list: (orderId: string) => fetchShipmentsForOrder(orderId),
   drivers: () => getAll<DeliveryDriver>('/deliveries/drivers', { includeInactive: false }),
   vehicles: () => getAll<DeliveryVehicle>('/deliveries/vehicles', { includeInactive: false }),
+  busyAssignments: async () => {
+    const data = await graphql<{ entities: { shipments: { nodes: Array<{ id: string; status: string; driverId: string | null; vehicleId: string | null }> }; warehouseTransfers: { nodes: Array<{ status: string; driverId: string | null; vehicleId: string | null }> } } }>(`
+      query BusyTransportAssignments { entities { shipments(first: 500) { nodes { id status driverId vehicleId } } warehouseTransfers(first: 500) { nodes { status driverId vehicleId } } } }
+    `);
+    const busyDriverIds = new Set<string>(), busyVehicleIds = new Set<string>();
+    for (const item of data.entities.shipments.nodes) if (['Ready', 'Issued', 'Delivering'].includes(item.status)) { if (item.driverId) busyDriverIds.add(item.driverId); if (item.vehicleId) busyVehicleIds.add(item.vehicleId); }
+    for (const item of data.entities.warehouseTransfers.nodes) if (item.status === 'InTransit') { if (item.driverId) busyDriverIds.add(item.driverId); if (item.vehicleId) busyVehicleIds.add(item.vehicleId); }
+    return { busyDriverIds, busyVehicleIds };
+  },
   issue: (shipment: Shipment) =>
     post<Shipment>(`/shipments/${shipment.id}/issue`, { expectedVersion: shipment.version }),
   assign: (input: { shipment: Shipment; driverId: string; vehicleId: string }) =>

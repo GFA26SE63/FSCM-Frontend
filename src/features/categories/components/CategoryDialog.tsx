@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { useCreateCategory, useUpdateCategory, useCategories } from '../hooks';
 import type { Category } from '../types';
+import { categoryApi } from '../api';
 import {
   findCategory,
   getCategoryDepth,
@@ -48,11 +49,13 @@ export function CategoryDialog({
   const [parentId, setParentId] = useState<string>('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [nonFmcgWarning, setNonFmcgWarning] = useState(false);
 
   // Sync state when dialog opens or inputs change
   useEffect(() => {
     if (open) {
       setStep('form');
+      setNonFmcgWarning(false);
       if (category) {
         setName(category.name || '');
         setCode(category.code || '');
@@ -246,6 +249,11 @@ export function CategoryDialog({
     e.preventDefault();
     if (!validateForm()) return;
 
+    try {
+      const evaluation = await categoryApi.evaluateFmcgCategory(name.trim(), description.trim());
+      if (!evaluation.isFmcgRelated) { setNonFmcgWarning(true); setStep('confirm'); return; }
+    } catch (err) { setError(err instanceof Error ? err.message : 'Không kiểm tra được danh mục FMCG.'); return; }
+
     if (!isEdit) {
       // Step: Open warning/confirmation popup as shown in Prototype HTML
       setStep('confirm');
@@ -296,12 +304,17 @@ export function CategoryDialog({
     }
 
     try {
+      if (isEdit && category) {
+        const updated = await updateMutation.mutateAsync({ id: category.id, code: category.code, parentCategoryId: resolvedParentId, name: trimmedName, description: description.trim() || undefined, status: category.status, acknowledgeNonFmcgWarning: nonFmcgWarning });
+        onSuccess?.(updated); onClose(); return;
+      }
       const created = await createMutation.mutateAsync({
         parentCategoryId: resolvedParentId,
         code: finalCode,
         name: trimmedName,
         description: description.trim() || undefined,
         status: 'Active',
+        acknowledgeNonFmcgWarning: nonFmcgWarning,
       });
       onSuccess?.(created);
       onClose();
@@ -545,7 +558,7 @@ export function CategoryDialog({
                 color: '#B42318',
               }}
             >
-              Bạn đang tạo một nhóm danh mục cấp cao mới dùng chung cho toàn bộ hệ thống FSCM. Vui lòng đảm bảo danh mục phù hợp với phạm vi FMCG ngắn hạn và không trùng với các nhóm hiện có.
+              {nonFmcgWarning ? 'Cảnh báo: tên và mô tả không khớp danh mục FMCG chuẩn đang kích hoạt. Bạn vẫn có thể xác nhận để lưu danh mục này.' : 'Bạn đang tạo một nhóm danh mục cấp cao mới dùng chung cho toàn bộ hệ thống FSCM. Vui lòng đảm bảo danh mục phù hợp với phạm vi FMCG ngắn hạn và không trùng với các nhóm hiện có.'}
             </div>
 
             <div
@@ -614,7 +627,7 @@ export function CategoryDialog({
           /* Distinct Child Category Confirmation Popup */
           <>
             <div style={{ fontWeight: 700, fontSize: 18, color: '#1B1F1D' }}>
-              Xác nhận tạo danh mục con
+              {isEdit ? 'Xác nhận lưu danh mục ngoài chuẩn FMCG' : 'Xác nhận tạo danh mục con'}
             </div>
 
             <div
@@ -628,7 +641,7 @@ export function CategoryDialog({
                 color: '#026AA2',
               }}
             >
-              Vui lòng kiểm tra danh mục mới có phù hợp với nhóm cha đã chọn trước khi xác nhận.
+              {nonFmcgWarning ? 'Cảnh báo: tên và mô tả không khớp danh mục FMCG chuẩn đang kích hoạt. Bạn vẫn có thể xác nhận để lưu danh mục này.' : 'Vui lòng kiểm tra danh mục mới có phù hợp với nhóm cha đã chọn trước khi xác nhận.'}
             </div>
 
             <div
@@ -693,7 +706,7 @@ export function CategoryDialog({
                   setError(null);
                 }}
               >
-                Chọn lại danh mục cha
+                {isEdit ? 'Quay lại chỉnh sửa' : 'Chọn lại danh mục cha'}
               </button>
               <button
                 type="button"
@@ -701,7 +714,7 @@ export function CategoryDialog({
                 disabled={isSubmitting}
                 onClick={handleExecuteCreate}
               >
-                {isSubmitting ? 'Đang tạo…' : 'Xác nhận tạo'}
+                {isSubmitting ? 'Đang lưu…' : isEdit ? 'Xác nhận lưu' : 'Xác nhận tạo'}
               </button>
             </div>
           </>
