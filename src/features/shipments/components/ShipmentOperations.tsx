@@ -35,6 +35,7 @@ export function ShipmentOperations({ orderId, sort }: { orderId: string; sort: S
     queryFn: shipmentsApi.vehicles,
     enabled: mayDispatch,
   });
+  const busyAssignments = useQuery({ queryKey: ['shipments', 'busy-assignments'], queryFn: shipmentsApi.busyAssignments, enabled: mayDispatch });
 
   if (shipments.isPending) return <p className="muted small">Đang tải thao tác vận hành…</p>;
   if (shipments.isError) return <Callout tone="danger">Không tải được phiếu giao hàng của đơn.\n{errorMessage(shipments.error)}</Callout>;
@@ -53,6 +54,8 @@ export function ShipmentOperations({ orderId, sort }: { orderId: string; sort: S
           mayDispatch={mayDispatch}
           drivers={drivers.data ?? []}
           vehicles={vehicles.data ?? []}
+          busyDriverIds={busyAssignments.data?.busyDriverIds ?? new Set<string>()}
+          busyVehicleIds={busyAssignments.data?.busyVehicleIds ?? new Set<string>()}
           assignmentLoaded={drivers.isSuccess && vehicles.isSuccess}
         />
       ))}
@@ -66,15 +69,19 @@ export function ShipmentActionRow({
   drivers,
   vehicles,
   assignmentLoaded = true,
+  busyDriverIds = new Set<string>(),
+  busyVehicleIds = new Set<string>(),
 }: {
   shipment: Shipment;
   mayDispatch: boolean;
   drivers: DeliveryDriver[];
   vehicles: DeliveryVehicle[];
   assignmentLoaded?: boolean;
+  busyDriverIds?: Set<string>;
+  busyVehicleIds?: Set<string>;
 }) {
-  const warehouseDrivers = drivers.filter((item) => item.isActive && item.warehouseId === shipment.warehouseId);
-  const warehouseVehicles = vehicles.filter((item) => item.isActive && item.warehouseId === shipment.warehouseId && item.capacity >= shipment.totalQuantity);
+  const warehouseDrivers = drivers.filter((item) => item.isActive && item.warehouseId === shipment.warehouseId && !busyDriverIds.has(item.id));
+  const warehouseVehicles = vehicles.filter((item) => item.isActive && item.warehouseId === shipment.warehouseId && item.capacity >= shipment.totalQuantity && !busyVehicleIds.has(item.id));
   const [driverId, setDriverId] = useState(warehouseDrivers[0]?.id ?? '');
   const [vehicleId, setVehicleId] = useState(warehouseVehicles[0]?.id ?? '');
   const [resolutionReason, setResolutionReason] = useState('');
