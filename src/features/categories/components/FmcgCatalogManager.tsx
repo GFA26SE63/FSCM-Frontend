@@ -46,10 +46,16 @@ export function FmcgCatalogManager() {
   const activeVersion = history.find((version) => version.isActive)?.version;
 
   return <>
-    <Card title="Danh mục FMCG chuẩn" actions={<Button variant="primary" size="sm" onClick={() => setOpen(true)}>Upload file</Button>}>
-      <div className="muted" style={{ fontSize: 13 }}>
-        Cập nhật bộ danh mục chuẩn dùng để kiểm tra tính phù hợp của danh mục sản phẩm.
-        {history.length > 0 && ` ${history.length} phiên bản · đang dùng v${activeVersion ?? '—'}.`}
+    <Card>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center', gap: 20, minHeight: 46 }}>
+        <div>
+          <div className="sec" style={{ marginBottom: 8 }}>Danh mục FMCG chuẩn</div>
+          <div className="muted" style={{ fontSize: 13 }}>
+            Cập nhật bộ danh mục chuẩn dùng để kiểm tra tính phù hợp của danh mục sản phẩm.
+            {history.length > 0 && ` ${history.length} phiên bản · đang dùng v${activeVersion ?? '—'}.`}
+          </div>
+        </div>
+        <Button variant="primary" size="sm" onClick={() => setOpen(true)}>Upload file</Button>
       </div>
     </Card>
 
