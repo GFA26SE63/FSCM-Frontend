@@ -1,5 +1,19 @@
-import { del, get, patch, post, put } from '@/shared/api/http';
-import type { Category, CategoryDetail, CategoryInput, CategoryProduct, FmcgCategoryCatalog, FmcgCategoryCatalogVersion, FmcgCategoryEvaluation } from './types';
+import { del, get, patch, post, put } from "@/shared/api/http";
+import type {
+  Category,
+  CategoryDetail,
+  CategoryInput,
+  CategoryProduct,
+  FmcgCategoryCatalog,
+  FmcgCategoryCatalogVersion,
+  FmcgCategoryEvaluation,
+} from "./types";
+import {
+  fetchCategoriesGraphql,
+  fetchCurrentProductPricesGraphql,
+  fetchProductsByCategoryIdsGraphql,
+  type GraphProduct,
+} from "./categoriesGraphql";
 
 interface BackendCategory {
   id: string;
@@ -8,17 +22,13 @@ interface BackendCategory {
   name: string;
   description?: string | null;
   isActive?: boolean;
-  status?: 'Active' | 'Inactive';
+  status?: "Active" | "Inactive";
   productCount?: number;
   createdAt?: string;
   updatedAt?: string;
   defaultMlorRatio?: number | null;
   defaultMlorVersion?: number;
   defaultMlorUpdatedAt?: string | null;
-}
-
-interface BackendCategoryDetail extends BackendCategory {
-  products?: BackendProduct[];
 }
 
 interface BackendProduct {
@@ -37,15 +47,15 @@ interface BackendProduct {
 }
 
 const mapCategory = (raw: BackendCategory): Category => {
-  const active = raw.isActive ?? (raw.status !== 'Inactive');
+  const active = raw.isActive ?? raw.status !== "Inactive";
   return {
     id: raw.id,
     parentCategoryId: raw.parentCategoryId ?? null,
     code: raw.code,
     name: raw.name,
-    description: raw.description ?? '',
+    description: raw.description ?? "",
     isActive: active,
-    status: active ? 'Active' : 'Inactive',
+    status: active ? "Active" : "Inactive",
     productCount: raw.productCount ?? 0,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
@@ -59,46 +69,22 @@ const mapProduct = (p: BackendProduct): CategoryProduct => ({
   id: p.id,
   sku: p.sku,
   name: p.name,
-  packSpec: p.packSpec || p.unit || '—',
+  packSpec: p.packSpec || p.unit || "—",
   basePrice: p.currentUnitPrice ?? p.basePrice ?? 0,
-  status: p.status ?? 'Draft',
+  status: p.status ?? "Draft",
 });
 
 const isGuid = (val: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
-async function fetchAllProductsForCount(): Promise<BackendProduct[]> {
-  try {
-    const res = await get<{ items?: BackendProduct[]; totalCount?: number; pageSize?: number } | BackendProduct[]>(
-      '/products',
-      { page: 1, pageSize: 100 }
-    );
-    if (!res) return [];
-    if (Array.isArray(res)) return res;
-    const items = res.items ? [...res.items] : [];
-    const totalCount = res.totalCount ?? items.length;
-    const pageSize = res.pageSize ?? 100;
-    const totalPages = Math.ceil(totalCount / pageSize);
-
-    if (totalPages > 1) {
-      const pagePromises = [];
-      for (let p = 2; p <= totalPages; p++) {
-        pagePromises.push(
-          get<{ items?: BackendProduct[] }>('/products', { page: p, pageSize: 100 })
-            .then((r) => r?.items ?? [])
-            .catch(() => [])
-        );
-      }
-      const rest = await Promise.all(pagePromises);
-      for (const pageItems of rest) {
-        items.push(...pageItems);
-      }
-    }
-    return items;
-  } catch {
-    return [];
-  }
-}
+const mapGraphProduct = (product: GraphProduct): BackendProduct => ({
+  id: product.id,
+  productCategoryId: product.productCategoryId,
+  sku: product.sku,
+  name: product.name,
+  unit: product.unit,
+  status: product.status,
+});
 
 export const categoryApi = {
   /**
@@ -106,12 +92,15 @@ export const categoryApi = {
    * Read: all authenticated users
    */
   list: async (includeInactive = true): Promise<Category[]> => {
-    const [catRes, allProducts] = await Promise.all([
-      get<BackendCategory[]>('/categories', { includeInactive }),
-      fetchAllProductsForCount(),
-    ]);
-
-    const list = Array.isArray(catRes) ? catRes : (((catRes as unknown) as { items?: BackendCategory[] })?.items ?? []);
+    const list = (await fetchCategoriesGraphql()) as BackendCategory[];
+    const allProducts = (
+      await fetchProductsByCategoryIdsGraphql(
+        list.map((category) => category.id),
+      )
+    ).map(mapGraphProduct);
+    const visible = includeInactive
+      ? list
+      : list.filter((category) => category.isActive !== false);
 
     // Build product count index by category id, code, and name
     const countById: Record<string, number> = {};
@@ -134,7 +123,7 @@ export const categoryApi = {
       }
     }
 
-    const categories = list.map(mapCategory);
+    const categories = visible.map(mapCategory);
 
     // Assign direct product count first
     for (const cat of categories) {
@@ -142,9 +131,15 @@ export const categoryApi = {
       const codeKey = cat.code?.toLowerCase();
       const nameKey = cat.name?.toLowerCase().trim();
       const directCount =
-        (idKey && countById[idKey] !== undefined ? countById[idKey] : undefined) ??
-        (codeKey && countByCode[codeKey] !== undefined ? countByCode[codeKey] : undefined) ??
-        (nameKey && countByName[nameKey] !== undefined ? countByName[nameKey] : undefined) ??
+        (idKey && countById[idKey] !== undefined
+          ? countById[idKey]
+          : undefined) ??
+        (codeKey && countByCode[codeKey] !== undefined
+          ? countByCode[codeKey]
+          : undefined) ??
+        (nameKey && countByName[nameKey] !== undefined
+          ? countByName[nameKey]
+          : undefined) ??
         cat.productCount ??
         0;
       cat.productCount = directCount;
@@ -155,7 +150,9 @@ export const categoryApi = {
       let total = cat.productCount ?? 0;
       if (cat.id) {
         const children = categories.filter(
-          (c) => c.parentCategoryId && c.parentCategoryId.toLowerCase() === cat.id!.toLowerCase()
+          (c) =>
+            c.parentCategoryId &&
+            c.parentCategoryId.toLowerCase() === cat.id!.toLowerCase(),
         );
         for (const ch of children) {
           total += getBranchCount(ch);
@@ -174,90 +171,43 @@ export const categoryApi = {
    * GET /api/v1/categories/{categoryId} and products in category
    */
   get: async (idOrCode: string): Promise<CategoryDetail> => {
-    let category: Category | undefined;
-    let categoryId = idOrCode;
-
-    if (!isGuid(idOrCode)) {
-      const all = await categoryApi.list(true);
-      const found = all.find((c) => c.code.toLowerCase() === idOrCode.toLowerCase());
-      if (found) {
-        category = found;
-        categoryId = found.id ?? idOrCode;
-      }
-    }
-
-    let rawDetail: BackendCategoryDetail;
-    try {
-      rawDetail = await get<BackendCategoryDetail>(`/categories/${categoryId}`);
-    } catch (e) {
-      if (idOrCode !== categoryId) {
-        rawDetail = await get<BackendCategoryDetail>(`/categories/${idOrCode}`);
-      } else {
-        throw e;
-      }
-    }
-
-    const baseCat = category ? { ...category, ...mapCategory(rawDetail) } : mapCategory(rawDetail);
-
-    if (Array.isArray(rawDetail.products)) {
-      const mapped = rawDetail.products.map(mapProduct);
-      return {
-        ...baseCat,
-        productCount: mapped.length,
-        products: mapped,
-      };
-    }
-
-    const targetGuid = [rawDetail?.id, baseCat.id, categoryId, idOrCode].find((v) => v && isGuid(v));
-
-    try {
-      let prods: BackendProduct[] = [];
-      if (targetGuid) {
-        try {
-          const prodRes = await get<{ items?: BackendProduct[] } | BackendProduct[]>('/products', {
-            categoryId: targetGuid,
-            pageSize: 100,
-          });
-          prods = Array.isArray(prodRes) ? prodRes : (prodRes?.items ?? []);
-        } catch {
-          // If query with categoryId fails, fallback will handle it
+    const categories = (await fetchCategoriesGraphql()).map(mapCategory);
+    const baseCat = categories.find(
+      (category) =>
+        category.id?.toLowerCase() === idOrCode.toLowerCase() ||
+        category.code.toLowerCase() === idOrCode.toLowerCase(),
+    );
+    if (!baseCat) throw new Error("Không tìm thấy danh mục.");
+    const branchIds = new Set<string>([baseCat.id!.toLowerCase()]);
+    let foundChild = true;
+    while (foundChild) {
+      foundChild = false;
+      for (const category of categories) {
+        if (
+          category.parentCategoryId &&
+          branchIds.has(category.parentCategoryId.toLowerCase()) &&
+          category.id &&
+          !branchIds.has(category.id.toLowerCase())
+        ) {
+          branchIds.add(category.id.toLowerCase());
+          foundChild = true;
         }
       }
-
-      // If backend filtered products by categoryId didn't return any, fallback to all products matching category
-      if (prods.length === 0) {
-        const allProds = await fetchAllProductsForCount();
-        const catCode = (rawDetail?.code || baseCat.code || '').toLowerCase();
-        const catName = (rawDetail?.name || baseCat.name || '').toLowerCase().trim();
-        const catGuid = (targetGuid || '').toLowerCase();
-        const matched = allProds.filter((p) => {
-          const pCatId = (p.productCategoryId || p.categoryId || '').toLowerCase();
-          const pCode = (p.categoryCode || '').toLowerCase();
-          const pName = (p.categoryName || '').toLowerCase().trim();
-          return (
-            (catGuid && pCatId === catGuid) ||
-            (catCode && pCode === catCode) ||
-            (catName && pName === catName)
-          );
-        });
-        if (matched.length > 0) {
-          prods = matched;
-        }
-      }
-
-      const mappedProds = prods.map(mapProduct);
-      return {
-        ...baseCat,
-        productCount: mappedProds.length,
-        products: mappedProds,
-      };
-    } catch {
-      return {
-        ...baseCat,
-        productCount: baseCat.productCount ?? 0,
-        products: [],
-      };
     }
+    const branchProducts = await fetchProductsByCategoryIdsGraphql([
+      ...branchIds,
+    ]);
+    const prices = await fetchCurrentProductPricesGraphql(
+      branchProducts.map((product) => product.id),
+    );
+    const products = branchProducts
+      .map(mapGraphProduct)
+      .map((product) => ({
+        ...product,
+        currentUnitPrice: prices.get(product.id),
+      }))
+      .map(mapProduct);
+    return { ...baseCat, productCount: products.length, products };
   },
 
   /**
@@ -272,7 +222,7 @@ export const categoryApi = {
         const m = c.code.match(/^CAT-(\d+)$/i);
         return m ? Math.max(max, parseInt(m[1], 10)) : max;
       }, 0);
-      code = `CAT-${String(maxNum + 1).padStart(2, '0')}`;
+      code = `CAT-${String(maxNum + 1).padStart(2, "0")}`;
     }
 
     const payload = {
@@ -283,13 +233,13 @@ export const categoryApi = {
       acknowledgeNonFmcgWarning: v.acknowledgeNonFmcgWarning ?? false,
     };
 
-    const res = await post<BackendCategory>('/categories', payload);
+    const res = await post<BackendCategory>("/categories", payload);
     const created = mapCategory(res);
 
-    if (v.status === 'Inactive' && created.id) {
+    if (v.status === "Inactive" && created.id) {
       try {
         await categoryApi.updateStatus(created.id, false);
-        created.status = 'Inactive';
+        created.status = "Inactive";
         created.isActive = false;
       } catch {
         // Continue even if status toggle failed
@@ -303,11 +253,15 @@ export const categoryApi = {
    * PUT /api/v1/categories/{categoryId}
    * Write: Admin
    */
-  update: async (v: CategoryInput & { code?: string; id?: string }): Promise<Category> => {
+  update: async (
+    v: CategoryInput & { code?: string; id?: string },
+  ): Promise<Category> => {
     let id = v.id;
     if (!id && v.code) {
       const all = await categoryApi.list(true);
-      const found = all.find((c) => c.code.toLowerCase() === v.code!.toLowerCase());
+      const found = all.find(
+        (c) => c.code.toLowerCase() === v.code!.toLowerCase(),
+      );
       id = found?.id;
     }
     const target = id || v.code!;
@@ -323,7 +277,7 @@ export const categoryApi = {
     const updated = mapCategory(res);
 
     if (v.status && id) {
-      const shouldBeActive = v.status === 'Active';
+      const shouldBeActive = v.status === "Active";
       if (updated.isActive !== shouldBeActive) {
         try {
           await categoryApi.updateStatus(id, shouldBeActive);
@@ -338,10 +292,17 @@ export const categoryApi = {
     return updated;
   },
 
-  getFmcgCatalog: () => get<FmcgCategoryCatalog>('/fmcg-category-catalog'),
-  getFmcgCatalogHistory: () => get<FmcgCategoryCatalogVersion[]>('/fmcg-category-catalog/history'),
-  saveFmcgCatalog: (document: { categories: Array<{ name: string; description: string }> }) => put<FmcgCategoryCatalogVersion>('/fmcg-category-catalog', document),
-  evaluateFmcgCategory: (name: string, description?: string) => post<FmcgCategoryEvaluation>('/fmcg-category-catalog/evaluate', { name, description: description || null }),
+  getFmcgCatalog: () => get<FmcgCategoryCatalog>("/fmcg-category-catalog"),
+  getFmcgCatalogHistory: () =>
+    get<FmcgCategoryCatalogVersion[]>("/fmcg-category-catalog/history"),
+  saveFmcgCatalog: (document: {
+    categories: Array<{ name: string; description: string }>;
+  }) => put<FmcgCategoryCatalogVersion>("/fmcg-category-catalog", document),
+  evaluateFmcgCategory: (name: string, description?: string) =>
+    post<FmcgCategoryEvaluation>("/fmcg-category-catalog/evaluate", {
+      name,
+      description: description || null,
+    }),
 
   /**
    * PATCH /api/v1/categories/{categoryId}/status
@@ -352,29 +313,48 @@ export const categoryApi = {
     let id = idOrCode;
     if (!isGuid(idOrCode)) {
       const all = await categoryApi.list(true);
-      const found = all.find((c) => c.code.toLowerCase() === idOrCode.toLowerCase());
+      const found = all.find(
+        (c) => c.code.toLowerCase() === idOrCode.toLowerCase(),
+      );
       if (found?.id) id = found.id;
     }
     await patch(`/categories/${id}/status`, { isActive });
-  },
+  },
 
   /**
    * DELETE /api/v1/categories/{categoryId}
    */
-  delete: async (idOrCode: string): Promise<{ categoryId: string; deleted: boolean; inactivated: boolean }> => {
+  delete: async (
+    idOrCode: string,
+  ): Promise<{
+    categoryId: string;
+    deleted: boolean;
+    inactivated: boolean;
+  }> => {
     let id = idOrCode;
     if (!isGuid(idOrCode)) {
       const all = await categoryApi.list(true);
-      const found = all.find((c) => c.code.toLowerCase() === idOrCode.toLowerCase());
+      const found = all.find(
+        (c) => c.code.toLowerCase() === idOrCode.toLowerCase(),
+      );
       if (found?.id) id = found.id;
     }
-    return del<{ categoryId: string; deleted: boolean; inactivated: boolean }>(`/categories/${id}`);
+    return del<{ categoryId: string; deleted: boolean; inactivated: boolean }>(
+      `/categories/${id}`,
+    );
   },
   /**
    * PUT /api/v1/categories/{categoryId}/default-mlor
    * Body: { minimumLifeRatio: number | null } (null clears the category default)
    * Write: Admin
    */
-  setDefaultMlor: async (id: string, minimumLifeRatio: number | null): Promise<Category> =>
-    mapCategory(await put<BackendCategory>(`/categories/${id}/default-mlor`, { minimumLifeRatio })),
+  setDefaultMlor: async (
+    id: string,
+    minimumLifeRatio: number | null,
+  ): Promise<Category> =>
+    mapCategory(
+      await put<BackendCategory>(`/categories/${id}/default-mlor`, {
+        minimumLifeRatio,
+      }),
+    ),
 };

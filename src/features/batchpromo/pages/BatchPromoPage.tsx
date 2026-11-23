@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useEnumParam } from '@/shared/router/listState';
 import { Button, Card, PageHeader, SimpleTable, Tabs } from '@/shared/ui';
 import { formatInstantDate, formatNumber } from '@/shared/lib';
+import { downloadExcel } from '@/shared/lib/excel';
 import { useShelfLifeCurrent, useShelfLifeHistory } from '../hooks';
 import type { ShelfLifeTable, ShelfLifeTier } from '../types';
 
@@ -14,10 +15,26 @@ export function BatchPromoPage() {
 
   const [tab, setTab] = useEnumParam('tab', ['current', 'history'] as const, 'current');
   const [edit, setEdit] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const table = current.data;
+  const exportExcel = async () => {
+    const tables = tab === 'current' ? (table ? [table] : []) : (history.data ?? []);
+    if (!tables.length) return;
+    setExporting(true);
+    try {
+      await downloadExcel(`bang-giam-gia-theo-hsd-${tab}.xlsx`, tables.map((version) => ({
+        name: `Phiên bản ${version.version}`,
+        title: `Bảng giảm theo HSD · phiên bản ${version.version} · hiệu lực ${formatInstantDate(version.effectiveFrom)}`,
+        blocks: [{
+          columns: ['Phạm vi', 'HSD còn lại', 'Kiểu giảm', 'Mức giảm'].map((header) => ({ header })),
+          rows: version.tiers.map((tier) => [tier.scope === 'Sku' ? `SKU: ${tier.productId ?? '—'}` : `Danh mục: ${tier.productCategoryId ?? '—'}`, `${tier.minRemainingPercent}% – < ${tier.maxRemainingPercent}%`, tier.discountType === 'Percent' ? 'Phần trăm' : 'Tiền / đơn vị', tier.discountValue]),
+        }],
+      })));
+    } finally { setExporting(false); }
+  };
   return (
     <>
-      <PageHeader title="Giảm giá theo HSD" subtitle="Bảng giảm theo khoảng % HSD còn lại, áp dụng theo SKU hoặc danh mục sau khi lô hàng đã được chọn." actions={<Button variant="primary" onClick={() => setEdit(true)}>Công bố phiên bản mới</Button>} />
+      <PageHeader title="Giảm giá theo HSD" subtitle="Bảng giảm theo khoảng % HSD còn lại, áp dụng theo SKU hoặc danh mục sau khi lô hàng đã được chọn." actions={<div className="row-wrap" style={{ gap: 8 }}><Button loading={exporting} disabled={tab === 'current' ? !table : !(history.data?.length)} onClick={() => void exportExcel()}>Xuất Excel</Button><Button variant="primary" onClick={() => setEdit(true)}>Công bố phiên bản mới</Button></div>} />
       <Tabs value={tab} onChange={setTab} items={[{ key: 'current', label: 'Phiên bản mới nhất', count: table?.tiers.length }, { key: 'history', label: 'Lịch sử phiên bản', count: history.data?.length }]} />
       {tab === 'current' ? <TableCard table={table} loading={current.isLoading} /> : <History tables={history.data ?? []} loading={history.isLoading} />}
       {edit && <ShelfLifeDialog initial={table?.tiers ?? []} currentFrom={table?.effectiveFrom} onClose={() => setEdit(false)} />}

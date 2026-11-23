@@ -8,7 +8,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { get, http } from '@/shared/api/http';
 import { errorMessage } from '@/shared/api/errors';
-import { Card, PageHeader, QueryState, SimpleTable } from '@/shared/ui';
+import { Button, Card, PageHeader, QueryState, SimpleTable } from '@/shared/ui';
+import { downloadExcel } from '@/shared/lib/excel';
 import { receiptApi } from '@/features/receipts/api';
 import { pickingApi } from '@/features/runpicking/api';
 import type { BatchInventoryItem } from '@/features/batches/types';
@@ -190,6 +191,7 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [exporting, setExporting] = useState(false);
   const [search, setSearch] = useStringParam('q');
   const [statusFilter, setStatusFilter] = useStringParam('status');
   const [warehouseFilter, setWarehouseFilter] = useStringParam('warehouse');
@@ -264,6 +266,21 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
   });
   const inProgressReceipts = visibleRows.filter(w => w.document.kind === 'Receipt' && w.document.status !== 'Posted');
   const filterStatuses = getWorkflowStatuses(workflow);
+  const exportDocuments = async () => {
+    const rows = isOutbound && activeTab === 'todo' ? pendingOutboundRows : visibleRows;
+    if (!rows.length) return;
+    setExporting(true);
+    try {
+      await downloadExcel(`chung-tu-kho-${workflow}-${activeTab}-${operationReason.toLowerCase()}.xlsx`, [{
+        name: 'Chứng từ kho',
+        title: `${screen.title} · ${activeTab === 'history' ? 'Lịch sử' : 'Đang xử lý'}`,
+        blocks: [{
+          columns: ['Mã chứng từ', 'Loại chứng từ', 'Kho / tuyến', 'Đơn hàng', 'Số thùng', 'Trạng thái', 'Tạo lúc'].map((header) => ({ header })),
+          rows: rows.map((work) => [work.document.code, documentTypeLabel(work.document.kind, work.document.reason), `${whName(work.document.warehouseId)}${work.document.destinationWarehouseId && work.document.destinationWarehouseId !== work.document.warehouseId ? ` → ${whName(work.document.destinationWarehouseId)}` : ''}`, [...new Set(work.lines.map((line) => line.orderCode).filter(Boolean))].join(', ') || '—', work.lines.reduce((total, line) => total + line.quantity, 0), filterStatuses[work.document.status] ?? statuses[work.document.status] ?? work.document.status, formatInstantDateTime(work.document.createdAt)]),
+        }],
+      }]);
+    } finally { setExporting(false); }
+  };
   const selectable = (pickings.data ?? []).filter(p => p.status === 'Pending' && !docs.data?.some(d => d.document.kind === 'Request' && d.document.status !== 'Cancelled' && d.lines.some(l => l.orderCode === p.orderCode) && d.document.warehouseId === wh));
   async function act(path: string, payload?: unknown, idempotent = false, sourcePallet?: string) {
     if (inFlight.current) return;
@@ -310,7 +327,7 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
   return <>
     <PageHeader title={selected ? `Chi tiết ${screen.title.toLocaleLowerCase('vi')}` : creating ? screen.create : screen.title} subtitle={screen.description}
       back={selected || creating ? screen.path + (d?.reason === 'Transfer' && workflow !== 'transfer' ? '?source=Transfer' : '') : undefined}
-      actions={!selected && !creating && canCreate ? <Link className="btn btn-primary" to={`${screen.path}/new`}>{screen.create}</Link> : undefined} />
+      actions={!selected && !creating ? <div className="row-wrap" style={{ gap: 8 }}><Button loading={exporting} disabled={docs.isLoading || (isOutbound && activeTab === 'todo' ? pendingOutboundRows.length === 0 : visibleRows.length === 0)} onClick={() => void exportDocuments()}>Xuất Excel</Button>{canCreate && <Link className="btn btn-primary" to={`${screen.path}/new`}>{screen.create}</Link>}</div> : undefined} />
     {!selected && !creating && (isInbound || isOutbound) && <div className="warehouse-main-tabs" role="tablist" style={{ display: 'flex', gap: 8, marginBottom: 16, borderBottom: '2px solid var(--border, #e2e8f0)', paddingBottom: 12 }}>
       {isInbound ? <>
         <button type="button" role="tab" aria-selected={activeTab === 'todo'} className={`btn ${activeTab === 'todo' ? 'btn-primary' : ''}`} onClick={() => { setTab(''); setStatusFilter(''); }} style={{ fontWeight: 600, padding: '8px 18px', fontSize: 14 }}>📥 Cần tiếp nhận & Kiểm đếm</button>

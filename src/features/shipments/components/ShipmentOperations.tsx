@@ -43,9 +43,9 @@ export function ShipmentOperations({ orderId, sort }: { orderId: string; sort: S
 
   return (
     <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
-      {mayDispatch && (drivers.isPending || vehicles.isPending) && <p className="muted small">Đang tải tài xế và xe…</p>}
-      {mayDispatch && (drivers.isError || vehicles.isError) && <Callout tone="danger">
-        Không tải đầy đủ tài xế hoặc xe.\n{errorMessage(drivers.error ?? vehicles.error)} <Button size="sm" onClick={() => { void drivers.refetch(); void vehicles.refetch(); }}>Thử lại</Button>
+      {mayDispatch && (drivers.isPending || vehicles.isPending || busyAssignments.isPending) && <p className="muted small">Đang kiểm tra tài xế, xe và chuyến đang hoạt động…</p>}
+      {mayDispatch && (drivers.isError || vehicles.isError || busyAssignments.isError) && <Callout tone="danger">
+        Không tải đầy đủ tài xế, xe hoặc trạng thái chuyến đang hoạt động.\n{errorMessage(drivers.error ?? vehicles.error ?? busyAssignments.error)} <Button size="sm" onClick={() => { void drivers.refetch(); void vehicles.refetch(); void busyAssignments.refetch(); }}>Thử lại</Button>
       </Callout>}
       {[...shipments.data].sort((a, b) => (sort === 'asc' ? 1 : -1) * a.shipmentCode.localeCompare(b.shipmentCode, 'vi', { numeric: true })).map((shipment) => (
         <ShipmentActionRow
@@ -56,7 +56,10 @@ export function ShipmentOperations({ orderId, sort }: { orderId: string; sort: S
           vehicles={vehicles.data ?? []}
           busyDriverIds={busyAssignments.data?.busyDriverIds ?? new Set<string>()}
           busyVehicleIds={busyAssignments.data?.busyVehicleIds ?? new Set<string>()}
-          assignmentLoaded={drivers.isSuccess && vehicles.isSuccess}
+          // Do not offer the first active vehicle before the active-delivery /
+          // transfer query has finished. That short race used to send a busy
+          // resource to the command endpoint and produce a 409 conflict.
+          assignmentLoaded={drivers.isSuccess && vehicles.isSuccess && busyAssignments.isSuccess}
         />
       ))}
     </div>
