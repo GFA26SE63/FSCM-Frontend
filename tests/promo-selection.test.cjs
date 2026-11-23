@@ -82,24 +82,24 @@ test('promotion form has two selected tables, preserves SKU rules when adding, a
   nodes(tree, n => n.type === 'Input' && n.props.maxLength === 200)[0].props.onChange({ target: { value: 'Campaign demo' } });
   tree = render();
   await button('Lưu nháp').props.onClick(); assert.equal(writes.length, 0); // An empty SKU list is invalid.
-  button('Add sản phẩm').props.onClick(); tree = render();
+  button('Thêm sản phẩm').props.onClick(); tree = render();
   nodes(tree, n => n.type === 'Picker')[0].props.onApply(['a']); tree = render();
   let table = nodes(tree, n => n.type === 'DataTable')[0];
   for (const [key, value] of [['minimumQuantity', '10'], ['discountPercent', '5']])
     table.props.columns.find(c => c.key === key).render(products[0]).props.onChange({ target: { value } });
-  tree = render(); button('Add sản phẩm').props.onClick(); tree = render();
+  tree = render(); button('Thêm sản phẩm').props.onClick(); tree = render();
   nodes(tree, n => n.type === 'Picker')[0].props.onApply(['a', 'b']); tree = render();
   table = nodes(tree, n => n.type === 'DataTable')[0];
   assert.equal(table.props.columns.find(c => c.key === 'minimumQuantity').render(products[0]).props.value, '10');
   assert.equal(table.props.columns.find(c => c.key === 'discountPercent').render(products[0]).props.value, '5');
   for (const [key, value] of [['minimumQuantity', '20'], ['discountPercent', '7']])
     table.props.columns.find(c => c.key === key).render(products[1]).props.onChange({ target: { value } });
-  tree = render(); button('Add khách hàng').props.onClick(); tree = render();
+  tree = render(); button('Thêm khách hàng').props.onClick(); tree = render();
   let picker = nodes(tree, n => n.type === 'Picker')[0];
   assert.deepEqual(picker.props.selectedIds, []);
   picker.props.onCancel(); tree = render();
   assert.deepEqual(nodes(tree, n => n.type === 'DataTable')[1].props.rows, []);
-  button('Add khách hàng').props.onClick(); tree = render();
+  button('Thêm khách hàng').props.onClick(); tree = render();
   picker = nodes(tree, n => n.type === 'Picker')[0]; picker.props.onApply(['r1']); tree = render();
   await button('Lưu nháp').props.onClick();
   assert.equal(writes.length, 1);
@@ -108,7 +108,7 @@ test('promotion form has two selected tables, preserves SKU rules when adding, a
   assert.deepEqual(writes[0].productRules.map(r => r.discountPercent), [5, 7]);
   const modeSelect = nodes(tree, n => n.type === 'Select')[0];
   modeSelect.props.onChange({ target: { value: 'ProductGroup' } }); tree = render();
-  button('Add sản phẩm').props.onClick(); tree = render();
+  button('Thêm sản phẩm').props.onClick(); tree = render();
   nodes(tree, n => n.type === 'Picker')[0].props.onApply(['b']); tree = render();
   for (const [label, value] of [['Tổng số lượng tối thiểu của nhóm', '30'], ['% giảm chung', '8']])
     nodes(tree, n => n.type === 'FormField' && n.props.label === label)[0].props.children.props.onChange({ target: { value } });

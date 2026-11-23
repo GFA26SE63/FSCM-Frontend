@@ -49,6 +49,41 @@ test('Published and Inactive never expose edit/price actions; Draft links to edi
   assert.match(render('Published'), /Tạo bản thay thế/);
 });
 
+test('compact product menu retains status actions, navigation, permissions and pending protection', () => {
+  let items;
+  let user = { role: 'Admin' };
+  let pending = false;
+  const routes = [];
+  const { ProductActions } = source('features/products/components/ProductActions.tsx', {
+    '@/shared/auth/AuthContext': { useAuth: () => ({ user }) },
+    '@/shared/auth/permissions': { can: current => current.role === 'Admin' },
+    '@/shared/api/errors': errors,
+    '@/shared/router/compat': { useNavigate: () => route => routes.push(route) },
+    '@/shared/ui': {
+      Button: () => { throw Error('Compact actions must use the menu'); },
+      ActionDropdown: props => { items = props.items; return null; },
+      ConfirmDialog: () => null,
+    },
+    '../hooks': { useDeleteProduct: () => ({ isPending: pending }), useInactivateProduct: () => ({}), usePublishProduct: () => ({}) },
+  });
+  const render = status => {
+    items = undefined;
+    renderToStaticMarkup(React.createElement(ProductActions, { p: { ...fixture, status }, dropdown: true }));
+    return items;
+  };
+  assert.deepEqual(render('Draft').map(item => item.key), ['clone', 'edit', 'publish', 'delete']);
+  items.find(item => item.key === 'edit').onClick();
+  assert.deepEqual(render('Published').map(item => item.key), ['clone', 'replacement', 'inactivate']);
+  items.find(item => item.key === 'replacement').onClick();
+  assert.deepEqual(render('Inactive').map(item => item.key), ['clone']);
+  items[0].onClick();
+  assert.deepEqual(routes, ['/skus/p1/edit', '/skus/p1/new-version', '/skus/p1/clone']);
+  pending = true;
+  assert.ok(render('Draft').every(item => item.disabled));
+  user = { role: 'Operator' };
+  assert.equal(render('Draft'), undefined);
+});
+
 test('create/edit/clone/new-version routes are explicit and precede product details', () => {
   const { APP_ROUTES } = source('app/routes.tsx');
   const routes = APP_ROUTES.find((r) => r.key === 'skus').sub;

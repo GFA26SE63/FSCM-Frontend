@@ -16,8 +16,8 @@ export function LoyaltyDetailPage() {
         <>
           <PageHeader back="/loyalty" title={`${l.retailerCode} · ${l.retailerName}`} subtitle={`${l.programCode} · ${l.programName}`} />
           <Callout tone={l.available < 0 ? 'warn' : 'info'}>
-            {l.available < 0 ? 'Số dư điểm đang âm sau điều chỉnh; Retailer chưa thể gửi yêu cầu đổi quà mới. ' : ''}
-            Điểm mua hàng được xét khi đơn Completed. Điểm chờ cộng và điểm đang giữ đổi quà chưa thể dùng để đổi thêm quà.
+            {l.available < 0 ? 'Số dư điểm đang âm sau điều chỉnh; nhà bán lẻ chưa thể gửi yêu cầu đổi quà mới. ' : ''}
+            Điểm mua hàng được xét khi đơn hàng hoàn tất. Điểm chờ cộng và điểm đang giữ đổi quà chưa thể dùng để đổi thêm quà.
           </Callout>
           <Card>
             <Fields cols={3} items={[

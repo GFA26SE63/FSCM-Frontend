@@ -1,8 +1,10 @@
 import { useState, useMemo } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
 import {
+  ActionDropdown,
   Button,
   Callout,
   Card,
@@ -142,19 +144,13 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
             {
               header: 'Thao tác',
               align: 'right',
-              width: '180px',
+              width: '70px',
               cell: (r) =>
                 mayManage ? (
-                  <div className="row-wrap" style={{ justifyContent: 'flex-end', gap: 8 }}>
-                  <Button size="sm" disabled={!lookupsReady} onClick={() => setEditingConfig(r)}>Sửa</Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() => setDeletingConfig(r)}
-                  >
-                    Xóa
-                  </Button>
-                  </div>
+                  <ActionDropdown showDisabledItems items={[
+                    { key: 'edit', label: 'Sửa', icon: <Pencil size={16} />, disabled: !lookupsReady, onClick: () => setEditingConfig(r) },
+                    { key: 'delete', label: 'Xóa', icon: <Trash2 size={16} />, color: 'var(--c-danger)', onClick: () => setDeletingConfig(r) },
+                  ]} />
                 ) : null,
             },
           ]}
@@ -206,19 +202,13 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
             {
               header: 'Thao tác',
               align: 'right',
-              width: '180px',
+              width: '70px',
               cell: (r) =>
                 mayManage ? (
-                  <div className="row-wrap" style={{ justifyContent: 'flex-end', gap: 8 }}>
-                  <Button size="sm" disabled={!lookupsReady} onClick={() => setEditingConfig(r)}>Sửa</Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() => setDeletingConfig(r)}
-                  >
-                    Xóa
-                  </Button>
-                  </div>
+                  <ActionDropdown showDisabledItems items={[
+                    { key: 'edit', label: 'Sửa', icon: <Pencil size={16} />, disabled: !lookupsReady, onClick: () => setEditingConfig(r) },
+                    { key: 'delete', label: 'Xóa', icon: <Trash2 size={16} />, color: 'var(--c-danger)', onClick: () => setDeletingConfig(r) },
+                  ]} />
                 ) : null,
             },
           ]}

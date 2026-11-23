@@ -3,11 +3,11 @@
  *
  * Parity with REST `GET /loyalty/redemptions` (admin/operator branch, RedemptionStore.ListForAdminAsync):
  *   entity fields   id, retailerId, loyaltyRewardId, redeemedPoints, quantity, status, createdAt, updatedAt
- *   rewardCode/Name loyaltyRewards (shared master data)            — batched by id, one request per page
- *   retailerCode/Name, regionId   retailers                        — same request
+ *   rewardCode/Name loyaltyRewards (shared master data)            — batched by ids on this page
+ *   retailerCode/Name, regionId   retailers                        — separate bounded query
  *   balanceAfter / heldPoints     retailerLoyalties.currentPoints / heldPoints (display only; REST
  *                                 also reports the retailer's CURRENT balance here)
- *   salesGroupIds   active retailerSalesAssignments (isActive, unassignedAt null) — same request
+ *   salesGroupIds   active retailerSalesAssignments (isActive, unassignedAt null) — fully cursor-paged
  *   quantity        REST sends Quantity ?? estimate and flags quantityIsEstimated = Quantity == null; the
  *                   screen already shows "—" for estimated rows, so the raw nullable `quantity` is the same.
  * Admin and Operator are unscoped for all of these entities (EntityQueryService.cs); the /redeem route is
@@ -19,7 +19,8 @@
  *   - regionId: retailers in region; salesGroupId: active assignments of the group
  *   - aged (dashboard link): status in Pending/Approved/Delivered and updatedAt older than 3 days
  *
- * HC0047: first/last must be literals. HC0078: invalid cursor.
+ * HC0047: query cost limit exceeded. Keep each enrichment connection in its own bounded request.
+ * HC0078: invalid cursor.
  */
 import { graphql } from '@/shared/api/graphql';
 import { ApiError } from '@/shared/api/errors';
@@ -270,16 +271,36 @@ export function lookupRewardIds(search: string): Promise<string[]> {
 }
 
 // ---------------------------------------------------------------------------
-// Page enrichment — ONE request for the whole page (no per-row calls)
+// Page enrichment — bounded requests for the page's IDs (no per-row calls)
 // ---------------------------------------------------------------------------
 
-interface EnrichData {
-  entities: {
-    retailers?: { nodes: { id: string; code: string; name: string; regionId: string | null }[] | null };
-    rewards?: { nodes: { id: string; code: string; name: string }[] | null };
-    loyalties?: { nodes: { retailerId: string; currentPoints: number; heldPoints: number }[] | null };
-    groups?: { nodes: { retailerId: string; salesGroupId: string }[] | null };
-  };
+type RetailerInfo = { id: string; code: string; name: string; regionId: string | null };
+type RewardInfo = { id: string; code: string; name: string };
+type LoyaltyInfo = { retailerId: string; currentPoints: number; heldPoints: number };
+type GroupInfo = { retailerId: string; salesGroupId: string };
+
+/** Read every matching row, without a hard page cap or silently accepting incomplete metadata. */
+async function enrichmentRows<T>(query: string, variables: Record<string, unknown>): Promise<T[]> {
+  const rows: T[] = [];
+  const seen = new Set<string>();
+  let after: string | null = null;
+  while (true) {
+    const data: { entities?: { page?: {
+      nodes?: T[] | null; pageInfo?: { hasNextPage: boolean; endCursor: string | null };
+    } } } = await graphql(query, { ...variables, after });
+    const page = data.entities?.page;
+    if (!page || !Array.isArray(page.nodes) || typeof page.pageInfo?.hasNextPage !== 'boolean') {
+      throw new ApiError(502, 'Không tải được dữ liệu', 'Phản hồi thông tin đổi quà thiếu dữ liệu phân trang.');
+    }
+    rows.push(...page.nodes);
+    if (!page.pageInfo.hasNextPage) return rows;
+    const next = page.pageInfo.endCursor;
+    if (!next || seen.has(next)) {
+      throw new ApiError(502, 'Không tải được dữ liệu', 'Không tải đủ thông tin đổi quà do cursor không hợp lệ.');
+    }
+    seen.add(next);
+    after = next;
+  }
 }
 
 /** Joins retailer, reward, loyalty balance and sales-group data onto raw redemptions. */
@@ -287,26 +308,34 @@ async function enrich(raw: RawRedemption[]): Promise<RedemptionApi[]> {
   if (raw.length === 0) return [];
   const retailerIds = [...new Set(raw.map((r) => r.retailerId))];
   const rewardIds = [...new Set(raw.map((r) => r.loyaltyRewardId))];
-  const data = await graphql<EnrichData>(
-    `query RedeemEnrich($retailerIds: [UUID!]!, $rewardIds: [UUID!]!) {
-  entities {
-    retailers(first: 100, where: { id: { in: $retailerIds } }) { nodes { id code name regionId } }
-    rewards: loyaltyRewards(first: 100, where: { id: { in: $rewardIds } }) { nodes { id code name } }
-    loyalties: retailerLoyalties(first: 100, where: { retailerId: { in: $retailerIds } }) { nodes { retailerId currentPoints heldPoints } }
-    groups: retailerSalesAssignments(first: 1000, where: { and: [{ retailerId: { in: $retailerIds } }, { isActive: { eq: true } }, { unassignedAt: { eq: null } }] }) { nodes { retailerId salesGroupId } }
-  }
-}`,
-    { retailerIds, rewardIds },
-  );
-  const e = data.entities;
-  if (!e || !Array.isArray(e.retailers?.nodes) || !Array.isArray(e.rewards?.nodes)) {
-    throw new ApiError(502, 'Không tải được dữ liệu', 'Phản hồi thông tin đổi quà không hợp lệ.');
-  }
-  const retailers = new Map(e.retailers!.nodes!.map((n) => [n.id, n]));
-  const rewards = new Map(e.rewards!.nodes!.map((n) => [n.id, n]));
-  const loyalty = new Map((e.loyalties?.nodes ?? []).map((n) => [n.retailerId, n]));
+  const [retailerRows, rewardRows, loyaltyRows, groupRows] = await Promise.all([
+    enrichmentRows<RetailerInfo>(`query RedeemRetailersEnrich($retailerIds: [UUID!]!, $after: String) {
+      entities { page: retailers(first: 100, after: $after, where: { id: { in: $retailerIds } }, order: [{ id: ASC }]) {
+        nodes { id code name regionId } pageInfo { hasNextPage endCursor }
+      } }
+    }`, { retailerIds }),
+    enrichmentRows<RewardInfo>(`query RedeemRewardsEnrich($rewardIds: [UUID!]!, $after: String) {
+      entities { page: loyaltyRewards(first: 100, after: $after, where: { id: { in: $rewardIds } }, order: [{ id: ASC }]) {
+        nodes { id code name } pageInfo { hasNextPage endCursor }
+      } }
+    }`, { rewardIds }),
+    enrichmentRows<LoyaltyInfo>(`query RedeemLoyaltiesEnrich($retailerIds: [UUID!]!, $after: String) {
+      entities { page: retailerLoyalties(first: 100, after: $after, where: { retailerId: { in: $retailerIds } }, order: [{ id: ASC }]) {
+        nodes { retailerId currentPoints heldPoints } pageInfo { hasNextPage endCursor }
+      } }
+    }`, { retailerIds }),
+    enrichmentRows<GroupInfo>(`query RedeemGroupsEnrich($retailerIds: [UUID!]!, $after: String) {
+      entities { page: retailerSalesAssignments(first: 100, after: $after,
+        where: { and: [{ retailerId: { in: $retailerIds } }, { isActive: { eq: true } }, { unassignedAt: { eq: null } }] }, order: [{ id: ASC }]) {
+        nodes { retailerId salesGroupId } pageInfo { hasNextPage endCursor }
+      } }
+    }`, { retailerIds }),
+  ]);
+  const retailers = new Map(retailerRows.map(n => [n.id, n]));
+  const rewards = new Map(rewardRows.map(n => [n.id, n]));
+  const loyalty = new Map(loyaltyRows.map(n => [n.retailerId, n]));
   const groups = new Map<string, string[]>();
-  for (const g of e.groups?.nodes ?? []) groups.set(g.retailerId, [...(groups.get(g.retailerId) ?? []), g.salesGroupId]);
+  for (const g of groupRows) groups.set(g.retailerId, [...(groups.get(g.retailerId) ?? []), g.salesGroupId]);
 
   return raw.map((r) => {
     const retailer = retailers.get(r.retailerId);

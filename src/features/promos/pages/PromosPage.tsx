@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
+import { Eye, Pause, Play } from 'lucide-react';
 import { useNavigate } from '@/shared/router/compat';
 import { useEnumParam, useQueryParams } from '@/shared/router/listState';
 import { useCursorPagination } from '@/shared/pagination';
 import { decodeSort, PAGINATION_PARAM_NAMES, PAGINATION_RESETS, parsePageSize } from '@/shared/pagination/urlSync';
-import { Button, DataTable, PageHeader, Select, StatusChip, type Column } from '@/shared/ui';
+import { ActionDropdown, Button, DataTable, PageHeader, Select, StatusChip, type Column } from '@/shared/ui';
 import { formatInstantDate, formatPercent, statusLabels } from '@/shared/lib';
 import { useActivatePromo, usePausePromo, usePromosPage } from '../hooks';
 import { promoStatus } from '../status';
@@ -93,13 +94,18 @@ export function PromosPage() {
         }
         actions={<Button variant="primary" onClick={() => navigate('/promos/new')}>+ Tạo khuyến mãi</Button>}
         onRowClick={(p) => navigate(`/promos/${p.id}`)}
-        rowActionsWidth="190px"
+        rowActionsWidth="150px"
         rowActions={(p) => (
-          <>
-            <Button size="sm" onClick={() => navigate(`/promos/${p.id}`)}>Xem</Button>
-            {(promoStatus(p) === 'Running' || promoStatus(p) === 'Scheduled') && <Button size="sm" variant="danger" onClick={() => pause.mutate(p.id)}>Tạm dừng</Button>}
-            {promoStatus(p) === 'Paused' && <Button size="sm" variant="primary" onClick={() => activate.mutate(p.id)}>Kích hoạt</Button>}
-          </>
+          <div className="table-actions-inline">
+            <Button size="sm" onClick={() => navigate(`/promos/${p.id}`)}><Eye size={14} /> Xem</Button>
+            <ActionDropdown triggerTitle={`Thao tác khuyến mãi ${p.code}`} items={
+              promoStatus(p) === 'Running' || promoStatus(p) === 'Scheduled'
+                ? [{ key: 'pause', label: 'Tạm dừng', icon: <Pause size={16} />, color: 'var(--c-danger)', onClick: () => pause.mutate(p.id) }]
+                : promoStatus(p) === 'Paused'
+                  ? [{ key: 'activate', label: 'Kích hoạt', icon: <Play size={16} />, onClick: () => activate.mutate(p.id) }]
+                  : []
+            } />
+          </div>
         )}
       />
     </>

@@ -135,20 +135,21 @@ export const giftApi = {
     }
     return { items, totalCount: page.totalCount, pageInfo: page.pageInfo };
   },
-  programs: async (): Promise<GiftProgram[]> => {
+  programs: async (effectiveOnly = false): Promise<GiftProgram[]> => {
     const rows: GiftProgram[] = [];
+    const now = effectiveOnly ? new Date().toISOString() : undefined;
     let after: string | null = null;
     do {
       const result: { entities: { loyaltyPrograms: { nodes: GiftProgram[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } } } } =
-        await graphql(`query GiftPrograms($after: String) { entities {
-          loyaltyPrograms(first: 100, after: $after, order: [{ code: ASC }]) {
+        await graphql(`query GiftPrograms($after: String${effectiveOnly ? ', $now: DateTime!' : ''}) { entities {
+          loyaltyPrograms(first: 100, after: $after, ${effectiveOnly ? 'where: { isActive: { eq: true }, startAt: { lte: $now }, endAt: { gte: $now } },' : ''} order: [{ code: ASC }]) {
             nodes { id code name isActive } pageInfo { hasNextPage endCursor }
           }
-        } }`, { after });
+        } }`, { after, ...(effectiveOnly ? { now } : {}) });
       const page = result.entities?.loyaltyPrograms;
       if (!page || !Array.isArray(page.nodes) || !page.pageInfo ||
           (page.pageInfo.hasNextPage && (!page.pageInfo.endCursor || page.pageInfo.endCursor === after))) {
-        throw new ApiError(502, 'Không tải đủ chương trình loyalty.');
+        throw new ApiError(502, 'Không tải đủ chương trình khách hàng thân thiết.');
       }
       rows.push(...page.nodes);
       after = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
