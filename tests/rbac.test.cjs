@@ -155,6 +155,7 @@ test('Operator can view loyalty but cannot open its edit form or run program mut
       actions, rows?.map((r) => React.createElement('div', { key: r.id }, rowActions(r)))),
   };
   const { LoyaltyProgramsPanel } = source('features/loyalty/components/LoyaltyProgramsPanel.tsx', {
+    '@/shared/router/compat': { useNavigate: () => () => {} },
     '@/shared/auth/AuthContext': auth,
     '@/shared/auth/permissions': permissions,
     '@/shared/api/errors': { errorMessage: String },

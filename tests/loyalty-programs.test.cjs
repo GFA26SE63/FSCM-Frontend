@@ -75,6 +75,7 @@ test('scheduled, inactive and expired are separate states; enabled does not mean
 test('list includes inactive programs; create/update use UUID and separate state endpoints', async () => {
   const calls = [];
   const { loyaltyApi } = source('features/loyalty/api.ts', {
+    '@/shared/api/graphql': { graphql: () => { throw Error('Unexpected GraphQL query'); } },
     '@/shared/api/errors': errors,
     '@/shared/api/http': {
       get: async (url, params) => { calls.push({ method: 'GET', url, params }); return [program]; },
@@ -101,6 +102,7 @@ test('retailer picker loads all pages with pageSize 100 and propagates failed re
   const calls = [];
   let fail = false;
   const { loyaltyApi } = source('features/loyalty/api.ts', {
+    '@/shared/api/graphql': { graphql: () => { throw Error('Unexpected GraphQL query'); } },
     '@/shared/api/errors': errors,
     '@/shared/api/http': {
       get: async (url, params) => {
@@ -122,6 +124,7 @@ test('retailer picker loads all pages with pageSize 100 and propagates failed re
 
 test('missing program audience is not treated as an empty business result', async () => {
   const { loyaltyApi } = source('features/loyalty/api.ts', {
+    '@/shared/api/graphql': { graphql: () => { throw Error('Unexpected GraphQL query'); } },
     '@/shared/api/errors': errors,
     '@/shared/api/http': { get: async () => [{ ...program, retailerIds: undefined }] },
   });
@@ -170,7 +173,8 @@ test('program dialog uses real retailer selection and keeps backend errors witho
     program, onClose: () => { closed += 1; },
   }));
   assert.equal(props.fields.find((f) => f.key === 'retailerIds').type, 'custom');
-  assert.equal(props.fields.find((f) => f.key === 'startAt').type, 'datetime-local');
+  assert.equal(props.fields.find((f) => f.key === 'startAt').type, 'custom');
+  assert.equal(props.fields.find((f) => f.key === 'startAt').validate('', { ...props.initial, startAt: '' }), 'Nhập ngày và giờ hợp lệ.');
   await props.onSubmit(props.initial);
   assert.equal(request.id, program.id);
   assert.deepEqual(request.retailerIds, [retailerId]);

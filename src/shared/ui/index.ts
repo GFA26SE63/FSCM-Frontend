@@ -8,6 +8,7 @@ export { Tabs, type TabItem } from './Tabs';
 export { Modal, Drawer } from './Modal';
 export { FormField, Input, Select, TextArea, Checkbox, type SelectOption } from './FormField';
 export { DateInput, isoToVnDate, vnToIsoDate } from './DateInput';
+export { DateTimeInput } from './DateTimeInput';
 export { Stat } from './Stat';
 export { EmptyState } from './EmptyState';
 export { Fields, type FieldItem } from './Fields';

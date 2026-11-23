@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/shared/auth/AuthContext';
+import { useNavigate } from '@/shared/router/compat';
 import { can } from '@/shared/auth/permissions';
 import { errorMessage } from '@/shared/api/errors';
 import { Button, Card, Chip, DataTable, Fields, Modal, type Column } from '@/shared/ui';
@@ -16,6 +17,7 @@ export function LoyaltyProgramsPanel() {
     return () => window.clearInterval(timer);
   }, []);
   const { user } = useAuth();
+  const navigate = useNavigate();
   const mayManage = can(user, 'loyalty.manage');
   const query = usePrograms();
   const change = useSetProgramActive();
@@ -39,7 +41,7 @@ export function LoyaltyProgramsPanel() {
       emptyText="Chưa có chương trình tích điểm phù hợp."
       actions={<>
         <Button size="sm" loading={query.isFetching} onClick={() => void query.refetch()}>Tải lại chương trình</Button>
-        {mayManage && <Button variant="primary" onClick={() => setEditing({})}>+ Tạo chương trình</Button>}
+        {mayManage && <Button variant="primary" onClick={() => navigate('/loyalty/new')}>+ Tạo chương trình</Button>}
       </>}
       onRowClick={setDetail} rowActionsWidth={mayManage ? '260px' : '90px'}
       rowActions={(p) => <>

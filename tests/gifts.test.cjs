@@ -263,6 +263,7 @@ test('loyalty card mapping preserves negative balance, balance after adjustment 
       note: 'Financial adjustment', createdAt: '2026-11-16T00:00:00Z', salesOrderId: 'order', orderCode: 'DH-1',
       redemptionId: null, redemptionStatus: null }] };
   const { loyaltyApi } = source('features/loyalty/api.ts', {
+    '@/shared/api/graphql': { graphql: () => { throw Error('Unexpected GraphQL query'); } },
     '@/shared/api/errors': { ApiError },
     '@/shared/api/http': { get: async url => url.startsWith('/loyalty/cards/') ? card : [], post() {}, put() {} },
   });
