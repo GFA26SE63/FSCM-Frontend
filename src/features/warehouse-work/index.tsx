@@ -1,5 +1,7 @@
 import { PalletReceiving } from "./PalletReceiving";
-import { FactoryPending, type FactoryInboundPallet } from './FactoryPending';
+import { FactoryPending, type FactoryInboundDispatch } from './FactoryPending';
+import { FactoryReceiptHistory } from './FactoryReceiptHistory';
+import { groupHistoryRows, type FactoryReceiptGroup } from './receiptHistoryModel';
 import './warehouse-work.css';
 import { useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -199,7 +201,16 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
   const operation = useRef<{ fingerprint: string; key: string } | null>(null);
   const inFlight = useRef(false);
   const docs = useQuery({ queryKey: ['warehouse-documents'], queryFn: () => get<Work[]>(base) });
-  const incoming = useQuery({ queryKey: ['factory-pending'], queryFn: () => get<FactoryInboundPallet[]>(`${base}/factory-pending`), enabled: workflow === 'inbound' });
+  // One row per factory dispatch note (PXN) with all its pallets; the PNK opened from it receives them all.
+  const incoming = useQuery({ queryKey: ['factory-pending'], queryFn: () => get<FactoryInboundDispatch[]>(`${base}/factory-pending-dispatches`), enabled: workflow === 'inbound' });
+  // PNK history: factory receipts grouped by dispatch note (read-only display grouping).
+  const receiptGroups = useQuery({ queryKey: ['warehouse-documents', 'factory-receipt-groups'], queryFn: () => get<FactoryReceiptGroup[]>(`${base}/factory-receipt-groups`), enabled: workflow === 'inbound' || workflow === 'receipts' });
+  /** Pallet code for receipts opened from a single pallet (before dispatch notes existed); '' for dispatch-note PNKs. */
+  const legacyPalletOf = (documentId: string) => {
+    const group = incoming.data?.find(g => g.receiptDocumentId === documentId);
+    if (group) return group.dispatchNoteId ? '' : group.pallets[0]?.palletCode ?? '';
+    return new URLSearchParams(location.search).get('pallet') ?? '';
+  };
   const warehouses = useQuery({ queryKey: ['warehouse-work', 'warehouses'], queryFn: receiptApi.warehouses });
   const pickings = useQuery({ queryKey: ['warehouse-work', 'picking', wh], queryFn: () => pickingApi.lists(wh), enabled: admin && workflow === 'outbound' && creating && !!wh });
   const batches = useQuery({ queryKey: ['warehouse-work', 'batches', wh], queryFn: () => get<BatchInventoryItem[]>('/inventory', { warehouseId: wh }), enabled: admin && creating && !!wh && reason === 'Transfer' });
@@ -321,8 +332,8 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
         <div className="warehouse-guide-step">
           <div className="step-badge">Bước 1</div>
           <div>
-            <strong>Tiếp nhận Pallet (PID)</strong>
-            <p>Xe nhà máy chở pallet đến kho. Chọn pallet và bấm Bắt đầu kiểm đếm để mở phiếu kiểm đếm.</p>
+            <strong>Tiếp nhận phiếu xuất nhà máy</strong>
+            <p>Xe nhà máy chở một hoặc nhiều pallet đến kho. Chọn phiếu xuất và bấm Bắt đầu kiểm đếm để mở một PNK cho toàn bộ pallet.</p>
           </div>
         </div>
         <div className="warehouse-guide-step-arrow">➔</div>
@@ -343,9 +354,11 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
         </div>
       </div>}
       {operationReason === 'Factory' && <QueryState query={warehouses}>{() => <FactoryPending query={incoming} warehouses={executionWarehouses ?? []} admin={admin} busy={busy}
-        refresh={() => { void incoming.refetch(); }} onOpen={pallet => {
-          if (admin && pallet.receiptDocumentId) history.push(`${screen.path}/${encodeURIComponent(pallet.receiptDocumentId)}?pallet=${encodeURIComponent(pallet.palletCode)}`);
-          else if (!admin) void act(`${base}/factory-receipts/from-pallet`, { palletCode: pallet.palletCode }, false, pallet.palletCode);
+        refresh={() => { void incoming.refetch(); }} onOpen={dispatch => {
+          const legacyPallet = dispatch.dispatchNoteId ? undefined : dispatch.pallets[0]?.palletCode;
+          if (admin && dispatch.receiptDocumentId) history.push(`${screen.path}/${encodeURIComponent(dispatch.receiptDocumentId)}${legacyPallet ? `?pallet=${encodeURIComponent(legacyPallet)}` : ''}`);
+          else if (!admin && dispatch.dispatchNoteId) void act(`${base}/factory-receipts/from-dispatch`, { dispatchNoteId: dispatch.dispatchNoteId });
+          else if (!admin && legacyPallet) void act(`${base}/factory-receipts/from-pallet`, { palletCode: legacyPallet }, false, legacyPallet);
         }} />}</QueryState>}
       {operationReason === 'Factory' && inProgressReceipts.length > 0 && <Card title="Phiếu kiểm đếm đang thực hiện dở dang">
         <p className="muted">Các phiếu kiểm đếm đã mở nhưng chưa bấm hoàn tất ghi sổ. Chọn để tiếp tục kiểm đếm và ghi sổ nhập kho.</p>
@@ -397,14 +410,21 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
             <label>Lọc theo kho<select value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho</option>{warehouses.data?.filter(w => admin || user?.scope?.warehouseIds.includes(w.id)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
           </div>
           <p className="muted">{visibleRows.length} chứng từ · Danh sách các phiếu nhập kho đã ghi nhận tồn. Chọn mã PNK để xem chi tiết hoặc in phiếu.</p>
-          <QueryState query={docs}>{() => <SimpleTable rows={visibleRows} columns={[
+          {/* Factory receipts: one row per dispatch note (older per-pallet PNKs of the same note shown together). */}
+          {operationReason === 'Factory' ? <QueryState query={docs}>{() => <FactoryReceiptHistory
+            rows={groupHistoryRows(visibleRows, workflowRows, receiptGroups.data)}
+            whName={whName}
+            statusText={s => filterStatuses[s] ?? statuses[s] ?? s}
+            onOpen={id => { setSelected(id); setError(''); }} />}</QueryState>
+          : <QueryState query={docs}>{() => <SimpleTable rows={visibleRows} columns={[
             { header: 'Mã PNK', width: '320px', cell: w => <button className="btn btn-sm warehouse-document-code" onClick={() => { setSelected(w.document.id); setError(''); }}><span>{w.document.code}</span></button> },
             { header: 'Loại chứng từ', width: '250px', cell: w => documentTypeLabel(w.document.kind, w.document.reason) },
             { header: 'Kho nhận', width: '220px', cell: w => `${whName(w.document.warehouseId)}${w.document.destinationWarehouseId && w.document.destinationWarehouseId !== w.document.warehouseId ? ' → ' + whName(w.document.destinationWarehouseId) : ''}` },
-            { header: 'Đơn / thùng', width: '130px', cell: w => `${new Set(w.lines.map(l => l.orderCode).filter(Boolean)).size} đơn · ${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
+            // Receipts are not tied to sales orders, so only the carton count is shown.
+            { header: 'Số thùng', width: '130px', cell: w => `${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
             { header: 'Trạng thái', width: '150px', cell: w => <span className={`chip ${w.document.status === 'Posted' ? 'chip-ok' : ''}`}>{filterStatuses[w.document.status] ?? statuses[w.document.status] ?? w.document.status}</span> },
             { header: 'Thao tác', width: '150px', cell: w => <button className="btn btn-sm" onClick={() => { setSelected(w.document.id); setError(''); }}>Xem & in phiếu</button> },
-          ]} empty="Không có chứng từ phù hợp." />}</QueryState>
+          ]} empty="Không có chứng từ phù hợp." />}</QueryState>}
         </Card>
       ) : (isOutbound && activeTab === 'history') ? (
         <Card title={operationReason === 'Transfer' ? 'Danh sách Phiếu Xuất Luân Chuyển (PXK)' : 'Danh sách Phiếu Xuất Kho (PXK)'}>
@@ -562,15 +582,17 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
       {admin && d.kind === 'Request' && d.status === 'Open' && <button className="btn" disabled={busy} onClick={() => void act(`${base}/${d.id}/cancel`, { expectedVersion: d.version })}>Hủy lệnh chưa lấy hàng</button>}
       {canCreateChild && <button className="btn btn-primary" disabled={busy} onClick={() => void act(`${base}/${d.id}/create-document`, undefined, true)}>{d.kind === 'Request' ? (d.reason === 'Transfer' ? 'Bắt đầu xuất luân chuyển & quét' : 'Bắt đầu xuất kho & quét') : 'Bắt đầu nhập luân chuyển & quét'}</button>}
       {active.lines.length > 0 && <SimpleTable rows={active.lines} columns={[
-        { header: 'Đơn hàng', cell: l => l.orderCode ?? '—' }, { header: 'SKU / sản phẩm', cell: l => `${l.sku} · ${l.productName}` },
+        // Receipts are not tied to sales orders: the "Đơn hàng" column only applies to issue documents.
+        ...(d.kind === 'Receipt' ? [] : [{ header: 'Đơn hàng', cell: (l: typeof active.lines[number]) => l.orderCode ?? '—' }]),
+        { header: 'SKU / sản phẩm', cell: l => `${l.sku} · ${l.productName}` },
         { header: 'Mã tồn / lô hàng nhà máy', cell: l => [l.batchCode, l.sourceLotCode].filter(Boolean).join(' · ') || 'Chờ nhập' }, { header: 'HSD', cell: l => formatDate(l.expirationDate) },
         { header: 'Số thùng', cell: l => l.quantity }, { header: 'Đã quét', cell: l => active.cartons.filter(c => c.lineId === l.id && c.scannedAt).length },
       ]} />}
       {d.kind !== 'Request' && <>
         {d.reason === 'Factory' && <>
           <p>Kho nhận cố định: <b>{whName(d.warehouseId)}</b> · Theo chỉ định của nhà máy.</p>
-          <PalletReceiving key={d.id + (incoming.data?.find(p => p.receiptDocumentId === d.id)?.palletCode ?? new URLSearchParams(location.search).get('pallet') ?? '')}
-            initialCode={incoming.data?.find(p => p.receiptDocumentId === d.id)?.palletCode ?? new URLSearchParams(location.search).get('pallet') ?? ''}
+          <PalletReceiving key={d.id + legacyPalletOf(d.id)}
+            initialCode={legacyPalletOf(d.id)}
             documentId={d.id} version={d.version} receivedCount={active.cartons.length} editable={!admin && d.status === 'Open'} />
         </>}{d.reason !== 'Factory' && <p>Tiến độ: {active.cartons.filter(c => c.scannedAt).length} / {active.lines.reduce((s, l) => s + l.quantity, 0)} thùng. Mỗi mã QR đại diện một thùng chứa một SKU.</p>}
         {!admin && (d.kind === 'Picking' || d.kind === 'Issue') && d.status === 'Open' && active.lines.some(l => !l.sourceLotCode?.startsWith('BID-')) && <div className="row-wrap" style={{ gap: 12 }}><button className="btn" disabled={busy} onClick={() => void act(`${base}/${d.id}/prepare-cartons`)}>Chuẩn bị nhãn một thùng cho hàng tồn</button><button className="btn" onClick={() => void printLabels(true)}>Mở nhãn hàng tồn để in</button><span className="muted">Dán nhãn mới lên từng thùng; nhãn gộp cũ sau khi tách sẽ hết hiệu lực.</span></div>}{active.cartons.length > 0 && d.reason !== 'Factory' && <button className="btn" onClick={() => void printLabels()}>In nhãn QR thùng</button>}
