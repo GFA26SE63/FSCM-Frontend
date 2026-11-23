@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
-import { Button, Callout, Card, DataTable, FormField, Input, PageHeader, Select, type Column } from '@/shared/ui';
+import { Button, Callout, Card, DataTable, DateInput, FormField, Input, PageHeader, Select, type Column } from '@/shared/ui';
 import { addDays, vietnamDate } from '@/shared/lib';
 import { errorMessage } from '@/shared/api/errors';
 import { useCreatePromo, usePromoLookups } from '../hooks';
@@ -75,11 +75,11 @@ export function PromoFormPage() {
     <Card title="Thông tin chung"><div className="form-grid cols-2">
       <FormField label="Tên chương trình" required><Input maxLength={200} value={name} onChange={(e) => setName(e.target.value)} /></FormField>
       <FormField label="Loại chương trình"><Select value={mode} onChange={(e) => setMode(e.target.value as typeof mode)} options={[{ value: 'PerSku', label: 'Loại 1 · Theo từng SKU' }, { value: 'ProductGroup', label: 'Loại 2 · Theo nhóm sản phẩm' }]} /></FormField>
-      <FormField label="Hiệu lực từ" required><Input type="date" min={today} value={from} onChange={(e) => setFrom(e.target.value)} /></FormField>
-      <FormField label="Hiệu lực đến" required><Input type="date" min={from || today} value={to} onChange={(e) => setTo(e.target.value)} /></FormField>
+      <FormField label="Hiệu lực từ" required><DateInput required min={today} value={from} onChange={setFrom} aria-label="Hiệu lực từ" /></FormField>
+      <FormField label="Hiệu lực đến" required><DateInput required min={from || today} value={to} onChange={setTo} aria-label="Hiệu lực đến" /></FormField>
     </div></Card>
     <Card title={mode === 'PerSku' ? 'Loại 1 · Điều kiện riêng cho từng SKU' : 'Loại 2 · Điều kiện theo nhóm sản phẩm'}
-      actions={<Button aria-label="Add sản phẩm" onClick={() => setPicker('products')}>Add</Button>}>
+      actions={<Button aria-label="Thêm sản phẩm" onClick={() => setPicker('products')}>Thêm</Button>}>
       <DataTable urlState={false} title={`Sản phẩm đã thêm · ${selectedProductIds.length}`}
         columns={mode === 'PerSku' ? [...productColumns,
           { key: 'minimumQuantity', header: 'Số lượng tối thiểu', width: '180px', render: p => <Input
@@ -91,7 +91,7 @@ export function PromoFormPage() {
             value={rows.find(r => r.productId === p.id)?.discountPercent ?? ''}
             onChange={e => update(p.id, { discountPercent: e.target.value })} /> },
         ] : productColumns} rows={selectedProducts} rowKey={p => p.id} searchable={false} pageSize={5}
-        loading={products.isLoading} error={products.error} emptyText="Chưa thêm sản phẩm. Nhấn Add để tìm kiếm và chọn SKU."
+        loading={products.isLoading} error={products.error} emptyText="Chưa thêm sản phẩm. Nhấn Thêm để tìm kiếm và chọn SKU."
         rowActionsWidth="100px" rowActions={p => <Button size="sm" onClick={() => mode === 'PerSku'
           ? setRows(items => items.filter(r => r.productId !== p.id))
           : setProductIds(ids => ids.filter(id => id !== p.id))}>Bỏ chọn</Button>} />
@@ -105,7 +105,7 @@ export function PromoFormPage() {
     </Card>
     {products.isLoading && <Callout>Đang tải sản phẩm…</Callout>}
     {products.error && <Callout tone="danger">{errorMessage(products.error)}</Callout>}
-    <Card title="Khách hàng được hưởng ưu đãi" actions={<Button aria-label="Add khách hàng" onClick={() => setPicker('retailers')}>Add</Button>}>
+    <Card title="Khách hàng được hưởng ưu đãi" actions={<Button aria-label="Thêm khách hàng" onClick={() => setPicker('retailers')}>Thêm</Button>}>
       <p className="muted small">Không chọn cửa hàng nào là áp dụng cho tất cả cửa hàng đủ điều kiện. Đơn đã chốt không tự thay đổi khi kích hoạt khuyến mãi.</p>
       <div className="promo-retailer-picker">
       <DataTable urlState={false} title={`Cửa hàng đã thêm · ${retailerIds.length}`}

@@ -47,7 +47,7 @@ export const shipmentsApi = {
       query BusyTransportAssignments { entities { shipments(first: 500) { nodes { id status driverId vehicleId } } warehouseTransfers(first: 500) { nodes { status driverId vehicleId } } } }
     `);
     const busyDriverIds = new Set<string>(), busyVehicleIds = new Set<string>();
-    for (const item of data.entities.shipments.nodes) if (['Ready', 'Issued', 'Delivering'].includes(item.status)) { if (item.driverId) busyDriverIds.add(item.driverId); if (item.vehicleId) busyVehicleIds.add(item.vehicleId); }
+    for (const item of data.entities.shipments.nodes) if (item.status === 'Delivering') { if (item.driverId) busyDriverIds.add(item.driverId); if (item.vehicleId) busyVehicleIds.add(item.vehicleId); }
     for (const item of data.entities.warehouseTransfers.nodes) if (item.status === 'InTransit') { if (item.driverId) busyDriverIds.add(item.driverId); if (item.vehicleId) busyVehicleIds.add(item.vehicleId); }
     return { busyDriverIds, busyVehicleIds };
   },

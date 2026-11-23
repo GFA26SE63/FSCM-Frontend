@@ -1,6 +1,6 @@
 import { useAuth } from '@/shared/auth/AuthContext';
 import { assertPermission } from '@/shared/auth/permissions';
-import { FormDialog, type FormFieldDef } from '@/shared/ui';
+import { DateTimeInput, FormDialog, FormField, type FormFieldDef } from '@/shared/ui';
 import { useCreateProgram, useProgramRetailers, useUpdateProgram } from '../hooks';
 import { programInitial, programPayload, validateProgram, type ProgramFormValues } from '../programForm';
 import type { LoyaltyProgram } from '../types';
@@ -22,12 +22,15 @@ export function ProgramDialog({ program, onClose }: Props) {
       required: true, validate: validate('spendAmountPerPoint') },
     { key: 'minimumRedeemPoints', label: 'Điểm tối thiểu đổi quà', type: 'number',
       required: true, validate: validate('minimumRedeemPoints') },
-    { key: 'startAt', label: 'Hiệu lực từ (giờ Việt Nam)', type: 'datetime-local',
-      required: true, validate: validate('startAt') },
-    { key: 'endAt', label: 'Hiệu lực đến (giờ Việt Nam)', type: 'datetime-local',
-      required: true, validate: validate('endAt') },
-    { key: 'pointsExpireAt', label: 'Điểm hết hạn lúc (giờ Việt Nam)', type: 'datetime-local',
-      span: 2, validate: validate('pointsExpireAt'), hint: 'Để trống nếu không đặt hạn điểm.' },
+    ...(['startAt', 'endAt', 'pointsExpireAt'] as const).map(key => {
+      const label = key === 'startAt' ? 'Hiệu lực từ (giờ Việt Nam)' : key === 'endAt' ? 'Hiệu lực đến (giờ Việt Nam)' : 'Điểm hết hạn lúc (giờ Việt Nam)';
+      return { key, label, type: 'custom' as const, validate: validate(key),
+        render: (values: Record<string, string>, set: (key: string, value: unknown) => void, error?: string) =>
+          <FormField label={label} required={key !== 'pointsExpireAt'} error={error}
+            hint={key === 'pointsExpireAt' ? 'Để trống nếu không đặt hạn điểm.' : undefined}>
+            <DateTimeInput value={values[key] ?? ''} onChange={value => set(key, value)} invalid={!!error} aria-label={label} />
+          </FormField> };
+    }),
     { key: 'retailerIds', label: 'Nhà bán lẻ áp dụng', type: 'custom', span: 2,
       validate: validate('retailerIds'),
       render: (values, set, error) => <ProgramRetailerPicker value={values.retailerIds}

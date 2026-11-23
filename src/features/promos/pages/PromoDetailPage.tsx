@@ -162,7 +162,7 @@ export function PromoDetailPage() {
                           </strong>
                         ),
                       },
-                      { header: 'Trạng thái', cell: row => row.status },
+                      { header: 'Trạng thái', cell: row => statusLabel('order', row.status) },
                     ]}
                   />
                 </>

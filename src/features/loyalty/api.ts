@@ -1,4 +1,5 @@
 import { get, post, put } from '@/shared/api/http';
+import { graphql } from '@/shared/api/graphql';
 import { ApiError } from '@/shared/api/errors';
 import type { LoyaltyCardApi, LoyaltyProgram, ProgramInput, ProgramRetailerOption, RetailerLoyalty } from './types';
 import type { RedemptionApi } from '@/features/redeem/types';
@@ -32,6 +33,20 @@ const toRetailerLoyalty = (card: LoyaltyCardApi): RetailerLoyalty => ({
 });
 
 export const loyaltyApi = {
+  programRetailersPage: async (page: number, search: string): Promise<{ items: ProgramRetailerOption[]; totalCount: number }> => {
+    const data = await graphql<{ entities: { retailerProfiles: { items: ProgramRetailerOption[]; totalCount: number } } }>(`
+      query ProgramRetailerPage($page: Int!, $search: String) {
+        entities { retailerProfiles(page: $page, pageSize: 10, search: $search, status: "Active") {
+          items { id code name status contactName phone email address } totalCount
+        } }
+      }`, { page, search: search.trim() || null });
+    const result = data.entities?.retailerProfiles;
+    if (!result || !Array.isArray(result.items) || !Number.isInteger(result.totalCount) || result.totalCount < 0 ||
+        result.items.some(item => !item.id || !item.code || !item.name || typeof item.status !== 'string')) {
+      throw new ApiError(502, 'Không tải được danh sách nhà bán lẻ áp dụng.');
+    }
+    return result;
+  },
   programs: async (): Promise<LoyaltyProgram[]> => {
     const data = await get<LoyaltyProgram[]>('/loyalty/programs', { includeInactive: true });
     if (!Array.isArray(data)) throw new ApiError(502, 'Thiếu danh sách chương trình tích điểm.');
