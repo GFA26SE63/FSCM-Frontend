@@ -175,6 +175,13 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-lay
 .table-actions-inline > .btn { flex-shrink: 0; }
 .tbl td .chip { max-width: 100%; height: auto; min-height: 24px; white-space: normal; overflow-wrap: normal; line-height: 1.4; }
 .tbl.compact td { padding: 8px 12px; }
+.table-fit .tbl th { white-space: normal; overflow-wrap: anywhere; }
+.table-fit .tbl td { white-space: normal; }
+.table-fit .tbl td > * { max-width: 100%; }
+.table-detail-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 18px; margin: 0; }
+.table-detail-fields > div { min-width: 0; }
+.table-detail-fields dt { color: var(--c-muted); font-size: 13px; margin-bottom: 6px; }
+.table-detail-fields dd { margin: 0; overflow-wrap: anywhere; }
 .tbl tr.tbl-total td { font-weight: 700; background: var(--c-bg); border-top: 2px solid var(--c-border-soft); }
 .tbl.auto { table-layout: auto; }
 .vscroll { overflow-y: auto; }
@@ -182,8 +189,9 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-lay
 .stephd { display: flex; gap: 10px; align-items: center; padding: 10px 14px; background: var(--c-surface-2); border-bottom: 1px solid var(--c-border-soft); }
 .stephd > span { min-width: 0; }
 .num { min-width: 30px; padding: 0 6px; white-space: nowrap; height: 24px; border-radius: 6px; background: var(--c-primary); color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
-.pager { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--c-muted); }
-.pager .pages { display: inline-flex; gap: 6px; }
+.pager { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 0; font-size: 13px; color: var(--c-muted); }
+.pager .pages { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: auto; }
+.pager .pagination-page-size { width: 124px; min-width: 124px; max-width: 124px; flex: 0 0 124px; height: 48px; }
 .order-status-cell .chip {max-width: 100%; height: auto; min-height: 24px; white-space: normal; overflow-wrap: normal; padding: 4px 9px; line-height: 1.4; }
 
 /* filter card */
@@ -202,6 +210,8 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-lay
 .tab { height: 38px; padding: 0 14px; border: none; background: transparent; font-size: 13.5px; font-weight: 600; color: var(--c-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; display: inline-flex; align-items: center; gap: 6px; }
 .tab.active { color: var(--c-primary); border-bottom-color: var(--c-primary); }
 .tab .count { background: #eceef1; color: #374151; border-radius: 999px; padding: 0 7px; font-size: 11.5px; height: 18px; display: inline-flex; align-items: center; }
+.qr-label-status-tabs { margin-bottom: 16px; }
+.qr-label-status-tabs .tabs { flex-wrap: wrap; }
 .pills { display: flex; gap: 8px; flex-wrap: wrap; }
 .pill { height: 34px; padding: 0 12px; border-radius: var(--radius-sm); border: 1px solid var(--c-border); background: var(--c-surface); font-weight: 600; font-size: 13px; cursor: pointer; color: var(--c-text); }
 .pill.active { background: var(--c-primary); border-color: var(--c-primary); color: #fff; }

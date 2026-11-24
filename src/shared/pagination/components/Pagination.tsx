@@ -27,6 +27,8 @@ export interface PaginationUIProps {
   totalCount?: number;
   /** Current page size. */
   pageSize: number;
+  /** Actual rows on this page, including an empty/stale cursor page. */
+  itemCount?: number;
   /**
    * Pages reachable by direct navigation.
    * - undefined → all pages are navigable (REST mode).
@@ -49,6 +51,7 @@ export interface PaginationUIProps {
   onPageSizeChange?: (size: number) => void;
   /** Allowed page size options. */
   pageSizeOptions?: readonly number[];
+  pageSizeLabel?: string;
   /** Extra content on the left side of the pager. */
   extra?: ReactNode;
 }
@@ -58,6 +61,7 @@ export function Pagination({
   totalPages,
   totalCount,
   pageSize,
+  itemCount,
   navigablePages,
   loading = false,
   hasPrev,
@@ -67,11 +71,12 @@ export function Pagination({
   onNext,
   onPageSizeChange,
   pageSizeOptions = DEFAULT_PAGE_SIZES,
+  pageSizeLabel = 'Số dòng mỗi trang',
   extra,
 }: PaginationUIProps) {
   const hasTotal = totalCount !== undefined && totalCount >= 0;
-  const from = hasTotal && totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const to = hasTotal ? Math.min(totalCount!, currentPage * pageSize) : undefined;
+  const from = (hasTotal && totalCount === 0) || itemCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const to = hasTotal ? itemCount === 0 ? 0 : Math.min(totalCount!, (currentPage - 1) * pageSize + (itemCount ?? pageSize)) : undefined;
 
   // null = all pages navigable (REST); Set = cursor-limited navigable set
   const navigableSet: Set<number> | null = navigablePages ? new Set(navigablePages) : null;
@@ -81,9 +86,8 @@ export function Pagination({
   // Without totalPages: show only the pages we know about.
   let candidates: number[];
   if (totalPages) {
-    candidates = Array.from({ length: totalPages }, (_, i) => i + 1).filter(
-      (p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2,
-    );
+    candidates = [...new Set([1, totalPages, currentPage - 2, currentPage - 1, currentPage, currentPage + 1, currentPage + 2])]
+      .filter(p => p >= 1 && p <= totalPages).sort((a, b) => a - b);
   } else {
     const known = new Set<number>([1, currentPage]);
     if (navigablePages) for (const p of navigablePages) known.add(p);
@@ -102,7 +106,8 @@ export function Pagination({
       <span className="pages" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
         {onPageSizeChange && (
           <Select
-            aria-label="Số dòng mỗi trang"
+            className="pagination-page-size"
+            aria-label={pageSizeLabel}
             value={String(pageSize)}
             onChange={(e) => onPageSizeChange(Number(e.target.value))}
             options={pageSizeOptions.map((n) => ({ value: String(n), label: `${n} / trang` }))}
