@@ -111,15 +111,15 @@ function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; picking
       { header: 'Mã đơn', width: '150px', cell: order => <b>{order.orderCode}</b> },
       { header: 'Kho xuất', width: '170px', cell: order => {
         const parts = partsOf(order);
-        return <div className="delivery-table-stack">{parts.length ? parts.map(part => <span key={part.warehouseId}>{part.warehouseCode}</span>) : <span className="muted">—</span>}</div>;
+        return <div className="delivery-table-stack">{parts.length ? parts.map(part => <span className="delivery-warehouse-code" key={part.warehouseId}>{part.warehouseCode}</span>) : <span className="muted">—</span>}</div>;
       } },
       { header: 'Trạng thái tại kho', width: '200px', cell: order => {
         const parts = partsOf(order);
-        return <div className="delivery-table-stack">{parts.length ? parts.map(part => <Chip key={part.warehouseId} tone={PART_STATUS[part.status]?.tone ?? 'neutral'}>{PART_STATUS[part.status]?.label ?? part.status}</Chip>) : <span className="muted">Đang tải</span>}</div>;
+        return <div className="delivery-table-stack delivery-warehouse-status">{parts.length ? parts.map(part => <Chip key={part.warehouseId} tone={PART_STATUS[part.status]?.tone ?? 'neutral'}>{PART_STATUS[part.status]?.label ?? part.status}</Chip>) : <span className="muted">Đang tải</span>}</div>;
       } },
       { header: 'Phiếu giao hàng', width: '180px', cell: order => {
         const parts = partsOf(order);
-        return <div className="delivery-table-stack">{parts.length ? parts.map(part => <span key={part.warehouseId}>{part.shipmentCode ?? <span className="muted">Chưa có phiếu</span>}</span>) : <span className="muted">—</span>}</div>;
+        return <div className="delivery-table-stack">{parts.length ? parts.map(part => <span className="delivery-shipment-code" key={part.warehouseId}>{part.shipmentCode ?? <span className="muted">Chưa có phiếu</span>}</span>) : <span className="muted">—</span>}</div>;
       } },
       { header: 'Trạng thái điều phối', width: '170px', cell: order => {
         const current = byId.get(order.id);

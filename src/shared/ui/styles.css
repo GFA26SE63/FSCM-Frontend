@@ -271,8 +271,11 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-lay
 .promo-retailer-picker .tbl tr > :last-child { position: sticky; right: 0; background: var(--c-card, #fff); box-shadow: -1px 0 0 var(--c-border, #e0e5e2); }
 .promo-retailer-picker .tbl thead tr > :last-child { z-index: 3; background: var(--c-th); }
 
-/* Delivery coordination uses the shared table treatment; a stack keeps multi-warehouse orders readable. */
-.delivery-table-stack { display: grid; gap: 6px; align-items: start; }
+/* Delivery coordination uses the shared table treatment; stacked warehouse parts stay aligned and compact. */
+.delivery-table-stack { display: grid; justify-items: start; gap: 8px; align-items: center; min-height: 26px; }
+.delivery-warehouse-code { font-weight: 700; color: var(--c-text); letter-spacing: .01em; }
+.delivery-shipment-code { font-weight: 600; color: var(--c-text); }
+.delivery-warehouse-status .chip { justify-self: start; width: max-content; min-height: 26px; height: 26px; padding: 0 10px; border-radius: 6px; white-space: nowrap; }
 .delivery-summary-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .delivery-filter-card .filter-grid { grid-template-columns: minmax(250px, 2fr) repeat(4, minmax(170px, 1fr)) auto; }
 .delivery-filter-action { display: flex; align-items: flex-end; }
