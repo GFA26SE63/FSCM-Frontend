@@ -135,11 +135,7 @@ function buildWarehousesListQuery(first: number, hasAfter: boolean): string {
             code
             name
             address
-            latitude
-            longitude
-            warehouseType
-            capacityPallets
-            minStockPerSku
+            minimumStockThresholdCartons
             isActive
             regionId
             createdAt
@@ -162,11 +158,7 @@ const WAREHOUSE_DETAIL_QUERY = `
           code
           name
           address
-          latitude
-          longitude
-          warehouseType
-          capacityPallets
-          minStockPerSku
+          minimumStockThresholdCartons
           isActive
           regionId
           createdAt
