@@ -48,6 +48,28 @@
 
 .warehouse-work-filters label { font-size: 13px; font-weight: 600; color: var(--c-text, #17302c); }
 
+/* Warehouse screens still use native controls in a few operational forms.
+   Give those controls the exact shared .inp treatment used by DataTable. */
+.warehouse-work-filters input,
+.warehouse-work-filters select {
+  height: 38px;
+  box-sizing: border-box;
+  border: 1px solid var(--c-border, #cbd5d1);
+  border-radius: var(--radius-sm, 8px);
+  padding: 0 10px;
+  font-size: 13.5px;
+  font-weight: 400;
+  color: var(--c-text, #17302c);
+  background: var(--c-surface, #fff);
+}
+
+.warehouse-work-filters input::placeholder { color: var(--c-muted, #718078); }
+.warehouse-work-filters input:focus,
+.warehouse-work-filters select:focus {
+  outline: 2px solid rgba(20, 101, 91, .25);
+  border-color: var(--c-primary, #14655b);
+}
+
 .warehouse-work-filters input, .warehouse-work-filters select {
   width: 100%;
   min-width: 0;
