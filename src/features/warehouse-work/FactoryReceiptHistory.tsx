@@ -18,9 +18,10 @@ export function FactoryReceiptHistory<T extends HistoryDoc>({ rows, whName, stat
   const chip = (status: string) => <span className={`chip ${status === 'Posted' ? 'tone-success' : 'tone-warn'}`}>{statusText(status)}</span>;
   return <>
     <SimpleTable rows={rows} columns={[
-      { header: 'Mã PNK', width: '300px', cell: r => <button className="btn btn-sm warehouse-document-code" onClick={() => open(r)}>
-        <span>{r.docs.length > 1 ? `${r.docs.length} PNK · ${r.docs[0].document.code}…` : r.docs[0].document.code}</span>
-      </button> },
+      { header: 'Phiếu nhập / ngày nhận', width: '300px', cell: r => <div>
+        <b className="warehouse-pallet-code">{r.docs.length > 1 ? `${r.docs.length} PNK · ${r.docs[0].document.code}…` : r.docs[0].document.code}</b>
+        <div className="muted">{formatInstantDateTime(r.docs[0].document.createdAt)}</div>
+      </div> },
       { header: 'Phiếu xuất nhà máy', width: '280px', cell: r => dispatchLabel(r) },
       { header: 'Kho nhận', width: '200px', cell: r => whName(r.docs[0].document.warehouseId) },
       { header: 'Số thùng', width: '120px', cell: r => `${rowCartons(r)} carton` },
