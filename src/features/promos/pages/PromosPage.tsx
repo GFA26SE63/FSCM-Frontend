@@ -76,6 +76,7 @@ export function PromosPage() {
         error={query.isPlaceholderData ? undefined : query.error}
         rowKey={(p) => p.id}
         columns={columns}
+        summaryColumns={['code', 'name', 'type', 'period', 'status']}
         searchPlaceholder="Mã, tên chương trình…"
         cursor={pagingProps}
         serverSort={{ ...sortProps, sortableFields: PROMOS_SORTABLE_FIELDS }}

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { get, getAll } from '@/shared/api/http';
 import { errorMessage } from '@/shared/api/errors';
 import { useAuth } from '@/shared/auth/AuthContext';
-import { Button, Callout, Card, Chip, DateInput, EmptyState, Fields, Modal, PageHeader, QueryState, Stat } from '@/shared/ui';
+import { Button, Callout, Card, Chip, DateInput, EmptyState, Fields, Modal, PageHeader, Pagination, QueryState, Stat } from '@/shared/ui';
 import { formatDate, formatNumber } from '@/shared/lib';
 import { formatInstantDateTime } from '@/shared/lib/dates';
 import { downloadExcel } from '@/shared/lib/excel';
@@ -63,6 +63,10 @@ function WarehouseCard({ warehouse, sort, onSort, onSelect }: {
 }) {
   const totals = warehouseTotals(warehouse);
   const products = sortProducts(warehouse.products, sort);
+  const [page, setPage] = useState(1);
+  const [size, setSize] = useState(10);
+  const totalPages = Math.max(1, Math.ceil(products.length / size));
+  const current = Math.min(page, totalPages);
   return (
     <Card
       flush
@@ -117,7 +121,7 @@ function WarehouseCard({ warehouse, sort, onSort, onSelect }: {
             </tr>
           </thead>
           <tbody>
-            {products.map((p) => (
+            {products.slice((current - 1) * size, current * size).map((p) => (
               <tr key={p.productId}>
                 <td><Button size="sm" onClick={() => onSelect(p)}>Chi tiết</Button></td>
                 <td className="wr-center">{p.rank}</td>
@@ -139,6 +143,10 @@ function WarehouseCard({ warehouse, sort, onSort, onSelect }: {
           </tfoot>
         </table>
       )}
+      <Pagination currentPage={current} totalPages={totalPages} totalCount={products.length} pageSize={size}
+        hasPrev={current > 1} hasNext={current < totalPages} onPage={setPage}
+        onPrev={() => setPage(current - 1)} onNext={() => setPage(current + 1)}
+        onPageSizeChange={value => { setSize(value); setPage(1); }} />
     </Card>
   );
 }

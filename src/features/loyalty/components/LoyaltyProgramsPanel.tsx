@@ -38,6 +38,7 @@ export function LoyaltyProgramsPanel() {
   return <>
     <DataTable stateKey="programs" title="Chương trình khách hàng thân thiết" rows={query.data}
       loading={query.isLoading} error={query.error} columns={columns}
+      summaryColumns={['code', 'name', 'rate', 'period', 'status']}
       rowKey={(p) => p.id} searchPlaceholder="Mã hoặc tên chương trình…"
       emptyText="Chưa có chương trình tích điểm phù hợp."
       actions={<>

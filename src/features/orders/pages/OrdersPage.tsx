@@ -165,7 +165,7 @@ export function OrdersPage() {
     },
     {
       key: 'createdAt',
-      header: 'Server nhận',
+      header: 'Ngày nhận đơn',
       width: '105px',
       sortable: true,
       text: (order) => formatShortDateTime(order.createdAt),
@@ -247,6 +247,7 @@ export function OrdersPage() {
         error={query.isPlaceholderData ? undefined : query.error}
         rowKey={(order) => order.id}
         columns={columns}
+        summaryColumns={['orderCode', 'retailer', 'createdAt', 'amount', 'status']}
         searchPlaceholder="Mã đơn, nhà bán lẻ, người đặt, trạng thái…"
         cursor={pagingProps}
         serverSort={{ ...sortProps, sortableFields: ORDER_SORTABLE_FIELDS }}

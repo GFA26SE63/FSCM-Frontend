@@ -9,7 +9,6 @@ import { useDashboard } from '../hooks';
 import { RevenueByDayChart } from '../components/RevenueChart';
 import { ExpiryRiskCard } from '../components/ExpiryRiskCard';
 import { DASHBOARD_TITLES, dashboardSections, dashboardTabs, defaultDashboardDates, periodChange, visibleCards } from '../dashboardModel';
-import { ShowMoreFooter, useShowMore } from '../components/ShowMore';
 import type { DashboardFilters, DashboardResponse } from '../types';
 import './dashboard.css';
 import { workItemStatus } from '../workItemStatus';
@@ -165,12 +164,11 @@ export function DashboardContent({ data, tab, onTabChange }: {
   </>;
 }
 
-/** "Việc cần xử lý": highest priority first, 10 at a time. */
+/** "Việc cần xử lý": highest priority first, using the common table pager. */
 function WorkCard({ rows }: { rows: DashboardResponse['workItems'] }) {
   const navigate = useNavigate();
-  const list = useShowMore(rows);
   return <Card title="Việc cần xử lý">
-    <SimpleTable compact rows={list.shown} empty="Không có công việc chờ trong phạm vi này."
+    <SimpleTable paginate compact rows={rows} empty="Không có công việc chờ trong phạm vi này."
       columns={[
         { header: 'Mức độ', cell: w => <Chip tone={w.priority === 1 ? 'danger' : w.priority === 2 ? 'warn' : 'info'}>{w.priority === 1 ? 'Ưu tiên cao' : w.priority === 2 ? 'Cần xử lý' : 'Đang chờ'}</Chip> },
         { header: 'Chứng từ', cell: w => <><strong>{w.code}</strong><br />{w.kind === 'shipment' ? dashboardText(w.title) : w.title}</> },
@@ -179,20 +177,17 @@ function WorkCard({ rows }: { rows: DashboardResponse['workItems'] }) {
         { header: 'Giá trị', align: 'right', cell: w => w.amount == null ? '—' : formatMoney(w.amount) },
         { header: '', cell: w => w.href ? <Button size="sm" onClick={() => navigate(w.href!)}>Mở xử lý</Button> : 'Theo dõi trong phạm vi quản lý' },
       ]} />
-    <ShowMoreFooter count={list.count} total={list.total} unit="việc" onMore={list.more} />
   </Card>;
 }
 
-/** "Top SKU bán chạy" over completed orders in the period, 10 at a time. */
+/** "Top SKU bán chạy" keeps the backend ranking while using the common pager. */
 function TopProductsCard({ rows }: { rows: DashboardResponse['topProducts'] }) {
-  const list = useShowMore(rows);
   return <Card title="Top SKU bán chạy">
-    <SimpleTable rows={list.shown} empty="Chưa có SKU bán ra trong kỳ đã chọn." columns={[
+    <SimpleTable paginate rows={rows} empty="Chưa có SKU bán ra trong kỳ đã chọn." columns={[
       { header: '#', align: 'right', cell: p => formatNumber(rows.indexOf(p) + 1) },
       { header: 'SKU', cell: p => p.sku }, { header: 'Sản phẩm', cell: p => p.name },
       { header: 'Thùng', align: 'right', cell: p => formatNumber(p.quantity) },
       { header: 'Doanh thu sau điều chỉnh', align: 'right', cell: p => formatMoney(p.revenue) },
     ]} />
-    <ShowMoreFooter count={list.count} total={list.total} unit="SKU" onMore={list.more} />
   </Card>;
 }

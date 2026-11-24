@@ -17,7 +17,7 @@ export function FactoryReceiptHistory<T extends HistoryDoc>({ rows, whName, stat
   const open = (row: HistoryRow<T>) => (row.docs.length > 1 ? setShown(row) : onOpen(row.docs[0].document.id));
   const chip = (status: string) => <span className={`chip ${status === 'Posted' ? 'tone-success' : 'tone-warn'}`}>{statusText(status)}</span>;
   return <>
-    <SimpleTable rows={rows} onRowClick={open} columns={[
+    <SimpleTable paginate rows={rows} onRowClick={open} columns={[
       { header: 'Phiếu nhập / ngày nhận', width: '300px', cell: r => <div>
         <b className="warehouse-pallet-code">{r.docs.length > 1 ? `${r.docs.length} PNK · ${r.docs[0].document.code}…` : r.docs[0].document.code}</b>
         <div className="muted">{formatInstantDateTime(r.docs[0].document.createdAt)}</div>

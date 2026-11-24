@@ -34,13 +34,9 @@ import { RetailerMlorTab } from '../components/RetailerMlorTab';
 import { RetailerAuditTimeline } from '../components/RetailerAuditTimeline';
 import type { Retailer } from '../types';
 
-/** Credit orders shown first, then this many more per "Hiện thêm". */
-const RECEIVABLE_PAGE = 10;
-
 function DebtTab({ retailer }: { retailer: Retailer }) {
   const rec = useRetailerReceivables(retailer.id, retailer.code);
   const loy = useRetailerLoyalty(retailer.id || retailer.code);
-  const [shown, setShown] = useState(RECEIVABLE_PAGE);
   const available = loy.data?.availablePoints ?? loy.data?.available ?? 0;
   const held = loy.data?.heldPoints ?? loy.data?.held ?? 0;
   return (
@@ -61,7 +57,8 @@ function DebtTab({ retailer }: { retailer: Retailer }) {
         <QueryState query={rec}>
           {(rows) => <>
             <SimpleTable
-              rows={rows.slice(0, Math.min(shown, rows.length))}
+              paginate
+              rows={rows}
               empty="Nhà bán lẻ chưa có đơn công nợ."
               columns={[
                 { header: 'Mã đơn', cell: (r) => r.orderCode },
@@ -107,18 +104,6 @@ function DebtTab({ retailer }: { retailer: Retailer }) {
                 },
               ]}
             />
-            {rows.length > 0 && (
-              <div className="retailer-more">
-                <span className="muted small">
-                  Đang hiển thị {formatNumber(Math.min(shown, rows.length))} / {formatNumber(rows.length)} đơn
-                </span>
-                {shown < rows.length && (
-                  <Button size="sm" onClick={() => setShown((n) => Math.min(n, rows.length) + RECEIVABLE_PAGE)}>
-                    Hiện thêm {formatNumber(Math.min(RECEIVABLE_PAGE, rows.length - shown))} đơn
-                  </Button>
-                )}
-              </div>
-            )}
           </>}
         </QueryState>
       </Card>
