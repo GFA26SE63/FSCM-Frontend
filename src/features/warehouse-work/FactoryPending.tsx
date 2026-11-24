@@ -42,7 +42,7 @@ export function FactoryPending({ query, warehouses, admin, busy, onOpen, refresh
   const warehouseName = (id: string) => warehouses.find(w => w.id === id)?.name ?? id;
   return <Card title="Hàng chờ nhận từ nhà máy">
     <p>Mỗi dòng là một phiếu xuất xưởng của nhà máy (có thể gồm nhiều pallet). Mở phiếu để quét lần lượt từng pallet và kiểm đếm thùng; mở phiếu chưa cộng tồn kho.</p>
-    <section className="filter-card" aria-label="Bộ lọc nâng cao hàng chờ nhận">
+    <section className="filter-card factory-pending-filters" aria-label="Bộ lọc nâng cao hàng chờ nhận">
       <div className="row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14655B" strokeWidth="2" aria-hidden><path d="M3 5h18l-7 8v6l-4 2v-8z" /></svg><h2 className="sec">Bộ lọc nâng cao</h2></div>
     <div className="filter-grid">
       <label className="lbl">Tìm kiếm<input className="inp" value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã phiếu xuất, pallet, lô hàng, SKU hoặc biển số xe" /></label>

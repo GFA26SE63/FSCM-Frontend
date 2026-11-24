@@ -77,6 +77,20 @@
 .warehouse-trace-filters::before { grid-column: 1 / -1; }
 .warehouse-trace-filters .warehouse-trace-search { grid-column: 1; }
 
+.factory-pending-filters {
+  margin: 18px 0 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--c-border, #d7ddd9);
+  border-radius: 10px;
+  background: var(--c-surface, #fff);
+}
+.factory-pending-filters .filter-grid {
+  grid-template-columns: minmax(420px, 2fr) minmax(240px, 1fr) minmax(220px, 1fr) auto;
+}
+@media (max-width: 1100px) {
+  .factory-pending-filters .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 .warehouse-work-filters input, .warehouse-work-filters select {
   width: 100%;
   min-width: 0;
