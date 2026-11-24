@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Card, QueryState, SimpleTable } from '@/shared/ui';
+import { Button, Card, Pagination, QueryState, SimpleTable } from '@/shared/ui';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { formatDateTime } from '@/shared/lib';
 import { useUserAudit } from '../hooks';
@@ -23,8 +23,9 @@ const actionLabels: Record<string, string> = {
 export function UserAuditPanel({ userId }: { userId: string }) {
   const { user } = useAuth();
   const [cursors, setCursors] = useState<(string | null)[]>([null]);
+  const [pageSize, setPageSize] = useState(20);
   const after = cursors[cursors.length - 1];
-  const query = useUserAudit(userId, after, user?.role === 'Admin');
+  const query = useUserAudit(userId, after, user?.role === 'Admin', pageSize);
 
   if (user?.role !== 'Admin') return null;
 
@@ -39,22 +40,23 @@ export function UserAuditPanel({ userId }: { userId: string }) {
       </p>
       <QueryState query={query}>
         {(page) => <>
-          <SimpleTable rows={page.nodes} empty="Chưa có lịch sử tài khoản." columns={[
+          <SimpleTable paginate={false} rows={page.nodes} empty="Chưa có lịch sử tài khoản." columns={[
             { header: 'Thời gian', width: '160px', cell: (entry) => formatDateTime(entry.createdAt) },
             { header: 'Thao tác', cell: (entry) => actionLabels[entry.action] ?? entry.action },
             { header: 'ID người thực hiện', cell: (entry) => entry.userAccountId ?? 'Hệ thống' },
             { header: 'Lý do', cell: (entry) => entry.reason?.trim() || 'Không được ghi nhận' },
           ]} />
-          <div className="row-wrap" style={{ justifyContent: 'flex-end', marginTop: 12 }}>
-            <Button size="sm" disabled={query.isFetching || cursors.length === 1}
-              onClick={() => setCursors((current) => current.slice(0, -1))}>Trang trước</Button>
-            <span>Trang {cursors.length}</span>
-            <Button size="sm" disabled={query.isFetching || !page.pageInfo.hasNextPage}
-              onClick={() => {
-                const next = page.pageInfo.endCursor;
-                if (next) setCursors((current) => [...current, next]);
-              }}>Trang sau</Button>
-          </div>
+          <Pagination currentPage={cursors.length} totalCount={page.totalCount} pageSize={pageSize} itemCount={page.nodes.length}
+            totalPages={Math.max(1, Math.ceil(page.totalCount / pageSize))} loading={query.isFetching}
+            hasPrev={cursors.length > 1} hasNext={page.pageInfo.hasNextPage}
+            navigablePages={[...cursors.map((_, i) => i + 1), ...(page.pageInfo.hasNextPage ? [cursors.length + 1] : [])]}
+            onPrev={() => setCursors(current => current.slice(0, -1))}
+            onNext={() => { const next = page.pageInfo.endCursor; if (next) setCursors(current => [...current, next]); }}
+            onPage={n => {
+              if (n <= cursors.length) setCursors(current => current.slice(0, n));
+              else if (n === cursors.length + 1 && page.pageInfo.endCursor) setCursors(current => [...current, page.pageInfo.endCursor]);
+            }}
+            onPageSizeChange={size => { setPageSize(size); setCursors([null]); }} />
         </>}
       </QueryState>
     </Card>

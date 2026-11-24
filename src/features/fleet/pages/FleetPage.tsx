@@ -231,6 +231,7 @@ export function FleetPage() {
           error={listError}
           rowKey={(item) => item.id}
           columns={vehicleColumns}
+          summaryColumns={['plateNumber', 'vehicleType', 'capacity', 'warehouse', 'status']}
           searchPlaceholder="Biển số, loại xe, kho…"
           cursor={pagingProps}
           serverSort={{ ...sortProps, sortableFields: sortable }}
@@ -282,6 +283,7 @@ export function FleetPage() {
           error={listError}
           rowKey={(item) => item.id}
           columns={driverColumns}
+          summaryColumns={['code', 'fullName', 'phone', 'warehouse', 'status']}
           searchPlaceholder="Mã, họ tên, điện thoại, số GPLX, kho…"
           cursor={pagingProps}
           serverSort={{ ...sortProps, sortableFields: sortable }}

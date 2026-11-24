@@ -32,6 +32,22 @@ function api(mocks) {
   }).giftApi;
 }
 
+test('gift page size applies to both forward and backward GraphQL paging', async () => {
+  const requests = [];
+  const gifts = api({ graphql: async (query, variables) => {
+    requests.push({ query, variables });
+    return { entities: { loyaltyRewards: { nodes: [], totalCount: 0,
+      pageInfo: { hasNextPage: false, hasPreviousPage: false, startCursor: null, endCursor: null } } } };
+  } });
+  await gifts.list({ pageSize: 10, after: 'next' });
+  await gifts.list({ pageSize: 50, before: 'prev' });
+  assert.match(requests[0].query, /first: 10, after: \$cursor/);
+  assert.match(requests[1].query, /last: 50, before: \$cursor/);
+  assert.equal(requests[1].variables.cursor, 'prev');
+  await assert.rejects(gifts.list({ pageSize: 500 }));
+  assert.equal(requests.length, 2);
+});
+
 test('gift list uses server GraphQL filters/paging and derives redeemed quantities without guessing legacy data', async () => {
   let calls = 0;
   const gifts = api({ graphql: async (query, variables) => {

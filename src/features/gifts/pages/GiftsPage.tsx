@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Eye, Pencil } from 'lucide-react';
-import { ActionDropdown, Button, Callout, Card, Input, PageHeader, QueryState, Select, SimpleTable, StatusChip } from '@/shared/ui';
+import { ActionDropdown, Button, Callout, Card, Input, PageHeader, Pagination, QueryState, Select, SimpleTable, StatusChip } from '@/shared/ui';
 import { formatNumber } from '@/shared/lib';
 import { downloadExcel } from '@/shared/lib/excel';
 import { parsePage, useEnumParam, useQueryParams, useStringParam } from '@/shared/router/listState';
@@ -17,8 +17,9 @@ export function GiftsPage() {
   const [search, setSearch] = useStringParam('search', { resets });
   const [status, setStatus] = useEnumParam('status', ['', 'Active', 'Paused', 'OutOfStock'] as const, '', { resets });
   const [sort, setSort] = useEnumParam('sort', ['newest', 'oldest', 'pointsAsc', 'pointsDesc'] as const, 'newest', { resets });
+  const [size, setSize] = useEnumParam('size', ['10', '20', '50'] as const, String(GIFT_PAGE_SIZE) as '20', { resets });
   const filters: GiftFilters = { search: search.trim(), status, sort,
-    after: params.get('after') || undefined, before: params.get('before') || undefined };
+    after: params.get('after') || undefined, before: params.get('before') || undefined, pageSize: Number(size) };
   const query = useGifts(filters);
   const create = useCreateGift();
   const update = useUpdateGift();
@@ -56,8 +57,12 @@ export function GiftsPage() {
         </div>
         <QueryState query={query}>{page => {
           const current = !page.pageInfo.hasPreviousPage ? 1 : parsePage(params.get('page'));
+          const firstPage = () => setParams({ page: null, after: null, before: null });
+          const previousPage = () => setParams({ page: current > 2 ? current - 1 : null, before: current > 2 ? page.pageInfo.startCursor : null, after: null });
+          const nextPage = () => setParams({ page: current + 1, after: page.pageInfo.endCursor, before: null });
           return <>
-            <SimpleTable rows={page.items} columns={[
+            <SimpleTable paginate={false} rows={page.items}
+              summaryColumns={['Mã quà', 'Tên quà', 'Điểm / quà', 'Còn có thể cấp', 'Trạng thái', 'Thao tác']} columns={[
               { header: 'Mã quà', cell: g => <strong>{g.code}</strong> },
               { header: 'Tên quà', cell: g => <div className="row-wrap" style={{ gap: 10 }}>
                 {g.imageUrl && <img src={g.imageUrl} alt="" style={{ width: 44, height: 44, objectFit: 'contain', borderRadius: 6 }} />}{g.name}
@@ -73,18 +78,13 @@ export function GiftsPage() {
                 }]} />
               </div> },
             ]} />
-            <div className="pager">
-              <span>{page.totalCount} quà · Trang {current} / {Math.max(1, Math.ceil(page.totalCount / GIFT_PAGE_SIZE))}</span>
-              <span className="pages">
-                <Button size="sm" disabled={query.isFetching || !page.pageInfo.hasPreviousPage} onClick={() => setParams({
-                  page: current > 2 ? current - 1 : null, before: current > 2 ? page.pageInfo.startCursor : null, after: null,
-                })}>Trước</Button>
-                <Button size="sm" disabled={query.isFetching || !page.pageInfo.hasNextPage} onClick={() => setParams({
-                  page: current + 1, after: page.pageInfo.endCursor, before: null,
-                })}>Sau</Button>
-                {(filters.after || filters.before) && <Button size="sm" onClick={() => setParams({ page: null, after: null, before: null })}>Trang đầu</Button>}
-              </span>
-            </div>
+            <Pagination currentPage={current} totalCount={page.totalCount} pageSize={Number(size)} itemCount={page.items.length}
+              totalPages={Math.max(1, Math.ceil(page.totalCount / Number(size)))} loading={query.isFetching}
+              hasPrev={page.pageInfo.hasPreviousPage} hasNext={page.pageInfo.hasNextPage}
+              navigablePages={[1, current, ...(page.pageInfo.hasPreviousPage ? [current - 1] : []), ...(page.pageInfo.hasNextPage ? [current + 1] : [])]}
+              onPrev={previousPage} onNext={nextPage}
+              onPage={n => { if (n === 1) firstPage(); else if (n === current - 1) previousPage(); else if (n === current + 1) nextPage(); }}
+              onPageSizeChange={n => setSize(String(n) as typeof size)} />
           </>;
         }}</QueryState>
         {query.isError && (filters.after || filters.before) && <Button size="sm" onClick={() => setParams({ page: null, after: null, before: null })}>Về trang đầu</Button>}

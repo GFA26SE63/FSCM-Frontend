@@ -145,6 +145,7 @@ export function ProductsPage() {
       width: '130px',
       align: 'right',
       text: (p) => priceText(p.currentUnitPrice),
+      render: (p) => <>{priceText(p.currentUnitPrice)}<div className="muted small">/ {p.unit}</div></>,
     },
     {
       key: 'life',
@@ -179,6 +180,7 @@ export function ProductsPage() {
         error={query.isPlaceholderData ? undefined : query.error}
         rowKey={(p) => p.id}
         columns={columns}
+        summaryColumns={['sku', 'name', 'categoryName', 'price', 'status']}
         searchPlaceholder="SKU, tên, danh mục…"
         cursor={pagingProps}
         serverSort={{ ...sortProps, sortableFields: PRODUCTS_SORTABLE_FIELDS }}

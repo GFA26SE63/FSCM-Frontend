@@ -62,3 +62,26 @@ export async function fetchNotifications(limit: number): Promise<NotificationsSu
   const data = await graphql<{ entities: { all?: Conn; unread?: Conn } }>(buildNotificationsQuery(limit), {});
   return { all: toWindow(data.entities?.all), unread: toWindow(data.entities?.unread) };
 }
+
+export interface NotificationPage extends NotificationWindow {
+  pageInfo: { hasNextPage: boolean; hasPreviousPage: boolean; startCursor: string | null; endCursor: string | null };
+}
+
+export async function fetchNotificationPage(size: number, unread: boolean, after?: string, before?: string): Promise<NotificationPage> {
+  if (![10, 20, 50].includes(size)) throw new Error('invalid page size');
+  const result = await graphql<{ entities: { notifications: Conn & { pageInfo: NotificationPage['pageInfo'] } } }>(`
+    query NotificationPage($cursor: String) {
+      entities { notifications(${before ? 'last' : 'first'}: ${size}, ${before ? 'before' : 'after'}: $cursor,
+        ${unread ? 'where: { isRead: { eq: false } },' : ''} order: [{ createdAt: DESC }, { id: DESC }]) {
+        totalCount nodes { id type title message createdAt isRead readAt relatedEntityType relatedEntityId deepLink }
+        pageInfo { hasNextPage hasPreviousPage startCursor endCursor }
+      } }
+    }`, { cursor: before || after || null });
+  const connection = result.entities?.notifications;
+  const info = connection?.pageInfo;
+  if (!info || typeof info.hasNextPage !== 'boolean' || typeof info.hasPreviousPage !== 'boolean'
+    || (info.hasNextPage && !info.endCursor) || (info.hasPreviousPage && !info.startCursor)) {
+    throw new ApiError(502, 'Thiếu thông tin phân trang thông báo.');
+  }
+  return { ...toWindow(connection), pageInfo: info };
+}

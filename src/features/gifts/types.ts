@@ -9,7 +9,7 @@ export interface GiftInput {
   status: Gift['status']; loyaltyProgramId: string; rewardType?: string; discountAmount?: number | null; discountPercent?: number | null;
   imageFile?: File | null;
 }
-export interface GiftFilters { search?: string; status?: '' | 'Active' | 'Paused' | 'OutOfStock'; sort?: 'newest' | 'oldest' | 'pointsAsc' | 'pointsDesc'; after?: string; before?: string }
+export interface GiftFilters { search?: string; status?: '' | 'Active' | 'Paused' | 'OutOfStock'; sort?: 'newest' | 'oldest' | 'pointsAsc' | 'pointsDesc'; after?: string; before?: string; pageSize?: number }
 export interface GiftPage {
   items: Gift[]; totalCount: number;
   pageInfo: { startCursor: string | null; endCursor: string | null; hasNextPage: boolean; hasPreviousPage: boolean };

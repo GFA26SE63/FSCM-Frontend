@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
 import { Button, Card, Chip, SimpleTable } from '@/shared/ui';
 import { formatNumber } from '@/shared/lib';
@@ -13,18 +12,16 @@ export function nextVisible(current: number, loaded: number, page = EXPIRY_PAGE_
 }
 
 /**
- * Near-expiry and expired batches, soonest expiry first, shown 10 at a time with "Hiện thêm".
- * The shown count survives the dashboard's background refresh and is clamped if the list shrinks.
+ * Near-expiry and expired batches, soonest expiry first, with the common table pager.
+ * A capped dashboard result still points to the full batch list.
  */
 export function ExpiryRiskCard({ rows, total }: { rows: DashboardResponse['expiryRisks']; total?: number }) {
   const navigate = useNavigate();
-  const [visible, setVisible] = useState(EXPIRY_PAGE_SIZE);
-  const shown = rows.slice(0, Math.min(visible, rows.length));
   const all = total ?? rows.length;
   const capped = all > rows.length;
   return (
     <Card title={`Lô hàng cần chú ý · ${formatNumber(all)} lô hàng cận hạn / hết hạn, ưu tiên theo hạn sử dụng`}>
-      <SimpleTable rows={shown} empty="Không có lô hàng cận hạn/hết hạn còn tồn." columns={[
+      <SimpleTable paginate rows={rows} empty="Không có lô hàng cận hạn/hết hạn còn tồn." columns={[
         { header: 'Lô hàng / kho', cell: b => <>{b.batchCode}<br />{b.warehouseCode}</> },
         { header: 'SKU', cell: b => b.sku }, { header: 'Hết hạn', cell: b => formatDate(b.expirationDate) },
         { header: 'Tồn vật lý', align: 'right', cell: b => formatNumber(b.onHand) },
@@ -32,18 +29,12 @@ export function ExpiryRiskCard({ rows, total }: { rows: DashboardResponse['expir
         { header: 'Cảnh báo', cell: b => <Chip tone={b.status === 'Expired' ? 'danger' : 'warn'}>{b.status === 'Expired' ? 'Hết hạn' : 'Cận hạn'}</Chip> },
         { header: '', cell: b => <Button size="sm" onClick={() => navigate(`/batches/${encodeURIComponent(b.batchCode)}`)}>Xem lô hàng</Button> },
       ]} />
-      {rows.length > 0 && (
+      {capped && (
         <div className="dashboard-more">
           <span className="muted small">
-            Đang hiển thị {formatNumber(shown.length)} / {formatNumber(all)} lô hàng
-            {capped && shown.length === rows.length && ` · xem toàn bộ trong Quản lý lô hàng`}
+            Đã tải {formatNumber(rows.length)} / {formatNumber(all)} lô hàng vào Tổng quan · xem toàn bộ trong Quản lý lô hàng
           </span>
-          {shown.length < rows.length && (
-            <Button size="sm" onClick={() => setVisible(v => nextVisible(Math.min(v, rows.length), rows.length))}>
-              Hiện thêm {formatNumber(Math.min(EXPIRY_PAGE_SIZE, rows.length - shown.length))} lô hàng
-            </Button>
-          )}
-          {capped && shown.length === rows.length && (
+          {capped && (
             <Button size="sm" onClick={() => navigate('/batches')}>Mở Quản lý lô hàng</Button>
           )}
         </div>

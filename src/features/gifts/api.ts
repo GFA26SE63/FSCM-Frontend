@@ -66,6 +66,8 @@ function body(v: GiftInput) {
 
 export const giftApi = {
   list: async (filter: GiftFilters = {}): Promise<GiftPage> => {
+    const pageSize = filter.pageSize ?? GIFT_PAGE_SIZE;
+    if (![10, 20, 50].includes(pageSize)) throw new ApiError(400, 'Số quà mỗi trang phải là 10, 20 hoặc 50.');
     const clauses = [
       ...(filter.search ? ['{ or: [{ code: { contains: $search } }, { name: { contains: $search } }] }'] : []),
       ...(filter.status === 'OutOfStock' ? ['{ availableQuantity: { eq: 0 } }']
@@ -74,7 +76,7 @@ export const giftApi = {
     const backwards = !!filter.before;
     const data = await graphql<{ entities: { loyaltyRewards: { nodes: RewardApi[]; totalCount: number; pageInfo: GiftPage['pageInfo'] } } }>(`
       query GiftPage($cursor: String${filter.search ? ', $search: String!' : ''}) {
-        entities { loyaltyRewards(${backwards ? 'last' : 'first'}: 20, ${backwards ? 'before' : 'after'}: $cursor,
+        entities { loyaltyRewards(${backwards ? 'last' : 'first'}: ${pageSize}, ${backwards ? 'before' : 'after'}: $cursor,
           ${clauses.length ? `where: { and: [${clauses.join(', ')}] },` : ''}
           order: ${filter.sort === 'oldest' ? '[{ createdAt: ASC }, { id: ASC }]' : filter.sort === 'pointsAsc'
             ? '[{ requiredPoints: ASC }, { id: ASC }]' : filter.sort === 'pointsDesc'
@@ -84,7 +86,7 @@ export const giftApi = {
       }
     `, { cursor: filter.before || filter.after || null, ...(filter.search ? { search: filter.search } : {}) });
     const page = data.entities?.loyaltyRewards;
-    if (!page || !Array.isArray(page.nodes) || page.nodes.length > GIFT_PAGE_SIZE || !Number.isInteger(page.totalCount) || page.totalCount < 0 ||
+    if (!page || !Array.isArray(page.nodes) || page.nodes.length > pageSize || !Number.isInteger(page.totalCount) || page.totalCount < 0 ||
         !page.pageInfo || typeof page.pageInfo.hasNextPage !== 'boolean' || typeof page.pageInfo.hasPreviousPage !== 'boolean' ||
         (page.pageInfo.hasNextPage && !page.pageInfo.endCursor) || (page.pageInfo.hasPreviousPage && !page.pageInfo.startCursor)) {
       throw new ApiError(502, 'Thiếu thông tin phân trang danh mục quà.');
