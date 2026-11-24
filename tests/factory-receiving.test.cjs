@@ -53,12 +53,12 @@ function all(node, predicate) {
   if (!node || typeof node !== 'object') return [];
   return [...(predicate(node) ? [node] : []), ...[node.props?.children].flat(Infinity).flatMap(child => all(child, predicate))];
 }
-function states(scan = '') { return ['warehouse', '', [], [], 'delivery note', scan, false, '', '', false, '', '', '', '', '', null]; }
+function states(scan = '', tab = '') { return ['warehouse', '', [], [], 'delivery note', scan, false, '', '', false, '', '', '', '', tab, null]; }
 
 test('a dispatch-note row opens one PNK for the whole note without sending a warehouse chosen by the keeper', async () => {
   const writes = [];
   const navigations = [];
-  const tree = page(states(), [], async (...args) => { writes.push(args); return { data: { document: { id: 'receipt', reason: 'Factory' } } }; }, { search: '', push: path => navigations.push(path) });
+  const tree = page(states('', 'factory'), [], async (...args) => { writes.push(args); return { data: { document: { id: 'receipt', reason: 'Factory' } } }; }, { search: '', push: path => navigations.push(path) });
   const pending = all(tree, n => n.type === 'query')[0].props.children();
   pending.props.onOpen({ dispatchNoteId: 'note-1', dispatchCode: 'PXN-1', destinationWarehouseId: 'factory-selected-warehouse',
     pallets: [{ palletCode: 'PID-1' }, { palletCode: 'PID-2' }] });
@@ -72,7 +72,7 @@ test('a dispatch-note row opens one PNK for the whole note without sending a war
 test('pallets dispatched before dispatch notes still open a receipt from the single pallet', async () => {
   const writes = [];
   const navigations = [];
-  const tree = page(states(), [], async (...args) => { writes.push(args); return { data: { document: { id: 'receipt', reason: 'Factory' } } }; }, { search: '', push: path => navigations.push(path) });
+  const tree = page(states('', 'factory'), [], async (...args) => { writes.push(args); return { data: { document: { id: 'receipt', reason: 'Factory' } } }; }, { search: '', push: path => navigations.push(path) });
   const pending = all(tree, n => n.type === 'query')[0].props.children();
   pending.props.onOpen({ dispatchNoteId: null, dispatchCode: 'PID-1', destinationWarehouseId: 'factory-selected-warehouse', pallets: [{ palletCode: 'PID-1' }] });
   await new Promise(resolve => setImmediate(resolve));
@@ -87,7 +87,7 @@ test('warehouse lists isolate factory, order and transfer documents with separat
   const docs = ['Factory', 'Order', 'Transfer'].map(reason => ({ document: { id: reason, reason, kind: 'Receipt', status: 'Posted', code: reason, warehouseId: 'warehouse' }, lines: [], cartons: [] }));
   for (const [workflow, reason] of [['receipts', 'Factory'], ['outbound', 'Order'], ['transfer', 'Transfer']]) {
     const navigations = [];
-    const tree = page(states(), docs, undefined, { workflow, search: '', push: path => navigations.push(path) });
+    const tree = page(states('', workflow === 'receipts' ? 'history' : ''), docs, undefined, { workflow, search: '', push: path => navigations.push(path) });
     assert.equal(all(tree, n => n.type === 'form').length, 0, 'list must not expose a creation form');
     assert.equal(all(tree, n => n.type === 'trace').length, 0, 'tracing belongs on its own page');
     const content = all(tree, n => n.type === 'query').find(n => n.props.query.data === docs).props.children();

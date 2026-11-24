@@ -37,8 +37,15 @@
   min-width: 0;
 }
 
+.warehouse-work-filters .warehouse-filter-action {
+  display: flex;
+  align-items: flex-end;
+}
+
 @media (max-width: 720px) {
   .warehouse-work-filters { grid-template-columns: 1fr; }
+  .warehouse-work-filters .warehouse-filter-action { align-items: stretch; }
+  .warehouse-work-filters .warehouse-filter-action .btn { width: 100%; }
 }
 
 /* Warehouse Inbound 3-Step Process Guide */

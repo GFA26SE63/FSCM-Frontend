@@ -43,7 +43,7 @@ export function FactoryPending({ query, warehouses, admin, busy, onOpen, refresh
       <label>Tìm hàng chờ nhận<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã phiếu xuất, pallet, lô hàng, SKU hoặc biển số xe" /></label>
       {warehouses.length > 1 ? <label>Lọc kho nhận<select value={effectiveWarehouse} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho được phân công</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
         : <p>Kho nhận: <b>{warehouses[0]?.name ?? 'Chưa được phân công kho'}</b></p>}
-      <button className="btn" type="button" disabled={busy} onClick={refresh}>Làm mới hàng chờ nhận</button>
+      <div className="warehouse-filter-action"><button className="btn" type="button" disabled={busy || query.isLoading} onClick={refresh}>Làm mới hàng chờ nhận</button></div>
     </div>
     <QueryState query={query}>{() => <SimpleTable rows={visible} columns={[
       { header: 'Phiếu xuất / ngày xuất', width: '260px', cell: d => <><b className="warehouse-pallet-code">{d.dispatchCode}</b><div className="muted">{d.dispatchedAt ? formatInstantDateTime(d.dispatchedAt) : '—'}</div></> },
