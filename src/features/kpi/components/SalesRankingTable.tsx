@@ -1,6 +1,5 @@
 import { useNavigate } from '@/shared/router/compat';
 import {
-  Button,
   DataTable,
   type Column,
 } from '@/shared/ui';
@@ -68,12 +67,6 @@ export function SalesRankingTable({ rows, filters }: Props) {
       rowKey={(row) => `${row.salesUserId}:${row.salesGroupId}`}
       searchPlaceholder="Tên nhân viên bán hàng, mã hoặc tên nhóm…"
       onRowClick={openDetail}
-      rowActionsWidth="90px"
-      rowActions={(row) => (
-        <Button size="sm" onClick={() => openDetail(row)}>
-          Xem
-        </Button>
-      )}
       emptyText="Không có dữ liệu nhân viên bán hàng được ghi nhận trong kỳ và phạm vi này."
     />
   );

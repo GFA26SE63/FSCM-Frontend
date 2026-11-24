@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Eye, Lock, Printer, Trash2, Unlock } from 'lucide-react';
+import { Lock, Printer, Trash2, Unlock } from 'lucide-react';
 import { useNavigate } from '@/shared/router/compat';
 import {
   ActionDropdown,
@@ -578,39 +578,18 @@ export function BatchesPage() {
             });
           }
 
+          if (dropdownItems.length === 0) return null;
+
           return (
             <div
               style={{
                 display: 'flex',
-                gap: 6,
                 alignItems: 'center',
                 justifyContent: 'flex-end',
               }}
+              onClick={(e) => e.stopPropagation()}
             >
-              {/* Xem button: visible neutral/primary outline with eye icon */}
-              <Button
-                size="sm"
-                variant="default"
-                onClick={() => navigate(`/batches/${b.batchId || b.batchCode}`)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  borderColor: 'var(--c-border)',
-                  color: 'var(--c-primary)',
-                  background: '#ffffff',
-                  fontWeight: 600,
-                  padding: '0 10px',
-                }}
-              >
-                <Eye size={14} />
-                <span>Xem</span>
-              </Button>
-
-              {/* Three-dot dropdown menu for secondary actions */}
-              {dropdownItems.length > 0 && (
-                <ActionDropdown items={dropdownItems} />
-              )}
+              <ActionDropdown items={dropdownItems} />
             </div>
           );
         }}

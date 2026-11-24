@@ -1,6 +1,5 @@
 import { useNavigate } from '@/shared/router/compat';
 import {
-  Button,
   Callout,
   DataTable,
   Modal,
@@ -129,20 +128,6 @@ export function KpiOrderBreakdownDialog({
         return <span style={{ fontWeight: 600 }}>{pct.toFixed(1)}%</span>;
       },
     },
-    {
-      key: 'action',
-      header: 'Thao tác',
-      align: 'center',
-      width: '90px',
-      render: (row) => (
-        <Button
-          size="sm"
-          onClick={() => navigate(`/orders/${row.orderId}`)}
-        >
-          Xem đơn
-        </Button>
-      ),
-    },
   ];
 
   return (
@@ -182,6 +167,7 @@ export function KpiOrderBreakdownDialog({
             rows={orders}
             columns={columns}
             rowKey={(r) => r.orderId}
+            onRowClick={(r) => navigate(`/orders/${r.orderId}`)}
             searchPlaceholder="Tìm mã đơn, tên nhà bán lẻ…"
           />
         )}

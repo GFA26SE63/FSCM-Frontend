@@ -201,23 +201,8 @@ export function UsersPage() {
             `/users/${encodeURIComponent(user.id)}`,
           )
         }
-        rowActionsWidth="180px"
-        rowActions={(user) => (
-          <>
-            <Button
-              size="sm"
-              onClick={() =>
-                navigate(
-                  `/users/${encodeURIComponent(user.id)}`,
-                )
-              }
-            >
-              Xem
-            </Button>
-
-            <UserStatusButton user={user} />
-          </>
-        )}
+        rowActionsWidth="120px"
+        rowActions={(user) => <UserStatusButton user={user} />}
       />
 
       {creating && (
