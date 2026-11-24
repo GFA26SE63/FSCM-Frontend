@@ -62,11 +62,9 @@ test('history row opens the PNK directly, or a popup for a note received on seve
   const multi = { key: 'note:1', docs: [doc('a'), doc('b')], group: group('note:1', ['a', 'b'], 'PXN-1', [['PID-1', 'a'], ['PID-2', 'b']]) };
   const props = { rows: [single, multi], whName: () => 'Kho A', statusText: s => s, onOpen: id => opened.push(id) };
   const table = all(FactoryReceiptHistory(props), n => n.type === 'table')[0];
-  const action = table.props.columns.at(-1);
-  action.cell(single).props.onClick();
+  table.props.onRowClick(single);
   assert.deepEqual(opened, ['c']);
-  assert.equal(action.cell(multi).props.children, 'Xem chi tiết');
-  action.cell(multi).props.onClick();
+  table.props.onRowClick(multi);
   assert.equal(shown, multi);
   const modal = all(FactoryReceiptHistory(props), n => n.type === 'modal')[0];
   assert.equal(modal.props.open, true);

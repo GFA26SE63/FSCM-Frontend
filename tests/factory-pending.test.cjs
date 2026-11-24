@@ -36,13 +36,15 @@ test('one assigned warehouse has a fixed warehouse label and excludes other ware
   const { tree, table } = render([{ id: 'W1', name: 'Kho A' }], [
     dispatch('PXN-1', 'W1', [pallet('P1')]), dispatch('PXN-2', 'W2', [pallet('P2')]),
   ]);
-  assert.equal(all(tree, n => n.type === 'select').length, 0);
+  assert.equal(all(tree, n => n.type === 'select').filter(select =>
+    JSON.stringify(select).includes('Tất cả kho được phân công')).length, 0);
   assert.deepEqual(table.props.rows.map(d => d.dispatchCode), ['PXN-1']);
 });
 test('multi-warehouse selector filters pending dispatches while retaining the factory destination', () => {
   const item = dispatch('PXN-2', 'W2', [pallet('P2')]);
   const { tree, table } = render([{ id: 'W1', name: 'Kho A' }, { id: 'W2', name: 'Kho B' }], [dispatch('PXN-1', 'W1', [pallet('P1')]), item], 'W2');
-  assert.equal(all(tree, n => n.type === 'select').length, 1);
+  assert.equal(all(tree, n => n.type === 'select').filter(select =>
+    JSON.stringify(select).includes('Tất cả kho được phân công')).length, 1);
   assert.deepEqual(table.props.rows, [item]);
 });
 test('a remembered filter for a revoked warehouse does not hide arrivals at the sole assigned warehouse', () => {
