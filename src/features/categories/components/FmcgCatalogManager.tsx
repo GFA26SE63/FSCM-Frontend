@@ -49,9 +49,9 @@ export function FmcgCatalogManager() {
     <Card>
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center', gap: 20, minHeight: 46 }}>
         <div>
-          <div className="sec" style={{ marginBottom: 8 }}>Danh mục FMCG chuẩn</div>
+          <div className="sec" style={{ marginBottom: 8 }}>Danh mục của doanh nghiệp</div>
           <div className="muted" style={{ fontSize: 13 }}>
-            Cập nhật bộ danh mục chuẩn dùng để kiểm tra tính phù hợp của danh mục sản phẩm.
+            Cập nhật bộ danh mục của doanh nghiệp dùng để kiểm tra tính phù hợp của danh mục sản phẩm.
             {history.length > 0 && ` ${history.length} phiên bản · đang dùng v${activeVersion ?? '—'}.`}
           </div>
         </div>
@@ -61,8 +61,8 @@ export function FmcgCatalogManager() {
 
     <Modal
       open={open}
-      title="Cập nhật danh mục FMCG chuẩn"
-      subtitle="Tải lên một tệp JSON mới hoặc chỉnh sửa nội dung cấu hình hiện tại."
+      title="Cập nhật danh mục của doanh nghiệp"
+      subtitle="Tải lên một tệp JSON mới hoặc chỉnh sửa nội dung danh mục hiện tại."
       width={760}
       onClose={() => setOpen(false)}
       footer={<><Button onClick={download}>Tải JSON hiện tại</Button><Button variant="primary" loading={saving} onClick={() => void save()}>Lưu phiên bản mới</Button></>}
