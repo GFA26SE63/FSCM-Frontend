@@ -43,12 +43,44 @@ export const shipmentsApi = {
   drivers: () => getAll<DeliveryDriver>('/deliveries/drivers', { includeInactive: false }),
   vehicles: () => getAll<DeliveryVehicle>('/deliveries/vehicles', { includeInactive: false }),
   busyAssignments: async () => {
-    const data = await graphql<{ entities: { shipments: { nodes: Array<{ id: string; status: string; driverId: string | null; vehicleId: string | null }> }; warehouseTransfers: { nodes: Array<{ status: string; driverId: string | null; vehicleId: string | null }> } } }>(`
-      query BusyTransportAssignments { entities { shipments(first: 500) { nodes { id status driverId vehicleId } } warehouseTransfers(first: 500) { nodes { status driverId vehicleId } } } }
-    `);
+    type ActiveAssignment = { status: string; driverId: string | null; vehicleId: string | null };
+    type AssignmentConnection = {
+      nodes: ActiveAssignment[];
+      pageInfo: { hasNextPage: boolean; endCursor: string | null };
+    };
+
+    // Fetch separately and page the narrow active set. A single query asking for 500
+    // rows from both connections exceeds Hot Chocolate's request-cost safeguard.
+    const loadActiveAssignments = async (entity: 'shipments' | 'warehouseTransfers', status: string) => {
+      const assignments: ActiveAssignment[] = [];
+      let after: string | null = null;
+      do {
+        const data: { entities: Record<'shipments' | 'warehouseTransfers', AssignmentConnection> } = await graphql<{ entities: Record<'shipments' | 'warehouseTransfers', AssignmentConnection> }>(`
+          query BusyTransportAssignments($after: String) {
+            entities {
+              ${entity}(first: 50, after: $after, where: { status: { eq: "${status}" } }) {
+                nodes { status driverId vehicleId }
+                pageInfo { hasNextPage endCursor }
+              }
+            }
+          }
+        `, { after });
+        const page: AssignmentConnection = data.entities[entity];
+        assignments.push(...page.nodes.filter(item => item.status === status));
+        // Older client mocks (and an empty connection from older API deployments)
+        // may omit pageInfo; in that case the received page is the complete result.
+        after = page.pageInfo?.hasNextPage ? page.pageInfo.endCursor : null;
+      } while (after);
+      return assignments;
+    };
+
+    const [shipments, warehouseTransfers] = await Promise.all([
+      loadActiveAssignments('shipments', 'Delivering'),
+      loadActiveAssignments('warehouseTransfers', 'InTransit'),
+    ]);
     const busyDriverIds = new Set<string>(), busyVehicleIds = new Set<string>();
-    for (const item of data.entities.shipments.nodes) if (item.status === 'Delivering') { if (item.driverId) busyDriverIds.add(item.driverId); if (item.vehicleId) busyVehicleIds.add(item.vehicleId); }
-    for (const item of data.entities.warehouseTransfers.nodes) if (item.status === 'InTransit') { if (item.driverId) busyDriverIds.add(item.driverId); if (item.vehicleId) busyVehicleIds.add(item.vehicleId); }
+    for (const item of shipments) { if (item.driverId) busyDriverIds.add(item.driverId); if (item.vehicleId) busyVehicleIds.add(item.vehicleId); }
+    for (const item of warehouseTransfers) { if (item.driverId) busyDriverIds.add(item.driverId); if (item.vehicleId) busyVehicleIds.add(item.vehicleId); }
     return { busyDriverIds, busyVehicleIds };
   },
   issue: (shipment: Shipment) =>
