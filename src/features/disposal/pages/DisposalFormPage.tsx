@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
 import { Button, Callout, Card, Checkbox, FormField, PageHeader, QueryState, Select, SimpleTable } from '@/shared/ui';
 import { formatCases, formatDate, formatMoney } from '@/shared/lib';
@@ -140,14 +140,8 @@ export function DisposalFormPage() {
                   paginate
                   columns={[
                     {
-                      header: (
-                        <Checkbox
-                          label=""
-                          checked={allFilteredSelected}
-                          onChange={toggleAll}
-                        />
-                      ),
-                      width: '44px',
+                      header: 'Chọn',
+                      width: '60px',
                       cell: (c) => (
                         <Checkbox
                           label=""

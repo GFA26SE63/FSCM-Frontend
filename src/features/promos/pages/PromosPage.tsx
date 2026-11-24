@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Eye, Pause, Play } from 'lucide-react';
+import { Pause, Play } from 'lucide-react';
 import { useNavigate } from '@/shared/router/compat';
 import { useEnumParam, useQueryParams } from '@/shared/router/listState';
 import { useCursorPagination } from '@/shared/pagination';

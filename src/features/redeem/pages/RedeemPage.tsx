@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { Eye } from 'lucide-react';
 import { useNavigate } from '@/shared/router/compat';
 import { useQueryParams } from '@/shared/router/listState';
 import { useCursorPagination } from '@/shared/pagination';
