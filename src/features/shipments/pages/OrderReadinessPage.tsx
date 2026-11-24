@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Callout, Input, PageHeader, QueryState, Select, Stat } from '@/shared/ui';
+import { Button, Callout, Chip, Input, PageHeader, QueryState, Select, SimpleTable, Stat } from '@/shared/ui';
 import { Pagination } from '@/shared/pagination';
 import { usePickingLists } from '@/features/runpicking/hooks';
 import { shipmentsApi } from '../api';
 import { useOrdersReadiness } from '../hooks';
-import { ExportOrderCard } from '../components/ExportOrderCard';
+import { ExportOrderDetailModal, PART_STATUS } from '../components/ExportOrderCard';
 import { exportStatus, sortExportOrders, type ExportOrderSort, type ShipmentSort } from '../exportList';
 import type { ExportOrder } from '../types';
 
@@ -33,6 +33,7 @@ function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; picking
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'held' | 'ready' | 'left'>('all');
   const [warehouseFilter, setWarehouseFilter] = useState('');
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const sorted = useMemo(() => sortExportOrders(orders, sort), [orders, sort]);
@@ -60,6 +61,11 @@ function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; picking
   const visible = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const countsKnown = !readiness.loading && !readiness.error;
   const count = (label: string) => readiness.data.filter(item => exportStatus(item).label === label).length;
+  const partsOf = (order: ExportOrder) => [...(byId.get(order.id)?.parts ?? [])].sort((a, b) => {
+    if (!a.shipmentCode !== !b.shipmentCode) return a.shipmentCode ? -1 : 1;
+    return (shipmentSort === 'asc' ? 1 : -1) * (a.shipmentCode ?? a.warehouseCode).localeCompare(b.shipmentCode ?? b.warehouseCode, 'vi', { numeric: true });
+  });
+  const selectedOrder = selectedOrderId ? orders.find(order => order.id === selectedOrderId) : undefined;
 
   return <div className="stack">
     <div className="stats-grid delivery-summary-grid">
@@ -101,18 +107,29 @@ function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; picking
       </div>
     </section>
     {readiness.error && <Callout tone="danger">Có đơn chưa tải được trạng thái. Chưa thể kết luận điều kiện xuất kho cho các đơn đó.</Callout>}
-    <section className="delivery-order-list" aria-label="Danh sách đơn điều phối giao hàng">
-      <div className="delivery-order-header" aria-hidden>
-        <span>Mã đơn</span>
-        <div className="delivery-order-part-header"><span>Kho xuất</span><span>Trạng thái tại kho</span><span>Phiếu giao hàng</span></div>
-        <span>Trạng thái đơn</span>
-        <span />
-      </div>
-      {visible.map(order => <ExportOrderCard key={order.id} order={order} readiness={byId.get(order.id)}
-        loading={readiness.loading && !byId.has(order.id)} failed={readiness.failedIds.includes(order.id)}
-        sort={shipmentSort} retry={() => { void readiness.refetch(); }} />)}
-      {visible.length === 0 && <p className="muted delivery-order-empty">Không có đơn phù hợp với bộ lọc.</p>}
-    </section>
+    <SimpleTable rows={visible} onRowClick={order => setSelectedOrderId(order.id)} empty="Không có đơn phù hợp với bộ lọc." columns={[
+      { header: 'Mã đơn', width: '150px', cell: order => <b>{order.orderCode}</b> },
+      { header: 'Kho xuất', width: '170px', cell: order => {
+        const parts = partsOf(order);
+        return <div className="delivery-table-stack">{parts.length ? parts.map(part => <span key={part.warehouseId}>{part.warehouseCode}</span>) : <span className="muted">—</span>}</div>;
+      } },
+      { header: 'Trạng thái tại kho', width: '200px', cell: order => {
+        const parts = partsOf(order);
+        return <div className="delivery-table-stack">{parts.length ? parts.map(part => <Chip key={part.warehouseId} tone={PART_STATUS[part.status]?.tone ?? 'neutral'}>{PART_STATUS[part.status]?.label ?? part.status}</Chip>) : <span className="muted">Đang tải</span>}</div>;
+      } },
+      { header: 'Phiếu giao hàng', width: '180px', cell: order => {
+        const parts = partsOf(order);
+        return <div className="delivery-table-stack">{parts.length ? parts.map(part => <span key={part.warehouseId}>{part.shipmentCode ?? <span className="muted">Chưa có phiếu</span>}</span>) : <span className="muted">—</span>}</div>;
+      } },
+      { header: 'Trạng thái điều phối', width: '170px', cell: order => {
+        const current = byId.get(order.id);
+        const status = current ? exportStatus(current) : { tone: readiness.failedIds.includes(order.id) ? 'danger' as const : 'info' as const, label: readiness.failedIds.includes(order.id) ? 'Chưa tải được trạng thái' : 'Đang kiểm tra' };
+        return <Chip tone={status.tone}>{status.label}</Chip>;
+      } },
+    ]} />
+    {selectedOrder && <ExportOrderDetailModal order={selectedOrder} readiness={byId.get(selectedOrder.id)}
+      loading={readiness.loading && !byId.has(selectedOrder.id)} failed={readiness.failedIds.includes(selectedOrder.id)}
+      sort={shipmentSort} retry={() => { void readiness.refetch(); }} open onClose={() => setSelectedOrderId(null)} />}
     {/* Common Pagination Foundation — client-side (server-side is a BACKEND DEPENDENCY:
         GET /api/v1/picking-lists does not support page/pageSize params). */}
     <Pagination

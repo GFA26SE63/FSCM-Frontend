@@ -1,11 +1,9 @@
-import { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
 import { Callout, Chip, Modal, SimpleTable, type Tone } from '@/shared/ui';
 import { HAS_LEFT, type ExportOrder, type OrderShipmentReadiness, type ShipmentPartStatus, type ShipmentReadinessPart } from '../types';
 import { exportStatus, type ShipmentSort } from '../exportList';
 import { ShipmentOperations } from './ShipmentOperations';
 
-const PART_STATUS: Record<ShipmentPartStatus, { tone: Tone; label: string }> = {
+export const PART_STATUS: Record<ShipmentPartStatus, { tone: Tone; label: string }> = {
   WaitingToPick: { tone: 'info', label: 'Chưa soạn xong' },
   Ready: { tone: 'success', label: 'Sẵn sàng' },
   Issued: { tone: 'success', label: 'Đã xuất' },
@@ -14,15 +12,16 @@ const PART_STATUS: Record<ShipmentPartStatus, { tone: Tone; label: string }> = {
   Exception: { tone: 'danger', label: 'Ngoại lệ' },
 };
 
-export function ExportOrderCard({ order, readiness, loading, failed, sort, retry }: {
+export function ExportOrderDetailModal({ order, readiness, loading, failed, sort, retry, open, onClose }: {
   order: ExportOrder;
   readiness?: OrderShipmentReadiness;
   loading: boolean;
   failed: boolean;
   sort: ShipmentSort;
   retry: () => void;
+  open: boolean;
+  onClose: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const status = readiness ? exportStatus(readiness) : {
     tone: failed ? 'danger' as const : 'info' as const,
     label: failed ? 'Chưa tải được trạng thái' : 'Đang kiểm tra',
@@ -41,22 +40,7 @@ export function ExportOrderCard({ order, readiness, loading, failed, sort, retry
     { header: 'Ghi chú', cell: (row: ShipmentReadinessPart) => row.exceptionReason ?? '—' },
   ];
 
-  return <section className="card export-order">
-    <button type="button" className="export-order-toggle" aria-haspopup="dialog"
-      aria-label={`Xem chi tiết xuất kho ${order.orderCode}`} onClick={() => setOpen(true)}>
-      <strong className="export-order-code">{order.orderCode}</strong>
-      {readiness && <div className="export-order-parts spacer">
-        {parts.map(part => <div className="export-order-part" key={part.warehouseId}>
-          <b>{part.warehouseCode}</b>
-          <Chip tone={PART_STATUS[part.status]?.tone ?? 'neutral'}>{PART_STATUS[part.status]?.label ?? part.status}</Chip>
-          <span>{part.shipmentCode ?? 'Chưa có phiếu giao'}</span>
-        </div>)}
-      </div>}
-      {loading && <span className="muted small spacer">Đang kiểm tra kho và phiếu giao hàng…</span>}
-      <Chip tone={status.tone}>{status.label}</Chip>
-      <ChevronRight size={20} aria-hidden />
-    </button>
-    {open && <Modal open width={1100} title={`Chi tiết xuất kho · ${order.orderCode}`} onClose={() => setOpen(false)}>
+  return <Modal open={open} width={1100} title={`Chi tiết điều phối · ${order.orderCode}`} onClose={onClose}>
       <div><Chip tone={status.tone}>{status.label}</Chip></div>
       {failed && <Callout tone="danger">Không tải được trạng thái đơn. <button type="button" onClick={retry}>Thử lại</button></Callout>}
       {loading && <p className="muted">Đang kiểm tra điều kiện xuất kho…</p>}
@@ -75,6 +59,5 @@ export function ExportOrderCard({ order, readiness, loading, failed, sort, retry
             : 'Chưa có phần nào rời kho, nên vẫn hủy được theo quyền; thao tác hủy kèm tác động tới tồn giữ và tiền đã thu nằm ở màn Hủy đơn.'}
         </p>
       </>}
-    </Modal>}
-  </section>;
+    </Modal>;
 }
