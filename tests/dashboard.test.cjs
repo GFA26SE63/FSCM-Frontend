@@ -138,7 +138,7 @@ test('dashboard picking link shows and expands the requested sheet, with a way b
     '@/shared/api/errors':{errorMessage:String},
     '../pickingGraphql':{PAGE_SIZES:[10,20,50],PICKING_STATUSES:['Pending','InProgress','Completed','Exception']},
     '../hooks':{usePickingListPage:page,useWarehouseOptions:()=>({data:[]})},
-    '@/shared/ui':{Card:Wrap,Chip:Wrap,PageHeader:Wrap,Stat:Wrap,Button:Wrap,Callout:Wrap,Select:()=>null,SimpleTable:({rows,columns})=>React.createElement('div',null,rows.map((r,i)=>React.createElement('div',{key:i},columns.map((c,j)=>React.createElement('span',{key:j},c.cell(r))))))},
+    '@/shared/ui':{Card:Wrap,Chip:Wrap,PageHeader:Wrap,Stat:Wrap,Button:Wrap,Callout:Wrap,Pagination:()=>null,Select:()=>null,SimpleTable:({rows,columns})=>React.createElement('div',null,rows.map((r,i)=>React.createElement('div',{key:i},columns.map((c,j)=>React.createElement('span',{key:j},c.cell(r))))))},
     '@/shared/lib':{formatCases:String,formatNumber:String,formatPercent:String,...source('shared/lib/status.ts')},
     '@/shared/lib/dates':{formatDate:String,formatInstantDateTime:String},
   });
