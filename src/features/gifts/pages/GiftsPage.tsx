@@ -61,7 +61,7 @@ export function GiftsPage() {
           const previousPage = () => setParams({ page: current > 2 ? current - 1 : null, before: current > 2 ? page.pageInfo.startCursor : null, after: null });
           const nextPage = () => setParams({ page: current + 1, after: page.pageInfo.endCursor, before: null });
           return <>
-            <SimpleTable paginate={false} rows={page.items}
+            <SimpleTable paginate={false} rows={page.items} onRowClick={setDetail}
               summaryColumns={['Mã quà', 'Tên quà', 'Điểm / quà', 'Còn có thể cấp', 'Trạng thái', 'Thao tác']} columns={[
               { header: 'Mã quà', cell: g => <strong>{g.code}</strong> },
               { header: 'Tên quà', cell: g => <div className="row-wrap" style={{ gap: 10 }}>
@@ -71,12 +71,13 @@ export function GiftsPage() {
               { header: 'Còn có thể cấp', align: 'right', cell: g => g.stock === null ? 'Không giới hạn' : g.stock === 0 ? 'Hết quà' : formatNumber(g.stock) },
               { header: 'Đã đổi', align: 'right', cell: g => g.redeemed === null ? 'Chưa xác định' : formatNumber(g.redeemed) },
               { header: 'Trạng thái', cell: g => <StatusChip domain="active" value={g.status} /> },
-              { header: 'Thao tác', width: '150px', cell: g => <div className="table-actions-inline">
-                <Button size="sm" onClick={() => setDetail(g)}><Eye size={14} /> Xem</Button>
-                <ActionDropdown triggerTitle={`Thao tác quà ${g.code}`} items={[{
-                  key: 'edit', label: 'Sửa', icon: <Pencil size={16} />, onClick: () => open(g),
-                }]} />
-              </div> },
+              { header: 'Thao tác', width: '80px', cell: g => (
+                <div className="table-actions-inline">
+                  <ActionDropdown triggerTitle={`Thao tác quà ${g.code}`} items={[{
+                    key: 'edit', label: 'Sửa', icon: <Pencil size={16} />, onClick: () => open(g),
+                  }]} />
+                </div>
+              ) },
             ]} />
             <Pagination currentPage={current} totalCount={page.totalCount} pageSize={Number(size)} itemCount={page.items.length}
               totalPages={Math.max(1, Math.ceil(page.totalCount / Number(size)))} loading={query.isFetching}

@@ -134,8 +134,6 @@ export function DisposalPage() {
           </label>
         }
         onRowClick={(d) => navigate(`/disposal/${d.code}`)}
-        rowActionsWidth="90px"
-        rowActions={(d) => <Button size="sm" onClick={() => navigate(`/disposal/${d.code}`)}>Xem</Button>}
       />
     </>
   );

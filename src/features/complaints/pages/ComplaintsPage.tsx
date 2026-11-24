@@ -38,12 +38,9 @@ export function ComplaintsPage() {
         filters={[{ label: 'Trạng thái', options: [...new Set(Object.values(statusLabels.complaint))], value: (c) => statusLabel('complaint', c.status) },
           {label:'Loại yêu cầu',options:['Khiếu nại đơn hàng','Trả hàng','Thu hồi hàng hỏng'],value:c=>requestTypeLabel(c.requestType)}]}
         onRowClick={(c) => navigate(`/complaints/${c.code}`)}
-        rowActionsWidth="180px"
+        rowActionsWidth="110px"
         rowActions={(c) => (
-          <>
-            <Button size="sm" onClick={() => navigate(`/complaints/${c.code}`)}>Xem</Button>
-            {c.status === 'Open' && <Button size="sm" variant="primary" onClick={() => setResolving(c.code)}>Xử lý</Button>}
-          </>
+          c.status === 'Open' ? <Button size="sm" variant="primary" onClick={() => setResolving(c.code)}>Xử lý</Button> : null
         )}
       />
       <ResolveDialog code={resolving} onClose={() => setResolving(null)} />

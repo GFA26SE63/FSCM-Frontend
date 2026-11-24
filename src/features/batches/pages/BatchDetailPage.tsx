@@ -344,7 +344,7 @@ export function BatchDetailPage() {
                               : '—';
 
                          return { h, i, typeName, pallets, qtyDelta }; })} empty="Chưa có ghi nhận giao dịch nhập / xuất nào cho lô hàng này." columns={[{ header: "Thời điểm", cell: ({ h }) => <>{formatDateTime(h.occurredAt)}</> },
-{ header: "Loại giao dịch", cell: ({ typeName }) => <>
+{ header: "Loại giao dịch", width: '200px', cell: ({ typeName }) => <>
                               <span
                                 className="chip"
                                 style={
