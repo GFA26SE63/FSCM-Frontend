@@ -118,10 +118,9 @@ export function RedeemPage() {
           </label>
         }
         onRowClick={(x) => navigate(`/redeem/${x.code}`)}
-        rowActionsWidth="150px"
+        rowActionsWidth="80px"
         rowActions={(x) => (
           <div className="table-actions-inline">
-            <Button size="sm" onClick={() => navigate(`/redeem/${x.code}`)}><Eye size={14} /> Xem</Button>
             <RedeemActions x={x} dropdown />
           </div>
         )}

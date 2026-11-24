@@ -252,7 +252,7 @@ export function DataTable<T>({
   const { search, fv, page } = state;
   const listColumns = selectListColumns(columns, summaryColumns, c => c.key);
   const hasSecondaryColumns = listColumns.length < columns.length;
-  const viewActions = rowActions ?? (onRowClick ? (row: T) => <Button size="sm" onClick={() => onRowClick(row)}><Eye size={14} /> Xem</Button> : undefined);
+  const viewActions = rowActions;
 
   // Active pagination mode
   const mode: 'client' | 'rest' | 'cursor' = cursor ? 'cursor' : server ? 'rest' : 'client';

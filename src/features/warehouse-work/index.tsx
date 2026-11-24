@@ -135,7 +135,6 @@ function WarehouseTraceCenter({ warehouses: initialWarehouses }: {
           { header: 'Hạn sử dụng', cell: r => formatDate(r.expirationDate) },
           { header: 'Kho hiện tại', cell: r => <>{r.warehouseCode} · {r.warehouseName}</> },
           { header: 'Trạng thái QR', width: '130px', cell: r => <span className="chip">{qrStatusLabels[r.status] ?? r.status}</span> },
-          { header: 'Thao tác', cell: r => <Button size="sm" onClick={e => { e.stopPropagation(); openCarton(r); }}>Xem</Button> },
         ]} empty="Chưa có thùng carton nào khớp với bộ lọc." />
 
         <Pagination currentPage={data.page} totalPages={Math.max(1, Math.ceil(data.totalCount / data.pageSize))}
@@ -375,7 +374,7 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
     </section>}
     {!selected && !creating && isInbound && !factoryRequests && activeTab === 'todo' && inProgressReceipts.length > 0 && <Card title="Phiếu kiểm đếm đang thực hiện dở dang">
       <p className="muted">Các phiếu nhập kho đã mở nhưng chưa hoàn tất ghi sổ. Chọn phiếu để tiếp tục kiểm đếm.</p>
-      <SimpleTable rows={inProgressReceipts} columns={[
+      <SimpleTable rows={inProgressReceipts} onRowClick={w => { setSelected(w.document.id); setError(''); }} columns={[
         { header: 'Mã phiếu', width: '320px', cell: w => <b className="warehouse-document-code">{w.document.code}</b> },
         { header: 'Kho nhận', width: '220px', cell: w => whName(w.document.warehouseId) },
         { header: 'Số thùng', width: '130px', cell: w => `${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
