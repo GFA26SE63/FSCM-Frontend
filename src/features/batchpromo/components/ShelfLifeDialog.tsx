@@ -6,7 +6,15 @@ import { usePublishShelfLife } from '../hooks';
 import type { ShelfLifeTier } from '../types';
 import { minimumVersionDate } from '@/shared/lib';
 
-const blank = (): ShelfLifeTier => ({ scope: 'Sku', productId: '', minRemainingPercent: 0, maxRemainingPercent: 20, discountType: 'Percent', discountValue: 10 });
+const blank = (scope: 'Sku' | 'Category' = 'Sku'): ShelfLifeTier => ({
+  scope,
+  productId: scope === 'Sku' ? '' : null,
+  productCategoryId: scope === 'Category' ? '' : null,
+  minRemainingPercent: 0,
+  maxRemainingPercent: 20,
+  discountType: 'Percent',
+  discountValue: 10,
+});
 
 export function ShelfLifeDialog({ initial, currentFrom, onClose }: { initial: ShelfLifeTier[]; currentFrom?: string; onClose: () => void }) {
   const { products, categories } = usePromoLookups();
@@ -15,12 +23,41 @@ export function ShelfLifeDialog({ initial, currentFrom, onClose }: { initial: Sh
   const [date, setDate] = useState(minimumVersionDate(currentFrom));
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
-  const update = (index: number, patch: Partial<ShelfLifeTier>) => setTiers((items) => items.map((t, i) => i === index ? { ...t, ...patch } : t));
+  const [search, setSearch] = useState('');
+  const [scopeFilter, setScopeFilter] = useState<'All' | 'Sku' | 'Category'>('All');
+
+  const allTiers = tiers ?? [];
+  const term = (search ?? '').trim().toLowerCase();
+  const currentScope = scopeFilter ?? 'All';
+
+  const filteredTiers = allTiers
+    .map((tier, originalIndex) => ({ tier, originalIndex }))
+    .filter(({ tier }) => {
+      if (currentScope !== 'All' && tier.scope !== currentScope) return false;
+      if (!term) return true;
+      if (tier.scope === 'Sku') {
+        const prod = products.data?.find((p) => p.id === tier.productId);
+        if (prod) {
+          return prod.sku.toLowerCase().includes(term) || prod.name.toLowerCase().includes(term);
+        }
+        return 'sản phẩm'.includes(term);
+      } else {
+        const cat = categories.data?.find((c) => c.id === tier.productCategoryId);
+        if (cat) {
+          return cat.code.toLowerCase().includes(term) || cat.name.toLowerCase().includes(term);
+        }
+        return 'nhóm hàng'.includes(term);
+      }
+    });
+
+  const update = (index: number, patch: Partial<ShelfLifeTier>) =>
+    setTiers((items) => (items ?? []).map((t, i) => i === index ? { ...t, ...patch } : t));
+
   const save = async () => {
     if (publish.isPending) return;
     if (!date || date < minimumVersionDate(currentFrom)) { setError('Ngày hiệu lực phải từ ngày mai theo giờ Việt Nam và sau phiên bản mới nhất.'); return; }
     if (note.trim().length > 500) { setError('Ghi chú tối đa 500 ký tự.'); return; }
-    if (!tiers.length || tiers.some((t) => !(t.scope === 'Sku' ? t.productId : t.productCategoryId) ||
+    if (!allTiers.length || allTiers.some((t) => !(t.scope === 'Sku' ? t.productId : t.productCategoryId) ||
       !Number.isFinite(t.minRemainingPercent) || !Number.isFinite(t.maxRemainingPercent) || !Number.isFinite(t.discountValue) ||
       Number(t.minRemainingPercent.toFixed(2)) !== t.minRemainingPercent || Number(t.maxRemainingPercent.toFixed(2)) !== t.maxRemainingPercent ||
       Number(t.discountValue.toFixed(2)) !== t.discountValue || t.discountValue >= 1e16 ||
@@ -28,41 +65,159 @@ export function ShelfLifeDialog({ initial, currentFrom, onClose }: { initial: Sh
       t.discountValue < 0 || (t.discountType === 'Percent' && t.discountValue > 100))) {
       setError('Chọn sản phẩm hoặc nhóm hàng cho mỗi bậc. Khoảng HSD phải nằm trong 0–100%, mức giảm hợp lệ; các giá trị tối đa 2 chữ số thập phân.'); return;
     }
-    if (tiers.some((t, i) => tiers.slice(i + 1).some((other) => t.scope === other.scope &&
+    if (allTiers.some((t, i) => allTiers.slice(i + 1).some((other) => t.scope === other.scope &&
       (t.scope === 'Sku' ? t.productId === other.productId : t.productCategoryId === other.productCategoryId) &&
       t.minRemainingPercent < other.maxRemainingPercent && other.minRemainingPercent < t.maxRemainingPercent))) {
       setError('Các bậc HSD cùng sản phẩm hoặc nhóm hàng không được chồng nhau.'); return;
     }
     setError('');
     try {
-      await publish.mutateAsync({ effectiveFrom: new Date(`${date}T00:00:00+07:00`).toISOString(), note: note || undefined, tiers });
+      await publish.mutateAsync({ effectiveFrom: new Date(`${date}T00:00:00+07:00`).toISOString(), note: note || undefined, tiers: allTiers });
       onClose();
     } catch { /* Keep inputs and display the mutation error. */ }
   };
-  return <Modal open title="Công bố bảng giảm theo HSD" width={900} onClose={onClose} footer={<>
+
+  return <Modal open title="Công bố bảng giảm theo HSD" width={1000} onClose={onClose} footer={<>
     <Button disabled={publish.isPending} onClick={onClose}>Hủy</Button><Button variant="primary" loading={publish.isPending} onClick={save}>Công bố</Button>
   </>}>
     <div className="stack-sm">
-      <FormField label="Hiệu lực từ" required><Input type="date" min={minimumVersionDate(currentFrom)} value={date} onChange={(e) => setDate(e.target.value)} /></FormField>
-      <FormField label="Ghi chú"><Input maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} /></FormField>
-      {tiers.map((tier, i) => <div className="card stack-sm" style={{ padding: 16 }} key={i}>
-        <div className="row"><strong className="spacer">Bậc {i + 1}</strong><Button size="sm" disabled={tiers.length === 1} onClick={() => setTiers((items) => items.filter((_, j) => i !== j))}>Xóa bậc</Button></div>
-        <div className="form-grid cols-2">
-          <FormField label="Phạm vi"><Select value={tier.scope} options={[{ value: 'Sku', label: 'Sản phẩm' }, { value: 'Category', label: 'Nhóm hàng' }]}
-            onChange={(e) => update(i, { scope: e.target.value as ShelfLifeTier['scope'], productId: null, productCategoryId: null })} /></FormField>
-          <FormField label={tier.scope === 'Sku' ? 'Sản phẩm' : 'Nhóm hàng'} required>
-            <SearchSelect value={(tier.scope === 'Sku' ? tier.productId : tier.productCategoryId) ?? ''}
-              options={tier.scope === 'Sku' ? (products.data ?? []).filter((p) => p.status === 'Published' || p.id === tier.productId).map((p) => ({ value: p.id, label: `${p.sku} · ${p.name}` }))
-                : (categories.data ?? []).map((c) => ({ value: c.id, label: `${c.code} · ${c.name}` }))}
-              onChange={(v) => update(i, tier.scope === 'Sku' ? { productId: v } : { productCategoryId: v })} />
-          </FormField>
-          <FormField label="HSD còn lại từ (%)"><Input type="number" min={0} max={100} value={tier.minRemainingPercent} onChange={(e) => update(i, { minRemainingPercent: e.target.valueAsNumber })} /></FormField>
-          <FormField label="Đến dưới (%)"><Input type="number" min={0} max={100} value={tier.maxRemainingPercent} onChange={(e) => update(i, { maxRemainingPercent: e.target.valueAsNumber })} /></FormField>
-          <FormField label="Kiểu giảm"><Select value={tier.discountType} options={[{ value: 'Percent', label: 'Phần trăm' }, { value: 'FixedPerUnit', label: 'Tiền / đơn vị' }]} onChange={(e) => update(i, { discountType: e.target.value as ShelfLifeTier['discountType'] })} /></FormField>
-          <FormField label={tier.discountType === 'Percent' ? 'Mức giảm (%)' : 'Mức giảm (đ / đơn vị)'}><Input type="number" min={0} value={tier.discountValue} onChange={(e) => update(i, { discountValue: e.target.valueAsNumber })} /></FormField>
+      <div className="form-grid cols-2">
+        <FormField label="Hiệu lực từ" required><Input type="date" min={minimumVersionDate(currentFrom)} value={date} onChange={(e) => setDate(e.target.value)} /></FormField>
+        <FormField label="Ghi chú"><Input maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Nhập ghi chú phiên bản..." /></FormField>
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end', justifyContent: 'space-between', padding: '10px 12px', background: 'var(--c-bg-subtle, #f9fafb)', borderRadius: 6, border: '1px solid var(--c-border, #e0e5e2)' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, flex: 1, minWidth: 280 }}>
+          <div style={{ flex: '2 1 200px' }}>
+            <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Tìm kiếm sản phẩm / nhóm hàng</label>
+            <Input
+              value={search ?? ''}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Nhập mã SKU, tên sản phẩm hoặc nhóm hàng..."
+            />
+          </div>
+          <div style={{ flex: '1 1 150px' }}>
+            <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Lọc phạm vi</label>
+            <Select
+              value={scopeFilter ?? 'All'}
+              options={[
+                { value: 'All', label: 'Tất cả phạm vi' },
+                { value: 'Sku', label: 'Sản phẩm' },
+                { value: 'Category', label: 'Nhóm hàng' },
+              ]}
+              onChange={(e) => setScopeFilter(e.target.value as 'All' | 'Sku' | 'Category')}
+            />
+          </div>
         </div>
-      </div>)}
-      <Button onClick={() => setTiers((items) => [...items, blank()])}>+ Thêm bậc giảm</Button>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <span className="muted" style={{ fontSize: 13 }}>
+            Hiển thị <strong>{filteredTiers.length}</strong> / {allTiers.length} bậc
+          </span>
+          <Button
+            variant="primary"
+            onClick={() => setTiers((items) => [...(items ?? []), blank(scopeFilter === 'Category' ? 'Category' : 'Sku')])}
+          >
+            + Thêm bậc giảm
+          </Button>
+        </div>
+      </div>
+
+      <div className="tbl-wrap" style={{ maxHeight: 420, overflowY: 'auto', border: '1px solid var(--c-border, #e0e5e2)', borderRadius: 6 }}>
+        <table className="tbl compact auto" style={{ margin: 0 }}>
+          <thead>
+            <tr>
+              <th style={{ width: 44, textAlign: 'center' }}>#</th>
+              <th style={{ width: 130 }}>Phạm vi</th>
+              <th style={{ minWidth: 240 }}>Sản phẩm / Nhóm hàng áp dụng</th>
+              <th style={{ width: 200 }}>HSD còn lại (%)</th>
+              <th style={{ width: 230 }}>Kiểu &amp; Mức giảm</th>
+              <th style={{ width: 70, textAlign: 'center' }}>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredTiers.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ textAlign: 'center', padding: '24px 12px', color: '#6b7280' }}>
+                  {allTiers.length === 0 ? 'Chưa có bậc giảm giá nào. Nhấn "+ Thêm bậc giảm" để bắt đầu.' : 'Không tìm thấy bậc giảm giá nào phù hợp với bộ lọc / từ khóa.'}
+                </td>
+              </tr>
+            ) : (
+              filteredTiers.map(({ tier, originalIndex }) => (
+                <tr key={originalIndex}>
+                  <td style={{ textAlign: 'center', fontWeight: 600, color: '#6b7280' }}>
+                    {originalIndex + 1}
+                  </td>
+                  <td>
+                    <Select
+                      value={tier.scope}
+                      options={[{ value: 'Sku', label: 'Sản phẩm' }, { value: 'Category', label: 'Nhóm hàng' }]}
+                      onChange={(e) => update(originalIndex, { scope: e.target.value as ShelfLifeTier['scope'], productId: null, productCategoryId: null })}
+                    />
+                  </td>
+                  <td>
+                    <SearchSelect
+                      value={(tier.scope === 'Sku' ? tier.productId : tier.productCategoryId) ?? ''}
+                      options={tier.scope === 'Sku'
+                        ? (products.data ?? []).filter((p) => p.status === 'Published' || p.id === tier.productId).map((p) => ({ value: p.id, label: `${p.sku} · ${p.name}` }))
+                        : (categories.data ?? []).map((c) => ({ value: c.id, label: `${c.code} · ${c.name}` }))}
+                      onChange={(v) => update(originalIndex, tier.scope === 'Sku' ? { productId: v } : { productCategoryId: v })}
+                    />
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        style={{ width: 56, padding: '4px 6px' }}
+                        value={tier.minRemainingPercent}
+                        onChange={(e) => update(originalIndex, { minRemainingPercent: e.target.valueAsNumber })}
+                      />
+                      <span style={{ fontSize: 12, whiteSpace: 'nowrap' }}>% – &lt;</span>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        style={{ width: 56, padding: '4px 6px' }}
+                        value={tier.maxRemainingPercent}
+                        onChange={(e) => update(originalIndex, { maxRemainingPercent: e.target.valueAsNumber })}
+                      />
+                      <span style={{ fontSize: 12 }}>%</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <Select
+                        style={{ width: 110 }}
+                        value={tier.discountType}
+                        options={[{ value: 'Percent', label: '% Phần trăm' }, { value: 'FixedPerUnit', label: 'đ / đơn vị' }]}
+                        onChange={(e) => update(originalIndex, { discountType: e.target.value as ShelfLifeTier['discountType'] })}
+                      />
+                      <Input
+                        type="number"
+                        min={0}
+                        style={{ width: 80, padding: '4px 6px' }}
+                        value={tier.discountValue}
+                        onChange={(e) => update(originalIndex, { discountValue: e.target.valueAsNumber })}
+                      />
+                    </div>
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    <Button
+                      size="sm"
+                      disabled={allTiers.length === 1}
+                      onClick={() => setTiers((items) => (items ?? []).filter((_, j) => originalIndex !== j))}
+                    >
+                      Xóa
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
       {(error || publish.error || products.error || categories.error) && <Callout tone="danger">{error || errorMessage(publish.error || products.error || categories.error)}</Callout>}
     </div>
   </Modal>;

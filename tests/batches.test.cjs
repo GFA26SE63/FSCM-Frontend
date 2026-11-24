@@ -119,9 +119,9 @@ test('Batch Detail Page: Table headers order has Pallet ID immediately after Ch�
   const detailFile = path.resolve(__dirname, '../src/features/batches/pages/BatchDetailPage.tsx');
   const detailCode = fs.readFileSync(detailFile, 'utf8');
 
-  const historySectionMatch = detailCode.match(/Lịch sử nhập – xuất – khóa[\s\S]*?<table className="tbl"[^>]*>[\s\S]*?<\/thead>/);
-  assert.ok(historySectionMatch, 'History table section must exist');
-  const tableHead = historySectionMatch[0];
+  const historyStart = detailCode.indexOf('Lịch sử nhập – xuất – khóa');
+  const tableHead = detailCode.slice(historyStart, detailCode.indexOf(']} />', historyStart));
+  assert.ok(historyStart >= 0, 'History table section must exist');
 
   assert.ok(tableHead.includes('Thời điểm'));
   assert.ok(tableHead.includes('Loại giao dịch'));
@@ -136,7 +136,7 @@ test('Batch Detail Page: Table headers order has Pallet ID immediately after Ch�
 
   assert.ok(chungTuIdx < palletIdx, 'Pallet ID must come after Chứng từ');
   assert.ok(palletIdx < soLuongIdx, 'Pallet ID must come before Số lượng');
-  assert.ok(detailCode.includes('colSpan={6}'), 'Empty history row must span all 6 columns');
+  assert.ok(tableHead.includes('empty="Chưa có ghi nhận giao dịch nhập / xuất nào cho lô hàng này."'));
 });
 
 test('Batch Detail Page: Pallet ID mapping logic matches receiptCode and handles multiple pallets', () => {
@@ -188,9 +188,8 @@ test('Batch Detail Page: Transaction type column has sufficient width and preser
   const detailFile = path.resolve(__dirname, '../src/features/batches/pages/BatchDetailPage.tsx');
   const detailCode = fs.readFileSync(detailFile, 'utf8');
 
-  // Verify column width is adjusted to 200px to fit labels like AdjustmentDecrease without overflowing
-  assert.ok(detailCode.includes("<th style={{ width: '200px' }}>Loại giao dịch</th>"));
-  assert.ok(detailCode.includes("<td style={{ width: '200px' }}>"));
+  // SimpleTable applies the configured column width to both header and cells.
+  assert.ok(detailCode.includes('{ header: "Loại giao dịch", width: \'200px\''));
 
   // Verify strict preservation: keeps original badge styles and exact typeName mapping
   assert.ok(detailCode.includes("typeName === 'Nhập kho'"));

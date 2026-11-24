@@ -122,8 +122,8 @@ function WarehouseCard({ warehouse, sort, onSort, onSelect }: {
           </thead>
           <tbody>
             {products.slice((current - 1) * size, current * size).map((p) => (
-              <tr key={p.productId}>
-                <td><Button size="sm" onClick={() => onSelect(p)}>Chi tiết</Button></td>
+              <tr key={p.productId} className="clickable" onClick={() => onSelect(p)}>
+                <td><Button size="sm" onClick={(e) => { e.stopPropagation(); onSelect(p); }}>Chi tiết</Button></td>
                 <td className="wr-center">{p.rank}</td>
                 <td className="wr-product" title={`${p.sku} · ${p.name}`}>
                   <span className="bold">{p.sku}</span>

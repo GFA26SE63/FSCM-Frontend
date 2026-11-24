@@ -45,13 +45,8 @@ export function RotationPage() {
           { label: 'Kho nguồn', options: [...new Set(rows.map((p) => p.fromWarehouseName))], value: (p) => p.fromWarehouseName },
         ]}
         onRowClick={(p) => navigate(`/rotation/${encodeURIComponent(p.id)}`)}
-        rowActionsWidth="270px"
-        rowActions={(p) => (
-          <>
-            <Button size="sm" onClick={() => navigate(`/rotation/${encodeURIComponent(p.id)}`)}>Chi tiết</Button>
-            <ProposalActions p={p} />
-          </>
-        )}
+        rowActionsWidth="200px"
+        rowActions={(p) => <ProposalActions p={p} />}
       />
     </>
   );

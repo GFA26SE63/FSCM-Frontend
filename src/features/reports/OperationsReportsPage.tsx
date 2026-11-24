@@ -286,10 +286,9 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
         </Card>
       ) : (
         <Card title={title}>
-          <div className="report-table"><SimpleTable paginate={false} rows={data.items} footer={kind === 'loyalty' && data.pointsTotal ? loyaltyFooter(tableCols, data.pointsTotal) : undefined} columns={[
+          <div className="report-table"><SimpleTable paginate={false} rows={data.items} onRowClick={setSelected} footer={kind === 'loyalty' && data.pointsTotal ? loyaltyFooter(tableCols, data.pointsTotal) : undefined} columns={[
             ...tableCols.map(col => ({ header: col.label, align: col.numeric ? 'right' as const : undefined, cell: (row: Row) => display(row, col, kind) })),
-            { header: '', align: 'right', cell: row => <div className="report-actions">
-              <Button size="sm" onClick={() => setSelected(row)}>Chi tiết</Button>
+            { header: '', align: 'right', cell: row => <div className="report-actions" onClick={e => e.stopPropagation()}>
               {kind === 'redemptions' && <Button size="sm" onClick={() => navigate(`/redeem/${row.id}`)}>Yêu cầu</Button>}
               {kind === 'promotions' && row.orderId && <Button size="sm" onClick={() => navigate(`/orders/${row.orderId}`)}>Đơn hàng</Button>}
               {kind === 'loyalty' && <Button size="sm" onClick={() => navigate(`/loyalty/${encodeURIComponent(row.retailerCode)}`)}>Thẻ tích điểm</Button>}
