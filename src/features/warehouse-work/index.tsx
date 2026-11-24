@@ -8,7 +8,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { get, http } from '@/shared/api/http';
 import { errorMessage } from '@/shared/api/errors';
-import { Button, Card, PageHeader, QueryState, SimpleTable } from '@/shared/ui';
+import { Button, Card, Input, PageHeader, QueryState, Select, SimpleTable } from '@/shared/ui';
 import { downloadExcel } from '@/shared/lib/excel';
 import { receiptApi } from '@/features/receipts/api';
 import { pickingApi } from '@/features/runpicking/api';
@@ -114,11 +114,11 @@ function WarehouseTraceCenter({ warehouses: initialWarehouses }: {
   return <div className="warehouse-trace-center">
     <Card title="Danh sách thùng carton trong kho (Pallet · Carton · SKU · Nhà máy)">
       <p className="muted">Tra cứu toàn diện từng thùng carton đã nhận vào hệ thống FSCM. Tìm kiếm nhanh theo mã Thùng (CID), mã Pallet (PID), mã Lô sản xuất (BID), SKU hoặc HSD.</p>
-      <form className="warehouse-work-filters" onSubmit={e => { e.preventDefault(); setFilters(current => ({ ...current, search: search.trim(), page: 1 })); }} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 16 }}>
-        <label>Kho <select value={filters.warehouseId} onChange={e => changeFilter('warehouseId', e.target.value)}><option value="">Tất cả kho được phép</option>{(warehouses.data ?? initialWarehouses)?.filter(w => user?.role !== 'WarehouseKeeper' || user.scope?.warehouseIds.includes(w.id)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
-        <label>Trạng thái QR <select value={filters.status} onChange={e => changeFilter('status', e.target.value)}><option value="">Tất cả trạng thái</option>{Object.entries(qrStatusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
-        <label>Xác nhận về nhà máy <select value={filters.syncStatus} onChange={e => changeFilter('syncStatus', e.target.value)}><option value="">Tất cả</option><option value="Pending">Chờ gửi / đang thử lại</option><option value="Synced">Đã xác nhận</option><option value="Legacy">Dữ liệu cũ chưa có xác nhận</option></select></label>
-        <label>Tìm CID / PID / BID / SKU <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Quét hoặc nhập mã để tra cứu" /></label>
+      <form className="warehouse-work-filters warehouse-trace-filters" onSubmit={e => { e.preventDefault(); setFilters(current => ({ ...current, search: search.trim(), page: 1 })); }}>
+        <label className="lbl warehouse-trace-search">Tìm CID / PID / BID / SKU <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Quét hoặc nhập mã để tra cứu" /></label>
+        <label className="lbl">Kho <Select value={filters.warehouseId} onChange={e => changeFilter('warehouseId', e.target.value)} options={[{ value: '', label: 'Tất cả kho được phép' }, ...((warehouses.data ?? initialWarehouses)?.filter(w => user?.role !== 'WarehouseKeeper' || user.scope?.warehouseIds.includes(w.id)).map(w => ({ value: w.id, label: w.name })) ?? [])]} /></label>
+        <label className="lbl">Trạng thái QR <Select value={filters.status} onChange={e => changeFilter('status', e.target.value)} options={[{ value: '', label: 'Tất cả trạng thái' }, ...Object.entries(qrStatusLabels).map(([value, label]) => ({ value, label }))]} /></label>
+        <label className="lbl">Xác nhận về nhà máy <Select value={filters.syncStatus} onChange={e => changeFilter('syncStatus', e.target.value)} options={[{ value: '', label: 'Tất cả' }, { value: 'Pending', label: 'Chờ gửi / đang thử lại' }, { value: 'Synced', label: 'Đã xác nhận' }, { value: 'Legacy', label: 'Dữ liệu cũ chưa có xác nhận' }]} /></label>
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
           <button className="btn btn-primary" type="submit">Tìm kiếm</button>
           <button className="btn" type="button" disabled={inventory.isFetching} onClick={() => { void inventory.refetch(); if (selectedCode) void detail.refetch(); }}>Làm mới</button>

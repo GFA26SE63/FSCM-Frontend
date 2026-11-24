@@ -70,6 +70,10 @@
   border-color: var(--c-primary, #14655b);
 }
 
+.warehouse-trace-filters { grid-template-columns: minmax(320px, 2fr) repeat(3, minmax(180px, 1fr)) auto; }
+.warehouse-trace-filters::before { grid-column: 1 / -1; }
+.warehouse-trace-filters .warehouse-trace-search { grid-column: 1; }
+
 .warehouse-work-filters input, .warehouse-work-filters select {
   width: 100%;
   min-width: 0;
