@@ -22,7 +22,21 @@
   display: grid;
   grid-template-columns: minmax(240px, 2fr) repeat(2, minmax(160px, 1fr));
   gap: 12px;
-  margin-bottom: 14px;
+  align-items: end;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--c-border, #d7ddd9);
+  border-radius: 10px;
+  background: var(--c-surface, #fff);
+}
+
+.warehouse-work-filters::before {
+  content: 'BỘ LỌC NÂNG CAO';
+  grid-column: 1 / -1;
+  color: var(--c-text, #17302c);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .02em;
 }
 
 .warehouse-work-filters label {
@@ -31,6 +45,8 @@
   gap: 6px;
   min-width: 0;
 }
+
+.warehouse-work-filters label { font-size: 13px; font-weight: 600; color: var(--c-text, #17302c); }
 
 .warehouse-work-filters input, .warehouse-work-filters select {
   width: 100%;
