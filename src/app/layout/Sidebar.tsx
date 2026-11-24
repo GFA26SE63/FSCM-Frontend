@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
-import { roleLabel } from '@/shared/auth/roles';
+import { isPortalRole, roleLabel } from '@/shared/auth/roles';
 import { APP_ROUTES, type AppRoute } from '../routes';
 
 const FSCM_LOGO_URL = '/src/assets/branding/fscm-logo.png';
@@ -15,7 +15,7 @@ const MENU_GROUPS: { key: string; label: string; keys: string[] }[] = [
   { key: 'warehouse', label: 'Kho vận', keys: ['warehouse-inbound', 'warehouse-outbound', 'warehouse-transfers', 'batches', 'warehouse-trace', 'readiness', 'batchpromo', 'disposal', 'fleet'] },
   { key: 'customer', label: 'Khách hàng & Khuyến mãi', keys: ['retailers', 'promos', 'loyalty', 'redeem', 'gifts'] },
   { key: 'catalog', label: 'Danh mục', keys: ['regions', 'cats', 'catmlor', 'skus', 'whs'] },
-  { key: 'system', label: 'Hệ thống', keys: ['users', 'roles', 'config'] },
+  { key: 'system', label: 'Hệ thống', keys: ['notifications', 'users', 'roles', 'config'] },
 ];
 
 function buildGroups(items: AppRoute[]) {
@@ -38,6 +38,7 @@ export function Sidebar() {
   const items = user
     ? APP_ROUTES.filter((r) => {
         if (r.hidden) return false;
+        if (r.availableToAllPortalUsers) return isPortalRole(user.role);
         if (user.role === 'Admin') return true;
         if (user.permissions && user.permissions.length > 0) {
           return user.permissions.includes(r.key);

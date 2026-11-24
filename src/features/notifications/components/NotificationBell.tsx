@@ -74,7 +74,7 @@ export function NotificationBell() {
           <div className="bell-hd" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span className="sec">Thông báo</span>
             {unreadCount > 0 && (
-              <button type="button" className="link-btn small" onClick={handleMarkAll}>
+              <button type="button" className="link-btn small" onClick={handleMarkAll} disabled={markAllRead.isPending}>
                 Đánh dấu tất cả đã đọc
               </button>
             )}
@@ -108,6 +108,7 @@ export function NotificationBell() {
                   key={n.id}
                   type="button"
                   className={`bell-item${n.isRead ? '' : ' unread'}`}
+                  disabled={markRead.isPending}
                   onClick={() => {
                     if (!n.isRead) markRead.mutate(n.id);
                     setOpen(false);
@@ -134,6 +135,11 @@ export function NotificationBell() {
                 Xem thêm
               </button>
             )}
+            <div className="bell-footer">
+              <button type="button" className="link-btn small" onClick={() => { setOpen(false); navigate('/notifications'); }}>
+                Xem tất cả thông báo
+              </button>
+            </div>
           </div>
         </div>
       )}
