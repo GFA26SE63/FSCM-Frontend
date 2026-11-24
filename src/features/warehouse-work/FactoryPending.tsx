@@ -45,10 +45,10 @@ export function FactoryPending({ query, warehouses, admin, busy, onOpen, refresh
     <section className="filter-card" aria-label="Bộ lọc nâng cao hàng chờ nhận">
       <div className="row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14655B" strokeWidth="2" aria-hidden><path d="M3 5h18l-7 8v6l-4 2v-8z" /></svg><h2 className="sec">Bộ lọc nâng cao</h2></div>
     <div className="filter-grid">
-      <label className="lbl">Tìm kiếm<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã phiếu xuất, pallet, lô hàng, SKU hoặc biển số xe" /></label>
-      {warehouses.length > 1 ? <label className="lbl">Kho nhận<select value={effectiveWarehouse} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho được phân công</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
+      <label className="lbl">Tìm kiếm<input className="inp" value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã phiếu xuất, pallet, lô hàng, SKU hoặc biển số xe" /></label>
+      {warehouses.length > 1 ? <label className="lbl">Kho nhận<select className="inp" value={effectiveWarehouse} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho được phân công</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
         : <p>Kho nhận: <b>{warehouses[0]?.name ?? 'Chưa được phân công kho'}</b></p>}
-      <label className="lbl">Sắp xếp<select value={sort} onChange={e => setSort(e.target.value)}><option value="">Mới nhất</option><option value="codeAsc">Mã phiếu A–Z</option></select></label>
+      <label className="lbl">Sắp xếp<select className="inp" value={sort} onChange={e => setSort(e.target.value)}><option value="">Mới nhất</option><option value="codeAsc">Mã phiếu A–Z</option></select></label>
       <div className="warehouse-filter-action"><button className="btn" type="button" disabled={busy || query.isLoading} onClick={refresh}>Làm mới hàng chờ nhận</button></div>
     </div>
     </section>
