@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Callout, PageHeader, QueryState, Select, Stat } from '@/shared/ui';
+import { Button, Callout, Input, PageHeader, QueryState, Select, Stat } from '@/shared/ui';
 import { Pagination } from '@/shared/pagination';
 import { usePickingLists } from '@/features/runpicking/hooks';
 import { shipmentsApi } from '../api';
@@ -18,8 +18,8 @@ export function OrderReadinessPage() {
     enabled: lists.isSuccess && orderIds.length > 0,
   });
   return <>
-    <PageHeader title="Xuất kho"
-      subtitle="Cả đơn phải soạn đủ ở mọi kho và đạt điều kiện thanh toán thì mới được xuất. Mở từng đơn để xem kho, phiếu giao hàng và thao tác vận hành." />
+    <PageHeader title="Điều phối giao hàng"
+      subtitle="Theo dõi mức sẵn sàng xuất hàng, điều phối xe và tài xế cho các đơn bán hàng đã được soạn tại kho." />
     <QueryState query={lists}>{data => data.length === 0
       ? <Callout tone="info">Chưa có đơn thực hiện nào phát hành phiếu soạn để kiểm tra xuất kho.</Callout>
       : <QueryState query={orders}>{items => <ExportOrders orders={items} pickingCount={data.length} />}</QueryState>}
@@ -30,39 +30,76 @@ export function OrderReadinessPage() {
 function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; pickingCount: number }) {
   const [sort, setSort] = useState<ExportOrderSort>('newest');
   const [shipmentSort, setShipmentSort] = useState<ShipmentSort>('asc');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'held' | 'ready' | 'left'>('all');
+  const [warehouseFilter, setWarehouseFilter] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const sorted = useMemo(() => sortExportOrders(orders, sort), [orders, sort]);
-  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const visible = sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const readiness = useOrdersReadiness(visible.map(order => order.id));
+  const readiness = useOrdersReadiness(orders.map(order => order.id));
   const byId = new Map(readiness.data.map(item => [item.salesOrderId, item]));
+  const warehouses = [...new Set(readiness.data.flatMap(item => item.parts.map(part => part.warehouseCode)))].sort((a, b) => a.localeCompare(b, 'vi'));
+  const term = search.trim().toLocaleLowerCase('vi');
+  const matchesStatus = (order: ExportOrder) => {
+    const current = byId.get(order.id);
+    if (!current || statusFilter === 'all') return true;
+    const status = exportStatus(current).label;
+    return statusFilter === 'held' ? ['Đang bị giữ', 'Ngoại lệ'].includes(status)
+      : statusFilter === 'ready' ? status === 'Được xuất'
+        : status === 'Đã rời kho';
+  };
+  const filtered = sorted.filter(order => {
+    const current = byId.get(order.id);
+    const values = [order.orderCode, ...(current?.parts.flatMap(part => [part.warehouseCode, part.shipmentCode ?? '']) ?? [])];
+    return (!term || values.join(' ').toLocaleLowerCase('vi').includes(term))
+      && (!warehouseFilter || current?.parts.some(part => part.warehouseCode === warehouseFilter))
+      && matchesStatus(order);
+  });
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const visible = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const countsKnown = !readiness.loading && !readiness.error;
   const count = (label: string) => readiness.data.filter(item => exportStatus(item).label === label).length;
 
   return <div className="stack">
-    <div className="row-wrap" style={{ gap: 12 }}>
-      <Stat label="Phiếu soạn" value={String(pickingCount)} />
-      <Stat label="Tổng đơn" value={String(orders.length)} />
-      <Stat label="Cần xử lý (trang này)" value={countsKnown ? String(count('Đang bị giữ') + count('Ngoại lệ')) : '—'} />
-      <Stat label="Được xuất (trang này)" value={countsKnown ? String(count('Được xuất')) : '—'} />
-      <Stat label="Đã rời kho (trang này)" value={countsKnown ? String(count('Đã rời kho')) : '—'} />
+    <div className="stats-grid delivery-summary-grid">
+      <Stat label="Tổng đơn điều phối" value={String(orders.length)} note="Toàn hệ thống" />
+      <Stat label="Phiếu soạn" value={String(pickingCount)} note="Đang được theo dõi" />
+      <Stat label="Cần xử lý" value={countsKnown ? String(count('Đang bị giữ') + count('Ngoại lệ')) : '—'} note="Toàn hệ thống" />
+      <Stat label="Sẵn sàng xuất" value={countsKnown ? String(count('Được xuất')) : '—'} note="Toàn hệ thống" />
+      <Stat label="Đã rời kho" value={countsKnown ? String(count('Đã rời kho')) : '—'} note="Toàn hệ thống" />
     </div>
-    <div className="row-wrap" style={{ gap: 16 }}>
-      <label className="lbl">Sắp xếp đơn
-        <Select value={sort} onChange={event => { setSort(event.target.value as ExportOrderSort); setPage(1); }}
+    <section className="card filter-card delivery-filter-card" aria-label="Bộ lọc nâng cao điều phối giao hàng">
+      <div className="row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14655B" strokeWidth="2" aria-hidden><path d="M3 5h18l-7 8v6l-4 2v-8z" /></svg><h2 className="sec">Bộ lọc nâng cao</h2></div>
+      <div className="filter-grid">
+        <label className="lbl">Tìm kiếm
+          <Input value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} placeholder="Mã đơn, kho hoặc phiếu giao hàng" />
+        </label>
+        <label className="lbl">Trạng thái điều phối
+          <Select value={statusFilter} onChange={event => { setStatusFilter(event.target.value as typeof statusFilter); setPage(1); }} options={[
+            { value: 'all', label: 'Tất cả trạng thái' }, { value: 'held', label: 'Cần xử lý' },
+            { value: 'ready', label: 'Sẵn sàng xuất' }, { value: 'left', label: 'Đã rời kho' },
+          ]} />
+        </label>
+        <label className="lbl">Kho
+          <Select value={warehouseFilter} onChange={event => { setWarehouseFilter(event.target.value); setPage(1); }} options={[
+            { value: '', label: 'Tất cả kho' }, ...warehouses.map(warehouse => ({ value: warehouse, label: warehouse })),
+          ]} />
+        </label>
+        <label className="lbl">Sắp xếp đơn
+          <Select value={sort} onChange={event => { setSort(event.target.value as ExportOrderSort); setPage(1); }}
           options={[
             { value: 'newest', label: 'Mới nhất trước' }, { value: 'oldest', label: 'Cũ nhất trước' },
             { value: 'codeAsc', label: 'Mã đơn tăng dần' }, { value: 'codeDesc', label: 'Mã đơn giảm dần' },
           ]} />
-      </label>
-      <label className="lbl">Phiếu giao hàng trong từng đơn
-        <Select value={shipmentSort} onChange={event => setShipmentSort(event.target.value as ShipmentSort)}
+        </label>
+        <label className="lbl">Sắp xếp phiếu giao
+          <Select value={shipmentSort} onChange={event => setShipmentSort(event.target.value as ShipmentSort)}
           options={[{ value: 'asc', label: 'Mã phiếu giao hàng tăng dần' }, { value: 'desc', label: 'Mã phiếu giao hàng giảm dần' }]} />
-      </label>
-      <Button onClick={() => { void readiness.refetch(); }}>Tải lại trạng thái</Button>
-    </div>
+        </label>
+        <div className="delivery-filter-action"><Button loading={readiness.loading} onClick={() => { void readiness.refetch(); }}>Tải lại trạng thái</Button></div>
+      </div>
+    </section>
     {readiness.error && <Callout tone="danger">Có đơn chưa tải được trạng thái. Chưa thể kết luận điều kiện xuất kho cho các đơn đó.</Callout>}
     {visible.map(order => <ExportOrderCard key={order.id} order={order} readiness={byId.get(order.id)}
       loading={readiness.loading && !byId.has(order.id)} failed={readiness.failedIds.includes(order.id)}
@@ -72,7 +109,7 @@ function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; picking
     <Pagination
       currentPage={currentPage}
       totalPages={totalPages}
-      totalCount={orders.length}
+      totalCount={filtered.length}
       pageSize={pageSize}
       pageSizeOptions={[10, 20, 50]}
       hasPrev={currentPage > 1}

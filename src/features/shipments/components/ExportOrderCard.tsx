@@ -44,7 +44,15 @@ export function ExportOrderCard({ order, readiness, loading, failed, sort, retry
   return <section className="card export-order">
     <button type="button" className="export-order-toggle" aria-haspopup="dialog"
       aria-label={`Xem chi tiết xuất kho ${order.orderCode}`} onClick={() => setOpen(true)}>
-      <strong className="spacer">{order.orderCode}</strong>
+      <div className="export-order-info spacer">
+        <strong>{order.orderCode}</strong>
+        {readiness && <div className="export-order-parts">
+          {parts.map(part => <span key={part.warehouseId}>
+            <b>{part.warehouseCode}</b> · {PART_STATUS[part.status]?.label ?? part.status} · {part.shipmentCode ?? 'Chưa có phiếu giao'}
+          </span>)}
+        </div>}
+        {loading && <span className="muted small">Đang kiểm tra kho và phiếu giao hàng…</span>}
+      </div>
       <Chip tone={status.tone}>{status.label}</Chip>
       <ChevronRight size={20} aria-hidden />
     </button>
