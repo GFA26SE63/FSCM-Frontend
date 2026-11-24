@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { get } from '@/shared/api/http';
 import { errorMessage } from '@/shared/api/errors';
-import { Card, Drawer, PageHeader, QueryState, SimpleTable } from '@/shared/ui';
+import { Card, Drawer, PageHeader, Pagination, QueryState, SimpleTable } from '@/shared/ui';
 import { receiptApi } from '@/features/receipts/api';
 import { qrLabelApi } from '@/features/qr-labels/api';
 import { labelStatusText } from '@/features/qr-labels/types';
@@ -26,13 +26,13 @@ interface QrPage { items: QrStock[]; totalCount: number; page: number; pageSize:
 
 export function InventoryPage() {
   const { user } = useAuth();
-  const [filters, setFilters] = useState({ warehouseId: '', status: '', syncStatus: '', search: '', page: 1 });
+  const [filters, setFilters] = useState({ warehouseId: '', status: '', syncStatus: '', search: '', page: 1, pageSize: 10 });
   const [search, setSearch] = useState('');
   const [selectedCode, setSelectedCode] = useState('');
   const warehouses = useQuery({ queryKey: ['qr-inventory', 'warehouses'], queryFn: receiptApi.warehouses });
   const inventory = useQuery({
     queryKey: ['qr-inventory', filters],
-    queryFn: () => get<QrPage>('/inventory/qr-codes', { ...filters, pageSize: 50 }),
+    queryFn: () => get<QrPage>('/inventory/qr-codes', filters),
     refetchInterval: 15000,
   });
   const detail = useQuery({
@@ -57,8 +57,7 @@ export function InventoryPage() {
       </form>
       {warehouses.isError && <p role="alert">Không tải được danh sách kho. Bảng QR vẫn giới hạn theo quyền của bạn. {errorMessage(warehouses.error)}</p>}
       <QueryState query={inventory}>{data => <>
-        <p>{data.totalCount} thùng khớp bộ lọc · Trang {data.page}</p>
-        <SimpleTable rows={data.items} columns={[
+        <SimpleTable paginate={false} rows={data.items} columns={[
           { header: 'Carton / QR', width: '260px', cell: r => <button className="btn btn-sm inventory-code" aria-label={`Xem chi tiết carton ${r.cartonCode}`} onClick={() => setSelectedCode(r.cartonCode)}><span>{r.cartonCode}</span></button> },
           { header: 'Pallet gốc / batch nhà máy', width: '240px', cell: r => <>{r.palletCode}<br />{r.productionBatchCode}</> },
           { header: 'SKU / sản phẩm', width: '200px', cell: r => <>{r.sku}<br />{r.productName}<br />{r.unitsPerCarton} sản phẩm/carton</> },
@@ -68,10 +67,13 @@ export function InventoryPage() {
           { header: 'Phiếu nhập nhà máy / nhận lúc', width: '230px', cell: r => <>{r.receiptCode ?? 'Dữ liệu cũ'}<br />{r.receivedAt ? formatInstantDateTime(r.receivedAt) : '—'}</> },
           { header: 'Xác nhận về Traceability', width: '210px', cell: r => r.syncedAt ? <>Đã xác nhận<br />{formatInstantDateTime(r.syncedAt)}</> : r.hasAcknowledgement ? <>Chờ gửi · {r.syncAttempts} lần thử{r.syncError && <><br />Lỗi lần trước: {r.syncError}</>}</> : 'Dữ liệu cũ chưa có ACK' },
         ]} empty="Chưa có carton từ Traceability trong phạm vi và bộ lọc này. Tạo phiếu nhập và quét pallet đã phát hành để nhận hàng." />
-        <div className="row-wrap" style={{ gap: 12, marginTop: 16 }}>
-          <button className="btn" disabled={inventory.isFetching || data.page <= 1} onClick={() => setFilters(current => ({ ...current, page: current.page - 1 }))}>Trang trước</button>
-          <button className="btn" disabled={inventory.isFetching || data.page * data.pageSize >= data.totalCount} onClick={() => setFilters(current => ({ ...current, page: current.page + 1 }))}>Trang sau</button>
-        </div>
+        <Pagination currentPage={data.page} totalPages={Math.max(1, Math.ceil(data.totalCount / data.pageSize))}
+          totalCount={data.totalCount} pageSize={data.pageSize} itemCount={data.items.length} loading={inventory.isFetching}
+          hasPrev={data.page > 1} hasNext={data.page * data.pageSize < data.totalCount}
+          onPage={page => setFilters(current => ({ ...current, page }))}
+          onPrev={() => setFilters(current => ({ ...current, page: data.page - 1 }))}
+          onNext={() => setFilters(current => ({ ...current, page: data.page + 1 }))}
+          onPageSizeChange={pageSize => setFilters(current => ({ ...current, pageSize, page: 1 }))} />
       </>}</QueryState>
     </Card>
     {selectedCode && <Drawer open title={`Chi tiết carton · ${selectedCode}`} onClose={() => setSelectedCode('')} width={1080}>

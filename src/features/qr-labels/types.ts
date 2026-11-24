@@ -1,3 +1,5 @@
+export const QR_LABEL_STATUSES = ['Available', 'Picked', 'InTransit', 'Delivered', 'Invalidated', 'Split'] as const;
+
 export interface QrLabel {
   id: string;
   qrCode: string;

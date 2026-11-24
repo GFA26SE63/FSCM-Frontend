@@ -1,4 +1,5 @@
 import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Eye } from 'lucide-react';
 import { paramName, parsePage, useQueryParams, type ParamUpdates } from '../router/listState';
 import { UrlStateScope } from './urlStateScope';
 import { Button } from './Button';
@@ -7,7 +8,8 @@ import { EmptyState } from './EmptyState';
 import { errorMessage } from '../api/errors';
 import { SearchSelect } from './SearchSelect';
 import type { SelectOption } from './FormField';
-import { minimumTableWidth } from './tableLayout';
+import { listColumns as selectListColumns } from './tableColumns';
+import { DEFAULT_PAGE_SIZES } from '../pagination/types';
 import { tableFilterParam, tableFilterValue } from './tableFilterLabels';
 import type { CursorServerPaging, RestServerPaging, ServerPaging, ServerSort, SortDirection } from '../pagination/types';
 import { PaginationControls } from '../pagination/PaginationControls';
@@ -24,6 +26,8 @@ export interface Column<T> {
   text?: (row: T) => string | number | null | undefined;
   /** CSS width ("140px", "18%"); columns without width share the rest. */
   width?: string;
+  /** Optional compact-list width; legacy widths are not forced onto the fitted list. */
+  summaryWidth?: string;
   align?: 'left' | 'right' | 'center';
   /** Whether this column supports server-side sorting via ServerSort. */
   sortable?: boolean;
@@ -44,6 +48,8 @@ interface DataTableProps<T> {
   title?: ReactNode;
   subtitle?: ReactNode;
   columns: Column<T>[];
+  /** Keys chosen by this feature for its list; all columns remain available to search, sort and export. */
+  summaryColumns?: readonly string[];
   rows: T[] | undefined;
   rowKey: (row: T) => string;
   loading?: boolean;
@@ -100,7 +106,7 @@ function filterParamName<T>(f: FilterDef<T>): string {
  * Trạng thái tìm kiếm / bộ lọc / trang của bảng. Mặc định lưu trên URL (giữ nguyên khi mở chi tiết
  * rồi quay lại, tải lại trang, Back/Forward); dùng state cục bộ khi urlState = false hoặc nằm trong hộp thoại.
  */
-function useTableState<T>(filters: FilterDef<T>[], persist: boolean, namespace: string | undefined) {
+function useTableState<T>(filters: FilterDef<T>[], persist: boolean, namespace: string | undefined, defaultSize: number, sizes: readonly number[]) {
   const { params, setParams, hasRouter } = useQueryParams();
   const p = (key: string) => paramName(namespace, key);
   const defaultOf = (f: FilterDef<T>) => f.initial ?? ALL;
@@ -108,12 +114,15 @@ function useTableState<T>(filters: FilterDef<T>[], persist: boolean, namespace: 
   const [localSearch, setLocalSearch] = useState('');
   const [localFv, setLocalFv] = useState<Record<string, string>>(() => Object.fromEntries(filters.map((f) => [f.label, defaultOf(f)])));
   const [localPage, setLocalPage] = useState(1);
+  const [localSize, setLocalSize] = useState(defaultSize);
 
   if (!persist || !hasRouter) {
     return {
       search: localSearch,
       fv: localFv,
       page: localPage,
+      size: localSize,
+      setSize: (size: number) => { setLocalSize(size); setLocalPage(1); },
       setSearch: (v: string) => {
         setLocalSearch(v);
         setLocalPage(1);
@@ -148,6 +157,8 @@ function useTableState<T>(filters: FilterDef<T>[], persist: boolean, namespace: 
     search: params.get(p('q')) ?? '',
     fv,
     page: parsePage(params.get(p('page'))),
+    size: sizes.includes(Number(params.get(p('size')))) ? Number(params.get(p('size'))) : defaultSize,
+    setSize: (size: number) => setParams({ [p('size')]: size, [p('page')]: null }),
     setSearch: (v: string) => setParams({ [p('q')]: v, [p('page')]: null }),
     setFilter: (label: string, v: string) => {
       const f = filters.find((x) => x.label === label);
@@ -209,6 +220,7 @@ export function DataTable<T>({
   title,
   subtitle,
   columns,
+  summaryColumns,
   rows,
   rowKey,
   loading = false,
@@ -224,7 +236,7 @@ export function DataTable<T>({
   filters = [],
   filterExtra,
   pageSize = 10,
-  pageSizeOptions,
+  pageSizeOptions = DEFAULT_PAGE_SIZES,
   server,
   cursor,
   serverSort,
@@ -236,8 +248,11 @@ export function DataTable<T>({
 }: DataTableProps<T>) {
   const inUrlScope = useContext(UrlStateScope);
   const effectiveExcelFileName = excelFileName ?? (typeof title === 'string' ? title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'danh-sach');
-  const state = useTableState(filters, urlState && inUrlScope, stateKey);
+  const state = useTableState(filters, urlState && inUrlScope, stateKey, pageSize, pageSizeOptions);
   const { search, fv, page } = state;
+  const listColumns = selectListColumns(columns, summaryColumns, c => c.key);
+  const hasSecondaryColumns = listColumns.length < columns.length;
+  const viewActions = rowActions ?? (onRowClick ? (row: T) => <Button size="sm" onClick={() => onRowClick(row)}><Eye size={14} /> Xem</Button> : undefined);
 
   // Active pagination mode
   const mode: 'client' | 'rest' | 'cursor' = cursor ? 'cursor' : server ? 'rest' : 'client';
@@ -265,7 +280,7 @@ export function DataTable<T>({
       ? server.total
       : filtered.length;
 
-  const size = cursor ? cursor.size : server ? server.size : pageSize;
+  const size = cursor ? cursor.size : server ? server.size : state.size;
   const pageCount = Math.max(1, Math.ceil(total / (size || 1)));
   const ready = !loading && rows !== undefined;
   const [exporting, setExporting] = useState(false);
@@ -378,17 +393,24 @@ export function DataTable<T>({
         </div>
       )}
 
-      <section className={`card tbl-wrap${nowrap ? ' tbl-nowrap' : ''}`} style={{ minHeight: 120 }}>
-        <table className="tbl" style={{ minWidth: minimumTableWidth(columns, rowActions ? rowActionsWidth : undefined) }}>
+      {hasSecondaryColumns && serverSort && <label className="lbl" style={{ marginBottom: 12 }}>Sắp xếp danh sách
+        <Select value={serverSort.field && serverSort.direction ? `${serverSort.field}:${serverSort.direction}` : ''}
+          onChange={e => { const [field, direction] = e.target.value.split(':'); serverSort.onChange(field || serverSort.field || columns[0].key, direction as SortDirection | undefined); }}
+          options={[{ value: '', label: 'Mặc định' }, ...columns.filter(c => c.sortable || serverSort.sortableFields?.includes(c.key)).flatMap(c => [
+            { value: `${c.key}:asc`, label: `${c.header} · tăng dần` }, { value: `${c.key}:desc`, label: `${c.header} · giảm dần` },
+          ])]} />
+      </label>}
+      <section className={`card tbl-wrap table-fit${nowrap ? ' table-fit-requested-nowrap' : ''}`} style={{ minHeight: 120 }}>
+        <table className="tbl">
           <colgroup>
-            {columns.map((c) => (
-              <col key={c.key} style={c.width ? { width: c.width } : undefined} />
+            {listColumns.map((c) => (
+              <col key={c.key} style={c.summaryWidth ? { width: c.summaryWidth } : undefined} />
             ))}
-            {rowActions && <col style={{ width: rowActionsWidth }} />}
+            {viewActions && <col style={{ width: rowActions ? rowActionsWidth : '100px' }} />}
           </colgroup>
           <thead>
             <tr>
-              {columns.map((c) => {
+              {listColumns.map((c) => {
                 const isSortable = Boolean(
                   c.sortable || (serverSort?.sortableFields && serverSort.sortableFields.includes(c.key)),
                 );
@@ -428,7 +450,7 @@ export function DataTable<T>({
                   </th>
                 );
               })}
-              {rowActions && <th style={{ textAlign: 'right' }}>{rowActionHeader}</th>}
+              {viewActions && <th style={{ textAlign: 'right' }}>{rowActionHeader}</th>}
             </tr>
           </thead>
           <tbody>
@@ -440,14 +462,14 @@ export function DataTable<T>({
                   className={[onRowClick && 'clickable', selectedKey === k && 'selected'].filter(Boolean).join(' ')}
                   onClick={onRowClick ? () => onRowClick(r) : undefined}
                 >
-                  {columns.map((c) => (
+                  {listColumns.map((c) => (
                     <td key={c.key} style={{ textAlign: c.align ?? 'left' }}>
                       {c.render ? c.render(r) : cellText(c, r) || '—'}
                     </td>
                   ))}
-                  {rowActions && (
+                  {viewActions && (
                     <td onClick={(e) => e.stopPropagation()}>
-                      <div className="actions">{rowActions(r)}</div>
+                      <div className="actions">{viewActions(r)}</div>
                     </td>
                   )}
                 </tr>
@@ -497,7 +519,7 @@ export function DataTable<T>({
                 total,
                 totalPages: pageCount,
                 onPageChange: goto,
-                onPageSizeChange: server?.onPageSizeChange,
+                onPageSizeChange: mode === 'client' ? state.setSize : server?.onPageSizeChange,
                 pageSizeOptions: server?.pageSizeOptions ?? pageSizeOptions,
                 loading,
               }

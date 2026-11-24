@@ -3,7 +3,7 @@ import { useAuth } from '@/shared/auth/AuthContext';
 import { errorMessage } from '@/shared/api/errors';
 import { useLocation, useNavigate } from '@/shared/router/compat';
 import { parsePage, useEnumParam, useQueryParams, useStringParam } from '@/shared/router/listState';
-import { Button, Callout, Card, Chip, PageHeader, Select, SimpleTable, Stat, type Tone } from '@/shared/ui';
+import { Button, Callout, Card, Chip, PageHeader, Pagination, Select, SimpleTable, Stat, type Tone } from '@/shared/ui';
 import { formatCases, formatNumber, formatPercent, statusLabel } from '@/shared/lib';
 import { formatDate, formatInstantDateTime } from '@/shared/lib/dates';
 import { usePickingListPage, useWarehouseOptions } from '../hooks';
@@ -84,8 +84,6 @@ export function RunPickingPage() {
     else setParams({ before: data.pageInfo.startCursor, after: null, page: currentPage - 1 });
   };
   const firstPage = () => setParams({ after: null, before: null, page: null });
-  const from = data && data.rows.length ? (currentPage - 1) * size + 1 : 0;
-  const to = data && data.rows.length ? Math.min(data.totalCount, from + data.rows.length - 1) : 0;
   // Trang mở bằng cursor nhưng không còn phiếu (dữ liệu đã thay đổi kể từ lúc mở trang).
   const stalePage = !!data && data.rows.length === 0 && !!(after || before);
 
@@ -176,25 +174,13 @@ export function RunPickingPage() {
               )}
             </Card>
           )}
-          <div className="pager">
-            <span>
-              Hiển thị {from}–{to} / {data.totalCount} · Trang {currentPage} / {totalPages}
-            </span>
-            <span className="pages">
-              <Select
-                aria-label="Số phiếu mỗi trang"
-                value={sizeParam}
-                onChange={(event) => setSize(event.target.value as `${PageSize}`)}
-                options={PAGE_SIZES.map((n) => ({ value: String(n), label: `${n} / trang` }))}
-              />
-              <Button size="sm" disabled={!data.pageInfo.hasPreviousPage || lists.isFetching} onClick={goPrev}>
-                Trước
-              </Button>
-              <Button size="sm" disabled={!data.pageInfo.hasNextPage || lists.isFetching} onClick={goNext}>
-                Sau
-              </Button>
-            </span>
-          </div>
+          <Pagination currentPage={currentPage} totalPages={totalPages} totalCount={data.totalCount}
+            pageSize={size} itemCount={data.rows.length} pageSizeOptions={PAGE_SIZES} pageSizeLabel="Số phiếu mỗi trang" loading={lists.isFetching}
+            hasPrev={data.pageInfo.hasPreviousPage} hasNext={data.pageInfo.hasNextPage}
+            navigablePages={[1, currentPage, ...(data.pageInfo.hasPreviousPage ? [currentPage - 1] : []), ...(data.pageInfo.hasNextPage ? [currentPage + 1] : [])]}
+            onPrev={goPrev} onNext={goNext}
+            onPage={n => { if (n === 1) firstPage(); else if (n === currentPage - 1) goPrev(); else if (n === currentPage + 1) goNext(); }}
+            onPageSizeChange={n => setSize(String(n) as `${PageSize}`)} />
         </>
       )}
     </>

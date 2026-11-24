@@ -150,6 +150,7 @@ export function RetailersPage() {
         error={query.isPlaceholderData ? undefined : query.error}
         rowKey={(row) => row.id}
         columns={columns}
+        summaryColumns={['code', 'name', 'salesGroup', 'type', 'status']}
         onRowClick={(row) => navigate(`/retailers/${row.id}`)}
         searchPlaceholder="Mã, tên điểm bán, địa chỉ..."
         cursor={pagingProps}

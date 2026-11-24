@@ -110,7 +110,7 @@ test('creation controls follow each workflow and keep existing warehouse role bo
   for (const role of ['Admin', 'WarehouseKeeper']) {
     for (const workflow of ['inbound', 'outbound', 'transfer']) {
       const tree = page(states(), [], undefined, { workflow, role });
-      assert.equal(all(tree, n => n.type === 'form').length, Number(workflow !== 'inbound' && role === 'Admin'));
+      assert.equal(all(tree, n => n.type === 'form').length, Number(workflow !== 'inbound'));
     }
   }
 });

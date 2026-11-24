@@ -242,6 +242,7 @@ export function ReceiptsPage() {
         error={query.isPlaceholderData ? undefined : query.error}
         rowKey={(r) => r.id || r.receiptCode || r.code}
         columns={columns}
+        summaryColumns={['receiptCode', 'wh', 'createdAt', 'qty', 'status']}
         searchPlaceholder="Mã phiếu, kho nhận…"
         cursor={pagingProps}
         serverSort={{ ...sortProps, sortableFields: RECEIPTS_SORTABLE_FIELDS }}
