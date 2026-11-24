@@ -333,12 +333,12 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
       actions={!selected && !creating ? <div className="row-wrap" style={{ gap: 8 }}><Button loading={exporting} disabled={docs.isLoading || (isOutbound && activeTab === 'todo' ? pendingOutboundRows.length === 0 : visibleRows.length === 0)} onClick={() => void exportDocuments()}>Xuất Excel</Button>{canCreate && <Link className="btn btn-primary" to={`${screen.path}/new`}>{screen.create}</Link>}</div> : undefined} />
     {!selected && !creating && (isInbound || isOutbound) && <div className="warehouse-main-tabs" role="tablist" style={{ display: 'flex', gap: 8, marginBottom: 16, borderBottom: '2px solid var(--border, #e2e8f0)', paddingBottom: 12 }}>
       {isInbound ? <>
-        <button type="button" role="tab" aria-selected={activeTab === 'todo'} className={`btn ${activeTab === 'todo' ? 'btn-primary' : ''}`} onClick={() => { setTab(''); setStatusFilter(''); }} style={{ fontWeight: 600, padding: '8px 18px', fontSize: 14 }}>📥 Nhập kho</button>
-        <button type="button" role="tab" aria-selected={activeTab === 'factory'} className={`btn ${activeTab === 'factory' ? 'btn-primary' : ''}`} onClick={() => { setTab('factory'); setStatusFilter(''); }} style={{ fontWeight: 600, padding: '8px 18px', fontSize: 14 }}>🏭 Nhập nhà máy</button>
-        <button type="button" role="tab" aria-selected={activeTab === 'history'} className={`btn ${activeTab === 'history' ? 'btn-primary' : ''}`} onClick={() => { setTab('history'); setStatusFilter(''); }} style={{ fontWeight: 600, padding: '8px 18px', fontSize: 14 }}>📋 Lịch sử Phiếu Nhập Kho (PNK)</button>
+        <button type="button" role="tab" aria-selected={activeTab === 'todo'} className={`btn ${activeTab === 'todo' ? 'btn-primary' : ''}`} onClick={() => { setTab(''); setStatusFilter(''); }} style={{ fontWeight: 600, padding: '8px 18px', fontSize: 14 }}>Nhập kho</button>
+        <button type="button" role="tab" aria-selected={activeTab === 'factory'} className={`btn ${activeTab === 'factory' ? 'btn-primary' : ''}`} onClick={() => { setTab('factory'); setStatusFilter(''); }} style={{ fontWeight: 600, padding: '8px 18px', fontSize: 14 }}>Nhập nhà máy</button>
+        <button type="button" role="tab" aria-selected={activeTab === 'history'} className={`btn ${activeTab === 'history' ? 'btn-primary' : ''}`} onClick={() => { setTab('history'); setStatusFilter(''); }} style={{ fontWeight: 600, padding: '8px 18px', fontSize: 14 }}>Lịch sử Phiếu Nhập Kho (PNK)</button>
       </> : <>
-        <button type="button" role="tab" aria-selected={activeTab === 'todo'} className={`btn ${activeTab === 'todo' ? 'btn-primary' : ''}`} onClick={() => { setTab(''); setStatusFilter(''); }} style={{ fontWeight: 600, padding: '8px 18px', fontSize: 14 }}>📦 Cần xuất & Soạn hàng</button>
-        <button type="button" role="tab" aria-selected={activeTab === 'history'} className={`btn ${activeTab === 'history' ? 'btn-primary' : ''}`} onClick={() => { setTab('history'); setStatusFilter(''); }} style={{ fontWeight: 600, padding: '8px 18px', fontSize: 14 }}>📋 Lịch sử Phiếu Xuất Kho (PXK)</button>
+        <button type="button" role="tab" aria-selected={activeTab === 'todo'} className={`btn ${activeTab === 'todo' ? 'btn-primary' : ''}`} onClick={() => { setTab(''); setStatusFilter(''); }} style={{ fontWeight: 600, padding: '8px 18px', fontSize: 14 }}>Cần xuất & Soạn hàng</button>
+        <button type="button" role="tab" aria-selected={activeTab === 'history'} className={`btn ${activeTab === 'history' ? 'btn-primary' : ''}`} onClick={() => { setTab('history'); setStatusFilter(''); }} style={{ fontWeight: 600, padding: '8px 18px', fontSize: 14 }}>Lịch sử Phiếu Xuất Kho (PXK)</button>
       </>}
     </div>}
 
@@ -357,7 +357,6 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
             <p>Xe nhà máy chở một hoặc nhiều pallet đến kho. Chọn phiếu xuất và bấm Bắt đầu kiểm đếm để mở một PNK cho toàn bộ pallet.</p>
           </div>
         </div>
-        <div className="warehouse-guide-step-arrow">➔</div>
         <div className="warehouse-guide-step">
           <div className="step-badge">Bước 2</div>
           <div>
@@ -365,7 +364,6 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
             <p>Quét camera hoặc mã pallet để nạp danh sách thùng carton. Phân loại Đạt, Hỏng (cách ly) hoặc Thiếu.</p>
           </div>
         </div>
-        <div className="warehouse-guide-step-arrow">➔</div>
         <div className="warehouse-guide-step">
           <div className="step-badge">Bước 3</div>
           <div>
@@ -513,12 +511,12 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
             <span className="badge" style={{ background: '#0284c7', color: '#fff', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>Phiếu Nhập Kho (PNK)</span>
             <h2 style={{ margin: '6px 0 0 0' }}>{d.code}</h2>
           </div>
-          <button className="btn btn-primary" onClick={() => void printLabels(false, true)}>📄 In / Xuất PDF phiếu nhập kho</button>
+          <button className="btn btn-primary" onClick={() => void printLabels(false, true)}>In / Xuất PDF phiếu nhập kho</button>
         </div>
         <div className="pnk-meta-grid">
           <div className="pnk-meta-item">
             <span className="muted">Nguồn nhập</span>
-            <strong>{d.reason === 'Factory' ? '🏭 Nhà máy sản xuất (Factory Dispatch)' : '🔄 Luân chuyển từ kho khác'}</strong>
+            <strong>{d.reason === 'Factory' ? 'Nhà máy sản xuất (Factory Dispatch)' : 'Luân chuyển từ kho khác'}</strong>
           </div>
           <div className="pnk-meta-item">
             <span className="muted">Kho tiếp nhận</span>
@@ -539,12 +537,12 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
             <span className="badge" style={{ background: '#059669', color: '#fff', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>Phiếu Xuất Kho (PXK)</span>
             <h2 style={{ margin: '6px 0 0 0' }}>{d.code}</h2>
           </div>
-          <button className="btn btn-primary" onClick={() => void printLabels(false, false, true)}>📄 In / Xuất PDF phiếu xuất kho</button>
+          <button className="btn btn-primary" onClick={() => void printLabels(false, false, true)}>In / Xuất PDF phiếu xuất kho</button>
         </div>
         <div className="pnk-meta-grid">
           <div className="pnk-meta-item">
             <span className="muted">Loại xuất kho</span>
-            <strong>{d.reason === 'Order' ? '🛒 Xuất bán hàng (Bán lẻ / Đơn hàng)' : '🔄 Xuất luân chuyển sang kho khác'}</strong>
+            <strong>{d.reason === 'Order' ? 'Xuất bán hàng (Bán lẻ / Đơn hàng)' : 'Xuất luân chuyển sang kho khác'}</strong>
           </div>
           <div className="pnk-meta-item">
             <span className="muted">Kho xuất hàng</span>
@@ -567,7 +565,7 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
       {d.note && <p className="muted" style={{ fontStyle: 'italic', margin: '4px 0 12px 0' }}>Ghi chú: {d.note}</p>}
       {d.reason === 'Factory' && d.kind === 'Receipt' && <div className="notice-banner" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px 16px', borderRadius: 8, marginBottom: 16 }}>
         <strong>Liên kết truy xuất nguồn gốc nhập kho:</strong>
-        <p style={{ margin: '4px 0 0 0' }}>Lô SX Nhà máy (BID) ➔ Pallet đóng gói (PID) ➔ Thùng carton (CID) ➔ Phiếu Nhập Kho (PNK: <b>{d.code}</b>) ➔ Lô kho FSCM (Batch)</p>
+        <p style={{ margin: '4px 0 0 0' }}>Lô SX Nhà máy (BID), Pallet đóng gói (PID), Thùng carton (CID), Phiếu Nhập Kho (PNK: <b>{d.code}</b>) và Lô kho FSCM (Batch).</p>
         <p style={{ margin: '4px 0 0 0', fontSize: 13, color: '#166534' }}>Thủ kho quét kiểm đếm từng thùng từ Pallet. Khi hoàn tất phiếu nhập, các thùng Đạt tự động được ghi tăng tồn khả dụng và gửi xác nhận (ACK) về hệ thống Traceability nhà máy.</p>
       </div>}
       {d.reason === 'Transfer' && d.kind === 'Request' && <div className="notice-banner" style={{ background: '#fff7ed', border: '1px solid #fed7aa', padding: '12px 16px', borderRadius: 8, marginBottom: 16 }}>
