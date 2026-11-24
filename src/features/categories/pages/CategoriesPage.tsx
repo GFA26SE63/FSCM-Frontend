@@ -18,6 +18,7 @@ import {
   canAddSubcategory,
   buildFlatTree,
 } from '../treeUtils';
+import '../categories.css';
 
 export function CategoriesPage() {
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ export function CategoriesPage() {
   const [selectedCode, setSelectedCode] = useStringParam('selected');
   const [searchTree, setSearchTree] = useStringParam('q');
   const [openState, setOpenState] = useState<Record<string, boolean>>({});
+  const [treeInitialized, setTreeInitialized] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   // Dialog & Modal states
@@ -58,14 +60,15 @@ export function CategoriesPage() {
 
   // Default open state for tree branches
   useEffect(() => {
-    if (categories.length > 0 && Object.keys(openState).length === 0) {
+    if (categories.length > 0 && !treeInitialized) {
       const initial: Record<string, boolean> = {};
       for (const c of categories) {
         initial[(c.id || c.code).toLowerCase()] = true;
       }
       setOpenState(initial);
+      setTreeInitialized(true);
     }
-  }, [categories, openState]);
+  }, [categories, treeInitialized]);
 
   const selectedCat = useMemo(
     () => findCategory(categories, activeCode) || categories[0] || null,
@@ -282,7 +285,7 @@ export function CategoriesPage() {
   return (
     <>
       {/* Category Tree Layout matching Prototype HTML */}
-      <div
+      <div className="category-workspace"
         style={{
           flex: 1,
           minHeight: 0,
@@ -294,10 +297,10 @@ export function CategoriesPage() {
       >
         {/* Left column: Category Tree Card */}
         <section
-          className="card"
+          className="card category-tree-card"
           style={{ display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}
         >
-          <div
+          <div className="category-tree-toolbar"
             style={{
               padding: 14,
               display: 'flex',
@@ -306,7 +309,7 @@ export function CategoriesPage() {
               borderBottom: '1px solid #E2E5E0',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="category-tree-actions" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ flex: 1, fontWeight: 700 }}>
                 Cây danh mục{' '}
                 <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>
@@ -437,23 +440,23 @@ export function CategoriesPage() {
 
         {/* Right column: Category Details, Subcategories, and Products */}
         <div
-          className="vscroll"
+          className="vscroll category-detail-pane"
           style={{ minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}
         >
           {selectedCat ? (
             <>
               {/* Details card matching Prototype */}
               <section
-                className="card"
+                className="card category-detail-card"
                 style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div className="category-detail-header" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="category-detail-title" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <span className="muted" style={{ fontSize: 12.5 }}>
                       {selectedPath || 'Danh mục gốc'}
                     </span>
-                    <span style={{ fontWeight: 700, fontSize: 18 }}>
-                      {selectedCat.name}{' '}
+                    <span className="category-detail-name" style={{ fontWeight: 700, fontSize: 18 }}>
+                      <span>{selectedCat.name}</span>
                       <span
                         className="chip"
                         style={getStatusChipStyle(selectedCat.status, selectedCat.isActive)}
@@ -466,7 +469,7 @@ export function CategoriesPage() {
                   </div>
 
                   {canManage && (
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <div className="category-detail-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       {canAddChild && (
                         <button
                           type="button"
@@ -509,7 +512,7 @@ export function CategoriesPage() {
                   )}
                 </div>
 
-                <div
+                <div className="category-detail-fields"
                   style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
@@ -573,7 +576,7 @@ export function CategoriesPage() {
                 className="card"
                 style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 6 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="category-products-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h2 className="sec" style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
                     Sản phẩm trong nhánh này (gồm danh mục con)
                   </h2>
@@ -583,6 +586,7 @@ export function CategoriesPage() {
                 </div>
 
                 <div
+                  className="category-product-grid"
                   style={{
                     display: 'grid',
                     gridTemplateColumns: '90px minmax(0, 2fr) minmax(0, 2fr) 120px 120px',
@@ -616,6 +620,7 @@ export function CategoriesPage() {
                         <button
                           key={p.sku}
                           type="button"
+                          className="category-product-grid"
                           style={{
                             display: 'grid',
                             gridTemplateColumns: '90px minmax(0, 2fr) minmax(0, 2fr) 120px 120px',
