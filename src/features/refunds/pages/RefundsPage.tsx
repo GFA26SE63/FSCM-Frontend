@@ -127,12 +127,6 @@ export function RefundsPage() {
         filterExtra={<label className="lbl">Ngày tạo<Select value={dateSort} options={DATE_SORT_OPTIONS} onChange={e => setDateSort(e.target.value as DateSortOrder)} /></label>}
         filters={[{ label: 'Trạng thái', options: Object.values(REFUND_STATUS_LABEL), value: (r) => REFUND_STATUS_LABEL[r.status] }]}
         onRowClick={(refund) => navigate(`/refunds/${refund.id}`)}
-        rowActionsWidth="120px"
-        rowActions={(refund) => (
-          <Button size="sm" onClick={() => navigate(`/refunds/${refund.id}`)}>
-            Chi tiết
-          </Button>
-        )}
       />
 
       <FormDialog

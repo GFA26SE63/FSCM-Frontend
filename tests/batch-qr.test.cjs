@@ -384,8 +384,8 @@ test('BatchesPage: displays QR column with real counts, and includes QR actions'
   assert.ok(!pageCode.includes("'Sinh mã QR'"));
   assert.ok(pageCode.includes("'In tem QR'"));
 
-  // Direct [Xem] button preserved
-  assert.ok(pageCode.includes('<span>Xem</span>'));
+  // Unified row click navigation
+  assert.ok(pageCode.includes('onRowClick='));
 
   // Dialogs integrated
   assert.ok(!pageCode.includes('<GenerateQrDialog'));

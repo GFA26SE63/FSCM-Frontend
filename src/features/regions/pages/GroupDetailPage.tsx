@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Eye } from 'lucide-react';
 import { useNavigate, useParams } from '@/shared/router/compat';
 import { useReturnToList } from '@/shared/router/listState';
 import { useAuth } from '@/shared/auth/AuthContext';
@@ -258,6 +257,7 @@ export function GroupDetailPage() {
           >
             <SimpleTable
               rows={retailersQuery.data ?? []}
+              onRowClick={mayOpenRetailers ? (r) => navigate(`/retailers/${r.code}`) : undefined}
               empty="Chưa có nhà bán lẻ nào được phân công cho nhóm này."
               columns={[
                 {
@@ -301,32 +301,6 @@ export function GroupDetailPage() {
                   header: 'Trạng thái',
                   align: 'center',
                   cell: (r) => <StatusChip domain="active" value={r.status} />,
-                },
-                {
-                  header: 'Thao tác',
-                  align: 'center',
-                  width: '90px',
-                  cell: (r) =>
-                    mayOpenRetailers ? (
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => navigate(`/retailers/${r.code}`)}
-                        title="Xem chi tiết nhà bán lẻ"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          padding: '4px 8px',
-                          fontSize: 12,
-                          fontWeight: 600,
-                          height: 28,
-                        }}
-                      >
-                        <Eye size={13} />
-                        <span>Xem</span>
-                      </Button>
-                    ) : null,
                 },
               ]}
             />

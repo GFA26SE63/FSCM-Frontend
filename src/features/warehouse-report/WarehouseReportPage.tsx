@@ -85,14 +85,12 @@ function WarehouseCard({ warehouse, sort, onSort, onSelect }: {
         // Fixed layout at 100% width: every SKU fits on screen without horizontal scrolling.
         <table className="tbl compact wr-grid">
           <colgroup>
-            <col className="wr-col-action" />
             <col className="wr-col-rank" />
             <col />
             {METRICS.map((m) => <col key={m.key} className="wr-col-metric" />)}
           </colgroup>
           <thead>
             <tr>
-              <th rowSpan={2} aria-label="Thao tác" />
               <th rowSpan={2} className="wr-center">#</th>
               <th rowSpan={2}>SKU · Sản phẩm</th>
               {(Object.keys(GROUP_LABELS) as MetricGroup[]).map((group) => (
@@ -123,7 +121,6 @@ function WarehouseCard({ warehouse, sort, onSort, onSelect }: {
           <tbody>
             {products.slice((current - 1) * size, current * size).map((p) => (
               <tr key={p.productId} className="clickable" onClick={() => onSelect(p)}>
-                <td><Button size="sm" onClick={(e) => { e.stopPropagation(); onSelect(p); }}>Chi tiết</Button></td>
                 <td className="wr-center">{p.rank}</td>
                 <td className="wr-product" title={`${p.sku} · ${p.name}`}>
                   <span className="bold">{p.sku}</span>

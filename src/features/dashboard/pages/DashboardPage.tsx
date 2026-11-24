@@ -95,11 +95,10 @@ export function DashboardContent({ data, tab, onTabChange }: {
         ]} />
       </Card>
       {global && <Card title="Nhà bán lẻ nợ nhiều nhất · 10 điểm ưu tiên theo quá hạn">
-        <SimpleTable compact rows={data.customers.filter(r => r.outstanding > 0).slice(0, 10)} empty="Không có nhà bán lẻ còn công nợ." columns={[
+        <SimpleTable compact rows={data.customers.filter(r => r.outstanding > 0).slice(0, 10)} onRowClick={r => navigate(`/retailers/${r.id}`)} empty="Không có nhà bán lẻ còn công nợ." columns={[
           { header: 'Nhà bán lẻ', cell: r => <>{r.code}<br /><strong>{r.name}</strong></> },
           { header: 'Còn phải thu', align: 'right', cell: r => formatMoney(r.outstanding) },
           { header: 'Quá hạn', align: 'right', cell: r => <strong style={{ color: r.overdue > 0 ? 'var(--c-danger)' : undefined }}>{formatMoney(r.overdue)}</strong> },
-          { header: '', cell: r => <Button size="sm" onClick={() => navigate(`/retailers/${r.id}`)}>Xem</Button> },
         ]} />
       </Card>}
     </div>}

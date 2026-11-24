@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ClipboardCheck, Eye } from 'lucide-react';
+import { ClipboardCheck } from 'lucide-react';
 import { useNavigate } from '@/shared/router/compat';
 import { useEnumParam, useQueryParams } from '@/shared/router/listState';
 import { useCursorPagination } from '@/shared/pagination';
@@ -166,24 +166,17 @@ export function RetailersPage() {
           </label>
         }
         rowActionHeader="Thao tác"
-        rowActionsWidth="150px"
-        rowActions={(row) => (
-          <div className="table-actions-inline">
-            <Button
-              size="sm"
-              variant="default"
-              onClick={() => navigate(`/retailers/${row.id}`)}
-            >
-              <Eye size={14} /> Xem
-            </Button>
-            {row.status === 'PendingApproval' && can(user, 'retailers.review') && (
+        rowActionsWidth="70px"
+        rowActions={(row) =>
+          row.status === 'PendingApproval' && can(user, 'retailers.review') ? (
+            <div className="table-actions-inline">
               <ActionDropdown triggerTitle={`Thao tác nhà bán lẻ ${row.code}`} items={[{
                 key: 'review', label: 'Xét duyệt', icon: <ClipboardCheck size={16} />,
                 onClick: () => setReviewing({ id: row.id, code: row.code }),
               }]} />
-            )}
-          </div>
-        )}
+            </div>
+          ) : null
+        }
       />
       {reviewing && <RetailerReviewDialog retailer={reviewing} onClose={() => setReviewing(null)} />}
       {createOpen && <RetailerFormDialog open retailer={null} onClose={() => setCreateOpen(false)} />}

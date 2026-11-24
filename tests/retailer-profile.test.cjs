@@ -178,7 +178,7 @@ test('Source Code Integrity: RetailersPage implements standardized Thao tác, di
 
   // Standardized header and action column
   assert.ok(pageCode.includes('rowActionHeader="Thao tác"'));
-  assert.ok(pageCode.includes('Xem') && pageCode.includes('Button'));
+  assert.ok(pageCode.includes('onRowClick='));
   assert.ok(pageCode.includes('navigate('));
   assert.ok(pageCode.includes('onRowClick='));
 

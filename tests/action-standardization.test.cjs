@@ -19,39 +19,37 @@ test('Region deactivation blocking message complies with mandatory business rule
   );
 });
 
-test('WarehousesPage standardizes action columns with [Xem] + ActionDropdown and "Thao tác" header', () => {
+test('WarehousesPage standardizes action columns with ActionDropdown, onRowClick, and "Thao tác" header', () => {
   assert.ok(warehousesPageCode.includes('rowActionHeader="Thao tác"'));
   assert.ok(warehousesPageCode.includes('ActionDropdown'));
-  assert.ok(warehousesPageCode.includes('<span>Xem</span>'));
+  assert.ok(warehousesPageCode.includes('onRowClick='));
   assert.ok(warehousesPageCode.includes('#1D4ED8')); // Chỉnh sửa
   assert.ok(warehousesPageCode.includes('#C2410C')); // Ngừng hoạt động
   assert.ok(warehousesPageCode.includes('#15803D')); // Kích hoạt lại
 });
 
-test('RegionWarehousesPage standardizes action columns with [Xem] + ActionDropdown and "Thao tác" header', () => {
+test('RegionWarehousesPage standardizes action columns with ActionDropdown, onRowClick, and "Thao tác" header', () => {
   assert.ok(regionWarehousesPageCode.includes('rowActionHeader="Thao tác"'));
   assert.ok(regionWarehousesPageCode.includes('ActionDropdown'));
-  assert.ok(regionWarehousesPageCode.includes('<span>Xem</span>'));
+  assert.ok(regionWarehousesPageCode.includes('onRowClick='));
   assert.ok(regionWarehousesPageCode.includes('#1D4ED8')); // Chỉnh sửa
   assert.ok(regionWarehousesPageCode.includes('#C2410C')); // Ngừng hoạt động
   assert.ok(regionWarehousesPageCode.includes('#15803D')); // Kích hoạt lại
 });
 
-test('RegionsPage standardizes both sales groups and areas tables with [Xem] + ActionDropdown and "Thao tác" header', () => {
+test('RegionsPage standardizes both sales groups and areas tables with ActionDropdown, onRowClick, and "Thao tác" header', () => {
   assert.ok(regionsPageCode.includes('rowActionHeader="Thao tác"'));
   assert.ok(regionsPageCode.includes('ActionDropdown'));
-  assert.ok(regionsPageCode.includes('<span>Xem</span>'));
+  assert.ok(regionsPageCode.includes('onRowClick='));
   assert.ok(regionsPageCode.includes('#1D4ED8')); // Chỉnh sửa
   assert.ok(regionsPageCode.includes('#C2410C')); // Ngừng hoạt động
   assert.ok(regionsPageCode.includes('#15803D')); // Kích hoạt lại
   assert.ok(regionsPageCode.includes('#B42318')); // Xóa
 });
 
-test('Nested detail tables provide standardized "Thao tác" actions', () => {
-  assert.ok(warehouseDetailPageCode.includes("header: 'Thao tác'"));
-  assert.ok(warehouseDetailPageCode.includes('<span>Xem</span>'));
-  assert.ok(groupDetailPageCode.includes("header: 'Thao tác'"));
-  assert.ok(groupDetailPageCode.includes('<span>Xem</span>'));
+test('Nested detail tables provide standardized onRowClick actions', () => {
+  assert.ok(warehouseDetailPageCode.includes("onRowClick="));
+  assert.ok(groupDetailPageCode.includes("onRowClick="));
 });
 
 test('All user-facing occurrences of "Vùng kho" are replaced with "Vùng hoạt động"', () => {

@@ -21,13 +21,12 @@ export function ExpiryRiskCard({ rows, total }: { rows: DashboardResponse['expir
   const capped = all > rows.length;
   return (
     <Card title={`Lô hàng cần chú ý · ${formatNumber(all)} lô hàng cận hạn / hết hạn, ưu tiên theo hạn sử dụng`}>
-      <SimpleTable paginate rows={rows} empty="Không có lô hàng cận hạn/hết hạn còn tồn." columns={[
+      <SimpleTable paginate rows={rows} onRowClick={b => navigate(`/batches/${encodeURIComponent(b.batchCode)}`)} empty="Không có lô hàng cận hạn/hết hạn còn tồn." columns={[
         { header: 'Lô hàng / kho', cell: b => <>{b.batchCode}<br />{b.warehouseCode}</> },
         { header: 'SKU', cell: b => b.sku }, { header: 'Hết hạn', cell: b => formatDate(b.expirationDate) },
         { header: 'Tồn vật lý', align: 'right', cell: b => formatNumber(b.onHand) },
         { header: 'Khả dụng', align: 'right', cell: b => formatNumber(b.available) },
         { header: 'Cảnh báo', cell: b => <Chip tone={b.status === 'Expired' ? 'danger' : 'warn'}>{b.status === 'Expired' ? 'Hết hạn' : 'Cận hạn'}</Chip> },
-        { header: '', cell: b => <Button size="sm" onClick={() => navigate(`/batches/${encodeURIComponent(b.batchCode)}`)}>Xem lô hàng</Button> },
       ]} />
       {capped && (
         <div className="dashboard-more">
