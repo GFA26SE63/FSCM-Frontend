@@ -7,6 +7,10 @@ const read = (p) => fs.readFileSync(path.resolve(__dirname, '..', p), 'utf8');
 const gql = read('src/features/notifications/notificationsGraphql.ts');
 const bell = read('src/features/notifications/components/NotificationBell.tsx');
 const api = read('src/features/notifications/api.ts');
+const page = read('src/features/notifications/NotificationsPage.tsx');
+const routes = read('src/app/routes.tsx');
+const sidebar = read('src/app/layout/Sidebar.tsx');
+const guards = read('src/shared/auth/guards.tsx');
 
 test('newest-first with id tiebreaker, literal first, unread filter and totalCount', () => {
   assert.ok(gql.includes('order: [{ createdAt: DESC }, { id: DESC }]'));
@@ -27,4 +31,22 @@ test('mark-read, mark-all-read and badges stay REST', () => {
 });
 test('limit is validated (bounded window)', () => {
   assert.ok(gql.includes("throw new Error('invalid limit')") && gql.includes('NOTIFICATIONS_MAX_LIMIT'));
+});
+test('all Portal roles get a personal notification history, even when feature grants are customized', () => {
+  assert.ok(routes.includes("key: 'notifications'") && routes.includes('availableToAllPortalUsers: true'));
+  assert.ok(sidebar.includes('r.availableToAllPortalUsers') && sidebar.includes('isPortalRole(user.role)'));
+  assert.ok(guards.includes('allowAllPortalRoles') && guards.includes('isPortalRole(user.role)'));
+});
+test('notification history preserves recipient scope, read controls, retry and deep-link navigation', () => {
+  assert.ok(page.includes('Personal notification history') && page.includes('never accepts a recipient id'));
+  assert.ok(page.includes('Đánh dấu tất cả đã đọc') && page.includes("tab === 'unread'"));
+  assert.ok(page.includes('notifications.refetch()') && page.includes('portalLink(notification.deepLink)'));
+  assert.ok(bell.includes("navigate('/notifications')"));
+});
+test('bell has one scroll region, marks all with visible feedback, and opens every notification detail', () => {
+  assert.ok(bell.includes('className="bell-list"') && bell.includes('showDetail(n)'));
+  assert.ok(bell.includes('open={selected !== null}') && bell.includes('Mở nghiệp vụ liên quan'));
+  assert.ok(bell.includes("markAllRead.isPending ? 'Đang đánh dấu…'"));
+  assert.ok(!bell.includes("style={{ overflowY: 'auto', maxHeight: 360 }}"));
+  assert.ok(read('src/app/layout/layout.css').includes('.bell-list') && read('src/app/layout/layout.css').includes('overflow: visible;'));
 });

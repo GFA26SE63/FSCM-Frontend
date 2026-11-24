@@ -22,7 +22,24 @@
   display: grid;
   grid-template-columns: minmax(240px, 2fr) repeat(2, minmax(160px, 1fr));
   gap: 12px;
-  margin-bottom: 14px;
+  align-items: end;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--c-border, #d7ddd9);
+  border-radius: 10px;
+  background: var(--c-surface, #fff);
+}
+
+.warehouse-work-filters::before {
+  content: 'BỘ LỌC NÂNG CAO';
+  grid-column: 1 / -1;
+  color: var(--c-text, #17302c);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  min-height: 16px;
+  padding-left: 24px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2314655B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5h18l-7 8v6l-4 2v-8z'/%3E%3C/svg%3E") left center / 16px 16px no-repeat;
 }
 
 .warehouse-work-filters label {
@@ -32,41 +49,99 @@
   min-width: 0;
 }
 
+.warehouse-work-filters label { font-size: 13px; font-weight: 600; color: var(--c-text, #17302c); }
+
+/* Warehouse screens still use native controls in a few operational forms.
+   Give those controls the exact shared .inp treatment used by DataTable. */
+.warehouse-work-filters input,
+.warehouse-work-filters select {
+  height: 38px;
+  box-sizing: border-box;
+  border: 1px solid var(--c-border, #cbd5d1);
+  border-radius: var(--radius-sm, 8px);
+  padding: 0 10px;
+  font-size: 13.5px;
+  font-weight: 400;
+  color: var(--c-text, #17302c);
+  background: var(--c-surface, #fff);
+}
+
+.warehouse-work-filters input::placeholder { color: var(--c-muted, #718078); }
+.warehouse-work-filters input:focus,
+.warehouse-work-filters select:focus {
+  outline: 2px solid rgba(20, 101, 91, .25);
+  border-color: var(--c-primary, #14655b);
+}
+
+.warehouse-trace-filters { grid-template-columns: minmax(320px, 2fr) repeat(3, minmax(180px, 1fr)) auto; }
+.warehouse-trace-filters::before { grid-column: 1 / -1; }
+.warehouse-trace-filters .warehouse-trace-search { grid-column: 1; }
+
+.factory-pending-filters {
+  margin: 18px 0 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--c-border, #d7ddd9);
+  border-radius: 10px;
+  background: var(--c-surface, #fff);
+}
+.factory-pending-filters .filter-grid {
+  grid-template-columns: minmax(420px, 2fr) minmax(240px, 1fr) minmax(220px, 1fr) auto;
+}
+@media (max-width: 1100px) {
+  .factory-pending-filters .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 .warehouse-work-filters input, .warehouse-work-filters select {
   width: 100%;
   min-width: 0;
 }
 
+.warehouse-work-filters .warehouse-filter-action {
+  display: flex;
+  align-items: flex-end;
+}
+
 @media (max-width: 720px) {
   .warehouse-work-filters { grid-template-columns: 1fr; }
+  .warehouse-work-filters .warehouse-filter-action { align-items: stretch; }
+  .warehouse-work-filters .warehouse-filter-action .btn { width: 100%; }
 }
 
 /* Warehouse Inbound 3-Step Process Guide */
 .warehouse-guide-steps {
   display: grid;
-  grid-template-columns: 1fr auto 1fr auto 1fr;
-  align-items: center;
-  gap: 12px;
-  background: var(--surface, #ffffff);
-  border: 1px solid var(--border, #e2e8f0);
-  border-radius: 8px;
-  padding: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  background: var(--c-surface, #ffffff);
+  border: 1px solid var(--c-border, #d7ddd9);
+  border-radius: 12px;
+  overflow: hidden;
   margin-bottom: 16px;
 }
 
 .warehouse-guide-step {
   display: flex;
-  gap: 12px;
-  align-items: flex-start;
+  gap: 10px;
+  align-items: center;
+  padding: 18px;
+  position: relative;
 }
 
+.warehouse-guide-step + .warehouse-guide-step { border-left: 1px solid var(--c-border, #d7ddd9); }
+
 .warehouse-guide-step .step-badge {
-  background: #0284c7;
+  background: var(--c-primary, #14655b);
   color: #ffffff;
   font-size: 11px;
   font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 12px;
+  width: 52px;
+  min-width: 52px;
+  height: 30px;
+  padding: 0 6px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   white-space: nowrap;
 }
 
@@ -80,22 +155,22 @@
 .warehouse-guide-step strong {
   display: block;
   font-size: 14px;
-  margin-bottom: 2px;
-  color: var(--text, #0f172a);
+  margin-bottom: 5px;
+  color: var(--c-text, #17302c);
 }
 
 .warehouse-guide-step p {
   margin: 0;
-  font-size: 12px;
-  color: var(--muted, #64748b);
-  line-height: 1.4;
+  font-size: 12.5px;
+  color: var(--c-muted, #64748b);
+  line-height: 1.5;
 }
 
 @media (max-width: 860px) {
   .warehouse-guide-steps {
     grid-template-columns: 1fr;
-    gap: 14px;
   }
+  .warehouse-guide-step + .warehouse-guide-step { border-left: 0; border-top: 1px solid var(--c-border, #d7ddd9); }
   .warehouse-guide-step-arrow {
     display: none;
   }
@@ -204,3 +279,9 @@
   flex-wrap: wrap;
 }
 
+/* Pallet receiving: the action rows and the scan history each get their own breathing room. */
+.pallet-camera { margin-bottom: 16px; }
+.pallet-receiving-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+.pallet-receiving-history { margin-top: 28px; }
+/* Dispatch-note PNK: the pallets to receive, above the scanner. */
+.pallet-expected { margin: 12px 0 16px; padding: 12px 14px; border: 1px solid var(--c-border-soft, #e2e5e0); border-radius: 8px; background: var(--c-bg, #f3f4f1); }

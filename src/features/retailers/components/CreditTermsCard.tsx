@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
-import { Button, Callout, Card, Chip, Fields, FormDialog } from '@/shared/ui';
+import { Button, Card, Chip, Fields, FormDialog } from '@/shared/ui';
 import { formatMoney } from '@/shared/lib';
-import { useRetailerEligibility, useUpdateCreditTerms } from '../hooks';
+import { useUpdateCreditTerms } from '../hooks';
 import type { Retailer, RetailerReceivable } from '../types';
 
 interface CreditTermsCardProps {
@@ -16,9 +16,6 @@ export function CreditTermsCard({ retailer, receivables }: CreditTermsCardProps)
   const mayReview = can(user, 'retailers.review');
   const [configOpen, setConfigOpen] = useState(false);
   const updateCredit = useUpdateCreditTerms();
-
-  const eligibilityQuery = useRetailerEligibility(retailer.id ?? retailer.code);
-  const eligibility = eligibilityQuery.data;
 
   // Outstanding used debt and overdue items
   const activeReceivables = receivables.filter((r) => r.status !== 'Paid' && r.status !== 'Cancelled');
@@ -33,24 +30,11 @@ export function CreditTermsCard({ retailer, receivables }: CreditTermsCardProps)
     0
   );
 
-  const hasCreditPermission = Number(retailer.creditTermDays) > 0;
-
-  // Evaluate eligibility reasons
-  const fallbackReasons: string[] = [];
-  if (retailer.status !== 'Active') {
-    fallbackReasons.push('tài khoản không hoạt động');
-  }
-  if (!hasCreditPermission) {
-    fallbackReasons.push('chưa được cấp kỳ hạn công nợ');
-  }
-  if (overdueCount > 0) {
-    fallbackReasons.push('có khoản quá hạn');
-  }
-
-  const isEligible = eligibility?.isEligible ?? (fallbackReasons.length === 0);
-  const reasons = (eligibility?.reasons && eligibility.reasons.length > 0)
-    ? eligibility.reasons
-    : fallbackReasons;
+  // Credit permission is a decision made through the authorized credit-terms
+  // configuration. Do not reuse /order-eligibility here: it evaluates the
+  // current Sales user's territory and is unrelated to a retailer's credit grant.
+  const hasCreditPermission = [7, 14, 30].includes(Number(retailer.creditTermDays)) &&
+    Number(retailer.creditLimit ?? 0) > 0;
 
   return (
     <Card
@@ -103,29 +87,15 @@ export function CreditTermsCard({ retailer, receivables }: CreditTermsCardProps)
                 ),
             },
             {
-              label: 'Đủ điều kiện mua công nợ',
-              value: isEligible ? (
-                <Chip tone="ok">Đủ điều kiện</Chip>
+              label: 'Xác nhận cấp tín dụng',
+              value: hasCreditPermission ? (
+                <Chip tone="ok">Đã được người có thẩm quyền cấp</Chip>
               ) : (
-                <Chip tone="danger">Chưa đủ điều kiện</Chip>
+                <Chip tone="warn">Chưa được cấp cấu hình tín dụng</Chip>
               ),
             },
           ]}
         />
-
-        {!isEligible && (
-          <div className="stack" style={{ gap: '8px' }}>
-            {reasons.length > 0 && (
-              <div className="small muted" style={{ color: 'var(--c-danger, #d32f2f)' }}>
-                <b>Lý do chưa đủ điều kiện:</b> {reasons.join('; ')}
-              </div>
-            )}
-            <Callout tone="info">
-              Khách hàng hiện chưa đủ điều kiện mua công nợ. Có thể lựa chọn thanh toán trước.
-            </Callout>
-          </div>
-        )}
-
       </div>
 
       {configOpen && (
@@ -165,6 +135,7 @@ export function CreditTermsCard({ retailer, receivables }: CreditTermsCardProps)
               key: 'reason',
               label: 'Lý do phê duyệt / cập nhật',
               type: 'textarea',
+              required: true,
               placeholder: 'Nhập lý do thay đổi kỳ hạn công nợ cho nhà bán lẻ...',
             },
           ]}

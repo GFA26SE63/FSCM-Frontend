@@ -15,19 +15,20 @@ export interface ActionDropdownItem {
 interface ActionDropdownProps {
   items: ActionDropdownItem[];
   triggerTitle?: string;
+  showDisabledItems?: boolean;
 }
 
 /**
  * Three-dot action dropdown menu rendered in a portal with fixed positioning,
  * ensuring it is never clipped by table overflow/scroll containers.
  */
-export function ActionDropdown({ items, triggerTitle = 'Thao tác khác' }: ActionDropdownProps) {
+export function ActionDropdown({ items, triggerTitle = 'Thao tác khác', showDisabledItems = false }: ActionDropdownProps) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  const availableItems = items.filter((item) => !item.disabled);
+  const availableItems = showDisabledItems ? items : items.filter((item) => !item.disabled);
 
   const updatePosition = () => {
     if (!triggerRef.current) return;
@@ -150,8 +151,10 @@ export function ActionDropdown({ items, triggerTitle = 'Thao tác khác' }: Acti
                 type="button"
                 role="menuitem"
                 title={item.title}
+                disabled={item.disabled}
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (item.disabled) return;
                   setOpen(false);
                   item.onClick();
                 }}
@@ -166,7 +169,8 @@ export function ActionDropdown({ items, triggerTitle = 'Thao tác khác' }: Acti
                   borderRadius: 6,
                   fontSize: 12.5,
                   fontWeight: 600,
-                  cursor: 'pointer',
+                  cursor: item.disabled ? 'not-allowed' : 'pointer',
+                  opacity: item.disabled ? 0.5 : 1,
                   color: item.color || 'var(--c-text)',
                   textAlign: 'left',
                   transition: 'background 0.12s, color 0.12s',

@@ -20,7 +20,7 @@ export function PromoSelectionModal<T extends { id: string }>({
 }: Props<T>) {
   const [draft, setDraft] = useState(() => [...new Set(selectedIds)]);
   return <Modal open title={title} width={1100} onClose={onCancel}
-    subtitle={`Đã chọn ${draft.length}. Chỉ cập nhật danh sách sau khi nhấn Apply.`}
+    subtitle={`Đã chọn ${draft.length}. Chỉ cập nhật danh sách sau khi nhấn Áp dụng.`}
     footer={<><Button onClick={onCancel}>Hủy</Button>
       <Button variant="primary" disabled={loading || !!error || rows === undefined} onClick={() => onApply(draft)}>Áp dụng</Button></>}>
     <DataTable urlState={false} title="Tìm kiếm và chọn" rows={rows} loading={loading} error={error}

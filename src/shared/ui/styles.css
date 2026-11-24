@@ -82,12 +82,12 @@ h1, h2, h3 { margin: 0; }
 .grid-aside { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; align-items: start; }
 
 /* button */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 14px; border-radius: var(--radius-sm); border: 1px solid var(--c-border); background: var(--c-surface); color: var(--c-text); font-size: 13.5px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .12s, border-color .12s; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0 14px; border-radius: var(--radius-sm); border: 1px solid var(--c-border); background: var(--c-surface); color: var(--c-text); font-size: 13.5px; font-weight: 600; cursor: pointer; white-space: nowrap; text-decoration: none; transition: background .12s, border-color .12s; }
 .btn:hover:not(:disabled) { background: var(--c-surface-2); }
 .btn:focus-visible { outline: 2px solid var(--c-primary); outline-offset: 2px; }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
 .btn-primary { background: var(--c-primary); border-color: var(--c-primary); color: #fff; }
-.btn-primary:hover:not(:disabled) { background: var(--c-primary-dark); border-color: var(--c-primary-dark); }
+.btn-primary:hover:not(:disabled) { background: var(--c-primary-dark); border-color: var(--c-primary-dark); color: #fff; text-decoration: none; }
 .btn-primary:disabled { background: #a7b8b3; border-color: #a7b8b3; opacity: 1; }
 .btn-danger { color: var(--c-danger); border-color: #e7b4ae; }
 .btn-danger-solid { background: var(--c-danger); border-color: var(--c-danger); color: #fff; }
@@ -171,8 +171,11 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-lay
 .tbl tbody tr:hover td { background: #f8faf7; }
 .tbl tr.selected td { background: #eef6f3; }
 .tbl .actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.table-actions-inline { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: nowrap; }
+.table-actions-inline > .btn { flex-shrink: 0; }
 .tbl td .chip { max-width: 100%; height: auto; min-height: 24px; white-space: normal; overflow-wrap: normal; line-height: 1.4; }
 .tbl.compact td { padding: 8px 12px; }
+.tbl tr.tbl-total td { font-weight: 700; background: var(--c-bg); border-top: 2px solid var(--c-border-soft); }
 .tbl.auto { table-layout: auto; }
 .vscroll { overflow-y: auto; }
 .vscroll > * { flex-shrink: 0; }
@@ -268,11 +271,16 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-lay
 .promo-retailer-picker .tbl tr > :last-child { position: sticky; right: 0; background: var(--c-card, #fff); box-shadow: -1px 0 0 var(--c-border, #e0e5e2); }
 .promo-retailer-picker .tbl thead tr > :last-child { z-index: 3; background: var(--c-th); }
 
-/* Export orders: compact list rows; details use the shared modal. */
-.export-order { overflow: hidden; }
-.export-order-toggle { display: flex; align-items: center; gap: 12px; width: 100%; padding: 18px 20px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.export-order-toggle:hover { background: var(--c-surface-2); }
-.export-order-toggle:focus-visible { outline: 2px solid var(--c-primary, #14655b); outline-offset: -3px; }
+/* Delivery coordination uses the shared table treatment; stacked warehouse parts stay aligned and compact. */
+.delivery-table-stack { display: grid; justify-items: start; gap: 8px; align-items: center; min-height: 26px; }
+.delivery-warehouse-code { font-weight: 700; color: var(--c-text); letter-spacing: .01em; }
+.delivery-shipment-code { font-weight: 600; color: var(--c-text); }
+.delivery-warehouse-status .chip { justify-self: start; width: max-content; min-height: 26px; height: 26px; padding: 0 10px; border-radius: 6px; white-space: nowrap; }
+.delivery-summary-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.delivery-filter-card .filter-grid { grid-template-columns: minmax(250px, 2fr) repeat(4, minmax(170px, 1fr)) auto; }
+.delivery-filter-action { display: flex; align-items: flex-end; }
+@media (max-width: 1200px) { .delivery-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .delivery-filter-card .filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 800px) { .delivery-summary-grid { grid-template-columns: 1fr; } .delivery-filter-card .filter-grid { grid-template-columns: 1fr; } .delivery-filter-action .btn { width: 100%; } }
 /* dd/mm/yyyy date field with a calendar button (DateInput). */
 .date-input { position: relative; display: flex; align-items: center; width: 100%; }
 .date-input > .inp { padding-right: 36px; }

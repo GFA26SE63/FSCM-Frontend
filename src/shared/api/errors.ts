@@ -43,6 +43,11 @@ const vietnameseMessages: Record<string, string> = {
   'Page size must be between 1 and 100.': 'Số bản ghi mỗi trang phải từ 1 đến 100.',
   'Notification type cannot exceed 50 characters.': 'Loại thông báo không được quá 50 ký tự.',
   'Notification identifier is required.': 'Thiếu mã thông báo.',
+  'Retailer was not found.': 'Không tìm thấy nhà bán lẻ.',
+  'Only an active Retailer can be inactivated.': 'Chỉ nhà bán lẻ đang hoạt động mới chuyển được sang ngừng hoạt động.',
+  'Only an inactive Retailer can be reactivated.': 'Chỉ nhà bán lẻ đang ngừng hoạt động mới kích hoạt lại được.',
+  'A Retailer declaration requires at least one valid Category or SKU MLOR entry before review or activation.':
+    'Nhà bán lẻ cần ít nhất một yêu cầu HSD tối thiểu hợp lệ (theo danh mục hoặc SKU) trước khi duyệt hoặc kích hoạt.',
 };
 
 export const localizeApiMessage = (message: string): string => vietnameseMessages[message] ?? message;

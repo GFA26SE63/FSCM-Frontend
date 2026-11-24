@@ -26,4 +26,7 @@ export interface ProgramInput {
   minimumRedeemPoints: number; startAt: string; endAt: string; pointsExpireAt?: string | null;
   retailerIds: string[];
 }
-export interface ProgramRetailerOption { id: string; code: string; name: string; status: string }
+export interface ProgramRetailerOption {
+  id: string; code: string; name: string; status: string;
+  contactName?: string | null; phone?: string | null; email?: string | null; address?: string | null;
+}

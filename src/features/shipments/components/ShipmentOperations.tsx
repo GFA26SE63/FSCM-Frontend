@@ -35,6 +35,7 @@ export function ShipmentOperations({ orderId, sort }: { orderId: string; sort: S
     queryFn: shipmentsApi.vehicles,
     enabled: mayDispatch,
   });
+  const busyAssignments = useQuery({ queryKey: ['shipments', 'busy-assignments'], queryFn: shipmentsApi.busyAssignments, enabled: mayDispatch });
 
   if (shipments.isPending) return <p className="muted small">Đang tải thao tác vận hành…</p>;
   if (shipments.isError) return <Callout tone="danger">Không tải được phiếu giao hàng của đơn.\n{errorMessage(shipments.error)}</Callout>;
@@ -42,9 +43,9 @@ export function ShipmentOperations({ orderId, sort }: { orderId: string; sort: S
 
   return (
     <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
-      {mayDispatch && (drivers.isPending || vehicles.isPending) && <p className="muted small">Đang tải tài xế và xe…</p>}
-      {mayDispatch && (drivers.isError || vehicles.isError) && <Callout tone="danger">
-        Không tải đầy đủ tài xế hoặc xe.\n{errorMessage(drivers.error ?? vehicles.error)} <Button size="sm" onClick={() => { void drivers.refetch(); void vehicles.refetch(); }}>Thử lại</Button>
+      {mayDispatch && (drivers.isPending || vehicles.isPending || busyAssignments.isPending) && <p className="muted small">Đang kiểm tra tài xế, xe và chuyến đang hoạt động…</p>}
+      {mayDispatch && (drivers.isError || vehicles.isError || busyAssignments.isError) && <Callout tone="danger">
+        Không tải đầy đủ tài xế, xe hoặc trạng thái chuyến đang hoạt động.\n{errorMessage(drivers.error ?? vehicles.error ?? busyAssignments.error)} <Button size="sm" onClick={() => { void drivers.refetch(); void vehicles.refetch(); void busyAssignments.refetch(); }}>Thử lại</Button>
       </Callout>}
       {[...shipments.data].sort((a, b) => (sort === 'asc' ? 1 : -1) * a.shipmentCode.localeCompare(b.shipmentCode, 'vi', { numeric: true })).map((shipment) => (
         <ShipmentActionRow
@@ -53,7 +54,12 @@ export function ShipmentOperations({ orderId, sort }: { orderId: string; sort: S
           mayDispatch={mayDispatch}
           drivers={drivers.data ?? []}
           vehicles={vehicles.data ?? []}
-          assignmentLoaded={drivers.isSuccess && vehicles.isSuccess}
+          busyDriverIds={busyAssignments.data?.busyDriverIds ?? new Set<string>()}
+          busyVehicleIds={busyAssignments.data?.busyVehicleIds ?? new Set<string>()}
+          // Do not offer the first active vehicle before the active-delivery /
+          // transfer query has finished. That short race used to send a busy
+          // resource to the command endpoint and produce a 409 conflict.
+          assignmentLoaded={drivers.isSuccess && vehicles.isSuccess && busyAssignments.isSuccess}
         />
       ))}
     </div>
@@ -66,15 +72,19 @@ export function ShipmentActionRow({
   drivers,
   vehicles,
   assignmentLoaded = true,
+  busyDriverIds = new Set<string>(),
+  busyVehicleIds = new Set<string>(),
 }: {
   shipment: Shipment;
   mayDispatch: boolean;
   drivers: DeliveryDriver[];
   vehicles: DeliveryVehicle[];
   assignmentLoaded?: boolean;
+  busyDriverIds?: Set<string>;
+  busyVehicleIds?: Set<string>;
 }) {
-  const warehouseDrivers = drivers.filter((item) => item.isActive && item.warehouseId === shipment.warehouseId);
-  const warehouseVehicles = vehicles.filter((item) => item.isActive && item.warehouseId === shipment.warehouseId && item.capacity >= shipment.totalQuantity);
+  const warehouseDrivers = drivers.filter((item) => item.isActive && item.warehouseId === shipment.warehouseId && !busyDriverIds.has(item.id));
+  const warehouseVehicles = vehicles.filter((item) => item.isActive && item.warehouseId === shipment.warehouseId && item.capacity >= shipment.totalQuantity && !busyVehicleIds.has(item.id));
   const [driverId, setDriverId] = useState(warehouseDrivers[0]?.id ?? '');
   const [vehicleId, setVehicleId] = useState(warehouseVehicles[0]?.id ?? '');
   const [resolutionReason, setResolutionReason] = useState('');

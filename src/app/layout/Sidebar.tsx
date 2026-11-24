@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
-import { roleLabel } from '@/shared/auth/roles';
+import { isPortalRole, roleLabel } from '@/shared/auth/roles';
 import { APP_ROUTES, type AppRoute } from '../routes';
 
 const FSCM_LOGO_URL = '/src/assets/branding/fscm-logo.png';
@@ -10,12 +10,12 @@ const initials = (name: string) => name.split(' ').slice(-2).map((s) => s[0]).jo
 
 /** Sidebar topics (feature groups). Routes not listed fall into "Khác". */
 const MENU_GROUPS: { key: string; label: string; keys: string[] }[] = [
-  { key: 'overview', label: 'Tổng quan', keys: ['dashboard', 'reports', 'kpi'] },
+  { key: 'overview', label: 'Tổng quan', keys: ['dashboard', 'reports', 'warehouse-report', 'kpi'] },
   { key: 'sales', label: 'Bán hàng & Tài chính', keys: ['orders', 'allocation', 'debts', 'refunds', 'complaints'] },
-  { key: 'warehouse', label: 'Kho vận', keys: ['warehouse-inbound', 'warehouse-outbound', 'warehouse-transfers', 'batches', 'warehouse-trace', 'readiness', 'batchpromo', 'disposal', 'fleet'] },
+  { key: 'warehouse', label: 'Kho vận', keys: ['warehouse-inbound', 'warehouse-factory-requests', 'warehouse-outbound', 'warehouse-transfers', 'batches', 'warehouse-trace', 'readiness', 'batchpromo', 'disposal', 'fleet'] },
   { key: 'customer', label: 'Khách hàng & Khuyến mãi', keys: ['retailers', 'promos', 'loyalty', 'redeem', 'gifts'] },
   { key: 'catalog', label: 'Danh mục', keys: ['regions', 'cats', 'catmlor', 'skus', 'whs'] },
-  { key: 'system', label: 'Hệ thống', keys: ['users', 'config'] },
+  { key: 'system', label: 'Hệ thống', keys: ['notifications', 'users', 'roles', 'config'] },
 ];
 
 function buildGroups(items: AppRoute[]) {
@@ -36,7 +36,15 @@ export function Sidebar() {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
   const items = user
-    ? APP_ROUTES.filter((r) => !r.hidden && (user.role === 'Admin' || r.roles.includes(user.role)))
+    ? APP_ROUTES.filter((r) => {
+        if (r.hidden) return false;
+        if (r.availableToAllPortalUsers) return isPortalRole(user.role);
+        if (user.role === 'Admin') return true;
+        if (user.permissions && user.permissions.length > 0) {
+          return user.permissions.includes(r.key);
+        }
+        return r.roles.includes(user.role);
+      })
     : [];
   const groups = buildGroups(items);
   const activeGroup = groups.find((g) => g.items.some((r) => isActivePath(pathname, r.key)))?.key ?? null;
@@ -46,7 +54,7 @@ export function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div className="brand">
+      <NavLink to="/" exact className="brand" aria-label="Về trang mặc định">
         <div className="brand-logo">
           <img
             src={FSCM_LOGO_URL}
@@ -60,11 +68,10 @@ export function Sidebar() {
             className="brand-logo-img"
           />
         </div>
-        <div>
+        <div className="brand-copy">
           <div className="brand-name">Cổng quản trị FSCM</div>
-          <div className="brand-sub">Quản lý hàng tiêu dùng hạn ngắn</div>
         </div>
-      </div>
+      </NavLink>
 
       <nav className="menu-list" aria-label="Danh mục chức năng">
         {groups.map((g) => {

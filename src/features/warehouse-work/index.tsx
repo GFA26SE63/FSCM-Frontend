@@ -1,12 +1,15 @@
 import { PalletReceiving } from "./PalletReceiving";
-import { FactoryPending, type FactoryInboundPallet } from './FactoryPending';
+import { FactoryPending, type FactoryInboundDispatch } from './FactoryPending';
+import { FactoryReceiptHistory } from './FactoryReceiptHistory';
+import { groupHistoryRows, type FactoryReceiptGroup } from './receiptHistoryModel';
 import './warehouse-work.css';
 import { useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { get, http } from '@/shared/api/http';
 import { errorMessage } from '@/shared/api/errors';
-import { Card, PageHeader, QueryState, SimpleTable } from '@/shared/ui';
+import { Button, Card, Input, PageHeader, QueryState, Select, SimpleTable } from '@/shared/ui';
+import { downloadExcel } from '@/shared/lib/excel';
 import { receiptApi } from '@/features/receipts/api';
 import { pickingApi } from '@/features/runpicking/api';
 import type { BatchInventoryItem } from '@/features/batches/types';
@@ -23,6 +26,18 @@ interface Work { document: Document; lines: Line[]; cartons: Carton[]; pallets?:
 const kinds = { Request: 'Yêu cầu kho', Picking: 'Phiếu soạn hàng', Issue: 'Phiếu xuất kho', Receipt: 'Phiếu nhập kho' };
 const reasons = { Transfer: 'Luân chuyển kho', Order: 'Xuất cho đơn hàng', Factory: 'Nhận từ nhà máy' };
 const statuses: Record<string, string> = { Open: 'Chờ thực hiện', Prepared: 'Đã soạn đủ · chờ xuất', Posted: 'Đã ghi sổ', Fulfilled: 'Đã thực hiện', Cancelled: 'Đã hủy' };
+const inboundStatuses: Record<string, string> = { Open: 'Chờ thực hiện', Posted: 'Đã ghi sổ', Cancelled: 'Đã hủy' };
+const receiptsStatuses: Record<string, string> = { Posted: 'Đã ghi sổ', Cancelled: 'Đã hủy' };
+const issuesStatuses: Record<string, string> = { Posted: 'Đã ghi sổ', Cancelled: 'Đã hủy' };
+const outboundStatuses: Record<string, string> = { Open: 'Chờ thực hiện', Prepared: 'Đã soạn đủ · chờ xuất', Posted: 'Đã ghi sổ', Fulfilled: 'Đã thực hiện', Cancelled: 'Đã hủy' };
+
+function getWorkflowStatuses(workflow: WarehouseWorkflow): Record<string, string> {
+  if (workflow === 'receipts') return receiptsStatuses;
+  if (workflow === 'issues') return issuesStatuses;
+  if (workflow === 'inbound') return inboundStatuses;
+  if (workflow === 'outbound') return outboundStatuses;
+  return statuses;
+}
 export function documentTypeLabel(kind: string, reason: string): string {
   if (kind === 'Request' && reason === 'Transfer') return 'Lệnh điều chuyển kho (Admin)';
   if (kind === 'Issue' && reason === 'Transfer') return 'Phiếu xuất luân chuyển (Kho gửi)';
@@ -44,129 +59,124 @@ export function WarehouseWorkPage() {
 }
 
 export function WarehouseInboundPage() { const location = useLocation(); return location.pathname.endsWith('/new') ? <Redirect to="/warehouse-inbound" /> : <WarehouseOperationsPage key="inbound" workflow="inbound" />; }
+export function WarehouseFactoryRequestsPage() { return <WarehouseOperationsPage key="factory-requests" workflow="inbound" factoryRequests />; }
+export function WarehouseReceiptsPage() { const location = useLocation(); return location.pathname.endsWith('/new') ? <Redirect to="/warehouse-receipts" /> : <WarehouseOperationsPage key="receipts" workflow="receipts" />; }
 export function WarehouseInboundCreatePage() { return <Redirect to="/warehouse-inbound" />; }
 export function WarehouseOutboundPage() { return <WarehouseOperationsPage key="outbound" workflow="outbound" />; }
+export function WarehouseIssuesPage() { const location = useLocation(); return location.pathname.endsWith('/new') ? <Redirect to="/warehouse-issues" /> : <WarehouseOperationsPage key="issues" workflow="issues" />; }
 export function WarehouseTransferPage() { return <WarehouseOperationsPage key="transfer" workflow="transfer" />; }
 export function WarehouseTracePage() { return <WarehouseOperationsPage key="trace" workflow="trace" />; }
 
-function WarehouseTraceCenter({ docs, warehouses, setSelected }: {
-  docs: { data: Work[] | undefined; isLoading: boolean; error: unknown };
-  warehouses: { id: string; name: string }[];
-  setSelected: (id: string) => void;
+interface QrStock {
+  cartonCode: string; palletCode: string; productionBatchCode: string;
+  stockBatchId: string; stockBatchCode: string;
+  warehouseId: string; warehouseCode: string; warehouseName: string;
+  sku: string; productName: string; status: string;
+  productionDate: string; expirationDate: string; unitsPerCarton: number;
+  receiptCode: string | null; receivedAt: string | null;
+  syncedAt: string | null; hasAcknowledgement: boolean; syncAttempts: number; syncError: string | null;
+}
+interface QrPage { items: QrStock[]; totalCount: number; page: number; pageSize: number }
+interface QrEvent { occurredAt: string; warehouseCode: string; eventType: string; fromStatus: string; toStatus: string; referenceCode?: string }
+interface QrDetail { label: { sku: string; warehouseCode: string; status: string }; events: QrEvent[] }
+
+const qrStatusLabels: Record<string, string> = {
+  Available: 'Sẵn sàng',
+  Picked: 'Đã soạn',
+  InTransit: 'Đang vận chuyển',
+  Delivered: 'Đã giao',
+  Invalidated: 'Đã hủy',
+  Split: 'Đã tách',
+};
+
+function WarehouseTraceCenter({ warehouses: initialWarehouses }: {
+  warehouses: { id: string; name: string; code?: string }[];
+  docs?: unknown;
+  setSelected?: (id: string) => void;
 }) {
-  const [tab, setTab] = useState<'lookup' | 'cartons' | 'factory'>('lookup');
-  const [trace, setTrace] = useState('');
-  const whName = (id: string | null) => warehouses.find(w => w.id === id)?.name ?? id ?? '—';
+  const { user } = useAuth();
+  const [filters, setFilters] = useState({ warehouseId: '', status: '', syncStatus: '', search: '', page: 1 });
+  const [search, setSearch] = useState('');
+  const [selectedCode, setSelectedCode] = useState('');
+  const warehouses = useQuery({ queryKey: ['qr-inventory', 'warehouses'], queryFn: receiptApi.warehouses });
+  const inventory = useQuery({
+    queryKey: ['qr-inventory', filters],
+    queryFn: () => get<QrPage>('/inventory/qr-codes', { ...filters, pageSize: 50 }),
+    refetchInterval: 15000,
+  });
+  const detail = useQuery({
+    queryKey: ['qr-inventory', 'detail', selectedCode],
+    queryFn: () => get<QrDetail>(`/qr-labels/${encodeURIComponent(selectedCode)}`),
+    enabled: !!selectedCode,
+  });
+  const changeFilter = (name: 'warehouseId' | 'status' | 'syncStatus', value: string) =>
+    setFilters(current => ({ ...current, [name]: value, page: 1 }));
 
   return <div className="warehouse-trace-center">
-    <div className="warehouse-tabs" role="tablist">
-      <button
-        type="button"
-        role="tab"
-        aria-selected={tab === 'lookup'}
-        className={`btn ${tab === 'lookup' ? 'btn-primary' : ''}`}
-        onClick={() => setTab('lookup')}
-      >
-        Tra cứu nguồn gốc đa cấp
-      </button>
-      <button
-        type="button"
-        role="tab"
-        aria-selected={tab === 'cartons'}
-        className={`btn ${tab === 'cartons' ? 'btn-primary' : ''}`}
-        onClick={() => setTab('cartons')}
-      >
-        Tồn kho thùng carton (QR)
-      </button>
-      <button
-        type="button"
-        role="tab"
-        aria-selected={tab === 'factory'}
-        className={`btn ${tab === 'factory' ? 'btn-primary' : ''}`}
-        onClick={() => setTab('factory')}
-      >
-        Kết nối hệ thống Nhà máy
-      </button>
-    </div>
-
-    {tab === 'lookup' && <>
-      <Card title="Cấu trúc định danh & Truy xuất nguồn gốc 4 cấp độ">
-        <p className="muted">Chuỗi định danh khép kín từ Nhà máy sản xuất đến tận tay Người tiêu dùng qua FSCM:</p>
-        <div className="trace-hierarchy-grid">
-          <div className="trace-hierarchy-node">
-            <span className="node-level">Cấp 1 · Lô sản xuất (BID)</span>
-            <strong>Lô sản xuất tại nhà máy</strong>
-            <span className="node-desc">Gắn liền công thức, ngày sản xuất (NSX), hạn sử dụng (HSD) và phân xưởng sản xuất.</span>
-          </div>
-          <div className="trace-arrow">➔</div>
-          <div className="trace-hierarchy-node">
-            <span className="node-level">Cấp 2 · Pallet đóng gói (PID)</span>
-            <strong>Kiện hàng giao vận</strong>
-            <span className="node-desc">Đơn vị xếp dỡ vận chuyển từ nhà máy tới kho tổng, gồm nhiều thùng carton cùng lô.</span>
-          </div>
-          <div className="trace-arrow">➔</div>
-          <div className="trace-hierarchy-node">
-            <span className="node-level">Cấp 3 · Thùng carton (CID)</span>
-            <strong>Đơn vị kiểm soát kho FSCM</strong>
-            <span className="node-desc">Mã QR định danh từng thùng, quét kiểm đếm khi nhập kho và soạn hàng xuất kho.</span>
-          </div>
-          <div className="trace-arrow">➔</div>
-          <div className="trace-hierarchy-node">
-            <span className="node-level">Cấp 4 · Đơn vị / Lô kho (UID & Batch)</span>
-            <strong>Sản phẩm & Lô tồn FSCM</strong>
-            <span className="node-desc">Lô kho (WH-SKU-...) quản lý tồn bán và mã tem sê-ri từng sản phẩm đến tay khách.</span>
-          </div>
+    <Card title="Danh sách thùng carton trong kho (Pallet · Carton · SKU · Nhà máy)">
+      <p className="muted">Tra cứu toàn diện từng thùng carton đã nhận vào hệ thống FSCM. Tìm kiếm nhanh theo mã Thùng (CID), mã Pallet (PID), mã Lô sản xuất (BID), SKU hoặc HSD.</p>
+      <form className="warehouse-work-filters warehouse-trace-filters" onSubmit={e => { e.preventDefault(); setFilters(current => ({ ...current, search: search.trim(), page: 1 })); }}>
+        <label className="lbl warehouse-trace-search">Tìm CID / PID / BID / SKU <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Quét hoặc nhập mã để tra cứu" /></label>
+        <label className="lbl">Kho <Select value={filters.warehouseId} onChange={e => changeFilter('warehouseId', e.target.value)} options={[{ value: '', label: 'Tất cả kho được phép' }, ...((warehouses.data ?? initialWarehouses)?.filter(w => user?.role !== 'WarehouseKeeper' || user.scope?.warehouseIds.includes(w.id)).map(w => ({ value: w.id, label: w.name })) ?? [])]} /></label>
+        <label className="lbl">Trạng thái QR <Select value={filters.status} onChange={e => changeFilter('status', e.target.value)} options={[{ value: '', label: 'Tất cả trạng thái' }, ...Object.entries(qrStatusLabels).map(([value, label]) => ({ value, label }))]} /></label>
+        <label className="lbl">Xác nhận về nhà máy <Select value={filters.syncStatus} onChange={e => changeFilter('syncStatus', e.target.value)} options={[{ value: '', label: 'Tất cả' }, { value: 'Pending', label: 'Chờ gửi / đang thử lại' }, { value: 'Synced', label: 'Đã xác nhận' }, { value: 'Legacy', label: 'Dữ liệu cũ chưa có xác nhận' }]} /></label>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+          <button className="btn btn-primary" type="submit">Tìm kiếm</button>
+          <button className="btn" type="button" disabled={inventory.isFetching} onClick={() => { void inventory.refetch(); if (selectedCode) void detail.refetch(); }}>Làm mới</button>
         </div>
-      </Card>
-      <TraceLookup />
-      <Card title="Lịch sử thùng trong chứng từ kho">
-        <label>Mã thùng <input value={trace} onChange={e => setTrace(e.target.value)} placeholder="Quét hoặc nhập mã thùng (CID) để xem hành trình" /></label>
-        <QueryState query={docs}>{() => trace.trim() ? <SimpleTable rows={(docs.data ?? []).flatMap(w => w.cartons.filter(c => c.cartonId === trace.trim()).map(c => ({ w, c, l: w.lines.find(l => l.id === c.lineId) })))} columns={[
-          { header: 'Chứng từ', width: '320px', cell: x => <button className="btn btn-sm warehouse-document-code" onClick={() => setSelected(x.w.document.id)}><span>{x.w.document.code}</span></button> },
-          { header: 'Nghiệp vụ / kho', cell: x => `${kinds[x.w.document.kind]} · ${whName(x.w.document.warehouseId)}` },
-          { header: 'Lô hàng / SKU / đơn', cell: x => `${x.l?.batchCode ?? x.l?.sourceLotCode ?? '—'} · ${x.l?.sku ?? '—'} · ${x.l?.orderCode ?? '—'}` },
-          { header: 'Quét lúc', cell: x => x.c.scannedAt ? formatInstantDateTime(x.c.scannedAt) : 'Chưa quét' },
-        ]} empty="Không tìm thấy thùng trong các chứng từ thuộc phạm vi của bạn." /> : <p className="muted">Nhập mã thùng để xem các lần nhập, xuất và luân chuyển.</p>}</QueryState>
-      </Card>
-    </>}
+      </form>
 
-    {tab === 'cartons' && <Card title="Theo dõi thùng carton & QR trong kho">
-      <p>Mỗi thùng carton khi nhập vào FSCM được cấp một mã QR duy nhất (CID), liên kết với Pallet gốc (PID) và Lô kho FSCM (Batch).</p>
-      <div className="trace-quick-actions" style={{ display: 'flex', gap: 12, margin: '16px 0', flexWrap: 'wrap' }}>
-        <Link className="btn btn-primary" to="/inventory">Mở bảng tra cứu chi tiết toàn bộ carton (50 carton / trang)</Link>
-        <Link className="btn" to="/batches">Xem tồn khả dụng theo Lô hàng (Batches)</Link>
-        <Link className="btn" to="/warehouse-inbound">Tiếp nhận lô hàng mới tại Nhập kho</Link>
-      </div>
-      <div className="trace-carton-lifecycle" style={{ background: 'var(--surface-subtle, #f8fafc)', border: '1px solid var(--border, #e2e8f0)', padding: 16, borderRadius: 8 }}>
-        <h4 style={{ margin: '0 0 10px 0' }}>Vòng đời trạng thái tem QR thùng carton trong FSCM:</h4>
-        <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <li><b>Available (Sẵn sàng):</b> Thùng đã qua kiểm đếm đạt chuẩn và nhập kho, sẵn sàng phân bổ hoặc soạn xuất.</li>
-          <li><b>Picked (Đã soạn):</b> Đã quét vào phiếu soạn hàng (Picking) cho đơn hàng cụ thể.</li>
-          <li><b>InTransit (Đang vận chuyển):</b> Đang trên đường luân chuyển giữa các kho hoặc giao đến khách.</li>
-          <li><b>Delivered (Đã giao):</b> Đã giao thành công đến điểm bán lẻ hoặc người nhận.</li>
-          <li><b>Invalidated / Split (Đã tách / Hủy):</b> Thùng được xả lẻ hoặc tem được cấp mới thay thế.</li>
-        </ul>
-      </div>
-    </Card>}
+      <QueryState query={inventory}>{data => <>
+        <p className="muted">{data.totalCount} thùng carton khớp bộ lọc · Trang {data.page}</p>
+        <SimpleTable rows={data.items} onRowClick={r => setSelectedCode(r.cartonCode)} columns={[
+          { header: 'Thùng carton (CID)', width: '220px', cell: r => <div><b className="warehouse-pallet-code">{r.cartonCode}</b><div className="muted">{r.receivedAt ? `Nhận ${formatInstantDateTime(r.receivedAt)}` : 'Chưa có thời điểm nhận'}</div></div> },
+          { header: 'Pallet gốc (PID)', width: '180px', cell: r => <b className="warehouse-pallet-code">{r.palletCode}</b> },
+          { header: 'Lô SX nhà máy (BID)', width: '180px', cell: r => <span className="muted">{r.productionBatchCode}</span> },
+          { header: 'SKU & Sản phẩm', width: '220px', cell: r => <>{r.sku} · {r.productName}<div className="muted">{r.unitsPerCarton} sản phẩm/thùng</div></> },
+          { header: 'NSX / HSD', width: '150px', cell: r => <>{formatDate(r.productionDate)}<br />{formatDate(r.expirationDate)}</> },
+          { header: 'Kho hiện tại / Lô kho', width: '220px', cell: r => <>{r.warehouseCode} · {r.warehouseName}<br /><Link to={`/batches/${encodeURIComponent(r.stockBatchId)}`}>{r.stockBatchCode}</Link></> },
+          { header: 'Trạng thái QR', width: '130px', cell: r => <span className="chip">{qrStatusLabels[r.status] ?? r.status}</span> },
+          { header: 'Phiếu nhập (PNK)', width: '220px', cell: r => r.receiptCode ? <Link to={`/warehouse-inbound/${encodeURIComponent(r.receiptCode)}`} style={{ fontWeight: 600 }}>{r.receiptCode}</Link> : <span className="muted">Dữ liệu cũ</span> },
+          { header: 'Đồng bộ Nhà máy', width: '170px', cell: r => r.syncedAt ? <span style={{ color: '#166534' }}>Đã xác nhận</span> : r.hasAcknowledgement ? <span style={{ color: '#b45309' }}>Chờ gửi ACK</span> : <span className="muted">—</span> },
+        ]} empty="Chưa có thùng carton nào khớp với bộ lọc." />
 
-    {tab === 'factory' && <Card title="Cổng kết nối hệ thống Nhà máy sản xuất">
-      <p>Nhà máy và FSCM vận hành đồng bộ qua cơ chế tích hợp API 2 chiều để bảo đảm truy xuất nguồn gốc không đứt gãy:</p>
-      <div className="trace-quick-actions" style={{ display: 'flex', gap: 12, margin: '16px 0', flexWrap: 'wrap' }}>
-        <Link className="btn btn-primary" to="/factory-traceability">Mở cổng ứng dụng Nhà máy · Truy xuất nguồn gốc</Link>
-        <Link className="btn" to="/warehouse-inbound">Kiểm tra Pallet chờ nhận từ nhà máy</Link>
+        <div className="row-wrap" style={{ gap: 12, marginTop: 16 }}>
+          <button className="btn" disabled={inventory.isFetching || data.page <= 1} onClick={() => setFilters(current => ({ ...current, page: current.page - 1 }))}>Trang trước</button>
+          <button className="btn" disabled={inventory.isFetching || data.page * data.pageSize >= data.totalCount} onClick={() => setFilters(current => ({ ...current, page: current.page + 1 }))}>Trang sau</button>
+        </div>
+      </>}</QueryState>
+    </Card>
+
+    <details style={{ marginTop: 16 }}>
+      <summary style={{ cursor: 'pointer', fontWeight: 600, padding: '8px 0' }}>🔍 Tra cứu nguồn gốc theo mã bất kỳ (BID / PID / CID / UID)</summary>
+      <div style={{ marginTop: 12 }}>
+        <TraceLookup />
       </div>
-      <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: 16, borderRadius: 8, marginTop: 12 }}>
-        <h4 style={{ margin: '0 0 8px 0', color: '#166534' }}>Cơ chế xác nhận biên bản nhập kho (ACK):</h4>
-        <p style={{ margin: 0 }}>Khi thủ kho hoàn tất kiểm đếm và bấm "Hoàn tất phiếu nhập", FSCM tự động gửi thông điệp ACK về dịch vụ Traceability nhà máy kèm thống kê số thùng Đạt, Hỏng (vị trí cách ly) và Thiếu. Trạng thái đồng bộ hiển thị chi tiết tại bảng tồn carton.</p>
+    </details>
+
+    {selectedCode && <Card title={`Chi tiết truy xuất thùng carton · ${selectedCode}`}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <strong>Lịch sử & Vòng đời QR</strong>
+        <button className="btn btn-sm" onClick={() => setSelectedCode('')}>Đóng chi tiết</button>
       </div>
+      <QueryState query={detail}>{data => <>
+        <p>{data.label.sku} · Kho: {data.label.warehouseCode} · Trạng thái: {qrStatusLabels[data.label.status] ?? data.label.status}</p>
+        <SimpleTable rows={data.events} columns={[
+          { header: 'Thời gian', cell: e => formatInstantDateTime(e.occurredAt) },
+          { header: 'Kho / sự kiện', cell: e => `${e.warehouseCode} · ${e.eventType}` },
+          { header: 'Trạng thái', cell: e => `${qrStatusLabels[e.fromStatus] ?? e.fromStatus} → ${qrStatusLabels[e.toStatus] ?? e.toStatus}` },
+          { header: 'Chứng từ', cell: e => e.referenceCode ? (e.referenceCode.startsWith('PNK-') || e.referenceCode.startsWith('WH-REC-') ? <Link to={`/warehouse-inbound/${encodeURIComponent(e.referenceCode)}`}>{e.referenceCode}</Link> : e.referenceCode) : '—' },
+        ]} />
+      </>}</QueryState>
+      <TraceLookup key={selectedCode} initialCode={selectedCode} />
     </Card>}
   </div>;
 }
 
-export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkflow }) {
+export function WarehouseOperationsPage({ workflow, factoryRequests = false }: { workflow: WarehouseWorkflow; factoryRequests?: boolean }) {
   const history = useHistory();
   const location = useLocation();
-  const screen = warehouseScreens[workflow];
+  const screen = factoryRequests ? warehouseScreens.factoryRequests : warehouseScreens[workflow];
   const { user } = useAuth();
   const admin = user?.role === 'Admin';
   const client = useQueryClient();
@@ -182,31 +192,67 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [trace, setTrace] = useState('');
+  const [exporting, setExporting] = useState(false);
   const [search, setSearch] = useStringParam('q');
   const [statusFilter, setStatusFilter] = useStringParam('status');
   const [warehouseFilter, setWarehouseFilter] = useStringParam('warehouse');
   const [operationSource, setOperationSource] = useStringParam('source');
-  const operationReason = operationSource === 'Transfer' ? 'Transfer' : workflow === 'inbound' ? 'Factory' : 'Order';
+  const [tab, setTab] = useStringParam('tab');
+  const [documentSort, setDocumentSort] = useStringParam('sort');
+  const isInbound = workflow === 'inbound' || workflow === 'receipts';
+  const isOutbound = workflow === 'outbound' || workflow === 'issues';
+  const isHistoryWorkflow = workflow === 'receipts' || workflow === 'issues';
+  const activeTab = factoryRequests ? 'factory' : (tab ? tab : (isHistoryWorkflow ? 'history' : 'todo'));
+  // Factory inbound has its own workspace; the normal inbound tab is for transfers.
+  const operationReason = factoryRequests ? 'Factory' : isInbound
+    ? (activeTab === 'factory' || (activeTab === 'history' && operationSource !== 'Transfer') ? 'Factory' : 'Transfer')
+    : operationSource === 'Transfer' ? 'Transfer' : 'Order';
   const [cartonEdit, setCartonEdit] = useState<{ documentId: string; cartonCode: string; replace: boolean; replacementCode: string; reason: string } | null>(null);
   const scanInput = useRef<HTMLInputElement>(null);
   const operation = useRef<{ fingerprint: string; key: string } | null>(null);
   const inFlight = useRef(false);
   const docs = useQuery({ queryKey: ['warehouse-documents'], queryFn: () => get<Work[]>(base) });
-  const incoming = useQuery({ queryKey: ['factory-pending'], queryFn: () => get<FactoryInboundPallet[]>(`${base}/factory-pending`), enabled: workflow === 'inbound' });
+  // One row per factory dispatch note (PXN) with all its pallets; the PNK opened from it receives them all.
+  const incoming = useQuery({ queryKey: ['factory-pending'], queryFn: () => get<FactoryInboundDispatch[]>(`${base}/factory-pending-dispatches`), enabled: workflow === 'inbound' });
+  // PNK history: factory receipts grouped by dispatch note (read-only display grouping).
+  const receiptGroups = useQuery({ queryKey: ['warehouse-documents', 'factory-receipt-groups'], queryFn: () => get<FactoryReceiptGroup[]>(`${base}/factory-receipt-groups`), enabled: workflow === 'inbound' || workflow === 'receipts' });
+  /** Pallet code for receipts opened from a single pallet (before dispatch notes existed); '' for dispatch-note PNKs. */
+  const legacyPalletOf = (documentId: string) => {
+    const group = incoming.data?.find(g => g.receiptDocumentId === documentId);
+    if (group) return group.dispatchNoteId ? '' : group.pallets[0]?.palletCode ?? '';
+    return new URLSearchParams(location.search).get('pallet') ?? '';
+  };
   const warehouses = useQuery({ queryKey: ['warehouse-work', 'warehouses'], queryFn: receiptApi.warehouses });
   const pickings = useQuery({ queryKey: ['warehouse-work', 'picking', wh], queryFn: () => pickingApi.lists(wh), enabled: admin && workflow === 'outbound' && creating && !!wh });
   const batches = useQuery({ queryKey: ['warehouse-work', 'batches', wh], queryFn: () => get<BatchInventoryItem[]>('/inventory', { warehouseId: wh }), enabled: admin && creating && !!wh && reason === 'Transfer' });
-  const active = docs.data?.find(x => x.document.id === selected && belongsToWorkflow(x.document, workflow));
+  const active = docs.data?.find(x => (x.document.id === selected || x.document.code === selected) && belongsToWorkflow(x.document, workflow));
   const canCreate = admin && (workflow === 'outbound' && operationReason === 'Order' || workflow === 'transfer');
   const executionWarehouses = warehouses.data?.filter(w => w.isActive &&
     (admin || user?.scope?.warehouseIds.includes(w.id)));
   const whName = (id: string | null) => warehouses.data?.find(w => w.id === id)?.name ?? id ?? '—';
   const setSelected = (id: string) => {
     const work = docs.data?.find(w => w.document.id === id);
-    if (work) history.push(warehouseDocumentPath(work.document));
+    if (work) {
+      if (workflow === 'receipts') history.push(`/warehouse-receipts/${encodeURIComponent(work.document.id)}`);
+      else if (workflow === 'issues') history.push(`/warehouse-issues/${encodeURIComponent(work.document.id)}`);
+      else history.push(warehouseDocumentPath(work.document));
+    }
   };
-  const workflowRows = (docs.data ?? []).filter(w => belongsToWorkflow(w.document, workflow) && (!['inbound', 'outbound'].includes(workflow) || w.document.reason === operationReason));
+
+  const workflowRows = (docs.data ?? []).filter(w => {
+    if (!belongsToWorkflow(w.document, workflow)) return false;
+    if (['inbound', 'receipts', 'outbound', 'issues'].includes(workflow) && w.document.reason !== operationReason) return false;
+    if (activeTab === 'history') {
+      if (isInbound) return w.document.kind === 'Receipt' && w.document.status !== 'Open';
+      if (isOutbound) return w.document.kind === 'Issue' && w.document.status !== 'Open';
+      return true;
+    }
+    if (activeTab === 'todo') {
+      if (isOutbound && w.document.kind === 'Issue' && w.document.status === 'Posted') return false;
+      return true;
+    }
+    return true;
+  });
   const transferArrivals = (docs.data ?? []).filter(w => w.document.reason === 'Transfer' && w.document.kind === 'Issue' && w.document.status === 'Posted'
     && (admin || user?.scope?.warehouseIds.includes(w.document.destinationWarehouseId ?? ''))
     && !docs.data?.some(r => r.document.kind === 'Receipt' && r.document.sourceDocumentId === w.document.id));
@@ -215,7 +261,35 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
     return (!search.trim() || text.includes(search.trim().toLocaleLowerCase('vi')))
       && (!statusFilter || w.document.status === statusFilter)
       && (!warehouseFilter || [w.document.warehouseId, w.document.destinationWarehouseId].includes(warehouseFilter));
+  }).sort((a, b) => documentSort === 'codeAsc'
+    ? a.document.code.localeCompare(b.document.code)
+    : documentSort === 'codeDesc' ? b.document.code.localeCompare(a.document.code)
+    : b.document.createdAt.localeCompare(a.document.createdAt));
+  const pendingOutboundRows = visibleRows.filter(w => {
+    if (w.document.kind === 'Issue' && w.document.status === 'Posted') return false;
+    if (w.document.kind === 'Request' && docs.data?.some(child => child.document.sourceDocumentId === w.document.id)) {
+      return false;
+    }
+    return true;
   });
+  const inProgressReceipts = (docs.data ?? []).filter(w => w.document.reason === 'Factory' && w.document.kind === 'Receipt' && w.document.status !== 'Posted'
+    && (admin || user?.scope?.warehouseIds.includes(w.document.warehouseId)));
+  const filterStatuses = getWorkflowStatuses(workflow);
+  const exportDocuments = async () => {
+    const rows = isOutbound && activeTab === 'todo' ? pendingOutboundRows : visibleRows;
+    if (!rows.length) return;
+    setExporting(true);
+    try {
+      await downloadExcel(`chung-tu-kho-${workflow}-${activeTab}-${operationReason.toLowerCase()}.xlsx`, [{
+        name: 'Chứng từ kho',
+        title: `${screen.title} · ${activeTab === 'history' ? 'Lịch sử' : 'Đang xử lý'}`,
+        blocks: [{
+          columns: ['Mã chứng từ', 'Loại chứng từ', 'Kho / tuyến', 'Đơn hàng', 'Số thùng', 'Trạng thái', 'Tạo lúc'].map((header) => ({ header })),
+          rows: rows.map((work) => [work.document.code, documentTypeLabel(work.document.kind, work.document.reason), `${whName(work.document.warehouseId)}${work.document.destinationWarehouseId && work.document.destinationWarehouseId !== work.document.warehouseId ? ` → ${whName(work.document.destinationWarehouseId)}` : ''}`, [...new Set(work.lines.map((line) => line.orderCode).filter(Boolean))].join(', ') || '—', work.lines.reduce((total, line) => total + line.quantity, 0), filterStatuses[work.document.status] ?? statuses[work.document.status] ?? work.document.status, formatInstantDateTime(work.document.createdAt)]),
+        }],
+      }]);
+    } finally { setExporting(false); }
+  };
   const selectable = (pickings.data ?? []).filter(p => p.status === 'Pending' && !docs.data?.some(d => d.document.kind === 'Request' && d.document.status !== 'Cancelled' && d.lines.some(l => l.orderCode === p.orderCode) && d.document.warehouseId === wh));
   async function act(path: string, payload?: unknown, idempotent = false, sourcePallet?: string) {
     if (inFlight.current) return;
@@ -247,12 +321,13 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
     }
     finally { inFlight.current = false; setBusy(false); scanInput.current?.focus(); }
   }
-  async function printLabels(stock = false, receipt = false) {
+  async function printLabels(stock = false, receipt = false, issue = false) {
     if (!active) return;
     const win = window.open('', '_blank');
     if (!win) { setError('Cho phép mở cửa sổ để in nhãn.'); return; }
     try {
-      const { data } = await http.get<string>(`${base}/${active.document.id}/${receipt ? 'receipt-print' : stock ? 'stock-labels' : 'labels'}`, { responseType: 'text' });
+      const endpoint = receipt ? 'receipt-print' : issue ? 'issue-print' : stock ? 'stock-labels' : 'labels';
+      const { data } = await http.get<string>(`${base}/${active.document.id}/${endpoint}`, { responseType: 'text' });
       win.document.open(); win.document.write(data); win.document.close();
     } catch (e) { win.close(); setError(errorMessage(e)); }
   }
@@ -261,51 +336,82 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
   return <>
     <PageHeader title={selected ? `Chi tiết ${screen.title.toLocaleLowerCase('vi')}` : creating ? screen.create : screen.title} subtitle={screen.description}
       back={selected || creating ? screen.path + (d?.reason === 'Transfer' && workflow !== 'transfer' ? '?source=Transfer' : '') : undefined}
-      actions={!selected && !creating && canCreate ? <Link className="btn btn-primary" to={`${screen.path}/new`}>{screen.create}</Link> : undefined} />
-    {!selected && !creating && (workflow === 'inbound' || workflow === 'outbound') && <div className="row-wrap" role="group" aria-label="Loại nghiệp vụ kho" style={{ gap: 12, marginBottom: 16 }}>
-      <button className={`btn ${operationReason !== 'Transfer' ? 'btn-primary' : ''}`} aria-pressed={operationReason !== 'Transfer'} onClick={() => setOperationSource('')}>{workflow === 'inbound' ? 'Nhập từ nhà máy' : 'Xuất bán hàng'}</button>
-      <button className={`btn ${operationReason === 'Transfer' ? 'btn-primary' : ''}`} aria-pressed={operationReason === 'Transfer'} onClick={() => setOperationSource('Transfer')}>{workflow === 'inbound' ? 'Nhập luân chuyển' : 'Xuất luân chuyển'}</button>
+      actions={!selected && !creating ? <div className="row-wrap" style={{ gap: 8 }}><Button loading={exporting} disabled={docs.isLoading || (isOutbound && activeTab === 'todo' ? pendingOutboundRows.length === 0 : visibleRows.length === 0)} onClick={() => void exportDocuments()}>Xuất Excel</Button>{canCreate && <Link className="btn btn-primary" to={`${screen.path}/new`}>{screen.create}</Link>}</div> : undefined} />
+    {!selected && !creating && !factoryRequests && (isInbound || isOutbound) && <div className="warehouse-main-tabs" role="tablist" style={{ display: 'flex', gap: 8, marginBottom: 16, borderBottom: '2px solid var(--border, #e2e8f0)', paddingBottom: 12 }}>
+      {isInbound ? <>
+        <button type="button" role="tab" aria-selected={activeTab === 'todo'} className={`btn ${activeTab === 'todo' ? 'btn-primary' : ''}`} onClick={() => { setTab(''); setStatusFilter(''); }} style={{ fontWeight: 600, padding: '8px 18px', fontSize: 14 }}>Nhập kho</button>
+        <button type="button" role="tab" aria-selected={activeTab === 'history'} className={`btn ${activeTab === 'history' ? 'btn-primary' : ''}`} onClick={() => { setTab('history'); setStatusFilter(''); }} style={{ fontWeight: 600, padding: '8px 18px', fontSize: 14 }}>Lịch sử Phiếu Nhập Kho (PNK)</button>
+      </> : <>
+        <button type="button" role="tab" aria-selected={activeTab === 'todo'} className={`btn ${activeTab === 'todo' ? 'btn-primary' : ''}`} onClick={() => { setTab(''); setStatusFilter(''); }} style={{ fontWeight: 600, padding: '8px 18px', fontSize: 14 }}>Cần xuất & Soạn hàng</button>
+        <button type="button" role="tab" aria-selected={activeTab === 'history'} className={`btn ${activeTab === 'history' ? 'btn-primary' : ''}`} onClick={() => { setTab('history'); setStatusFilter(''); }} style={{ fontWeight: 600, padding: '8px 18px', fontSize: 14 }}>Lịch sử Phiếu Xuất Kho (PXK)</button>
+      </>}
     </div>}
-    {!selected && !creating && workflow === 'inbound' && operationReason === 'Transfer' && <Card title="Hàng luân chuyển chờ nhận">
-      <p>Kho gửi đã xác nhận xuất kho. Thủ kho nhận mở phiếu nhập tại kho đích, quét từng carton thực nhận và xác nhận nhập kho để cộng tồn.</p>
-      <SimpleTable rows={transferArrivals} columns={[
-        { header: 'Phiếu xuất', width: '300px', cell: w => w.document.code },
-        { header: 'Kho gửi → kho nhận', width: '280px', cell: w => `${whName(w.document.warehouseId)} → ${whName(w.document.destinationWarehouseId)}` },
-        { header: 'Thao tác', width: '240px', cell: w => admin ? 'Chờ thủ kho nhận' : <button className="btn btn-primary" disabled={busy} onClick={() => void act(`${base}/${w.document.id}/create-document`, undefined, true)}>Bắt đầu nhập luân chuyển & quét</button> },
-      ]} empty="Không có hàng luân chuyển chờ nhận tại kho của bạn." />
-    </Card>}
-    {workflow === 'trace' && <WarehouseTraceCenter docs={docs} warehouses={warehouses.data ?? []} setSelected={setSelected} />}
+
+    {!selected && !creating && isOutbound && <div className="row-wrap" role="group" aria-label="Loại nghiệp vụ kho" style={{ gap: 12, marginBottom: 16 }}>
+      <button type="button" className={`btn ${operationReason !== 'Transfer' ? 'btn-primary' : ''}`} aria-pressed={operationReason !== 'Transfer'} onClick={() => setOperationSource('')}>{isOutbound ? (activeTab === 'history' ? 'Phiếu xuất bán hàng' : 'Xuất bán hàng') : (activeTab === 'history' ? 'Phiếu nhập từ nhà máy' : 'Nhập từ nhà máy')}</button>
+      <button type="button" className={`btn ${operationReason === 'Transfer' ? 'btn-primary' : ''}`} aria-pressed={operationReason === 'Transfer'} onClick={() => setOperationSource('Transfer')}>{isOutbound ? (activeTab === 'history' ? 'Phiếu xuất luân chuyển' : 'Xuất luân chuyển') : (activeTab === 'history' ? 'Phiếu nhập luân chuyển' : 'Nhập luân chuyển')}</button>
+    </div>}
+    {workflow === 'trace' && <WarehouseTraceCenter warehouses={warehouses.data ?? []} docs={docs} setSelected={setSelected} />}
     {error && <p role="alert" className="danger">{error}</p>}{notice && <p role="status">{notice}</p>}
-    {!selected && !creating && workflow === 'inbound' && operationReason === 'Factory' && <div className="warehouse-guide-steps">
-      <div className="warehouse-guide-step">
-        <div className="step-badge">Bước 1</div>
-        <div>
-          <strong>Tiếp nhận Pallet (PID)</strong>
-          <p>Xe nhà máy chở pallet đến kho. Chọn pallet trong bảng chờ nhận bên dưới để mở phiếu kiểm đếm.</p>
-        </div>
+    {!selected && !creating && isInbound && !factoryRequests && <section className="card filter-card" aria-label="Bộ lọc nâng cao">
+      <div className="row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14655B" strokeWidth="2" aria-hidden><path d="M3 5h18l-7 8v6l-4 2v-8z" /></svg><h2 className="sec">Bộ lọc nâng cao</h2></div>
+      <div className="filter-grid">
+        <label className="lbl">Tìm kiếm<input className="inp" value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã phiếu, SKU, lô hàng hoặc đơn hàng" /></label>
+        <label className="lbl">Trạng thái<select className="inp" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="">Tất cả trạng thái</option>{Object.entries(filterStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <label className="lbl">Kho<select className="inp" value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho</option>{warehouses.data?.filter(w => admin || user?.scope?.warehouseIds.includes(w.id)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
+        <label className="lbl">Sắp xếp<select className="inp" value={documentSort} onChange={e => setDocumentSort(e.target.value)}><option value="">Mới nhất</option><option value="codeAsc">Mã phiếu A–Z</option><option value="codeDesc">Mã phiếu Z–A</option></select></label>
       </div>
-      <div className="warehouse-guide-step-arrow">➔</div>
-      <div className="warehouse-guide-step">
-        <div className="step-badge">Bước 2</div>
-        <div>
-          <strong>Kiểm đếm thùng (CID)</strong>
-          <p>Quét camera hoặc mã pallet để nạp danh sách thùng carton. Phân loại Đạt, Hỏng (cách ly) hoặc Thiếu.</p>
+    </section>}
+    {!selected && !creating && isInbound && !factoryRequests && activeTab === 'todo' && inProgressReceipts.length > 0 && <Card title="Phiếu kiểm đếm đang thực hiện dở dang">
+      <p className="muted">Các phiếu nhập kho đã mở nhưng chưa hoàn tất ghi sổ. Chọn phiếu để tiếp tục kiểm đếm.</p>
+      <SimpleTable rows={inProgressReceipts} columns={[
+        { header: 'Mã phiếu', width: '320px', cell: w => <b className="warehouse-document-code">{w.document.code}</b> },
+        { header: 'Kho nhận', width: '220px', cell: w => whName(w.document.warehouseId) },
+        { header: 'Số thùng', width: '130px', cell: w => `${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
+        { header: 'Trạng thái', width: '150px', cell: () => <span className="chip chip-warn">Đang kiểm đếm</span> },
+        { header: 'Thao tác', width: '180px', cell: w => <button className="btn btn-sm btn-primary" onClick={() => { setSelected(w.document.id); setError(''); }}>Tiếp tục kiểm đếm</button> },
+      ]} />
+    </Card>}
+    {!selected && !creating && isInbound && (activeTab === 'todo' || activeTab === 'factory') && <div>
+      {operationReason === 'Factory' && <div className="warehouse-guide-steps">
+        <div className="warehouse-guide-step">
+          <div className="step-badge">Bước 1</div>
+          <div>
+            <strong>Tiếp nhận phiếu xuất nhà máy</strong>
+            <p>Xe nhà máy chở một hoặc nhiều pallet đến kho. Chọn phiếu xuất và bấm Bắt đầu kiểm đếm để mở một PNK cho toàn bộ pallet.</p>
+          </div>
         </div>
-      </div>
-      <div className="warehouse-guide-step-arrow">➔</div>
-      <div className="warehouse-guide-step">
-        <div className="step-badge">Bước 3</div>
-        <div>
-          <strong>Ghi sổ PNK & Map Lô kho</strong>
-          <p>Bấm Hoàn tất phiếu nhập. Thùng đạt tự động map vào Lô kho FSCM để bán và gửi ACK về nhà máy.</p>
+        <div className="warehouse-guide-step">
+          <div className="step-badge">Bước 2</div>
+          <div>
+            <strong>Kiểm đếm thùng (CID)</strong>
+            <p>Quét camera hoặc mã pallet để nạp danh sách thùng carton. Phân loại Đạt, Hỏng (cách ly) hoặc Thiếu.</p>
+          </div>
         </div>
-      </div>
+        <div className="warehouse-guide-step">
+          <div className="step-badge">Bước 3</div>
+          <div>
+            <strong>Ghi sổ PNK & Map Lô kho</strong>
+            <p>Bấm Hoàn tất & Thực hiện nhập kho. Thùng đạt tự động map vào Lô kho FSCM để bán và gửi ACK về nhà máy.</p>
+          </div>
+        </div>
+      </div>}
+      {operationReason === 'Factory' && <QueryState query={warehouses}>{() => <FactoryPending query={incoming} warehouses={executionWarehouses ?? []} admin={admin} busy={busy}
+        refresh={() => { void incoming.refetch(); }} onOpen={dispatch => {
+          const legacyPallet = dispatch.dispatchNoteId ? undefined : dispatch.pallets[0]?.palletCode;
+          if (admin && dispatch.receiptDocumentId) history.push(`/warehouse-inbound/${encodeURIComponent(dispatch.receiptDocumentId)}${legacyPallet ? `?pallet=${encodeURIComponent(legacyPallet)}` : ''}`);
+          else if (!admin && dispatch.dispatchNoteId) void act(`${base}/factory-receipts/from-dispatch`, { dispatchNoteId: dispatch.dispatchNoteId });
+          else if (!admin && legacyPallet) void act(`${base}/factory-receipts/from-pallet`, { palletCode: legacyPallet }, false, legacyPallet);
+        }} />}</QueryState>}
+      {operationReason === 'Transfer' && <Card title="Hàng luân chuyển chờ nhận">
+        <p>Kho gửi đã xác nhận xuất kho. Thủ kho nhận mở phiếu nhập tại kho đích, quét từng carton thực nhận và xác nhận nhập kho để cộng tồn.</p>
+        <SimpleTable rows={transferArrivals} columns={[
+          { header: 'Phiếu xuất', width: '300px', cell: w => w.document.code },
+          { header: 'Kho gửi → kho nhận', width: '280px', cell: w => `${whName(w.document.warehouseId)} → ${whName(w.document.destinationWarehouseId)}` },
+          { header: 'Thao tác', width: '240px', cell: w => admin ? 'Chờ thủ kho nhận' : <button className="btn btn-primary" disabled={busy} onClick={() => void act(`${base}/${w.document.id}/create-document`, undefined, true)}>Bắt đầu nhập luân chuyển & quét</button> },
+        ]} empty="Không có hàng luân chuyển chờ nhận tại kho của bạn." />
+      </Card>}
     </div>}
-    {workflow === 'inbound' && operationReason === 'Factory' && !selected && <QueryState query={warehouses}>{() => <FactoryPending query={incoming} warehouses={executionWarehouses ?? []} admin={admin} busy={busy}
-      refresh={() => { void incoming.refetch(); }} onOpen={pallet => {
-        if (admin && pallet.receiptDocumentId) history.push(`${screen.path}/${encodeURIComponent(pallet.receiptDocumentId)}?pallet=${encodeURIComponent(pallet.palletCode)}`);
-        else if (!admin) void act(`${base}/factory-receipts/from-pallet`, { palletCode: pallet.palletCode }, false, pallet.palletCode);
-      }} />}</QueryState>}
     {creating && !canCreate && <Card title="Không có quyền tạo chứng từ"><p>{workflow === 'inbound' ? 'Thủ kho tạo và thực hiện phiếu nhập tại kho được phân công.' : 'Quản trị viên phát hành yêu cầu. Thủ kho mở chứng từ trong danh sách để thực hiện.'}</p><Link className="btn" to={screen.path}>Về danh sách</Link></Card>}
     {creating && canCreate && <Card title={screen.create}>
       <p className="muted">{workflow === 'outbound' ? 'Chọn kho và đơn đã có đơn thực hiện. Thủ kho sẽ soạn thùng theo yêu cầu này.' : 'Quản trị viên lập lệnh điều chuyển nội bộ: Chọn kho gửi, kho nhận và số thùng từng lô hàng cần chuyển. Thủ kho gửi sẽ tiếp nhận lệnh để xuất hàng.'}</p>
@@ -328,20 +434,79 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
         <div className="row-wrap" style={{ gap: 12, marginTop: 12 }}><label>Ghi chú <input value={note} onChange={e => setNote(e.target.value)} /></label><button className="btn btn-primary" disabled={busy || !wh || admin && (reason === 'Order' ? !orderIds.length : !transferLines.length || !destination || destination === wh)}>{screen.create}</button><Link className="btn" to={screen.path}>Hủy</Link></div>
       </form>
     </Card>}
-    {workflow !== 'trace' && !selected && !creating && <Card title={workflow === 'inbound' ? (operationReason === 'Transfer' ? 'Danh sách Phiếu Nhập Luân Chuyển (PNK)' : 'Danh sách Phiếu Nhập Kho (PNK)') : `Danh sách ${screen.title.toLocaleLowerCase('vi')}`}>
-      <div className="warehouse-work-filters">
-        <label>Tìm chứng từ<input value={search} onChange={e => setSearch(e.target.value)} placeholder={workflow === 'inbound' ? "Mã PNK, mã pallet (PID), SKU hoặc mã lô" : "Mã chứng từ, đơn hàng, SKU hoặc lô hàng"} /></label>
-        <label>Trạng thái<select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="">Tất cả trạng thái</option>{Object.entries(statuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-        <label>Lọc theo kho<select value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho</option>{warehouses.data?.filter(w => admin || user?.scope?.warehouseIds.includes(w.id)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
-      </div>
-      <p className="muted">{visibleRows.length} chứng từ · {workflow === 'inbound' ? 'Tra cứu theo mã PNK, mã pallet (PID), SKU hoặc mã lô.' : 'Chọn mã chứng từ để xem và xử lý.'}</p>
-      <QueryState query={docs}>{() => <SimpleTable rows={visibleRows} columns={[
-      { header: 'Chứng từ', width: '320px', cell: w => <button className="btn btn-sm warehouse-document-code" onClick={() => { setSelected(w.document.id); setError(''); }}><span>{w.document.code}</span></button> },
-      { header: 'Loại chứng từ', width: '250px', cell: w => documentTypeLabel(w.document.kind, w.document.reason) },
-      { header: 'Kho', width: '220px', cell: w => `${whName(w.document.warehouseId)}${w.document.destinationWarehouseId && w.document.destinationWarehouseId !== w.document.warehouseId ? ' → ' + whName(w.document.destinationWarehouseId) : ''}` },
-      { header: 'Đơn / thùng', width: '130px', cell: w => `${new Set(w.lines.map(l => l.orderCode).filter(Boolean)).size} đơn · ${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
-      { header: 'Trạng thái', width: '150px', cell: w => statuses[w.document.status] ?? w.document.status },
-    ]} empty="Không có chứng từ phù hợp." />}</QueryState></Card>}
+    {workflow !== 'trace' && !selected && !creating && (
+      (isInbound && activeTab === 'history') ? (
+        <Card title={operationReason === 'Transfer' ? 'Danh sách Phiếu Nhập Luân Chuyển (PNK)' : 'Danh sách Phiếu Nhập Kho (PNK)'}>
+          <p className="muted">{visibleRows.length} chứng từ · Danh sách các phiếu nhập kho đã ghi nhận tồn. Chọn mã PNK để xem chi tiết hoặc in phiếu.</p>
+          {/* Factory receipts: one row per dispatch note (older per-pallet PNKs of the same note shown together). */}
+          {operationReason === 'Factory' ? <QueryState query={docs}>{() => <FactoryReceiptHistory
+            rows={groupHistoryRows(visibleRows, workflowRows, receiptGroups.data)}
+            whName={whName}
+            statusText={s => filterStatuses[s] ?? statuses[s] ?? s}
+            onOpen={id => { setSelected(id); setError(''); }} />}</QueryState>
+          : <QueryState query={docs}>{() => <SimpleTable rows={visibleRows} onRowClick={w => { setSelected(w.document.id); setError(''); }} columns={[
+            { header: 'Phiếu nhập / ngày lập', width: '320px', cell: w => <div><b className="warehouse-pallet-code">{w.document.code}</b><div className="muted">{formatInstantDateTime(w.document.createdAt)}</div></div> },
+            { header: 'Loại chứng từ', width: '250px', cell: w => documentTypeLabel(w.document.kind, w.document.reason) },
+            { header: 'Kho nhận', width: '220px', cell: w => `${whName(w.document.warehouseId)}${w.document.destinationWarehouseId && w.document.destinationWarehouseId !== w.document.warehouseId ? ' → ' + whName(w.document.destinationWarehouseId) : ''}` },
+            // Receipts are not tied to sales orders, so only the carton count is shown.
+            { header: 'Số thùng', width: '130px', cell: w => `${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
+            { header: 'Trạng thái', width: '150px', cell: w => <span className={`chip ${w.document.status === 'Posted' ? 'chip-ok' : ''}`}>{filterStatuses[w.document.status] ?? statuses[w.document.status] ?? w.document.status}</span> },
+          ]} empty="Không có chứng từ phù hợp." />}</QueryState>}
+        </Card>
+      ) : (isOutbound && activeTab === 'history') ? (
+        <Card title={operationReason === 'Transfer' ? 'Danh sách Phiếu Xuất Luân Chuyển (PXK)' : 'Danh sách Phiếu Xuất Kho (PXK)'}>
+          <div className="warehouse-work-filters">
+            <label>Tìm chứng từ<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã PXK, đơn hàng, SKU hoặc mã lô" /></label>
+            <label>Trạng thái<select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="">Tất cả trạng thái</option>{Object.entries(filterStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <label>Lọc theo kho<select value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho</option>{warehouses.data?.filter(w => admin || user?.scope?.warehouseIds.includes(w.id)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
+          </div>
+          <p className="muted">{visibleRows.length} chứng từ · Danh sách các phiếu xuất kho đã ghi sổ trừ tồn và bàn giao vận chuyển. Chọn mã PXK để xem chi tiết hoặc in phiếu.</p>
+          <QueryState query={docs}>{() => <SimpleTable rows={visibleRows} onRowClick={w => { setSelected(w.document.id); setError(''); }} columns={[
+            { header: 'Phiếu xuất / ngày lập', width: '320px', cell: w => <div><b className="warehouse-pallet-code">{w.document.code}</b><div className="muted">{formatInstantDateTime(w.document.createdAt)}</div></div> },
+            { header: 'Loại chứng từ', width: '250px', cell: w => documentTypeLabel(w.document.kind, w.document.reason) },
+            { header: 'Kho xuất', width: '220px', cell: w => `${whName(w.document.warehouseId)}${w.document.destinationWarehouseId && w.document.destinationWarehouseId !== w.document.warehouseId ? ' → ' + whName(w.document.destinationWarehouseId) : ''}` },
+            { header: 'Đơn / thùng', width: '130px', cell: w => `${new Set(w.lines.map(l => l.orderCode).filter(Boolean)).size} đơn · ${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
+            { header: 'Trạng thái', width: '150px', cell: w => <span className={`chip ${w.document.status === 'Posted' ? 'chip-ok' : ''}`}>{filterStatuses[w.document.status] ?? statuses[w.document.status] ?? w.document.status}</span> },
+          ]} empty="Không có phiếu xuất kho phù hợp." />}</QueryState>
+        </Card>
+      ) : (isOutbound && activeTab === 'todo') ? (
+        <Card title={operationReason === 'Transfer' ? 'Danh sách Lệnh Xuất Luân Chuyển Cần Soạn' : 'Danh sách Lệnh Xuất & Soạn Hàng'}>
+          <div className="warehouse-work-filters">
+            <label>Tìm chứng từ<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã chứng từ, đơn hàng, SKU hoặc lô hàng" /></label>
+            <label>Lọc theo kho<select value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho</option>{warehouses.data?.filter(w => admin || user?.scope?.warehouseIds.includes(w.id)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
+          </div>
+          <p className="muted">{pendingOutboundRows.length} yêu cầu cần xuất · Mỗi dòng đại diện cho 1 lệnh xuất hàng. Bắt đầu hoặc tiếp tục soạn hàng theo thứ tự FEFO.</p>
+          <QueryState query={docs}>{() => <SimpleTable rows={pendingOutboundRows} onRowClick={w => { setSelected(w.document.id); setError(''); }} columns={[
+            { header: 'Chứng từ / ngày lập', width: '300px', cell: w => <div><b className="warehouse-pallet-code">{w.document.code}</b><div className="muted">{formatInstantDateTime(w.document.createdAt)}</div></div> },
+            { header: 'Loại chứng từ', width: '220px', cell: w => documentTypeLabel(w.document.kind, w.document.reason) },
+            { header: 'Kho', width: '200px', cell: w => `${whName(w.document.warehouseId)}${w.document.destinationWarehouseId && w.document.destinationWarehouseId !== w.document.warehouseId ? ' → ' + whName(w.document.destinationWarehouseId) : ''}` },
+            { header: 'Đơn / thùng', width: '130px', cell: w => `${new Set(w.lines.map(l => l.orderCode).filter(Boolean)).size} đơn · ${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
+            { header: 'Trạng thái', width: '160px', cell: w => {
+              if (w.document.kind === 'Request') return <span className="chip chip-warn">Chờ soạn hàng</span>;
+              if (w.document.kind === 'Picking') return <span className="chip chip-info">Đang soạn hàng</span>;
+              if (w.document.kind === 'Issue') return <span className="chip chip-warning">Đã soạn xong - Chờ xuất</span>;
+              return <span className="chip">{filterStatuses[w.document.status] ?? statuses[w.document.status] ?? w.document.status}</span>;
+            } },
+          ]} empty="Không có chứng từ cần xuất kho." />}</QueryState>
+        </Card>
+      ) : workflow === 'transfer' ? (
+        <Card title={`Danh sách ${screen.title.toLocaleLowerCase('vi')}`}>
+          <div className="warehouse-work-filters">
+            <label>Tìm chứng từ<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã chứng từ, đơn hàng, SKU hoặc lô hàng" /></label>
+            <label>Trạng thái<select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="">Tất cả trạng thái</option>{Object.entries(filterStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <label>Lọc theo kho<select value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho</option>{warehouses.data?.filter(w => admin || user?.scope?.warehouseIds.includes(w.id)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
+          </div>
+          <p className="muted">{visibleRows.length} chứng từ · Chọn mã chứng từ để xem và xử lý.</p>
+          <QueryState query={docs}>{() => <SimpleTable rows={visibleRows} onRowClick={w => { setSelected(w.document.id); setError(''); }} columns={[
+            { header: 'Chứng từ / ngày lập', width: '320px', cell: w => <div><b className="warehouse-pallet-code">{w.document.code}</b><div className="muted">{formatInstantDateTime(w.document.createdAt)}</div></div> },
+            { header: 'Loại chứng từ', width: '250px', cell: w => documentTypeLabel(w.document.kind, w.document.reason) },
+            { header: 'Kho', width: '220px', cell: w => `${whName(w.document.warehouseId)}${w.document.destinationWarehouseId && w.document.destinationWarehouseId !== w.document.warehouseId ? ' → ' + whName(w.document.destinationWarehouseId) : ''}` },
+            { header: 'Đơn / thùng', width: '130px', cell: w => `${new Set(w.lines.map(l => l.orderCode).filter(Boolean)).size} đơn · ${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
+            { header: 'Trạng thái', width: '150px', cell: w => filterStatuses[w.document.status] ?? statuses[w.document.status] ?? w.document.status },
+          ]} empty="Không có chứng từ phù hợp." />}</QueryState>
+        </Card>
+      ) : null
+    )}
     {selected && <QueryState query={docs}>{() => !active && <Card title="Không tìm thấy chứng từ"><p>Chứng từ không thuộc màn hình này hoặc ngoài phạm vi kho của bạn.</p><Link className="btn" to={screen.path}>Về danh sách</Link></Card>}</QueryState>}
     {active && d && <Card title={`${documentTypeLabel(d.kind, d.reason)} · ${d.code}`}>
       {d.kind === 'Receipt' ? <div className="pnk-summary-header">
@@ -350,12 +515,12 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
             <span className="badge" style={{ background: '#0284c7', color: '#fff', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>Phiếu Nhập Kho (PNK)</span>
             <h2 style={{ margin: '6px 0 0 0' }}>{d.code}</h2>
           </div>
-          <button className="btn btn-primary" onClick={() => void printLabels(false, true)}>📄 In / Xuất PDF phiếu nhập kho</button>
+          <button className="btn btn-primary" onClick={() => void printLabels(false, true)}>In / Xuất PDF phiếu nhập kho</button>
         </div>
         <div className="pnk-meta-grid">
           <div className="pnk-meta-item">
             <span className="muted">Nguồn nhập</span>
-            <strong>{d.reason === 'Factory' ? '🏭 Nhà máy sản xuất (Factory Dispatch)' : '🔄 Luân chuyển từ kho khác'}</strong>
+            <strong>{d.reason === 'Factory' ? 'Nhà máy sản xuất (Factory Dispatch)' : 'Luân chuyển từ kho khác'}</strong>
           </div>
           <div className="pnk-meta-item">
             <span className="muted">Kho tiếp nhận</span>
@@ -370,16 +535,43 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
             <strong>{formatInstantDateTime(d.createdAt)}</strong>
           </div>
         </div>
+      </div> : d.kind === 'Issue' ? <div className="pnk-summary-header">
+        <div className="pnk-title-row">
+          <div>
+            <span className="badge" style={{ background: '#059669', color: '#fff', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>Phiếu Xuất Kho (PXK)</span>
+            <h2 style={{ margin: '6px 0 0 0' }}>{d.code}</h2>
+          </div>
+          <button className="btn btn-primary" onClick={() => void printLabels(false, false, true)}>In / Xuất PDF phiếu xuất kho</button>
+        </div>
+        <div className="pnk-meta-grid">
+          <div className="pnk-meta-item">
+            <span className="muted">Loại xuất kho</span>
+            <strong>{d.reason === 'Order' ? 'Xuất bán hàng (Bán lẻ / Đơn hàng)' : 'Xuất luân chuyển sang kho khác'}</strong>
+          </div>
+          <div className="pnk-meta-item">
+            <span className="muted">Kho xuất hàng</span>
+            <strong>{whName(d.warehouseId)}</strong>
+          </div>
+          <div className="pnk-meta-item">
+            <span className="muted">Trạng thái ghi sổ</span>
+            <strong style={{ color: d.status === 'Posted' ? '#166534' : '#b45309' }}>{statuses[d.status] ?? d.status}</strong>
+          </div>
+          <div className="pnk-meta-item">
+            <span className="muted">Thời gian lập phiếu</span>
+            <strong>{formatInstantDateTime(d.createdAt)}</strong>
+          </div>
+        </div>
       </div> : <p>{reasons[d.reason]} · {whName(d.warehouseId)}{d.destinationWarehouseId && d.destinationWarehouseId !== d.warehouseId ? ` → ${whName(d.destinationWarehouseId)}` : ''} · {statuses[d.status]} · {formatInstantDateTime(d.createdAt)}</p>}
-      {d.sourceDocumentId && <p>Chứng từ nguồn: <button className="btn btn-sm warehouse-document-code" onClick={() => setSelected(d.sourceDocumentId!)}><span>{docs.data?.find(w => w.document.id === d.sourceDocumentId)?.document.code}</span></button></p>}
-      {d.note && <p>{d.note}</p>}
+      {d.sourceDocumentId && <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0 12px 0' }}>
+        <span className="muted" style={{ fontWeight: 600 }}>Chứng từ nguồn (Lệnh gốc):</span>
+        <button type="button" className="btn btn-sm warehouse-document-code" onClick={() => setSelected(d.sourceDocumentId!)} title="Bấm để xem chứng từ gốc ban đầu"><span>{docs.data?.find(w => w.document.id === d.sourceDocumentId)?.document.code ?? d.sourceDocumentId}</span></button>
+      </div>}
+      {d.note && <p className="muted" style={{ fontStyle: 'italic', margin: '4px 0 12px 0' }}>Ghi chú: {d.note}</p>}
       {d.reason === 'Factory' && d.kind === 'Receipt' && <div className="notice-banner" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px 16px', borderRadius: 8, marginBottom: 16 }}>
         <strong>Liên kết truy xuất nguồn gốc nhập kho:</strong>
-        <p style={{ margin: '4px 0 0 0' }}>Lô SX Nhà máy (BID) ➔ Pallet đóng gói (PID) ➔ Thùng carton (CID) ➔ Phiếu Nhập Kho (PNK: <b>{d.code}</b>) ➔ Lô kho FSCM (Batch)</p>
+        <p style={{ margin: '4px 0 0 0' }}>Lô SX Nhà máy (BID), Pallet đóng gói (PID), Thùng carton (CID), Phiếu Nhập Kho (PNK: <b>{d.code}</b>) và Lô kho FSCM (Batch).</p>
         <p style={{ margin: '4px 0 0 0', fontSize: 13, color: '#166534' }}>Thủ kho quét kiểm đếm từng thùng từ Pallet. Khi hoàn tất phiếu nhập, các thùng Đạt tự động được ghi tăng tồn khả dụng và gửi xác nhận (ACK) về hệ thống Traceability nhà máy.</p>
       </div>}
-      {d.sourceDocumentId && <p>Chứng từ nguồn: <button className="btn btn-sm warehouse-document-code" onClick={() => setSelected(d.sourceDocumentId!)}><span>{docs.data?.find(w => w.document.id === d.sourceDocumentId)?.document.code}</span></button></p>}
-      {d.note && <p>{d.note}</p>}
       {d.reason === 'Transfer' && d.kind === 'Request' && <div className="notice-banner" style={{ background: '#fff7ed', border: '1px solid #fed7aa', padding: '12px 16px', borderRadius: 8, marginBottom: 16 }}>
         <strong>Lệnh điều chuyển kho do Quản trị viên lập:</strong>
         <p style={{ margin: '4px 0 0 0' }}>Kho gửi <b>{whName(d.warehouseId)}</b> chịu trách nhiệm xuất hàng đến kho nhận <b>{whName(d.destinationWarehouseId)}</b>. Thủ kho gửi bấm "Bắt đầu xuất luân chuyển & quét" để tạo phiếu xuất và quét từng thùng.</p>
@@ -413,15 +605,17 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
       {admin && d.kind === 'Request' && d.status === 'Open' && <button className="btn" disabled={busy} onClick={() => void act(`${base}/${d.id}/cancel`, { expectedVersion: d.version })}>Hủy lệnh chưa lấy hàng</button>}
       {canCreateChild && <button className="btn btn-primary" disabled={busy} onClick={() => void act(`${base}/${d.id}/create-document`, undefined, true)}>{d.kind === 'Request' ? (d.reason === 'Transfer' ? 'Bắt đầu xuất luân chuyển & quét' : 'Bắt đầu xuất kho & quét') : 'Bắt đầu nhập luân chuyển & quét'}</button>}
       {active.lines.length > 0 && <SimpleTable rows={active.lines} columns={[
-        { header: 'Đơn hàng', cell: l => l.orderCode ?? '—' }, { header: 'SKU / sản phẩm', cell: l => `${l.sku} · ${l.productName}` },
+        // Receipts are not tied to sales orders: the "Đơn hàng" column only applies to issue documents.
+        ...(d.kind === 'Receipt' ? [] : [{ header: 'Đơn hàng', cell: (l: typeof active.lines[number]) => l.orderCode ?? '—' }]),
+        { header: 'SKU / sản phẩm', cell: l => `${l.sku} · ${l.productName}` },
         { header: 'Mã tồn / lô hàng nhà máy', cell: l => [l.batchCode, l.sourceLotCode].filter(Boolean).join(' · ') || 'Chờ nhập' }, { header: 'HSD', cell: l => formatDate(l.expirationDate) },
         { header: 'Số thùng', cell: l => l.quantity }, { header: 'Đã quét', cell: l => active.cartons.filter(c => c.lineId === l.id && c.scannedAt).length },
       ]} />}
       {d.kind !== 'Request' && <>
         {d.reason === 'Factory' && <>
           <p>Kho nhận cố định: <b>{whName(d.warehouseId)}</b> · Theo chỉ định của nhà máy.</p>
-          <PalletReceiving key={d.id + (incoming.data?.find(p => p.receiptDocumentId === d.id)?.palletCode ?? new URLSearchParams(location.search).get('pallet') ?? '')}
-            initialCode={incoming.data?.find(p => p.receiptDocumentId === d.id)?.palletCode ?? new URLSearchParams(location.search).get('pallet') ?? ''}
+          <PalletReceiving key={d.id + legacyPalletOf(d.id)}
+            initialCode={legacyPalletOf(d.id)}
             documentId={d.id} version={d.version} receivedCount={active.cartons.length} editable={!admin && d.status === 'Open'} />
         </>}{d.reason !== 'Factory' && <p>Tiến độ: {active.cartons.filter(c => c.scannedAt).length} / {active.lines.reduce((s, l) => s + l.quantity, 0)} thùng. Mỗi mã QR đại diện một thùng chứa một SKU.</p>}
         {!admin && (d.kind === 'Picking' || d.kind === 'Issue') && d.status === 'Open' && active.lines.some(l => !l.sourceLotCode?.startsWith('BID-')) && <div className="row-wrap" style={{ gap: 12 }}><button className="btn" disabled={busy} onClick={() => void act(`${base}/${d.id}/prepare-cartons`)}>Chuẩn bị nhãn một thùng cho hàng tồn</button><button className="btn" onClick={() => void printLabels(true)}>Mở nhãn hàng tồn để in</button><span className="muted">Dán nhãn mới lên từng thùng; nhãn gộp cũ sau khi tách sẽ hết hiệu lực.</span></div>}{active.cartons.length > 0 && d.reason !== 'Factory' && <button className="btn" onClick={() => void printLabels()}>In nhãn QR thùng</button>}

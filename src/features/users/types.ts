@@ -5,8 +5,8 @@ import {
 
 import { CREATABLE_ROLES } from './userPolicy';
 
-export type UserRole = AppRole;
-export type CreatableRole = Exclude<UserRole, 'Admin'>;
+export type UserRole = AppRole | string;
+export type CreatableRole = string;
 export type IdentityProvider = 'Local' | 'Google';
 
 export interface User {
@@ -126,7 +126,7 @@ export const roleOptions: {
   label: roleLabel[role],
 }));
 
-export const assignmentKinds: Record<CreatableRole, ScopeKind[]> = {
+export const assignmentKinds: Record<string, ScopeKind[]> = {
   Operator: [],
   WarehouseKeeper: ['warehouses', 'regions'],
   SalesManager: ['regions', 'sales-groups'],

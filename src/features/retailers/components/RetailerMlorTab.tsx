@@ -1,8 +1,10 @@
 import { useState, useMemo } from 'react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
 import {
+  ActionDropdown,
   Button,
   Callout,
   Card,
@@ -96,20 +98,6 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
         <Callout tone="info">Đang tải yêu cầu hạn sử dụng và danh mục sản phẩm…</Callout>}
       {(configsQuery.error || productsQuery.error || categoriesQuery.error) &&
         <Callout tone="danger">Không tải đầy đủ yêu cầu hạn sử dụng hoặc danh mục sản phẩm. Vui lòng tải lại trước khi chỉnh sửa.</Callout>}
-      {/* MLOR Precedence Rule Callout */}
-      <Callout tone="info">
-        <div style={{ display: 'grid', gap: '6px' }}>
-          <strong>Quy tắc thứ tự ưu tiên hạn sử dụng (yêu cầu HSD tối thiểu):</strong>
-          <div>
-            1. <strong>Yêu cầu riêng theo sản phẩm</strong> (Ưu tiên cao nhất) → 
-            2. <strong>Áp dụng theo danh mục</strong> (Mức trung gian) → 
-            3. <strong>Mặc định của sản phẩm</strong> (Mức cơ sở).
-          </div>
-          <div className="muted" style={{ fontSize: '13px' }}>
-            Hệ thống tự động giải quyết theo thứ bậc trên khi tạo đơn, xếp chuyến và xuất kho giao hàng.
-          </div>
-        </div>
-      </Callout>
 
       {/* 1. Yêu cầu theo danh mục */}
       <Card
@@ -156,19 +144,13 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
             {
               header: 'Thao tác',
               align: 'right',
-              width: '180px',
+              width: '70px',
               cell: (r) =>
                 mayManage ? (
-                  <div className="row-wrap" style={{ justifyContent: 'flex-end', gap: 8 }}>
-                  <Button size="sm" disabled={!lookupsReady} onClick={() => setEditingConfig(r)}>Sửa</Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() => setDeletingConfig(r)}
-                  >
-                    Xóa
-                  </Button>
-                  </div>
+                  <ActionDropdown showDisabledItems items={[
+                    { key: 'edit', label: 'Sửa', icon: <Pencil size={16} />, disabled: !lookupsReady, onClick: () => setEditingConfig(r) },
+                    { key: 'delete', label: 'Xóa', icon: <Trash2 size={16} />, color: 'var(--c-danger)', onClick: () => setDeletingConfig(r) },
+                  ]} />
                 ) : null,
             },
           ]}
@@ -220,19 +202,13 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
             {
               header: 'Thao tác',
               align: 'right',
-              width: '180px',
+              width: '70px',
               cell: (r) =>
                 mayManage ? (
-                  <div className="row-wrap" style={{ justifyContent: 'flex-end', gap: 8 }}>
-                  <Button size="sm" disabled={!lookupsReady} onClick={() => setEditingConfig(r)}>Sửa</Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() => setDeletingConfig(r)}
-                  >
-                    Xóa
-                  </Button>
-                  </div>
+                  <ActionDropdown showDisabledItems items={[
+                    { key: 'edit', label: 'Sửa', icon: <Pencil size={16} />, disabled: !lookupsReady, onClick: () => setEditingConfig(r) },
+                    { key: 'delete', label: 'Xóa', icon: <Trash2 size={16} />, color: 'var(--c-danger)', onClick: () => setDeletingConfig(r) },
+                  ]} />
                 ) : null,
             },
           ]}

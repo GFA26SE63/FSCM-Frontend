@@ -9,6 +9,7 @@ import {
   Button,
   Card,
   Chip,
+  ConfirmDialog,
   EmptyState,
   Fields,
   PageHeader,
@@ -24,6 +25,7 @@ import {
   useRetailer,
   useRetailerLoyalty,
   useRetailerReceivables,
+  useSetRetailerStatus,
 } from '../hooks';
 import { RetailerFormDialog } from '../components/RetailerFormDialog';
 import { RetailerReviewDialog } from '../components/RetailerReviewDialog';
@@ -131,6 +133,11 @@ function RetailerView({ r }: { r: Retailer }) {
   const { user } = useAuth();
   const mayEdit = can(user, 'retailers.edit');
   const mayReview = r.status === 'PendingApproval' && can(user, 'retailers.review');
+  const mayChangeStatus = Boolean(r.id) && can(user, 'retailers.status');
+  const mayDeactivate = mayChangeStatus && r.status === 'Active';
+  const mayReactivate = mayChangeStatus && r.status === 'Inactive';
+  const [statusTarget, setStatusTarget] = useState<boolean | null>(null);
+  const setStatus = useSetRetailerStatus();
   const mayReadMlor = can(user, 'mlor.read');
 
   const lat = r.latitude ?? r.lat;
@@ -152,11 +159,21 @@ function RetailerView({ r }: { r: Retailer }) {
         subtitle={r.address || 'Chưa có thông tin địa chỉ'}
         chips={<StatusChip domain="active" value={r.status} />}
         actions={
-          (tab === 'info' && mayEdit) || mayReview ? (
+          (tab === 'info' && mayEdit) || mayReview || mayDeactivate || mayReactivate ? (
             <div style={{ display: 'inline-flex', gap: 8 }}>
               {tab === 'info' && mayEdit && (
                 <Button variant="default" onClick={() => setEdit(true)}>
                   Sửa thông tin
+                </Button>
+              )}
+              {mayDeactivate && (
+                <Button variant="danger" onClick={() => setStatusTarget(false)}>
+                  Ngừng hoạt động
+                </Button>
+              )}
+              {mayReactivate && (
+                <Button variant="primary" onClick={() => setStatusTarget(true)}>
+                  Kích hoạt lại
                 </Button>
               )}
               {mayReview && (
@@ -349,6 +366,31 @@ function RetailerView({ r }: { r: Retailer }) {
 
       <RetailerFormDialog open={edit} retailer={r} onClose={() => setEdit(false)} />
       {review && <RetailerReviewDialog retailer={{ id: r.id ?? '', code: r.code ?? '' }} onClose={() => setReview(false)} />}
+      <ConfirmDialog
+        open={statusTarget !== null}
+        title={statusTarget ? 'Kích hoạt lại nhà bán lẻ' : 'Ngừng hoạt động nhà bán lẻ'}
+        message={
+          statusTarget ? (
+            <>
+              Kích hoạt lại <strong>{r.name}</strong> ({r.code})? Nhà bán lẻ sẽ đặt hàng lại được như bình thường.
+            </>
+          ) : (
+            <>
+              Chuyển <strong>{r.name}</strong> ({r.code}) sang <strong>Ngừng hoạt động</strong>? Nhà bán lẻ sẽ không
+              tạo được đơn hàng mới cho đến khi được kích hoạt lại.
+            </>
+          )
+        }
+        confirmLabel={statusTarget ? 'Kích hoạt lại' : 'Ngừng hoạt động'}
+        danger={!statusTarget}
+        onClose={() => setStatusTarget(null)}
+        onConfirm={() =>
+          setStatus
+            .mutateAsync({ retailerId: r.id ?? '', isActive: Boolean(statusTarget) })
+            .then(() => setStatusTarget(null))
+            .catch(() => undefined)
+        }
+      />
     </>
   );
 }

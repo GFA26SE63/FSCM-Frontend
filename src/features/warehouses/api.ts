@@ -123,6 +123,10 @@ interface RawRetailerDistance {
 
 // inventory field does NOT exist on WarehouseEntity — detail falls back to REST /batches.
 // HC0047: first/last must be literals in the query string, not variables.
+// Keep this conservative: the selection has eight warehouse fields, and larger
+// requests (for example 500 rows) exceed Hot Chocolate's field-cost limit.
+const WAREHOUSES_GRAPHQL_PAGE_SIZE = 50;
+
 function buildWarehousesListQuery(first: number, hasAfter: boolean): string {
   const afterArg = hasAfter ? ', after: $after' : '';
   const afterDecl = hasAfter ? ', $after: String!' : '';
@@ -135,11 +139,7 @@ function buildWarehousesListQuery(first: number, hasAfter: boolean): string {
             code
             name
             address
-            latitude
-            longitude
-            warehouseType
-            capacityPallets
-            minStockPerSku
+            minimumStockThresholdCartons
             isActive
             regionId
             createdAt
@@ -162,11 +162,7 @@ const WAREHOUSE_DETAIL_QUERY = `
           code
           name
           address
-          latitude
-          longitude
-          warehouseType
-          capacityPallets
-          minStockPerSku
+          minimumStockThresholdCartons
           isActive
           regionId
           createdAt
@@ -431,7 +427,7 @@ export const warehouseApi = {
       let hasNextPage = true;
 
       while (hasNextPage) {
-        const query = buildWarehousesListQuery(500, !!after);
+        const query = buildWarehousesListQuery(WAREHOUSES_GRAPHQL_PAGE_SIZE, !!after);
         const vars: Record<string, unknown> = { where };
         if (after) vars.after = after;
         const data = await graphql<{

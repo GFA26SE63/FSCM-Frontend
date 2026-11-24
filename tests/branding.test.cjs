@@ -35,6 +35,8 @@ test('Branding Sidebar: displays fscm-logo with object-fit: contain and proper a
   assert.ok(sidebarCode.includes('fscm-logo.png'), 'Sidebar must reference fscm-logo.png');
   assert.ok(sidebarCode.includes('alt="Biểu trưng FSCM"'), 'Sidebar logo must have alt text');
   assert.ok(sidebarCode.includes('brand-logo-img'), 'Sidebar logo must use brand-logo-img class');
+  assert.ok(sidebarCode.includes('NavLink to="/" exact className="brand"'), 'Sidebar brand must navigate to the role default page');
+  assert.ok(!sidebarCode.includes('Quản lý hàng tiêu dùng hạn ngắn'), 'Sidebar must not show the removed subtitle');
 
   const layoutCss = fs.readFileSync(
     path.resolve(__dirname, '../src/app/layout/layout.css'),
@@ -42,6 +44,8 @@ test('Branding Sidebar: displays fscm-logo with object-fit: contain and proper a
   );
   assert.ok(layoutCss.includes('.brand-logo-img'), 'layout.css must define .brand-logo-img');
   assert.ok(layoutCss.includes('object-fit: contain'), 'Logo image must preserve aspect ratio via object-fit: contain');
+  assert.ok(layoutCss.includes('.brand-copy'), 'Sidebar title must use the compact brand alignment');
+  assert.match(layoutCss, /\.brand:hover\s*\{\s*color: inherit;/, 'Sidebar brand text must retain its color on hover');
 });
 
 test('Branding LoginPage: displays fscm-logo on login card with object-fit: contain and proper layout', () => {

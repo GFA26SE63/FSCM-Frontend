@@ -9,7 +9,16 @@ export interface SimpleColumn<T> {
 }
 
 /** Small non-paged table for detail screens, trace steps, dialogs. */
-export function SimpleTable<T>({ columns, rows, empty = 'Không có dữ liệu.', compact }: { columns: SimpleColumn<T>[]; rows: T[]; empty?: string; compact?: boolean }) {
+export function SimpleTable<T>({ columns, rows, empty = 'Không có dữ liệu.', compact, footer, onRowClick }: {
+  columns: SimpleColumn<T>[];
+  rows: T[];
+  empty?: string;
+  compact?: boolean;
+  /** One cell per column, rendered as a bold totals row under the rows. */
+  footer?: ReactNode[];
+  /** Makes every data row open its corresponding detail view. */
+  onRowClick?: (row: T) => void;
+}) {
   return (
     <div className="tbl-wrap">
       <table className={`tbl${compact ? ' compact' : ''}`} style={{ minWidth: minimumTableWidth(columns) }}>
@@ -29,7 +38,14 @@ export function SimpleTable<T>({ columns, rows, empty = 'Không có dữ liệu.
         </thead>
         <tbody>
           {rows.map((r, ri) => (
-            <tr key={ri}>
+            <tr
+              key={ri}
+              className={onRowClick ? 'clickable' : undefined}
+              onClick={onRowClick ? () => onRowClick(r) : undefined}
+              onKeyDown={onRowClick ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onRowClick(r); } } : undefined}
+              role={onRowClick ? 'button' : undefined}
+              tabIndex={onRowClick ? 0 : undefined}
+            >
               {columns.map((c, ci) => (
                 <td key={ci} style={{ textAlign: c.align ?? 'left' }}>
                   {c.cell(r, ri)}
@@ -38,6 +54,17 @@ export function SimpleTable<T>({ columns, rows, empty = 'Không có dữ liệu.
             </tr>
           ))}
         </tbody>
+        {footer && rows.length > 0 && (
+          <tfoot>
+            <tr className="tbl-total">
+              {columns.map((c, i) => (
+                <td key={i} style={{ textAlign: c.align ?? 'left' }}>
+                  {footer[i]}
+                </td>
+              ))}
+            </tr>
+          </tfoot>
+        )}
       </table>
       {rows.length === 0 && <p className="muted" style={{ margin: '10px 14px' }}>{empty}</p>}
     </div>

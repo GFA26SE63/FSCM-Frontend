@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, Copy, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from '@/shared/router/compat';
+import { roleApi } from '@/features/roles';
 import {
   Button,
   ConfirmDialog,
@@ -73,9 +74,30 @@ export function UserDialog({ user, onClose }: Props) {
   const createdRef = useRef<CreatedUser | null>(null);
   const savingRef = useRef(false);
 
+  const [dynamicRoles, setDynamicRoles] = useState<{ value: string; label: string }[]>([]);
+
+  useEffect(() => {
+    roleApi.list()
+      .then((list) => {
+        // Exclude Admin: Admin account can only be created once and cannot be assigned!
+        const creatable = list
+          .filter((r) => r.code.toLowerCase() !== 'admin')
+          .map((r) => ({
+            value: r.code,
+            label: `${r.name} (${r.code})`,
+          }));
+        if (creatable.length > 0) {
+          setDynamicRoles(creatable);
+        }
+      })
+      .catch(() => {
+        // Fallback to static roleOptions if roles endpoint cannot be reached
+      });
+  }, []);
+
   const identityLocked = !!created;
   const kinds = isCreatableRole(role)
-    ? assignmentKinds[role]
+    ? assignmentKinds[role] ?? []
     : [];
 
   function close() {
@@ -421,7 +443,7 @@ export function UserDialog({ user, onClose }: Props) {
               <Select
                 value={role}
                 disabled={!!user || identityLocked}
-                options={roleOptions}
+                options={dynamicRoles.length > 0 ? dynamicRoles : roleOptions}
                 onChange={(event) => {
                   const nextRole = event.target.value;
 

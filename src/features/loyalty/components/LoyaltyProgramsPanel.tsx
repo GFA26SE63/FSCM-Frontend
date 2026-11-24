@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { Eye, Pause, Pencil, Play } from 'lucide-react';
 import { useAuth } from '@/shared/auth/AuthContext';
+import { useNavigate } from '@/shared/router/compat';
 import { can } from '@/shared/auth/permissions';
 import { errorMessage } from '@/shared/api/errors';
-import { Button, Card, Chip, DataTable, Fields, Modal, type Column } from '@/shared/ui';
+import { ActionDropdown, Button, Card, Chip, DataTable, Fields, Modal, type Column } from '@/shared/ui';
 import { formatInstantDateTime, formatMoney, formatNumber } from '@/shared/lib';
 import { usePrograms, useProgramRetailers, useSetProgramActive } from '../hooks';
 import { programStatus } from '../programForm';
@@ -16,6 +18,7 @@ export function LoyaltyProgramsPanel() {
     return () => window.clearInterval(timer);
   }, []);
   const { user } = useAuth();
+  const navigate = useNavigate();
   const mayManage = can(user, 'loyalty.manage');
   const query = usePrograms();
   const change = useSetProgramActive();
@@ -26,32 +29,32 @@ export function LoyaltyProgramsPanel() {
     { key: 'code', header: 'Mã', text: (p) => p.code, width: '110px' },
     { key: 'name', header: 'Tên chương trình', text: (p) => p.name },
     { key: 'rate', header: 'Quy đổi', text: (p) => `${formatMoney(p.spendAmountPerPoint)} = 1 điểm` },
-    { key: 'retailers', header: 'Nhà bán lẻ áp dụng', text: (p) => `${p.retailerIds.length} retailer` },
+    { key: 'retailers', header: 'Nhà bán lẻ áp dụng', text: (p) => `${p.retailerIds.length} nhà bán lẻ` },
     { key: 'period', header: 'Hiệu lực (VN)', text: (p) => `${formatInstantDateTime(p.startAt)} – ${formatInstantDateTime(p.endAt)}` },
     { key: 'status', header: 'Trạng thái', text: (p) => programStatus(p, now),
       render: (p) => <Chip tone={p.isActive && Date.parse(p.endAt) >= now ? 'ok' : 'warn'}>{programStatus(p, now)}</Chip> },
   ];
 
   return <>
-    <DataTable stateKey="programs" title="Chương trình tích điểm" rows={query.data}
+    <DataTable stateKey="programs" title="Chương trình khách hàng thân thiết" rows={query.data}
       loading={query.isLoading} error={query.error} columns={columns}
       rowKey={(p) => p.id} searchPlaceholder="Mã hoặc tên chương trình…"
       emptyText="Chưa có chương trình tích điểm phù hợp."
       actions={<>
         <Button size="sm" loading={query.isFetching} onClick={() => void query.refetch()}>Tải lại chương trình</Button>
-        {mayManage && <Button variant="primary" onClick={() => setEditing({})}>+ Tạo chương trình</Button>}
+        {mayManage && <Button variant="primary" onClick={() => navigate('/loyalty/new')}>+ Tạo chương trình</Button>}
       </>}
-      onRowClick={setDetail} rowActionsWidth={mayManage ? '260px' : '90px'}
-      rowActions={(p) => <>
-        <Button size="sm" onClick={() => setDetail(p)}>Xem</Button>
-        {mayManage && <>
-          <Button size="sm" onClick={() => setEditing({ program: p })}>Sửa</Button>
-          <Button size="sm" disabled={change.isPending || (!p.isActive && Date.parse(p.endAt) < now)}
-            onClick={() => { change.reset(); setConfirm(p); }}>
-            {p.isActive ? 'Tạm dừng' : 'Kích hoạt'}
-          </Button>
-        </>}
-      </>} />
+      onRowClick={setDetail} rowActionsWidth={mayManage ? '150px' : '90px'}
+      rowActions={(p) => <div className="table-actions-inline">
+        <Button size="sm" onClick={() => setDetail(p)}><Eye size={14} /> Xem</Button>
+        {mayManage && <ActionDropdown showDisabledItems triggerTitle={`Thao tác chương trình ${p.code}`} items={[
+          { key: 'edit', label: 'Sửa', icon: <Pencil size={16} />, onClick: () => setEditing({ program: p }) },
+          { key: 'status', label: p.isActive ? 'Tạm dừng' : 'Kích hoạt',
+            icon: p.isActive ? <Pause size={16} /> : <Play size={16} />,
+            disabled: change.isPending || (!p.isActive && Date.parse(p.endAt) < now),
+            onClick: () => { change.reset(); setConfirm(p); } },
+        ]} />}
+      </div>} />
     {detail && <Modal open width={720} title={`${detail.code} · ${detail.name}`} onClose={() => setDetail(null)}>
       <Card><Fields cols={2} items={[
         { label: 'Trạng thái', value: programStatus(detail, now) },
@@ -60,7 +63,7 @@ export function LoyaltyProgramsPanel() {
         { label: 'Hiệu lực từ (VN)', value: formatInstantDateTime(detail.startAt) },
         { label: 'Hiệu lực đến (VN)', value: formatInstantDateTime(detail.endAt) },
         { label: 'Điểm hết hạn (VN)', value: detail.pointsExpireAt ? formatInstantDateTime(detail.pointsExpireAt) : 'Không đặt hạn' },
-        { label: 'Nhà bán lẻ áp dụng', value: `${detail.retailerIds.length} retailer` },
+        { label: 'Nhà bán lẻ áp dụng', value: `${detail.retailerIds.length} nhà bán lẻ` },
         { label: 'Mô tả', value: detail.description || '—' },
       ]} /></Card>
       <ProgramAudience ids={detail.retailerIds} />

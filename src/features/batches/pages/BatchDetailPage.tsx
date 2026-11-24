@@ -408,6 +408,13 @@ export function BatchDetailPage() {
                                   >
                                     {h.referenceCode}
                                   </Link>
+                                ) : h.referenceCode.startsWith('PNK-') || h.referenceCode.startsWith('WH-REC-') ? (
+                                  <Link
+                                    to={`/warehouse-inbound/${encodeURIComponent(h.referenceCode)}`}
+                                    style={{ fontWeight: 600 }}
+                                  >
+                                    {h.referenceCode}
+                                  </Link>
                                 ) : (
                                   <span style={{ fontWeight: 600, wordBreak: 'break-all' }} title={h.referenceCode}>
                                     {h.referenceCode}

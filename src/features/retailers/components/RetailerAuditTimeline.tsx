@@ -1,4 +1,4 @@
-import { Card, Callout, StatusChip } from '@/shared/ui';
+import { Card, StatusChip } from '@/shared/ui';
 import { formatDate } from '@/shared/lib';
 import type { Retailer } from '../types';
 
@@ -58,14 +58,6 @@ export function RetailerAuditTimeline({ retailer }: RetailerAuditTimelineProps) 
 
   return (
     <div className="stack" style={{ gap: '20px' }}>
-      <Callout tone="info">
-        <div style={{ display: 'grid', gap: '6px' }}>
-          <strong>Lịch sử thay đổi nhà bán lẻ:</strong>
-          <div>
-            Theo dõi toàn bộ các mốc quan trọng trong quá trình hoạt động của nhà bán lẻ, bao gồm thời điểm khai báo ban đầu từ nhân viên bán hàng, kết quả xét duyệt và các lần cập nhật thông tin gần nhất.
-          </div>
-        </div>
-      </Callout>
 
       <Card title="Lịch sử thay đổi hồ sơ">
         {events.length === 0 ? (

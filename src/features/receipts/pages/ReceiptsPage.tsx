@@ -129,43 +129,6 @@ export function ReceiptsPage() {
     }
   };
 
-  // Warehouse options derived from full data
-  const warehouseOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const r of query.data ?? []) {
-      const name = r.warehouseName || r.warehouseCode;
-      if (name) set.add(name);
-    }
-    return Array.from(set).sort();
-  }, [query.data]);
-
-  // Client-side filtering across the full dataset
-  const filtered = useMemo(() => {
-    let result = query.data ?? [];
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter(r =>
-        (r.receiptCode || r.code)?.toLowerCase().includes(q) ||
-        r.warehouseName?.toLowerCase().includes(q) ||
-        r.warehouseCode?.toLowerCase().includes(q),
-      );
-    }
-    if (warehouseFilter) {
-      result = result.filter(r => (r.warehouseName || r.warehouseCode) === warehouseFilter);
-    }
-    if (statusFilter) {
-      result = result.filter(r => r.status === statusFilter);
-    }
-    return [...result].sort((a, b) => sortOrder === 'desc' ? Date.parse(b.createdAt) - Date.parse(a.createdAt) : Date.parse(a.createdAt) - Date.parse(b.createdAt));
-  }, [query.data, search, warehouseFilter, statusFilter, sortOrder]);
-
-  // Client-side pagination on filtered results
-  const totalCount = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const pageRows = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const pagingProps = { ...basePagingProps, total: totalCount, totalPages };
-
   // Resolve names only for visible-page users. React Query caches per ID — turning pages
   // only fetches IDs not already resolved on previous pages (no re-request for cached users).
   const visibleUserIds = useMemo(
@@ -269,7 +232,7 @@ export function ReceiptsPage() {
             ]}
           />
         </label>
-        <label className="lbl">Thời gian tạo<Select value={sortOrder} onChange={e => setSortOrder(e.target.value as 'desc' | 'asc')} options={[{ value: 'desc', label: 'Mới nhất' }, { value: 'asc', label: 'Cũ nhất' }]} /></label>
+        <label className="lbl">Thời gian tạo<Select value={activeSort?.field === 'createdAt' ? activeSort.direction : 'desc'} onChange={e => sortProps.onChange('createdAt', e.target.value as 'desc' | 'asc')} options={[{ value: 'desc', label: 'Mới nhất' }, { value: 'asc', label: 'Cũ nhất' }]} /></label>
       </div>
 
       <DataTable

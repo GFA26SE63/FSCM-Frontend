@@ -104,6 +104,7 @@ test('sidebar and direct URL guard handle all Portal roles, loading and anonymou
   const { RequireRole, RequireAuth } = source('shared/auth/guards.tsx', {
     '@/shared/router/compat': router,
     './AuthContext': auth,
+    './roles': source('shared/auth/roles.ts'),
     '../ui/EmptyState': ui,
   });
   for (const role of roles) {
@@ -150,11 +151,14 @@ test('Operator can view loyalty but cannot open its edit form or run program mut
   const Wrapper = ({ children, actions }) => React.createElement('div', null, actions, children);
   const ui = {
     Button: ({ children, onClick }) => React.createElement('button', { onClick }, children),
+    ActionDropdown: ({ items }) => React.createElement('div', null,
+      items.map(item => React.createElement('button', { key: item.key, disabled: item.disabled, onClick: item.onClick }, item.label))),
     Card: Wrapper, Modal: () => null, Fields: () => null, Chip: Wrapper,
     DataTable: ({ rows, rowActions, actions }) => React.createElement('div', null,
       actions, rows?.map((r) => React.createElement('div', { key: r.id }, rowActions(r)))),
   };
   const { LoyaltyProgramsPanel } = source('features/loyalty/components/LoyaltyProgramsPanel.tsx', {
+    '@/shared/router/compat': { useNavigate: () => () => {} },
     '@/shared/auth/AuthContext': auth,
     '@/shared/auth/permissions': permissions,
     '@/shared/api/errors': { errorMessage: String },
