@@ -101,15 +101,15 @@ test('inline retailer selection persists across pages/search and can filter and 
   let table = nodes(tree, n => n.type === 'DataTable')[0];
   table.props.columns[0].render(row).props.onChange({ target: { checked: true } });
   table.props.server.onPageChange(2); tree = render();
-  assert.equal(queryOptions.queryKey.at(-2), 2);
+  assert.equal(queryOptions.queryKey.at(-3), 2);
   assert.deepEqual(value, [row]);
   const second = { ...row, id: 'r2', code: '1002' };
   table = nodes(tree, n => n.type === 'DataTable')[0];
   table.props.columns[0].render(second).props.onChange({ target: { checked: true } }); tree = render();
   table = nodes(tree, n => n.type === 'DataTable')[0];
   table.props.server.onSearchChange('milk'); tree = render();
-  assert.equal(queryOptions.queryKey.at(-2), 1);
-  assert.equal(queryOptions.queryKey.at(-1), 'milk');
+  assert.equal(queryOptions.queryKey.at(-3), 1);
+  assert.equal(queryOptions.queryKey.at(-2), 'milk');
   const checkbox = () => nodes(tree, n => n.type === 'DataTable')[0].props.columns[0].render(row);
   assert.equal(checkbox().props.checked, true);
   fetching = true; tree = render(); assert.equal(checkbox().props.disabled, true);
@@ -126,7 +126,7 @@ test('inline retailer selection persists across pages/search and can filter and 
   checkbox().props.onChange({ target: { checked: true } }); assert.deepEqual(value, [second]);
   error = undefined;
   nodes(tree, n => n.type === 'Checkbox')[0].props.onChange(false); tree = render();
-  assert.equal(queryOptions.queryKey.at(-1), 'milk');
+  assert.equal(queryOptions.queryKey.at(-2), 'milk');
   assert.deepEqual(value, [second]);
 });
 
