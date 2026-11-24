@@ -15,6 +15,8 @@ export interface AppRoute {
   roles: PortalRole[];
   /** Reserved for a future dedicated menu-summary endpoint. */
   badge?: MenuBadgeKey;
+  /** Personal inboxes are available to every Portal role, independent of feature grants. */
+  availableToAllPortalUsers?: boolean;
   /** Hidden from sidebar menu (e.g. preserved routes not in prototype prod sidebar). */
   hidden?: boolean;
   /** Separate sidebar entries sharing one page, selected by query string. */
@@ -59,6 +61,7 @@ const config = () => import('@/features/config');
 const dashboard = () => import('@/features/dashboard');
 const reports = () => import('@/features/reports');
 const warehouseReport = () => import('@/features/warehouse-report');
+const notifications = () => import('@/features/notifications');
 
 /** Single source for routing + sidebar menu (matching prototype prod menuAll order and roles). */
 export const APP_ROUTES: AppRoute[] = [
@@ -72,6 +75,7 @@ export const APP_ROUTES: AppRoute[] = [
   { key: 'warehouse-trace', label: 'Tra cứu thùng', roles: [A, WK], list: page(() => import('@/features/warehouse-work'), 'WarehouseTracePage') },
   { key: 'warehouse-work', label: 'Chứng từ kho', roles: [A, WK], hidden: true, list: page(() => import('@/features/warehouse-work'), 'WarehouseWorkPage') },
   { key: 'dashboard', label: 'Tổng quan & báo cáo', roles: [A, OP, WK, SM], list: page(dashboard, 'DashboardPage') },
+  { key: 'notifications', label: 'Thông báo', roles: [A, OP, WK, SM], availableToAllPortalUsers: true, list: page(notifications, 'NotificationsPage') },
   { key: 'reports', label: 'Báo cáo đổi quà & chương trình', roles: [A, OP], list: page(reports, 'OperationsReportsPage'), menuLinks: [
     { key: 'report-redemptions', label: 'Báo cáo đổi quà', to: '/reports?kind=redemptions' },
     { key: 'report-loyalty', label: 'Báo cáo tích điểm', to: '/reports?kind=loyalty' },

@@ -104,6 +104,7 @@ test('sidebar and direct URL guard handle all Portal roles, loading and anonymou
   const { RequireRole, RequireAuth } = source('shared/auth/guards.tsx', {
     '@/shared/router/compat': router,
     './AuthContext': auth,
+    './roles': source('shared/auth/roles.ts'),
     '../ui/EmptyState': ui,
   });
   for (const role of roles) {

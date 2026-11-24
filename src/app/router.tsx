@@ -32,7 +32,7 @@ export function AppRouter() {
               <Route path="/" exact><Home /></Route>
               {APP_ROUTES.flatMap((r) => {
                 const guard = (El: React.ComponentType) => (
-                  <RequireRole roles={r.roles} routeKey={r.key}>
+                  <RequireRole roles={r.roles} routeKey={r.key} allowAllPortalRoles={r.availableToAllPortalUsers}>
                     <Suspense fallback={<Loading />}>
                       <El />
                     </Suspense>

@@ -54,12 +54,6 @@ export function TransfersPage() {
         ]}
         actions={<Button variant="primary" onClick={() => setDialog({})}>+ Tạo phiếu điều chuyển</Button>}
         onRowClick={(t) => navigate(`/whtransfer/${t.code}`)}
-        rowActionsWidth="200px"
-        rowActions={(t) => (
-          <>
-            <Button size="sm" onClick={() => navigate(`/whtransfer/${t.code}`)}>Xem</Button>
-          </>
-        )}
       />
       <TransferDialog open={!!dialog} initial={dialog?.initial} onClose={() => setDialog(null)} />
     </>
