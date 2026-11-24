@@ -63,11 +63,11 @@ function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; picking
 
   return <div className="stack">
     <div className="stats-grid delivery-summary-grid">
-      <Stat label="Tổng đơn điều phối" value={String(orders.length)} note="Toàn hệ thống" />
-      <Stat label="Phiếu soạn" value={String(pickingCount)} note="Đang được theo dõi" />
-      <Stat label="Cần xử lý" value={countsKnown ? String(count('Đang bị giữ') + count('Ngoại lệ')) : '—'} note="Toàn hệ thống" />
-      <Stat label="Sẵn sàng xuất" value={countsKnown ? String(count('Được xuất')) : '—'} note="Toàn hệ thống" />
-      <Stat label="Đã rời kho" value={countsKnown ? String(count('Đã rời kho')) : '—'} note="Toàn hệ thống" />
+      <Stat label="Tổng đơn điều phối" value={String(orders.length)} />
+      <Stat label="Phiếu soạn" value={String(pickingCount)} />
+      <Stat label="Cần xử lý" value={countsKnown ? String(count('Đang bị giữ') + count('Ngoại lệ')) : '—'} />
+      <Stat label="Sẵn sàng xuất" value={countsKnown ? String(count('Được xuất')) : '—'} />
+      <Stat label="Đã rời kho" value={countsKnown ? String(count('Đã rời kho')) : '—'} />
     </div>
     <section className="card filter-card delivery-filter-card" aria-label="Bộ lọc nâng cao điều phối giao hàng">
       <div className="row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14655B" strokeWidth="2" aria-hidden><path d="M3 5h18l-7 8v6l-4 2v-8z" /></svg><h2 className="sec">Bộ lọc nâng cao</h2></div>

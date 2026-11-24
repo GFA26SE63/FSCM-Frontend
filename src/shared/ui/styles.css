@@ -273,12 +273,12 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-lay
 
 /* Export orders: compact list rows; details use the shared modal. */
 .export-order { overflow: hidden; }
-.export-order-toggle { display: flex; align-items: center; gap: 12px; width: 100%; padding: 18px 20px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.export-order-toggle { display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; padding: 18px 20px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .export-order-toggle:hover { background: var(--c-surface-2); }
 .export-order-toggle:focus-visible { outline: 2px solid var(--c-primary, #14655b); outline-offset: -3px; }
-.export-order-info { min-width: 0; display: grid; gap: 5px; }
-.export-order-parts { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--c-muted); font-size: 13px; }
-.export-order-parts span { min-width: 0; overflow-wrap: anywhere; }
+.export-order-code { flex: 0 0 120px; }
+.export-order-parts { display: flex; flex-wrap: nowrap; align-items: center; min-width: 0; gap: 14px; overflow-x: auto; color: var(--c-muted); font-size: 13px; }
+.export-order-parts span { flex: 0 0 auto; white-space: nowrap; }
 .delivery-summary-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .delivery-filter-card .filter-grid { grid-template-columns: minmax(250px, 2fr) repeat(4, minmax(170px, 1fr)) auto; }
 .delivery-filter-action { display: flex; align-items: flex-end; }
