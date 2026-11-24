@@ -352,14 +352,15 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
     </div>}
     {workflow === 'trace' && <WarehouseTraceCenter warehouses={warehouses.data ?? []} docs={docs} setSelected={setSelected} />}
     {error && <p role="alert" className="danger">{error}</p>}{notice && <p role="status">{notice}</p>}
-    {!selected && !creating && isInbound && activeTab !== 'factory' && <Card title="Tìm kiếm và bộ lọc">
-      <div className="warehouse-work-filters">
-        <label>Tìm chứng từ<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã phiếu, SKU, lô hàng hoặc đơn hàng" /></label>
-        <label>Trạng thái<select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="">Tất cả trạng thái</option>{Object.entries(filterStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-        <label>Kho<select value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho</option>{warehouses.data?.filter(w => admin || user?.scope?.warehouseIds.includes(w.id)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
-        <label>Sắp xếp<select value={documentSort} onChange={e => setDocumentSort(e.target.value)}><option value="">Mới nhất</option><option value="codeAsc">Mã phiếu A–Z</option><option value="codeDesc">Mã phiếu Z–A</option></select></label>
+    {!selected && !creating && isInbound && activeTab !== 'factory' && <section className="card filter-card" aria-label="Bộ lọc nâng cao">
+      <div className="row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14655B" strokeWidth="2" aria-hidden><path d="M3 5h18l-7 8v6l-4 2v-8z" /></svg><h2 className="sec">Bộ lọc nâng cao</h2></div>
+      <div className="filter-grid">
+        <label className="lbl">Tìm kiếm<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã phiếu, SKU, lô hàng hoặc đơn hàng" /></label>
+        <label className="lbl">Trạng thái<select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="">Tất cả trạng thái</option>{Object.entries(filterStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <label className="lbl">Kho<select value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho</option>{warehouses.data?.filter(w => admin || user?.scope?.warehouseIds.includes(w.id)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
+        <label className="lbl">Sắp xếp<select value={documentSort} onChange={e => setDocumentSort(e.target.value)}><option value="">Mới nhất</option><option value="codeAsc">Mã phiếu A–Z</option><option value="codeDesc">Mã phiếu Z–A</option></select></label>
       </div>
-    </Card>}
+    </section>}
     {!selected && !creating && isInbound && (activeTab === 'todo' || activeTab === 'factory') && <div>
       {operationReason === 'Factory' && <div className="warehouse-guide-steps">
         <div className="warehouse-guide-step">
