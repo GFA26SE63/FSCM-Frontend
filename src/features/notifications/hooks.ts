@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useApiMutation } from '@/shared/hooks';
 import { notificationApi } from './api';
-import { fetchNotifications } from './notificationsGraphql';
+import { fetchNotificationPage, fetchNotifications } from './notificationsGraphql';
 
 export const notificationKeys = { all: ['notifications'] as const, badges: ['notifications', 'badges'] as const };
 
@@ -13,6 +13,9 @@ export const useNotifications = (limit: number) =>
     placeholderData: (prev) => prev,
     refetchInterval: 60_000,
   });
+export const useNotificationPage = (size: number, unread: boolean, after?: string, before?: string) =>
+  useQuery({ queryKey: [...notificationKeys.all, 'page', size, unread, after, before],
+    queryFn: () => fetchNotificationPage(size, unread, after, before), refetchInterval: 60_000 });
 export const useMenuBadges = () => useQuery({ queryKey: notificationKeys.badges, queryFn: notificationApi.badges, retry: false, refetchInterval: 60_000 });
 export const useMarkRead = () => useApiMutation(notificationApi.markRead, { notify: false });
 export const useMarkAllRead = () => useApiMutation(notificationApi.markAllRead, {

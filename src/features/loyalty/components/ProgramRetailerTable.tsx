@@ -22,9 +22,10 @@ export function ProgramRetailerTable({ value, onChange, error, disabled }: {
   const { user } = useAuth();
   const [selectedOnly, setSelectedOnly] = useState(false);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState('');
-  const query = useQuery({ queryKey: ['loyalty', 'program-retailer-page', user?.id, 'Active', page, search],
-    queryFn: () => loyaltyApi.programRetailersPage(page, search), enabled: user?.role === 'Admin' && !selectedOnly });
+  const query = useQuery({ queryKey: ['loyalty', 'program-retailer-page', user?.id, 'Active', page, search, pageSize],
+    queryFn: () => loyaltyApi.programRetailersPage(page, search, pageSize), enabled: user?.role === 'Admin' && !selectedOnly });
   const selectionColumns: Column<ProgramRetailerOption>[] = [{
     key: 'select', header: 'Chọn', width: '65px', render: row => <input type="checkbox"
       aria-label={`Chọn ${row.code} · ${row.name}`} checked={value.some(item => item.id === row.id)}
@@ -49,8 +50,9 @@ export function ProgramRetailerTable({ value, onChange, error, disabled }: {
       : <DataTable key="all" urlState={false} title="Danh sách nhà bán lẻ" rows={query.data?.items} loading={query.isFetching}
         error={query.error} rowKey={r => r.id} searchPlaceholder="Tìm mã, tên hoặc địa chỉ cửa hàng…"
         actions={<Button size="sm" loading={query.isFetching} onClick={() => void query.refetch()}>Tải lại</Button>}
-        server={{ page, size: 10, total: query.data?.totalCount ?? 0, onPageChange: setPage,
-          pageSizeOptions: [10], search, onSearchChange: term => { setSearch(term); setPage(1); } }}
+        server={{ page, size: pageSize, total: query.data?.totalCount ?? 0, onPageChange: setPage,
+          onPageSizeChange: size => { setPageSize(size); setPage(1); },
+          pageSizeOptions: [10, 20, 50], search, onSearchChange: term => { setSearch(term); setPage(1); } }}
         columns={selectionColumns} />}
   </Card>;
 }

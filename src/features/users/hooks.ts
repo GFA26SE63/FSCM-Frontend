@@ -16,10 +16,10 @@ export const useUser = (id: string) =>
     enabled: !!id,
   });
 
-export const useUserAudit = (id: string, after: string | null, enabled: boolean) =>
+export const useUserAudit = (id: string, after: string | null, enabled: boolean, pageSize = 20) =>
   useQuery({
-    queryKey: ['users', 'audit', id, after],
-    queryFn: () => userApi.audit(id, after),
+    queryKey: ['users', 'audit', id, after, pageSize],
+    queryFn: () => userApi.audit(id, after, pageSize),
     enabled: enabled && !!id,
   });
 

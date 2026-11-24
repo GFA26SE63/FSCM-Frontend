@@ -116,6 +116,7 @@ export function DisposalPage() {
         error={query.isPlaceholderData ? undefined : query.error}
         rowKey={(d) => d.code}
         columns={columns}
+        summaryColumns={['code', 'wh', 'at', 'qty', 'value', 'status']}
         searchPlaceholder="Mã phiếu, kho…"
         cursor={pagingProps}
         serverSort={{ ...sortProps, sortableFields: DISPOSALS_SORTABLE_FIELDS }}

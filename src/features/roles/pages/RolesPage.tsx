@@ -1,3 +1,4 @@
+import { SimpleTable } from '@/shared/ui';
 import { useEffect, useState, useMemo } from 'react';
 import { Button, ConfirmDialog, Input, PageHeader } from '@/shared/ui';
 import { Shield, Plus, Search, Edit2, Trash2, Users, Layers, AlertCircle, RefreshCw, Smartphone, Monitor } from 'lucide-react';
@@ -311,44 +312,7 @@ export function RolesPage() {
       {/* Table list */}
       <div className="card" style={{ overflow: 'hidden' }}>
         <div className="table-responsive">
-          <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
-                <th style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
-                  Vai trò
-                </th>
-                <th style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
-                  Nền tảng & Loại
-                </th>
-                <th style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
-                  Màn hình / Tính năng được cấp
-                </th>
-                <th style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
-                  Người dùng
-                </th>
-                <th style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569' }}>
-                  Mô tả
-                </th>
-                <th style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#475569', textAlign: 'right' }}>
-                  Thao tác
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && roles.length === 0 ? (
-                <tr>
-                  <td colSpan={6} style={{ padding: 32, textAlign: 'center', color: '#64748b' }}>
-                    Đang tải danh sách vai trò…
-                  </td>
-                </tr>
-              ) : filteredRoles.length === 0 ? (
-                <tr>
-                  <td colSpan={6} style={{ padding: 32, textAlign: 'center', color: '#64748b' }}>
-                    Không tìm thấy vai trò nào phù hợp.
-                  </td>
-                </tr>
-              ) : (
-                filteredRoles.map((role) => {
+          <SimpleTable paginate rows={filteredRoles.map((role) => {
                   const isAdmin = role.code.toLowerCase() === 'admin';
                   const isSalesOrRetailer = role.code === 'Sales' || role.code === 'Retailer';
                   const webPerms = role.permissions.filter((p) => !p.startsWith('mobile-'));
@@ -357,15 +321,7 @@ export function RolesPage() {
                   const hasWeb = isAdmin || webPerms.length > 0;
                   const hasMobile = isAdmin || mobilePerms.length > 0 || isSalesOrRetailer;
 
-                  return (
-                    <tr
-                      key={role.id}
-                      style={{
-                        borderBottom: '1px solid #f1f5f9',
-                        transition: 'background-color 0.15s ease',
-                      }}
-                    >
-                      <td style={{ padding: '12px 16px' }}>
+                   return { role, isAdmin, isSalesOrRetailer, webPerms, mobilePerms, hasWeb, hasMobile }; })} empty={loading && roles.length === 0 ? 'Đang tải danh sách vai trò…' : 'Không tìm thấy vai trò nào phù hợp.'} columns={[{ header: "Vai trò", cell: ({ role }) => <>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                           <span style={{ fontWeight: 600, fontSize: 14, color: '#0f172a' }}>
                             {role.name}
@@ -383,9 +339,8 @@ export function RolesPage() {
                             {role.code}
                           </code>
                         </div>
-                      </td>
-
-                      <td style={{ padding: '12px 16px' }}>
+                      </> },
+{ header: "Nền tảng & Loại", cell: ({ role, isAdmin, isSalesOrRetailer, hasWeb, hasMobile }) => <>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
                           {/* Platform Badge */}
                           {isAdmin ? (
@@ -487,9 +442,8 @@ export function RolesPage() {
                             </span>
                           )}
                         </div>
-                      </td>
-
-                      <td style={{ padding: '12px 16px' }}>
+                      </> },
+{ header: "Màn hình / Tính năng được cấp", cell: ({ isAdmin, isSalesOrRetailer, webPerms, mobilePerms, hasWeb, hasMobile }) => <>
                         {isAdmin ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                             <span
@@ -575,9 +529,8 @@ export function RolesPage() {
                             </span>
                           </div>
                         )}
-                      </td>
-
-                      <td style={{ padding: '12px 16px' }}>
+                      </> },
+{ header: "Người dùng", cell: ({ role }) => <>
                         <span
                           style={{
                             fontSize: 12,
@@ -590,24 +543,19 @@ export function RolesPage() {
                         >
                           {role.userCount} tài khoản
                         </span>
-                      </td>
-
-                      <td style={{ padding: '12px 16px', maxWidth: 260 }}>
+                      </> },
+{ header: "Mô tả", cell: ({ role }) => <>
                         <div
                           style={{
                             fontSize: 13,
                             color: '#64748b',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
                           }}
                           title={role.description ?? ''}
                         >
                           {role.description || '—'}
                         </div>
-                      </td>
-
-                      <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                      </> },
+{ header: "Thao tác", cell: ({ role }) => <>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
                           <Button
                             variant="ghost"
@@ -641,13 +589,7 @@ export function RolesPage() {
                             </Button>
                           )}
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                      </> }]} />
         </div>
       </div>
 

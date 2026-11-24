@@ -38,6 +38,102 @@ const permissions = source('shared/auth/permissions.ts', {
 
 const user = (role) => ({ id: 'user-' + role, role, name: role, email: role + '@example.com' });
 
+function statusPanel({ labels, status = 'all', role = 'WarehouseKeeper', query: overrides = {} }) {
+  const state = { status, rows: [], tabs: null, requests: [] };
+  const Tabs = source('shared/ui/Tabs.tsx').Tabs;
+  const Panel = source('features/qr-labels/components/QrLabelsPanel.tsx', {
+    '@/shared/api/errors': { errorMessage: error => error.message },
+    '@/shared/auth/AuthContext': { useAuth: () => ({ user: user(role) }) },
+    '@/shared/auth/permissions': permissions,
+    '@/shared/lib': { formatDate: value => value, formatDateTime: value => value },
+    '@/shared/router/listState': { useEnumParam: (name, allowed, fallback) => {
+      assert.equal(name, 'qrStatus');
+      assert.equal(fallback, 'all');
+      assert.ok(allowed.includes(state.status));
+      return [state.status, next => { state.status = next; }];
+    } },
+    '../types': qrTypes,
+    '../hooks': { useBatchQrLabels: (...args) => {
+      state.requests.push(args);
+      return { data: labels, isPending: false, isFetching: false, error: null, refetch() {}, ...overrides };
+    } },
+    './LabelPrintDialog': { LabelPrintDialog: () => null },
+    '@/shared/ui': {
+      Modal: () => null,
+      Tabs: props => { state.tabs = props; return React.createElement(Tabs, props); },
+      SimpleTable: props => {
+        state.rows = props.rows;
+        state.resetPageKey = props.resetPageKey;
+        return React.createElement('table', null, React.createElement('tbody', null,
+          props.rows.map(({ label, printable }) => React.createElement('tr', { key: label.id },
+            React.createElement('td', null, label.qrCode),
+            React.createElement('td', null, React.createElement('button', { disabled: !printable }, 'In tem'))))));
+      },
+    },
+  }).QrLabelsPanel;
+  state.render = () => renderToStaticMarkup(React.createElement(Panel, { batchId: 'batch-1', batchCode: 'LOT-1' }));
+  return state;
+}
+
+const statusLabel = (status, i) => ({ id: `label-${i}`, qrCode: `CID-F01-20261124-A-0001-${String(i).padStart(4, '0')}`,
+  qrPayload: `original-payload-${i}`, status, invalidatedAt: status === 'Invalidated' ? '2026-11-24' : null });
+
+test('batch QR tabs count all six backend statuses and change only the displayed rows', () => {
+  const labels = qrTypes.QR_LABEL_STATUSES.map(statusLabel);
+  const panel = statusPanel({ labels });
+  const html = panel.render();
+  assert.match(html, /role="tablist"/);
+  assert.equal(panel.tabs.items.find(tab => tab.key === 'all').count, 6);
+  for (const status of qrTypes.QR_LABEL_STATUSES) assert.equal(panel.tabs.items.find(tab => tab.key === status).count, 1);
+  assert.equal(panel.rows.length, 6);
+  panel.tabs.onChange('Picked');
+  panel.render();
+  assert.deepEqual(panel.rows.map(row => row.label), labels.filter(row => row.status === 'Picked'));
+  assert.equal(panel.resetPageKey, 'Picked');
+  assert.deepEqual(panel.requests[0], ['user-WarehouseKeeper', 'batch-1']);
+});
+
+test('an empty status tab is empty even when other statuses have labels', () => {
+  const panel = statusPanel({ labels: [statusLabel('Available', 1)], status: 'Delivered' });
+  panel.render();
+  assert.equal(panel.rows.length, 0);
+  assert.equal(panel.tabs.items.find(tab => tab.key === 'Delivered').count, 0);
+  assert.equal(panel.tabs.items.find(tab => tab.key === 'all').count, 1);
+});
+
+test('selecting split history does not change whole-batch printing or make split labels printable', () => {
+  const labels = [statusLabel('Available', 1), statusLabel('Split', 2)];
+  const panel = statusPanel({ labels, status: 'Split' });
+  const html = panel.render();
+  const batchButton = html.match(/<button([^>]*)>Xem \/ in cả lô hàng<\/button>/);
+  assert.ok(batchButton);
+  assert.doesNotMatch(batchButton[1], /disabled/);
+  assert.equal(panel.rows[0].printable, false);
+  assert.equal(panel.rows[0].label.qrPayload, labels[1].qrPayload);
+});
+
+test('unrecognized future statuses remain visible in All and Other', () => {
+  const labels = [statusLabel('Available', 1), statusLabel('FutureStatus', 2)];
+  const panel = statusPanel({ labels });
+  panel.render();
+  assert.equal(panel.rows.length, 2);
+  assert.equal(panel.tabs.items.find(tab => tab.key === 'other').count, 1);
+  panel.tabs.onChange('other');
+  panel.render();
+  assert.equal(panel.rows[0].label.id, 'label-2');
+});
+
+test('pending/failed QR requests do not manufacture zero-count tabs', () => {
+  for (const query of [{ isPending: true, data: undefined }, { error: new Error('Unavailable'), data: undefined }]) {
+    const panel = statusPanel({ labels: [], query });
+    panel.render();
+    assert.equal(panel.tabs, null);
+  }
+  const denied = statusPanel({ labels: [statusLabel('Available', 1)], role: 'Retailer' });
+  assert.equal(denied.render(), '');
+  assert.equal(denied.requests.length, 0);
+});
+
 test('source A is historical after splitting and only its new B/C labels can print', () => {
   assert.equal(qrTypes.labelStatusText('Split'), 'Đã tách · chỉ lưu lịch sử');
   assert.equal(qrTypes.isPrintableLabel({ status: 'Split', invalidatedAt: null, quantity: 50 }), false);

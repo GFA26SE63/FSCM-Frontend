@@ -18,7 +18,7 @@ export interface HistoryDoc { document: { id: string; code: string; status: stri
 
 export interface HistoryRow<T extends HistoryDoc> {
   key: string;
-  /** All PNKs of the dispatch note (oldest first); one for receipts opened from a dispatch note. */
+  /** All PNKs of the dispatch note, newest first. */
   docs: T[];
   group: FactoryReceiptGroup | null;
 }
@@ -39,7 +39,7 @@ export function groupHistoryRows<T extends HistoryDoc>(visible: T[], all: T[], g
     if (seen.has(key)) continue;
     seen.add(key);
     const docs = group ? group.documentIds.map(id => byId.get(id)).filter((x): x is T => !!x) : [w];
-    rows.push({ key, docs: docs.length ? docs : [w], group });
+    rows.push({ key, docs: (docs.length ? docs : [w]).slice().sort((a, b) => b.document.createdAt.localeCompare(a.document.createdAt)), group });
   }
   return rows;
 }

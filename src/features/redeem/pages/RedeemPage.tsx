@@ -81,7 +81,8 @@ export function RedeemPage() {
   const columns: Column<Redemption>[] = [
     { key: 'code', header: 'Mã yêu cầu', width: '130px', sortable: true, render: (x) => <span className="bold">{x.code}</span> },
     { key: 'retailer', header: 'Điểm bán', text: (x) => `${x.retailerName} ${x.retailerCode}`, render: (x) => (<><div className="strong">{x.retailerName}</div><div className="muted small">{x.retailerCode}</div></>) },
-    { key: 'gift', header: 'Quà', text: (x) => `${x.giftCode} ${x.giftName}` },
+    { key: 'gift', header: 'Quà', text: (x) => `${x.giftCode} ${x.giftName}`,
+      render: x => <>{x.giftName}<div className="muted small">{x.giftCode} · SL: {x.quantity == null ? 'Chưa xác định' : formatNumber(x.quantity)}</div></> },
     { key: 'quantity', header: 'Số lượng', align: 'right', sortable: true, text: (x) => x.quantity == null ? '—' : formatNumber(x.quantity) },
     { key: 'points', header: 'Điểm', width: '90px', align: 'right', sortable: true, text: (x) => formatNumber(x.points) },
     { key: 'avail', header: 'Điểm khả dụng', width: '120px', align: 'right', text: (x) => formatNumber(x.available) },
@@ -99,6 +100,7 @@ export function RedeemPage() {
         error={query.isPlaceholderData ? undefined : (query.error ?? scope.error)}
         rowKey={(x) => x.code}
         columns={columns}
+        summaryColumns={['code', 'retailer', 'gift', 'points', 'status']}
         searchPlaceholder="Mã yêu cầu, điểm bán, quà…"
         cursor={pagingProps}
         serverSort={{ ...sortProps, sortableFields: REDEEM_SORTABLE_FIELDS }}

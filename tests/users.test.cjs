@@ -33,7 +33,7 @@ function apiWith(graphql) {
 
 test('account history is filtered by target entity, paginated and excludes raw sensitive snapshots', async () => {
   let request;
-  const page = { nodes: [], pageInfo: { hasNextPage: true, endCursor: 'next' } };
+  const page = { totalCount: 21, nodes: [], pageInfo: { hasNextPage: true, endCursor: 'next' } };
   const api = apiWith(async (query, variables) => {
     request = { query, variables };
     return { entities: { auditLogs: page } };
@@ -54,10 +54,26 @@ test('history authorization failures remain errors rather than empty successful 
   await assert.rejects(api.audit('target-user', null), (error) => error === denied);
 });
 
+test('account history page size is sent to GraphQL and total count stays server-provided', async () => {
+  const requests = [];
+  const api = apiWith(async (query, variables) => {
+    requests.push({ query, variables });
+    return { entities: { auditLogs: { totalCount: 45, nodes: [], pageInfo: { hasNextPage: true, endCursor: 'next' } } } };
+  });
+  const page = await api.audit('target-user', null, 50);
+  assert.match(requests[0].query, /first: 50/);
+  assert.match(requests[0].query, /totalCount/);
+  assert.equal(page.totalCount, 45);
+  assert.deepEqual(requests[0].variables, { userId: 'target-user', after: null });
+  await assert.rejects(api.audit('target-user', null, 500));
+  assert.equal(requests.length, 1);
+});
+
 test('missing history or unusable next cursor is not treated as an empty page', async () => {
   for (const result of [
     { entities: null },
-    { entities: { auditLogs: { nodes: [], pageInfo: { hasNextPage: true, endCursor: null } } } },
+    { entities: { auditLogs: { totalCount: 21, nodes: [], pageInfo: { hasNextPage: true, endCursor: null } } } },
+    { entities: { auditLogs: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } } } },
   ]) {
     const api = apiWith(async () => result);
     await assert.rejects(api.audit('target-user', null), { status: 502 });
@@ -74,6 +90,7 @@ test('history is Admin-only and renders backend audit metadata without inventing
     '@/shared/ui': {
       Card: Wrap,
       Button: ({ children }) => React.createElement('button', null, children),
+      Pagination: ({ totalCount }) => React.createElement('nav', null, `${totalCount} bản ghi`),
       QueryState: ({ query, children }) => children(query.data),
       SimpleTable: ({ rows, columns }) => React.createElement('div', null,
         rows.map((row) => React.createElement('div', { key: row.id },
@@ -82,6 +99,7 @@ test('history is Admin-only and renders backend audit metadata without inventing
     '../hooks': { useUserAudit: (...args) => {
       requests.push(args);
       return { data: {
+        totalCount: 1,
         nodes: [{ id: 'audit1', action: 'Deactivated', userAccountId: 'actor-id', createdAt: '2026-11-10', reason: null }],
         pageInfo: { hasNextPage: false, endCursor: null },
       } };
@@ -92,10 +110,10 @@ test('history is Admin-only and renders backend audit metadata without inventing
   assert.match(html, /Khóa tài khoản/);
   assert.match(html, /actor-id/);
   assert.match(html, /Không được ghi nhận/);
-  assert.deepEqual(requests.at(-1), ['target-user', null, true]);
+  assert.deepEqual(requests.at(-1), ['target-user', null, true, 20]);
   role = 'Operator';
   assert.equal(render(), '');
-  assert.deepEqual(requests.at(-1), ['target-user', null, false]);
+  assert.deepEqual(requests.at(-1), ['target-user', null, false, 20]);
 });
 
 test('create-user dialog provides an accessible password visibility toggle', () => {

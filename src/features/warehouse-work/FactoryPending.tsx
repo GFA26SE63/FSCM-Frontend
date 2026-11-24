@@ -52,7 +52,7 @@ export function FactoryPending({ query, warehouses, admin, busy, onOpen, refresh
       <div className="warehouse-filter-action"><button className="btn" type="button" disabled={busy || query.isLoading} onClick={refresh}>Làm mới hàng chờ nhận</button></div>
     </div>
     </section>
-    <QueryState query={query}>{() => <SimpleTable rows={sorted} columns={[
+    <QueryState query={query}>{() => <SimpleTable paginate rows={sorted} columns={[
       { header: 'Phiếu xuất / ngày xuất', width: '260px', cell: d => <><b className="warehouse-pallet-code">{d.dispatchCode}</b><div className="muted">{d.dispatchedAt ? formatInstantDateTime(d.dispatchedAt) : '—'}</div></> },
       { header: 'Xe / tài xế', width: '180px', cell: d => [d.vehicleNumber, d.driverName].filter(Boolean).join(' · ') || '—' },
       { header: 'Pallet cần nhận', width: '300px', cell: d => <>

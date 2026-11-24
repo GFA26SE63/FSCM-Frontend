@@ -1,3 +1,4 @@
+import { SimpleTable } from '@/shared/ui';
 import { useState } from 'react';
 import { Link, useParams } from '@/shared/router/compat';
 import { useReturnToList } from '@/shared/router/listState';
@@ -298,27 +299,11 @@ export function BatchDetailPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h2 className="sec">Đơn hàng đang giữ lô hàng này</h2>
               </div>
-              <div className="tbl-wrap">
-                <table className="tbl" style={{ minWidth: 700 }}>
-                  <thead>
-                    <tr>
-                      <th style={{ width: '150px' }}>Đơn hàng</th>
-                      <th style={{ width: '250px' }}>Phần giao</th>
-                      <th style={{ width: '150px', textAlign: 'right' }}>Số lượng giữ</th>
-                      <th style={{ width: '150px' }}>Trạng thái</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td colSpan={4} className="muted" style={{ textAlign: 'center', padding: '20px 12px' }}>
-                        {b.reservedQuantity === 0
-                          ? 'Không có đơn hàng nào đang giữ lô hàng này.'
-                          : `Đang có ${b.reservedQuantity.toLocaleString('vi-VN')} thùng được giữ cho các đơn hàng xuất kho.`}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              <p className="muted">
+                {b.reservedQuantity === 0
+                  ? 'Không có đơn hàng nào đang giữ lô hàng này.'
+                  : `Đang có ${b.reservedQuantity.toLocaleString('vi-VN')} thùng được giữ cho các đơn hàng xuất kho.`}
+              </p>
             </section>
 
             {/* Table 2: Lịch sử nhập – xuất – khóa */}
@@ -335,26 +320,7 @@ export function BatchDetailPage() {
                 <h2 className="sec">Lịch sử nhập – xuất – khóa</h2>
               </div>
               <div className="tbl-wrap">
-                <table className="tbl" style={{ minWidth: 960 }}>
-                  <thead>
-                    <tr>
-                      <th style={{ width: '160px' }}>Thời điểm</th>
-                      <th style={{ width: '200px' }}>Loại giao dịch</th>
-                      <th style={{ width: '180px' }}>Chứng từ</th>
-                      <th style={{ width: '150px' }}>Pallet ID</th>
-                      <th style={{ width: '120px', textAlign: 'right' }}>Số lượng</th>
-                      <th>Người thực hiện</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(b.history ?? []).length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="muted" style={{ textAlign: 'center', padding: '20px 12px' }}>
-                          Chưa có ghi nhận giao dịch nhập / xuất nào cho lô hàng này.
-                        </td>
-                      </tr>
-                    ) : (
-                      b.history!.map((h, i) => {
+                <SimpleTable paginate rows={(b.history ?? []).map((h, i) => {
                         const typeName =
                           h.transactionType === 'Receipt' || h.transactionType === 'GoodsReceipt'
                             ? 'Nhập kho'
@@ -377,10 +343,8 @@ export function BatchDetailPage() {
                               ? (h.reservedDelta > 0 ? `+${h.reservedDelta}` : `${h.reservedDelta}`)
                               : '—';
 
-                        return (
-                          <tr key={h.id || i}>
-                            <td>{formatDateTime(h.occurredAt)}</td>
-                            <td style={{ width: '200px' }}>
+                         return { h, i, typeName, pallets, qtyDelta }; })} empty="Chưa có ghi nhận giao dịch nhập / xuất nào cho lô hàng này." columns={[{ header: "Thời điểm", cell: ({ h }) => <>{formatDateTime(h.occurredAt)}</> },
+{ header: "Loại giao dịch", cell: ({ typeName }) => <>
                               <span
                                 className="chip"
                                 style={
@@ -397,8 +361,8 @@ export function BatchDetailPage() {
                               >
                                 {typeName}
                               </span>
-                            </td>
-                            <td style={{ maxWidth: 180, wordBreak: 'break-all', overflowWrap: 'anywhere' }}>
+                            </> },
+{ header: "Chứng từ", cell: ({ h }) => <>
                               {h.referenceCode ? (
                                 h.referenceCode.startsWith('PN-') ? (
                                   <Link
@@ -423,8 +387,8 @@ export function BatchDetailPage() {
                               ) : (
                                 '—'
                               )}
-                            </td>
-                            <td style={{ maxWidth: 150, wordBreak: 'break-all', overflowWrap: 'anywhere' }}>
+                            </> },
+{ header: "Pallet ID", cell: ({ pallets }) => <>
                               {pallets.length > 0 ? (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                   {pallets.map((pid) => (
@@ -438,15 +402,9 @@ export function BatchDetailPage() {
                                   Chưa gán pallet
                                 </span>
                               )}
-                            </td>
-                            <td style={{ textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{qtyDelta}</td>
-                            <td style={{ wordBreak: 'break-word' }}>{users.nameOf(h.createdByUserId)}</td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
+                            </> },
+{ header: "Số lượng", cell: ({ qtyDelta }) => <>{qtyDelta}</> },
+{ header: "Người thực hiện", cell: ({ h }) => <>{users.nameOf(h.createdByUserId)}</> }]} />
               </div>
             </section>
 

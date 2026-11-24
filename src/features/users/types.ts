@@ -66,6 +66,7 @@ export interface UserAuditEntry {
 }
 
 export interface UserAuditPage {
+  totalCount: number;
   nodes: UserAuditEntry[];
   pageInfo: {
     endCursor: string | null;
