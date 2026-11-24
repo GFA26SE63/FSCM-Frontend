@@ -168,7 +168,7 @@ export function buildFlatTree(
       const hasKids = kids.length > 0;
       const key = (cat.id || cat.code).toLowerCase();
       // If searching, auto-expand if any descendant matches
-      const isOpen = q ? true : (openState[key] ?? true);
+      const isOpen = q ? true : (openState[key] ?? false);
       const matches = doesNodeOrDescendantMatch(cat);
 
       if (visible && matches) {

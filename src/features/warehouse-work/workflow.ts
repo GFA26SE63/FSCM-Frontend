@@ -2,6 +2,7 @@ export type WarehouseWorkflow = 'inbound' | 'receipts' | 'outbound' | 'issues' |
 
 export const warehouseScreens = {
   inbound: { path: '/warehouse-inbound', title: 'Nhập kho', description: 'Tiếp nhận kiện pallet từ nhà máy hoặc hàng luân chuyển từ kho khác; kiểm đếm và ghi sổ phiếu nhập kho.', create: '' },
+  factoryRequests: { path: '/warehouse-factory-requests', title: 'Yêu cầu nhận hàng từ nhà máy', description: 'Tiếp nhận các phiếu xuất xưởng của nhà máy và mở phiếu kiểm đếm khi hàng đến kho.', create: '' },
   receipts: { path: '/warehouse-receipts', title: 'Phiếu nhập kho (PNK)', description: 'Quản lý, tra cứu và in các phiếu nhập kho đã lập hoặc đã ghi nhận tồn.', create: '' },
   outbound: { path: '/warehouse-outbound', title: 'Xuất kho', description: 'Phát hành yêu cầu xuất cho đơn đã có đơn thực hiện, soạn thùng và xác nhận xuất kho.', create: 'Tạo yêu cầu xuất kho' },
   issues: { path: '/warehouse-issues', title: 'Phiếu xuất kho (PXK)', description: 'Quản lý, tra cứu và in các phiếu xuất kho đã ghi sổ trừ tồn và bàn giao vận chuyển.', create: '' },
