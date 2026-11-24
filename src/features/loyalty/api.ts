@@ -33,10 +33,11 @@ const toRetailerLoyalty = (card: LoyaltyCardApi): RetailerLoyalty => ({
 });
 
 export const loyaltyApi = {
-  programRetailersPage: async (page: number, search: string): Promise<{ items: ProgramRetailerOption[]; totalCount: number }> => {
+  programRetailersPage: async (page: number, search: string, pageSize = 10): Promise<{ items: ProgramRetailerOption[]; totalCount: number }> => {
+    if (![10, 20, 50].includes(pageSize)) throw new ApiError(400, 'Số nhà bán lẻ mỗi trang phải là 10, 20 hoặc 50.');
     const data = await graphql<{ entities: { retailerProfiles: { items: ProgramRetailerOption[]; totalCount: number } } }>(`
       query ProgramRetailerPage($page: Int!, $search: String) {
-        entities { retailerProfiles(page: $page, pageSize: 10, search: $search, status: "Active") {
+        entities { retailerProfiles(page: $page, pageSize: ${pageSize}, search: $search, status: "Active") {
           items { id code name status contactName phone email address } totalCount
         } }
       }`, { page, search: search.trim() || null });

@@ -294,7 +294,7 @@ export function BatchesPage() {
       key: 'product',
       header: 'Tên sản phẩm',
       width: '200px',
-      render: (b) => <span>{b.productName}</span>,
+      render: (b) => <><div>{b.productName}</div><div className="muted small">{b.sku}</div></>,
       text: (b) => b.productName,
     },
     {
@@ -412,6 +412,7 @@ export function BatchesPage() {
       key: 'qr',
       header: 'Tem QR',
       width: '105px',
+      summaryWidth: '86px',
       align: 'center',
       render: (b) => {
         const labels = qrLabelsByBatch.get(b.batchId) || [];
@@ -464,6 +465,7 @@ export function BatchesPage() {
         error={query.isPlaceholderData ? undefined : query.error}
         rowKey={(b) => b.batchId || b.batchCode}
         columns={columns}
+        summaryColumns={['code', 'product', 'wh', 'expiry', 'available', 'status', 'qr']}
         cursor={pagingProps}
         searchPlaceholder="Mã lô hàng, SKU, tên sản phẩm…"
         filterExtra={

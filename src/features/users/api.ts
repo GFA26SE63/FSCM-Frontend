@@ -22,15 +22,16 @@ const scopePageSize = 20;
 
 // Only request history metadata. Raw old/new JSON can contain contact details
 // or authentication data and must not enter the table or its query cache.
-const userAuditQuery = `
+const userAuditQuery = (pageSize: number) => `
   query UserAuditHistory($userId: UUID!, $after: String) {
     entities {
       auditLogs(
-        first: 20
+        first: ${pageSize}
         after: $after
         where: { entityName: { eq: "UserAccount" }, entityId: { eq: $userId } }
         order: [{ createdAt: DESC }, { id: DESC }]
       ) {
+        totalCount
         nodes { id userAccountId action reason createdAt }
         pageInfo { endCursor hasNextPage }
       }
@@ -111,12 +112,13 @@ export const userApi = {
   get: (id: string): Promise<UserDetail> =>
     get<UserDetail>(`/users/${encodeURIComponent(id)}`),
 
-  audit: async (userId: string, after: string | null): Promise<UserAuditPage> => {
+  audit: async (userId: string, after: string | null, pageSize = 20): Promise<UserAuditPage> => {
+    if (![10, 20, 50].includes(pageSize)) throw new ApiError(400, 'Số dòng lịch sử mỗi trang phải là 10, 20 hoặc 50.');
     const data = await graphql<{ entities: { auditLogs: UserAuditPage } }>(
-      userAuditQuery, { userId, after },
+      userAuditQuery(pageSize), { userId, after },
     );
     const page = data.entities?.auditLogs;
-    if (!page || !Array.isArray(page.nodes) || !page.pageInfo ||
+    if (!page || !Number.isInteger(page.totalCount) || page.totalCount < 0 || !Array.isArray(page.nodes) || !page.pageInfo ||
         typeof page.pageInfo.hasNextPage !== 'boolean' ||
         (page.pageInfo.hasNextPage && !page.pageInfo.endCursor)) {
       throw new ApiError(502, 'Phản hồi lịch sử tài khoản không hợp lệ.');

@@ -26,6 +26,8 @@ function useUserFilters() {
   const rawRole = params.get('role') ?? '';
   const rawActivity = params.get('activity') ?? '';
   const page = parsePage(params.get('page'));
+  const requestedSize = Number(params.get('size'));
+  const pageSize = [10, 20, 50].includes(requestedSize) ? requestedSize : PAGE_SIZE;
   const sort = params.get('sort') === 'asc' ? 'asc' : 'desc';
   const filters = useMemo<UserFilters>(
     () => ({
@@ -33,10 +35,10 @@ function useUserFilters() {
       role: rawRole ?? '',
       activity: (ACTIVITIES as string[]).includes(rawActivity) ? (rawActivity as UserFilters['activity']) : '',
       page,
-      pageSize: PAGE_SIZE,
+      pageSize,
       sort,
     }),
-    [search, rawRole, rawActivity, page, sort],
+    [search, rawRole, rawActivity, page, pageSize, sort],
   );
   return { filters, setParams };
 }
@@ -113,6 +115,7 @@ export function UsersPage() {
         title="Danh sách tài khoản"
         nowrap
         columns={columns}
+        summaryColumns={['fullName', 'email', 'phone', 'role', 'active', 'created']}
         rows={query.data?.items}
         loading={query.isLoading}
         error={query.error}
@@ -122,6 +125,7 @@ export function UsersPage() {
           page: filters.page,
           size: filters.pageSize,
           total: query.data?.totalCount ?? 0,
+          onPageSizeChange: size => setParams({ size, page: null }),
           search: filters.search,
 
           onPageChange: (page) =>

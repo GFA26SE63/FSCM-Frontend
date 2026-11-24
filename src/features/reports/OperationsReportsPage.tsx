@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { get, getAll } from '@/shared/api/http';
 import { errorMessage } from '@/shared/api/errors';
 import { useLocation, useNavigate } from '@/shared/router/compat';
-import { Button, Callout, Card, DateInput, Fields, Modal, PageHeader, QueryState, SimpleTable, Stat } from '@/shared/ui';
+import { Button, Callout, Card, DateInput, Fields, Modal, PageHeader, Pagination, QueryState, SimpleTable, Stat } from '@/shared/ui';
 import { formatDate, formatNumber } from '@/shared/lib';
 import { formatInstantDateTime } from '@/shared/lib/dates';
 import { downloadExcel, type ExcelSheet } from '@/shared/lib/excel';
@@ -137,6 +137,7 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
   const filters = useDebounced(draft, 400);
   const filterKey = JSON.stringify(filters);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState('');
   const [selected, setSelected] = useState<Row | null>(null);
@@ -144,7 +145,7 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
   const rangeDays = (Date.parse(filters.toDate) - Date.parse(filters.fromDate)) / 86400000;
   const valid = Boolean(filters.fromDate && filters.toDate && rangeDays >= 0 && rangeDays <= 366);
   const regions = useQuery({ queryKey: ['report-regions', user?.id], queryFn: () => getAll<{ id: string; name: string }>('/regions', { includeInactive: true }), enabled: !!user });
-  const query = useQuery({ queryKey: ['operations-reports', user?.id, user?.role, kind, filters, page], queryFn: () => load(kind, filters, page), enabled: valid && !!user });
+  const query = useQuery({ queryKey: ['operations-reports', user?.id, user?.role, kind, filters, page, pageSize], queryFn: () => load(kind, filters, page, pageSize), enabled: valid && !!user });
   const cols = columns(kind);
   // Only the columns needed to scan the list; everything else is in the detail popup.
   const tableCols = TABLE_COLUMNS[kind].flatMap(key => cols.filter(c => c.key === key));
@@ -285,7 +286,7 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
         </Card>
       ) : (
         <Card title={title}>
-          <div className="report-table"><SimpleTable rows={data.items} footer={kind === 'loyalty' && data.pointsTotal ? loyaltyFooter(tableCols, data.pointsTotal) : undefined} columns={[
+          <div className="report-table"><SimpleTable paginate={false} rows={data.items} footer={kind === 'loyalty' && data.pointsTotal ? loyaltyFooter(tableCols, data.pointsTotal) : undefined} columns={[
             ...tableCols.map(col => ({ header: col.label, align: col.numeric ? 'right' as const : undefined, cell: (row: Row) => display(row, col, kind) })),
             { header: '', align: 'right', cell: row => <div className="report-actions">
               <Button size="sm" onClick={() => setSelected(row)}>Chi tiết</Button>
@@ -294,11 +295,11 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
               {kind === 'loyalty' && <Button size="sm" onClick={() => navigate(`/loyalty/${encodeURIComponent(row.retailerCode)}`)}>Thẻ tích điểm</Button>}
             </div> },
           ]} /></div>
-          <div className="row-wrap" style={{ padding: 12, gap: 16 }}>
-            <Button disabled={page === 1 || query.isFetching} onClick={() => setPage(p => p - 1)}>Trước</Button>
-            <span>Trang {page} / {Math.max(1, Math.ceil(data.totalCount / data.pageSize))} · {formatNumber(data.totalCount)} bản ghi</span>
-            <Button disabled={page * data.pageSize >= data.totalCount || query.isFetching} onClick={() => setPage(p => p + 1)}>Sau</Button>
-          </div>
+          <Pagination currentPage={data.page} totalCount={data.totalCount} pageSize={data.pageSize} itemCount={data.items.length}
+            totalPages={Math.max(1, Math.ceil(data.totalCount / data.pageSize))} loading={query.isFetching}
+            hasPrev={data.page > 1} hasNext={data.page * data.pageSize < data.totalCount}
+            onPage={setPage} onPrev={() => setPage(data.page - 1)} onNext={() => setPage(data.page + 1)}
+            onPageSizeChange={value => { setPageSize(value); setPage(1); }} />
         </Card>
       )}
     </>}</QueryState>}

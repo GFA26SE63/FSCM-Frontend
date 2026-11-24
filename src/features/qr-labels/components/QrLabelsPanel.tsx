@@ -1,10 +1,11 @@
+import { Modal, SimpleTable, Tabs } from '@/shared/ui';
 import { useState } from 'react';
 
 import { errorMessage } from '@/shared/api/errors';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
 import { formatDate, formatDateTime } from '@/shared/lib';
-import { Modal } from '@/shared/ui';
+import { useEnumParam } from '@/shared/router/listState';
 import { useBatchQrLabels } from '../hooks';
 
 import { LabelPrintDialog } from './LabelPrintDialog';
@@ -12,6 +13,7 @@ import type { BatchForQrGeneration } from './GenerateQrDialog';
 import {
   isPrintableLabel,
   labelStatusText,
+  QR_LABEL_STATUSES,
   type PrintTarget,
   type QrLabel,
 } from '../types';
@@ -23,6 +25,9 @@ interface Props {
   batch?: BatchForQrGeneration | null;
 }
 
+const STATUS_TABS = ['all', ...QR_LABEL_STATUSES, 'other'] as const;
+const knownStatuses = new Set<string>(QR_LABEL_STATUSES);
+
 function AuthorizedQrLabelsPanel({
   batchId,
   batchCode,
@@ -31,10 +36,13 @@ function AuthorizedQrLabelsPanel({
   const { user } = useAuth();
   const [target, setTarget] = useState<PrintTarget | null>(null);
   const [detailLabel, setDetailLabel] = useState<QrLabel | null>(null);
+  const [status, setStatus] = useEnumParam('qrStatus', STATUS_TABS, 'all');
 
   const query = useBatchQrLabels(ownerId, batchId);
 
   const labels = query.data ?? [];
+  const visibleLabels = labels.filter(label => status === 'all' || (status === 'other' ? !knownStatuses.has(label.status) : label.status === status));
+  const otherCount = labels.filter(label => !knownStatuses.has(label.status)).length;
 
   const printableCount = labels.filter(isPrintableLabel).length;
 
@@ -107,6 +115,14 @@ function AuthorizedQrLabelsPanel({
         </div>
       </div>
 
+      {!query.isPending && !query.error && <div className="qr-label-status-tabs">
+        <Tabs value={status} onChange={setStatus} items={[
+          { key: 'all', label: 'Tất cả', count: labels.length },
+          ...QR_LABEL_STATUSES.map(value => ({ key: value, label: value === 'Split' ? 'Đã tách' : labelStatusText(value), count: labels.filter(label => label.status === value).length })),
+          ...(otherCount > 0 || status === 'other' ? [{ key: 'other' as const, label: 'Khác', count: otherCount }] : []),
+        ]} />
+      </div>}
+
       {query.isPending ? (
         <p role="status">Đang tải danh sách tem…</p>
       ) : query.error ? (
@@ -135,54 +151,27 @@ function AuthorizedQrLabelsPanel({
         </div>
       ) : (
         <div className="tbl-wrap">
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>Mã tem</th>
-                <th>Sản phẩm / lô hàng</th>
-                <th>Kho</th>
-                <th style={{ textAlign: 'right' }}>Số lượng</th>
-                <th>HSD</th>
-                <th>Trạng thái</th>
-                <th>Ngày tạo</th>
-                <th>Thao tác</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {labels.map((label) => {
+          <SimpleTable paginate resetPageKey={status} summaryColumns={['Mã tem', 'Sản phẩm / lô hàng', 'Số lượng', 'HSD', 'Trạng thái', 'Thao tác']} rows={visibleLabels.map((label) => {
                 const printable = isPrintableLabel(label);
 
-                return (
-                  <tr key={label.id}>
-                    <td
-                      style={{
-                        fontFamily: 'Arial, sans-serif',
-                        fontWeight: 700,
-                      }}
-                    >
+                 return { label, printable }; })} empty="Không có mã QR ở trạng thái đã chọn." columns={[{ header: "Mã tem", cell: ({ label }) => <>
                       {label.qrCode}
                       {label.parentQrCode && <div className="muted small">Tách từ {label.parentQrCode}</div>}
-                    </td>
-
-                    <td>
+                    </> },
+{ header: "Sản phẩm / lô hàng", cell: ({ label }) => <>
                       <div>
                         {label.sku} · {label.productName}
                       </div>
                       <div className="muted small">
                         {label.batchCode}
                       </div>
-                    </td>
-
-                    <td>{label.warehouseCode}</td>
-
-                    <td style={{ textAlign: 'right' }}>
+                    </> },
+{ header: "Kho", cell: ({ label }) => <>{label.warehouseCode}</> },
+{ header: "Số lượng", cell: ({ label }) => <>
                       {label.quantity.toLocaleString('vi-VN')} thùng
-                    </td>
-
-                    <td>{formatDate(label.expirationDate)}</td>
-
-                    <td>
+                    </> },
+{ header: "HSD", cell: ({ label }) => <>{formatDate(label.expirationDate)}</> },
+{ header: "Trạng thái", cell: ({ label }) => <>
                       <span
                         className={`chip ${
                           label.status === 'Available'
@@ -194,11 +183,9 @@ function AuthorizedQrLabelsPanel({
                       >
                         {labelStatusText(label.status)}
                       </span>
-                    </td>
-
-                    <td>{formatDateTime(label.generatedAt)}</td>
-
-                    <td>
+                    </> },
+{ header: "Ngày tạo", cell: ({ label }) => <>{formatDateTime(label.generatedAt)}</> },
+{ header: "Thao tác", cell: ({ label, printable }) => <>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         {canPrint && (
                           <button
@@ -229,12 +216,7 @@ function AuthorizedQrLabelsPanel({
                           Chi tiết
                         </button>
                       </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    </> }]} />
         </div>
       )}
 

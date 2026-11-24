@@ -32,6 +32,7 @@ export function ComplaintsPage() {
         error={query.error}
         rowKey={(c) => c.code}
         columns={columns}
+        summaryColumns={['code', 'type', 'retailer', 'at', 'status', 'handling']}
         searchPlaceholder="Mã, đơn hàng, nhà bán lẻ, nội dung…"
         filterExtra={<label className="lbl">Thời gian<Select value={dateSort} options={DATE_SORT_OPTIONS} onChange={e => setDateSort(e.target.value as DateSortOrder)} /></label>}
         filters={[{ label: 'Trạng thái', options: [...new Set(Object.values(statusLabels.complaint))], value: (c) => statusLabel('complaint', c.status) },

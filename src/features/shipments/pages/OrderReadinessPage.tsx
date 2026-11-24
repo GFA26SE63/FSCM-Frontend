@@ -107,7 +107,7 @@ function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; picking
       </div>
     </section>
     {readiness.error && <Callout tone="danger">Có đơn chưa tải được trạng thái. Chưa thể kết luận điều kiện xuất kho cho các đơn đó.</Callout>}
-    <SimpleTable rows={visible} onRowClick={order => setSelectedOrderId(order.id)} empty="Không có đơn phù hợp với bộ lọc." columns={[
+    <SimpleTable paginate={false} rows={visible} onRowClick={order => setSelectedOrderId(order.id)} empty="Không có đơn phù hợp với bộ lọc." columns={[
       { header: 'Mã đơn', width: '150px', cell: order => <b>{order.orderCode}</b> },
       { header: 'Kho xuất', width: '170px', cell: order => {
         const parts = partsOf(order);
