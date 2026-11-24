@@ -101,8 +101,7 @@ test('warehouse lists isolate factory, order and transfer documents with separat
     }
     const table = content;
     assert.deepEqual(table.props.rows.map(w => w.document.reason), [reason]);
-    const button = table.props.columns[0].cell(table.props.rows[0]);
-    button.props.onClick();
+    table.props.onRowClick(table.props.rows[0]);
     assert.equal(navigations[0], workflow === 'receipts' ? '/warehouse-receipts/' + table.props.rows[0].document.id : workflowModule.exports.warehouseDocumentPath(table.props.rows[0].document));
   }
 });

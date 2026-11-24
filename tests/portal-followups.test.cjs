@@ -46,7 +46,6 @@ test('aggregate departed label is separate from individual shipment dispatch sta
 });
 
 test('export row opens a popup retaining warehouse, pending picking, payment and operation details', () => {
-  let expanded = false;
   const ui = {
     Chip: ({ children }) => React.createElement('span', null, children),
     Callout: ({ children }) => React.createElement('div', null, children),
@@ -54,9 +53,8 @@ test('export row opens a popup retaining warehouse, pending picking, payment and
     SimpleTable: ({ rows, columns }) => React.createElement('div', null, rows.map((row, i) =>
       React.createElement('div', { key: i }, columns.map((col, j) => React.createElement('span', { key: j }, col.cell(row)))))),
   };
-  const { ExportOrderCard } = source('features/shipments/components/ExportOrderCard.tsx', {
-    react: { ...React, useState: () => [expanded, () => {}] },
-    'lucide-react': { ChevronDown: () => null, ChevronRight: () => null },
+  const { ExportOrderDetailModal } = source('features/shipments/components/ExportOrderCard.tsx', {
+    react: React,
     '@/shared/ui': ui,
     '../types': { HAS_LEFT: ['Issued', 'Delivering', 'Received'] },
     '../exportList': { exportStatus },
@@ -67,16 +65,13 @@ test('export row opens a popup retaining warehouse, pending picking, payment and
     readiness: { isReady: false, hasException: false, paymentSettled: false, blockingReasons: ['Warehouse B still picking'],
       parts: [ { warehouseCode: 'WH-A', shipmentCode: 'SHIP-1', status: 'Issued' }, { warehouseCode: 'WH-B', shipmentCode: null, status: 'WaitingToPick' } ] },
   };
-  const render = () => renderToStaticMarkup(React.createElement(ExportOrderCard, props));
-  assert.match(render(), /aria-haspopup="dialog"/);
-  assert.doesNotMatch(render(), /role="dialog"|aria-expanded/);
-  assert.match(render(), /DH-100/);
-  assert.doesNotMatch(render(), /WH-A|WH-B|shipment operations/);
-  expanded = true;
-  const html = render();
+  const html = renderToStaticMarkup(React.createElement(ExportOrderDetailModal, {
+    ...props,
+    open: true,
+    onClose() {},
+  }));
   assert.match(html, /role="dialog"/);
-  assert.match(html, /Chi tiết xuất kho · DH-100/);
-  assert.doesNotMatch(html, /aria-expanded/);
+  assert.match(html, /Chi tiết điều phối · DH-100/);
   assert.match(html, /WH-A/);
   assert.match(html, /WH-B/);
   assert.match(html, /SHIP-1/);
