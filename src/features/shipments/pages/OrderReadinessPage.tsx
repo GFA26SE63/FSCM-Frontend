@@ -101,9 +101,18 @@ function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; picking
       </div>
     </section>
     {readiness.error && <Callout tone="danger">Có đơn chưa tải được trạng thái. Chưa thể kết luận điều kiện xuất kho cho các đơn đó.</Callout>}
-    {visible.map(order => <ExportOrderCard key={order.id} order={order} readiness={byId.get(order.id)}
-      loading={readiness.loading && !byId.has(order.id)} failed={readiness.failedIds.includes(order.id)}
-      sort={shipmentSort} retry={() => { void readiness.refetch(); }} />)}
+    <section className="delivery-order-list" aria-label="Danh sách đơn điều phối giao hàng">
+      <div className="delivery-order-header" aria-hidden>
+        <span>Mã đơn</span>
+        <div className="delivery-order-part-header"><span>Kho xuất</span><span>Trạng thái tại kho</span><span>Phiếu giao hàng</span></div>
+        <span>Trạng thái đơn</span>
+        <span />
+      </div>
+      {visible.map(order => <ExportOrderCard key={order.id} order={order} readiness={byId.get(order.id)}
+        loading={readiness.loading && !byId.has(order.id)} failed={readiness.failedIds.includes(order.id)}
+        sort={shipmentSort} retry={() => { void readiness.refetch(); }} />)}
+      {visible.length === 0 && <p className="muted delivery-order-empty">Không có đơn phù hợp với bộ lọc.</p>}
+    </section>
     {/* Common Pagination Foundation — client-side (server-side is a BACKEND DEPENDENCY:
         GET /api/v1/picking-lists does not support page/pageSize params). */}
     <Pagination

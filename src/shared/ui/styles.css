@@ -271,19 +271,25 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-lay
 .promo-retailer-picker .tbl tr > :last-child { position: sticky; right: 0; background: var(--c-card, #fff); box-shadow: -1px 0 0 var(--c-border, #e0e5e2); }
 .promo-retailer-picker .tbl thead tr > :last-child { z-index: 3; background: var(--c-th); }
 
-/* Export orders: compact list rows; details use the shared modal. */
+/* Delivery coordination list: a readable, table-like summary before the order detail modal. */
+.delivery-order-list { display: grid; gap: 8px; }
+.delivery-order-header, .export-order-toggle { display: grid; grid-template-columns: 120px minmax(0, 1fr) 140px 24px; column-gap: 16px; align-items: center; }
+.delivery-order-header { padding: 0 20px; color: var(--c-muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; }
+.delivery-order-part-header, .export-order-part { display: grid; grid-template-columns: minmax(100px, .75fr) minmax(140px, 1fr) minmax(150px, 1fr); column-gap: 14px; align-items: center; }
 .export-order { overflow: hidden; }
-.export-order-toggle { display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; padding: 18px 20px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.export-order-toggle { width: 100%; min-width: 0; padding: 14px 20px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .export-order-toggle:hover { background: var(--c-surface-2); }
 .export-order-toggle:focus-visible { outline: 2px solid var(--c-primary, #14655b); outline-offset: -3px; }
 .export-order-code { flex: 0 0 120px; }
-.export-order-parts { display: flex; flex-wrap: nowrap; align-items: center; min-width: 0; gap: 14px; overflow-x: auto; color: var(--c-muted); font-size: 13px; }
-.export-order-parts span { flex: 0 0 auto; white-space: nowrap; }
+.export-order-parts { display: grid; min-width: 0; gap: 7px; color: var(--c-muted); font-size: 13px; }
+.export-order-part { min-width: 0; }
+.export-order-part > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.delivery-order-empty { margin: 0; padding: 28px; text-align: center; background: var(--c-card); border: 1px solid var(--c-border); border-radius: 10px; }
 .delivery-summary-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .delivery-filter-card .filter-grid { grid-template-columns: minmax(250px, 2fr) repeat(4, minmax(170px, 1fr)) auto; }
 .delivery-filter-action { display: flex; align-items: flex-end; }
 @media (max-width: 1200px) { .delivery-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .delivery-filter-card .filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 800px) { .delivery-summary-grid { grid-template-columns: 1fr; } .delivery-filter-card .filter-grid { grid-template-columns: 1fr; } .delivery-filter-action .btn { width: 100%; } }
+@media (max-width: 800px) { .delivery-summary-grid { grid-template-columns: 1fr; } .delivery-filter-card .filter-grid { grid-template-columns: 1fr; } .delivery-filter-action .btn { width: 100%; } .delivery-order-header { display: none; } .export-order-toggle { grid-template-columns: minmax(92px, .6fr) minmax(0, 1fr) auto 20px; padding: 14px; column-gap: 8px; } .delivery-order-part-header, .export-order-part { grid-template-columns: 1fr; gap: 3px; } .export-order-part { padding: 5px 0; } }
 /* dd/mm/yyyy date field with a calendar button (DateInput). */
 .date-input { position: relative; display: flex; align-items: center; width: 100%; }
 .date-input > .inp { padding-right: 36px; }

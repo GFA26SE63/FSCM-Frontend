@@ -46,9 +46,11 @@ export function ExportOrderCard({ order, readiness, loading, failed, sort, retry
       aria-label={`Xem chi tiết xuất kho ${order.orderCode}`} onClick={() => setOpen(true)}>
       <strong className="export-order-code">{order.orderCode}</strong>
       {readiness && <div className="export-order-parts spacer">
-        {parts.map(part => <span key={part.warehouseId}>
-          <b>{part.warehouseCode}</b> · {PART_STATUS[part.status]?.label ?? part.status} · {part.shipmentCode ?? 'Chưa có phiếu giao'}
-        </span>)}
+        {parts.map(part => <div className="export-order-part" key={part.warehouseId}>
+          <b>{part.warehouseCode}</b>
+          <Chip tone={PART_STATUS[part.status]?.tone ?? 'neutral'}>{PART_STATUS[part.status]?.label ?? part.status}</Chip>
+          <span>{part.shipmentCode ?? 'Chưa có phiếu giao'}</span>
+        </div>)}
       </div>}
       {loading && <span className="muted small spacer">Đang kiểm tra kho và phiếu giao hàng…</span>}
       <Chip tone={status.tone}>{status.label}</Chip>
