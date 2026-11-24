@@ -471,13 +471,12 @@ export function CategoriesPage() {
                   {canManage && (
                     <div className="category-detail-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       {canAddChild && (
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-primary"
+                        <Button
+                          variant="primary"
                           onClick={handleOpenAddSubCategory}
                         >
                           + Danh mục con
-                        </button>
+                        </Button>
                       )}
                       <button type="button" className="btn" onClick={handleOpenEdit}>
                         Sửa

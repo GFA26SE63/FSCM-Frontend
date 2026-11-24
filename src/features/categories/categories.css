@@ -48,8 +48,14 @@
   gap: 16px 28px !important;
 }
 
+.category-detail-fields .fv {
+  display: grid;
+  grid-template-rows: auto minmax(34px, 1fr);
+}
+
 .category-detail-fields .fval {
-  min-height: 34px;
+  box-sizing: border-box;
+  height: 100%;
 }
 
 @media (max-width: 980px) {
