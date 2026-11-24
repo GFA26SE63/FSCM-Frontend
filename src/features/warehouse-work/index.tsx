@@ -436,11 +436,6 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
     {workflow !== 'trace' && !selected && !creating && (
       (isInbound && activeTab === 'history') ? (
         <Card title={operationReason === 'Transfer' ? 'Danh sách Phiếu Nhập Luân Chuyển (PNK)' : 'Danh sách Phiếu Nhập Kho (PNK)'}>
-          <div className="warehouse-work-filters">
-            <label>Tìm chứng từ<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã PNK, mã pallet (PID), SKU hoặc mã lô" /></label>
-            <label>Trạng thái<select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="">Tất cả trạng thái</option>{Object.entries(filterStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-            <label>Lọc theo kho<select value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho</option>{warehouses.data?.filter(w => admin || user?.scope?.warehouseIds.includes(w.id)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
-          </div>
           <p className="muted">{visibleRows.length} chứng từ · Danh sách các phiếu nhập kho đã ghi nhận tồn. Chọn mã PNK để xem chi tiết hoặc in phiếu.</p>
           {/* Factory receipts: one row per dispatch note (older per-pallet PNKs of the same note shown together). */}
           {operationReason === 'Factory' ? <QueryState query={docs}>{() => <FactoryReceiptHistory
