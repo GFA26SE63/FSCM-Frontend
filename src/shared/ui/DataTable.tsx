@@ -1,5 +1,4 @@
 import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Eye } from 'lucide-react';
 import { paramName, parsePage, useQueryParams, type ParamUpdates } from '../router/listState';
 import { UrlStateScope } from './urlStateScope';
 import { Button } from './Button';
@@ -406,7 +405,7 @@ export function DataTable<T>({
             {listColumns.map((c) => (
               <col key={c.key} style={c.summaryWidth ? { width: c.summaryWidth } : undefined} />
             ))}
-            {viewActions && <col style={{ width: rowActions ? rowActionsWidth : '100px' }} />}
+            {viewActions && <col style={{ width: rowActionsWidth }} />}
           </colgroup>
           <thead>
             <tr>

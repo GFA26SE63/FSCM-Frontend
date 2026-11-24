@@ -1,6 +1,4 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Eye } from 'lucide-react';
-import { Button } from './Button';
 import { listColumns as selectListColumns } from './tableColumns';
 import { Pagination } from '../pagination/components/Pagination';
 
@@ -81,7 +79,6 @@ export function SimpleTable<T>({ columns, summaryColumns, rows, empty = 'Không 
                   {footer[i]}
                 </td>
               ))}
-              {showView && <td />}
             </tr>
           </tfoot>
         )}

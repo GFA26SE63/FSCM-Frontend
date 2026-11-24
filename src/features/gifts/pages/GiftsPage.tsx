@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Eye, Pencil } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { ActionDropdown, Button, Callout, Card, Input, PageHeader, Pagination, QueryState, Select, SimpleTable, StatusChip } from '@/shared/ui';
 import { formatNumber } from '@/shared/lib';
 import { downloadExcel } from '@/shared/lib/excel';
