@@ -447,16 +447,16 @@ export function CategoriesPage() {
             <>
               {/* Details card matching Prototype */}
               <section
-                className="card"
+                className="card category-detail-card"
                 style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}
               >
                 <div className="category-detail-header" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div className="category-detail-title" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <span className="muted" style={{ fontSize: 12.5 }}>
                       {selectedPath || 'Danh mục gốc'}
                     </span>
-                    <span style={{ fontWeight: 700, fontSize: 18 }}>
-                      {selectedCat.name}{' '}
+                    <span className="category-detail-name" style={{ fontWeight: 700, fontSize: 18 }}>
+                      <span>{selectedCat.name}</span>
                       <span
                         className="chip"
                         style={getStatusChipStyle(selectedCat.status, selectedCat.isActive)}
