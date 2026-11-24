@@ -43,3 +43,10 @@ test('notification history preserves recipient scope, read controls, retry and d
   assert.ok(page.includes('notifications.refetch()') && page.includes('portalLink(notification.deepLink)'));
   assert.ok(bell.includes("navigate('/notifications')"));
 });
+test('bell has one scroll region, marks all with visible feedback, and opens every notification detail', () => {
+  assert.ok(bell.includes('className="bell-list"') && bell.includes('showDetail(n)'));
+  assert.ok(bell.includes('open={selected !== null}') && bell.includes('Mở nghiệp vụ liên quan'));
+  assert.ok(bell.includes("markAllRead.isPending ? 'Đang đánh dấu…'"));
+  assert.ok(!bell.includes("style={{ overflowY: 'auto', maxHeight: 360 }}"));
+  assert.ok(read('src/app/layout/layout.css').includes('.bell-list') && read('src/app/layout/layout.css').includes('overflow: visible;'));
+});

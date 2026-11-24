@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from '@/shared/router/compat';
-import { Button } from '@/shared/ui';
+import { Button, Modal } from '@/shared/ui';
 import { formatShortDateTime } from '@/shared/lib/dates';
 import { useMarkAllRead, useMarkRead, useNotifications } from '../hooks';
 import { NOTIFICATIONS_MAX_LIMIT, NOTIFICATIONS_PAGE_SIZE } from '../notificationsGraphql';
+import type { AppNotification } from '../types';
 
 const portalLink = (deepLink: string | null) => {
   if (!deepLink) return null;
@@ -22,6 +23,7 @@ export function NotificationBell() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<'all' | 'unread'>('all');
+  const [selected, setSelected] = useState<AppNotification | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   const unreadCount = data?.unread.totalCount ?? 0;
@@ -42,6 +44,19 @@ export function NotificationBell() {
   }, [open]);
 
   const handleMarkAll = () => markAllRead.mutate(undefined);
+
+  const showDetail = (notification: AppNotification) => {
+    if (!notification.isRead) markRead.mutate(notification.id);
+    setOpen(false);
+    setSelected(notification);
+  };
+
+  const openRelatedPage = () => {
+    const target = selected && portalLink(selected.deepLink);
+    if (!target) return;
+    setSelected(null);
+    navigate(target);
+  };
 
   return (
     <div className="bell" ref={ref}>
@@ -75,7 +90,7 @@ export function NotificationBell() {
             <span className="sec">Thông báo</span>
             {unreadCount > 0 && (
               <button type="button" className="link-btn small" onClick={handleMarkAll} disabled={markAllRead.isPending}>
-                Đánh dấu tất cả đã đọc
+                {markAllRead.isPending ? 'Đang đánh dấu…' : 'Đánh dấu tất cả đã đọc'}
               </button>
             )}
           </div>
@@ -97,7 +112,7 @@ export function NotificationBell() {
             </button>
           </div>
 
-          <div style={{ overflowY: 'auto', maxHeight: 360 }}>
+          <div className="bell-list">
             {filtered.length === 0 ? (
               <p className="muted small" style={{ textAlign: 'center', padding: 24, margin: 0 }}>
                 {tab === 'unread' ? 'Không có thông báo chưa đọc.' : 'Không có thông báo nào.'}
@@ -109,12 +124,7 @@ export function NotificationBell() {
                   type="button"
                   className={`bell-item${n.isRead ? '' : ' unread'}`}
                   disabled={markRead.isPending}
-                  onClick={() => {
-                    if (!n.isRead) markRead.mutate(n.id);
-                    setOpen(false);
-                    const target = portalLink(n.deepLink);
-                    if (target) navigate(target);
-                  }}
+                  onClick={() => showDetail(n)}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                     <span className="bold">{n.title}</span>
@@ -135,14 +145,25 @@ export function NotificationBell() {
                 Xem thêm
               </button>
             )}
-            <div className="bell-footer">
-              <button type="button" className="link-btn small" onClick={() => { setOpen(false); navigate('/notifications'); }}>
-                Xem tất cả thông báo
-              </button>
-            </div>
+          </div>
+          <div className="bell-footer">
+            <button type="button" className="link-btn small" onClick={() => { setOpen(false); navigate('/notifications'); }}>
+              Xem tất cả thông báo
+            </button>
           </div>
         </div>
       )}
+      <Modal
+        open={selected !== null}
+        title={selected?.title ?? 'Thông báo'}
+        subtitle={selected ? formatShortDateTime(selected.createdAt) : undefined}
+        onClose={() => setSelected(null)}
+        footer={selected && portalLink(selected.deepLink) ? (
+          <Button variant="primary" onClick={openRelatedPage}>Mở nghiệp vụ liên quan</Button>
+        ) : undefined}
+      >
+        <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{selected?.message}</p>
+      </Modal>
     </div>
   );
 }

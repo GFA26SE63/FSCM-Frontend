@@ -15,4 +15,8 @@ export const useNotifications = (limit: number) =>
   });
 export const useMenuBadges = () => useQuery({ queryKey: notificationKeys.badges, queryFn: notificationApi.badges, retry: false, refetchInterval: 60_000 });
 export const useMarkRead = () => useApiMutation(notificationApi.markRead, { notify: false });
-export const useMarkAllRead = () => useApiMutation(notificationApi.markAllRead, { notify: false });
+export const useMarkAllRead = () => useApiMutation(notificationApi.markAllRead, {
+  success: (result) => result.updatedCount > 0
+    ? `Đã đánh dấu ${result.updatedCount} thông báo là đã đọc.`
+    : 'Không có thông báo chưa đọc.',
+});

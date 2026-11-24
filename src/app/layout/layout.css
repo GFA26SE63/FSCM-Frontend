@@ -275,8 +275,7 @@
   width: 380px;
   z-index: 30;
   box-shadow: var(--shadow-lg);
-  max-height: 420px;
-  overflow: auto;
+  overflow: visible;
 }
 .bell-hd {
   padding: 12px 16px;
@@ -305,6 +304,11 @@
   justify-content: center;
   padding: 10px 16px;
   border-top: 1px solid var(--c-border-soft);
+}
+.bell-list {
+  max-height: 360px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .notification-tabs {
   display: flex;
