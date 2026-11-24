@@ -250,15 +250,9 @@ export function FleetPage() {
             </>
           }
           onRowClick={(item) => navigate(`/fleet/vehicles/${item.id}`)}
-          rowActionsWidth="300px"
+          rowActionsWidth="220px"
           rowActions={(item) => (
             <>
-              <Button
-                size="sm"
-                onClick={() => navigate(`/fleet/vehicles/${item.id}`)}
-              >
-                Xem
-              </Button>
               <Button
                 size="sm"
                 onClick={() => setVehicleDialog({ item })}
@@ -302,15 +296,9 @@ export function FleetPage() {
             </>
           }
           onRowClick={(item) => navigate(`/fleet/drivers/${item.id}`)}
-          rowActionsWidth="300px"
+          rowActionsWidth="220px"
           rowActions={(item) => (
             <>
-              <Button
-                size="sm"
-                onClick={() => navigate(`/fleet/drivers/${item.id}`)}
-              >
-                Xem
-              </Button>
               <Button
                 size="sm"
                 onClick={() => setDriverDialog({ item })}

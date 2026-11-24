@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Eye, MapPin, Pause, Pencil, Play } from 'lucide-react';
+import { MapPin, Pause, Pencil, Play } from 'lucide-react';
 import { useLocation, useNavigate } from '@/shared/router/compat';
 import { useEnumParam, useQueryParams } from '@/shared/router/listState';
 import { useAuth } from '@/shared/auth/AuthContext';
@@ -404,25 +404,6 @@ export function WarehousesPage() {
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <Button
-                  size="sm"
-                  variant="default"
-                  onClick={() => navigate(`/whs/regions/${r.id}`)}
-                  title="Xem danh sách kho thuộc vùng"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    padding: '4px 8px',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    height: 30,
-                  }}
-                >
-                  <Eye size={14} />
-                  <span>Xem</span>
-                </Button>
-
                 {dropdownItems.length > 0 && (
                   <ActionDropdown items={dropdownItems} />
                 )}
@@ -600,25 +581,6 @@ export function WarehousesPage() {
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <Button
-                  size="sm"
-                  variant="default"
-                  onClick={() => navigate(`/whs/${w.code}`)}
-                  title="Xem chi tiết kho"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    padding: '4px 8px',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    height: 30,
-                  }}
-                >
-                  <Eye size={14} />
-                  <span>Xem</span>
-                </Button>
-
                 {dropdownItems.length > 0 && (
                   <ActionDropdown items={dropdownItems} />
                 )}

@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { Eye } from 'lucide-react';
 import { Can } from '@/shared/auth/Can';
 import { useNavigate } from '@/shared/router/compat';
 import { useEnumParam, useStringParam, useQueryParams } from '@/shared/router/listState';
@@ -212,15 +211,8 @@ export function ProductsPage() {
           </Can>
         }
         onRowClick={(p) => navigate('/skus/' + p.id)}
-        rowActionsWidth="150px"
-        rowActions={(p) => (
-          <div className="table-actions-inline">
-            <Button size="sm" onClick={() => navigate('/skus/' + p.id)}>
-              <Eye size={14} /> Xem
-            </Button>
-            <ProductActions p={p} dropdown />
-          </div>
-        )}
+        rowActionsWidth="60px"
+        rowActions={(p) => <ProductActions p={p} dropdown />}
       />
     </>
   );

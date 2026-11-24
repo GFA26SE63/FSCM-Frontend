@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { Eye } from 'lucide-react';
 import { useNavigate, useParams } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { formatMoney } from '@/shared/lib';
@@ -322,31 +321,8 @@ export function WarehouseDetailPage() {
                       return <Chip tone={tone}>{label}</Chip>;
                     },
                   },
-                  {
-                    header: 'Thao tác',
-                    width: '90px',
-                    cell: (b) => (
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => navigate(`/batches/${b.id || b.code}`)}
-                        title="Xem chi tiết lô hàng"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          padding: '4px 8px',
-                          fontSize: 12,
-                          fontWeight: 600,
-                          height: 28,
-                        }}
-                      >
-                        <Eye size={13} />
-                        <span>Xem</span>
-                      </Button>
-                    ),
-                  },
                 ]}
+                onRowClick={(b) => navigate(`/batches/${b.id || b.code}`)}
                 rows={whData.inventory ?? []}
                 empty="Chưa có tồn kho lô hàng nào tại kho này."
               />

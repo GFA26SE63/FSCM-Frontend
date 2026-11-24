@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Eye, LogOut, RotateCcw } from 'lucide-react';
+import { LogOut, RotateCcw } from 'lucide-react';
 import { useNavigate } from '@/shared/router/compat';
 import { useDateParam, useEnumParam, useQueryParams } from '@/shared/router/listState';
 import { useCursorPagination } from '@/shared/pagination';
@@ -308,22 +308,13 @@ export function OrdersPage() {
               onClick: () => setWithdrawTarget(order),
             });
           }
+          if (dropdownItems.length === 0) return null;
           return (
             <div
               style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}
               onClick={(e) => e.stopPropagation()}
             >
-              <Button
-                size="sm"
-                variant="default"
-                onClick={() => navigate(`/orders/${order.id}`)}
-                title="Xem chi tiết đơn hàng"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', fontSize: 12, fontWeight: 600, height: 30 }}
-              >
-                <Eye size={14} />
-                <span>Xem</span>
-              </Button>
-              {dropdownItems.length > 0 && <ActionDropdown items={dropdownItems} />}
+              <ActionDropdown items={dropdownItems} />
             </div>
           );
         }}
