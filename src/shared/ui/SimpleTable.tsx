@@ -9,13 +9,15 @@ export interface SimpleColumn<T> {
 }
 
 /** Small non-paged table for detail screens, trace steps, dialogs. */
-export function SimpleTable<T>({ columns, rows, empty = 'Không có dữ liệu.', compact, footer }: {
+export function SimpleTable<T>({ columns, rows, empty = 'Không có dữ liệu.', compact, footer, onRowClick }: {
   columns: SimpleColumn<T>[];
   rows: T[];
   empty?: string;
   compact?: boolean;
   /** One cell per column, rendered as a bold totals row under the rows. */
   footer?: ReactNode[];
+  /** Makes every data row open its corresponding detail view. */
+  onRowClick?: (row: T) => void;
 }) {
   return (
     <div className="tbl-wrap">
@@ -36,7 +38,14 @@ export function SimpleTable<T>({ columns, rows, empty = 'Không có dữ liệu.
         </thead>
         <tbody>
           {rows.map((r, ri) => (
-            <tr key={ri}>
+            <tr
+              key={ri}
+              className={onRowClick ? 'clickable' : undefined}
+              onClick={onRowClick ? () => onRowClick(r) : undefined}
+              onKeyDown={onRowClick ? event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onRowClick(r); } } : undefined}
+              role={onRowClick ? 'button' : undefined}
+              tabIndex={onRowClick ? 0 : undefined}
+            >
               {columns.map((c, ci) => (
                 <td key={ci} style={{ textAlign: c.align ?? 'left' }}>
                   {c.cell(r, ri)}

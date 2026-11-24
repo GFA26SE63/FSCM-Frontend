@@ -127,7 +127,7 @@ function WarehouseTraceCenter({ warehouses: initialWarehouses }: {
 
       <QueryState query={inventory}>{data => <>
         <p className="muted">{data.totalCount} thùng carton khớp bộ lọc · Trang {data.page}</p>
-        <SimpleTable rows={data.items} columns={[
+        <SimpleTable rows={data.items} onRowClick={r => setSelectedCode(r.cartonCode)} columns={[
           { header: 'Thùng carton (CID)', width: '220px', cell: r => <div><b className="warehouse-pallet-code">{r.cartonCode}</b><div className="muted">{r.receivedAt ? `Nhận ${formatInstantDateTime(r.receivedAt)}` : 'Chưa có thời điểm nhận'}</div></div> },
           { header: 'Pallet gốc (PID)', width: '180px', cell: r => <b className="warehouse-pallet-code">{r.palletCode}</b> },
           { header: 'Lô SX nhà máy (BID)', width: '180px', cell: r => <span className="muted">{r.productionBatchCode}</span> },
@@ -137,7 +137,6 @@ function WarehouseTraceCenter({ warehouses: initialWarehouses }: {
           { header: 'Trạng thái QR', width: '130px', cell: r => <span className="chip">{qrStatusLabels[r.status] ?? r.status}</span> },
           { header: 'Phiếu nhập (PNK)', width: '220px', cell: r => r.receiptCode ? <Link to={`/warehouse-inbound/${encodeURIComponent(r.receiptCode)}`} style={{ fontWeight: 600 }}>{r.receiptCode}</Link> : <span className="muted">Dữ liệu cũ</span> },
           { header: 'Đồng bộ Nhà máy', width: '170px', cell: r => r.syncedAt ? <span style={{ color: '#166534' }}>Đã xác nhận</span> : r.hasAcknowledgement ? <span style={{ color: '#b45309' }}>Chờ gửi ACK</span> : <span className="muted">—</span> },
-          { header: 'Thao tác', width: '140px', cell: r => <button className="btn btn-sm" onClick={() => setSelectedCode(r.cartonCode)}>Xem chi tiết</button> },
         ]} empty="Chưa có thùng carton nào khớp với bộ lọc." />
 
         <div className="row-wrap" style={{ gap: 12, marginTop: 16 }}>
@@ -444,14 +443,13 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
             whName={whName}
             statusText={s => filterStatuses[s] ?? statuses[s] ?? s}
             onOpen={id => { setSelected(id); setError(''); }} />}</QueryState>
-          : <QueryState query={docs}>{() => <SimpleTable rows={visibleRows} columns={[
-            { header: 'Mã PNK', width: '320px', cell: w => <button className="btn btn-sm warehouse-document-code" onClick={() => { setSelected(w.document.id); setError(''); }}><span>{w.document.code}</span></button> },
+          : <QueryState query={docs}>{() => <SimpleTable rows={visibleRows} onRowClick={w => { setSelected(w.document.id); setError(''); }} columns={[
+            { header: 'Phiếu nhập / ngày lập', width: '320px', cell: w => <div><b className="warehouse-pallet-code">{w.document.code}</b><div className="muted">{formatInstantDateTime(w.document.createdAt)}</div></div> },
             { header: 'Loại chứng từ', width: '250px', cell: w => documentTypeLabel(w.document.kind, w.document.reason) },
             { header: 'Kho nhận', width: '220px', cell: w => `${whName(w.document.warehouseId)}${w.document.destinationWarehouseId && w.document.destinationWarehouseId !== w.document.warehouseId ? ' → ' + whName(w.document.destinationWarehouseId) : ''}` },
             // Receipts are not tied to sales orders, so only the carton count is shown.
             { header: 'Số thùng', width: '130px', cell: w => `${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
             { header: 'Trạng thái', width: '150px', cell: w => <span className={`chip ${w.document.status === 'Posted' ? 'chip-ok' : ''}`}>{filterStatuses[w.document.status] ?? statuses[w.document.status] ?? w.document.status}</span> },
-            { header: 'Thao tác', width: '150px', cell: w => <button className="btn btn-sm" onClick={() => { setSelected(w.document.id); setError(''); }}>Xem & in phiếu</button> },
           ]} empty="Không có chứng từ phù hợp." />}</QueryState>}
         </Card>
       ) : (isOutbound && activeTab === 'history') ? (
@@ -462,13 +460,12 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
             <label>Lọc theo kho<select value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho</option>{warehouses.data?.filter(w => admin || user?.scope?.warehouseIds.includes(w.id)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
           </div>
           <p className="muted">{visibleRows.length} chứng từ · Danh sách các phiếu xuất kho đã ghi sổ trừ tồn và bàn giao vận chuyển. Chọn mã PXK để xem chi tiết hoặc in phiếu.</p>
-          <QueryState query={docs}>{() => <SimpleTable rows={visibleRows} columns={[
+          <QueryState query={docs}>{() => <SimpleTable rows={visibleRows} onRowClick={w => { setSelected(w.document.id); setError(''); }} columns={[
             { header: 'Phiếu xuất / ngày lập', width: '320px', cell: w => <div><b className="warehouse-pallet-code">{w.document.code}</b><div className="muted">{formatInstantDateTime(w.document.createdAt)}</div></div> },
             { header: 'Loại chứng từ', width: '250px', cell: w => documentTypeLabel(w.document.kind, w.document.reason) },
             { header: 'Kho xuất', width: '220px', cell: w => `${whName(w.document.warehouseId)}${w.document.destinationWarehouseId && w.document.destinationWarehouseId !== w.document.warehouseId ? ' → ' + whName(w.document.destinationWarehouseId) : ''}` },
             { header: 'Đơn / thùng', width: '130px', cell: w => `${new Set(w.lines.map(l => l.orderCode).filter(Boolean)).size} đơn · ${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
             { header: 'Trạng thái', width: '150px', cell: w => <span className={`chip ${w.document.status === 'Posted' ? 'chip-ok' : ''}`}>{filterStatuses[w.document.status] ?? statuses[w.document.status] ?? w.document.status}</span> },
-            { header: 'Thao tác', width: '150px', cell: w => <button className="btn btn-sm" onClick={() => { setSelected(w.document.id); setError(''); }}>Xem & in phiếu</button> },
           ]} empty="Không có phiếu xuất kho phù hợp." />}</QueryState>
         </Card>
       ) : (isOutbound && activeTab === 'todo') ? (
@@ -478,7 +475,7 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
             <label>Lọc theo kho<select value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho</option>{warehouses.data?.filter(w => admin || user?.scope?.warehouseIds.includes(w.id)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
           </div>
           <p className="muted">{pendingOutboundRows.length} yêu cầu cần xuất · Mỗi dòng đại diện cho 1 lệnh xuất hàng. Bắt đầu hoặc tiếp tục soạn hàng theo thứ tự FEFO.</p>
-          <QueryState query={docs}>{() => <SimpleTable rows={pendingOutboundRows} columns={[
+          <QueryState query={docs}>{() => <SimpleTable rows={pendingOutboundRows} onRowClick={w => { setSelected(w.document.id); setError(''); }} columns={[
             { header: 'Chứng từ / ngày lập', width: '300px', cell: w => <div><b className="warehouse-pallet-code">{w.document.code}</b><div className="muted">{formatInstantDateTime(w.document.createdAt)}</div></div> },
             { header: 'Loại chứng từ', width: '220px', cell: w => documentTypeLabel(w.document.kind, w.document.reason) },
             { header: 'Kho', width: '200px', cell: w => `${whName(w.document.warehouseId)}${w.document.destinationWarehouseId && w.document.destinationWarehouseId !== w.document.warehouseId ? ' → ' + whName(w.document.destinationWarehouseId) : ''}` },
@@ -489,9 +486,6 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
               if (w.document.kind === 'Issue') return <span className="chip chip-warning">Đã soạn xong - Chờ xuất</span>;
               return <span className="chip">{filterStatuses[w.document.status] ?? statuses[w.document.status] ?? w.document.status}</span>;
             } },
-            { header: 'Thao tác', width: '150px', cell: w => <button className="btn btn-sm btn-primary" onClick={() => { setSelected(w.document.id); setError(''); }}>
-              {w.document.kind === 'Request' ? 'Bắt đầu soạn' : w.document.kind === 'Picking' ? 'Tiếp tục soạn' : w.document.kind === 'Issue' ? 'Bàn giao & xuất' : 'Xem chi tiết'}
-            </button> },
           ]} empty="Không có chứng từ cần xuất kho." />}</QueryState>
         </Card>
       ) : workflow === 'transfer' ? (
@@ -502,13 +496,12 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
             <label>Lọc theo kho<select value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho</option>{warehouses.data?.filter(w => admin || user?.scope?.warehouseIds.includes(w.id)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
           </div>
           <p className="muted">{visibleRows.length} chứng từ · Chọn mã chứng từ để xem và xử lý.</p>
-          <QueryState query={docs}>{() => <SimpleTable rows={visibleRows} columns={[
+          <QueryState query={docs}>{() => <SimpleTable rows={visibleRows} onRowClick={w => { setSelected(w.document.id); setError(''); }} columns={[
             { header: 'Chứng từ / ngày lập', width: '320px', cell: w => <div><b className="warehouse-pallet-code">{w.document.code}</b><div className="muted">{formatInstantDateTime(w.document.createdAt)}</div></div> },
             { header: 'Loại chứng từ', width: '250px', cell: w => documentTypeLabel(w.document.kind, w.document.reason) },
             { header: 'Kho', width: '220px', cell: w => `${whName(w.document.warehouseId)}${w.document.destinationWarehouseId && w.document.destinationWarehouseId !== w.document.warehouseId ? ' → ' + whName(w.document.destinationWarehouseId) : ''}` },
             { header: 'Đơn / thùng', width: '130px', cell: w => `${new Set(w.lines.map(l => l.orderCode).filter(Boolean)).size} đơn · ${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
             { header: 'Trạng thái', width: '150px', cell: w => filterStatuses[w.document.status] ?? statuses[w.document.status] ?? w.document.status },
-            { header: 'Thao tác', width: '150px', cell: w => <button className="btn btn-sm" onClick={() => { setSelected(w.document.id); setError(''); }}>Xem chi tiết</button> },
           ]} empty="Không có chứng từ phù hợp." />}</QueryState>
         </Card>
       ) : null

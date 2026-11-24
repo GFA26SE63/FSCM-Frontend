@@ -17,7 +17,7 @@ export function FactoryReceiptHistory<T extends HistoryDoc>({ rows, whName, stat
   const open = (row: HistoryRow<T>) => (row.docs.length > 1 ? setShown(row) : onOpen(row.docs[0].document.id));
   const chip = (status: string) => <span className={`chip ${status === 'Posted' ? 'tone-success' : 'tone-warn'}`}>{statusText(status)}</span>;
   return <>
-    <SimpleTable rows={rows} columns={[
+    <SimpleTable rows={rows} onRowClick={open} columns={[
       { header: 'Phiếu nhập / ngày nhận', width: '300px', cell: r => <div>
         <b className="warehouse-pallet-code">{r.docs.length > 1 ? `${r.docs.length} PNK · ${r.docs[0].document.code}…` : r.docs[0].document.code}</b>
         <div className="muted">{formatInstantDateTime(r.docs[0].document.createdAt)}</div>
@@ -26,7 +26,6 @@ export function FactoryReceiptHistory<T extends HistoryDoc>({ rows, whName, stat
       { header: 'Kho nhận', width: '200px', cell: r => whName(r.docs[0].document.warehouseId) },
       { header: 'Số thùng', width: '120px', cell: r => `${rowCartons(r)} carton` },
       { header: 'Trạng thái', width: '150px', cell: r => chip(rowStatus(r)) },
-      { header: 'Thao tác', width: '150px', cell: r => <button className="btn btn-sm" onClick={() => open(r)}>{r.docs.length > 1 ? 'Xem chi tiết' : 'Xem & in phiếu'}</button> },
     ]} empty="Không có chứng từ phù hợp." />
     <Modal
       open={!!shown}
