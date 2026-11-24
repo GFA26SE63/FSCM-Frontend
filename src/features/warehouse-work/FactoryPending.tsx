@@ -30,12 +30,15 @@ export function FactoryPending({ query, warehouses, admin, busy, onOpen, refresh
   const [confirming, setConfirming] = useState<FactoryInboundDispatch | null>(null);
   const [warehouseFilter, setWarehouseFilter] = useStringParam('incomingWarehouse');
   const [search, setSearch] = useStringParam('incomingQuery');
+  const [sort, setSort] = useStringParam('incomingSort');
   const effectiveWarehouse = warehouses.length === 1 ? warehouses[0].id : warehouses.some(w => w.id === warehouseFilter) ? warehouseFilter : '';
   const term = search.trim().toLocaleLowerCase('vi');
   const visible = (query.data ?? []).filter(d => warehouses.some(w => w.id === d.destinationWarehouseId)
     && (!effectiveWarehouse || d.destinationWarehouseId === effectiveWarehouse)
     && [d.dispatchCode, d.vehicleNumber, d.driverName, ...d.pallets.flatMap(p => [p.palletCode, p.batchCode, p.sku, p.productName])]
       .join(' ').toLocaleLowerCase('vi').includes(term));
+  const sorted = [...visible].sort((a, b) => sort === 'codeAsc'
+    ? a.dispatchCode.localeCompare(b.dispatchCode) : (b.dispatchedAt ?? '').localeCompare(a.dispatchedAt ?? ''));
   const warehouseName = (id: string) => warehouses.find(w => w.id === id)?.name ?? id;
   return <Card title="Hàng chờ nhận từ nhà máy">
     <p>Mỗi dòng là một phiếu xuất xưởng của nhà máy (có thể gồm nhiều pallet). Mở phiếu để quét lần lượt từng pallet và kiểm đếm thùng; mở phiếu chưa cộng tồn kho.</p>
@@ -43,9 +46,10 @@ export function FactoryPending({ query, warehouses, admin, busy, onOpen, refresh
       <label>Tìm hàng chờ nhận<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã phiếu xuất, pallet, lô hàng, SKU hoặc biển số xe" /></label>
       {warehouses.length > 1 ? <label>Lọc kho nhận<select value={effectiveWarehouse} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho được phân công</option>{warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
         : <p>Kho nhận: <b>{warehouses[0]?.name ?? 'Chưa được phân công kho'}</b></p>}
+      <label>Sắp xếp<select value={sort} onChange={e => setSort(e.target.value)}><option value="">Mới nhất</option><option value="codeAsc">Mã phiếu A–Z</option></select></label>
       <div className="warehouse-filter-action"><button className="btn" type="button" disabled={busy || query.isLoading} onClick={refresh}>Làm mới hàng chờ nhận</button></div>
     </div>
-    <QueryState query={query}>{() => <SimpleTable rows={visible} columns={[
+    <QueryState query={query}>{() => <SimpleTable rows={sorted} columns={[
       { header: 'Phiếu xuất / ngày xuất', width: '260px', cell: d => <><b className="warehouse-pallet-code">{d.dispatchCode}</b><div className="muted">{d.dispatchedAt ? formatInstantDateTime(d.dispatchedAt) : '—'}</div></> },
       { header: 'Xe / tài xế', width: '180px', cell: d => [d.vehicleNumber, d.driverName].filter(Boolean).join(' · ') || '—' },
       { header: 'Pallet cần nhận', width: '300px', cell: d => <>

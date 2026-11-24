@@ -197,6 +197,7 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
   const [warehouseFilter, setWarehouseFilter] = useStringParam('warehouse');
   const [operationSource, setOperationSource] = useStringParam('source');
   const [tab, setTab] = useStringParam('tab');
+  const [documentSort, setDocumentSort] = useStringParam('sort');
   const isInbound = workflow === 'inbound' || workflow === 'receipts';
   const isOutbound = workflow === 'outbound' || workflow === 'issues';
   const isHistoryWorkflow = workflow === 'receipts' || workflow === 'issues';
@@ -259,7 +260,10 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
     return (!search.trim() || text.includes(search.trim().toLocaleLowerCase('vi')))
       && (!statusFilter || w.document.status === statusFilter)
       && (!warehouseFilter || [w.document.warehouseId, w.document.destinationWarehouseId].includes(warehouseFilter));
-  });
+  }).sort((a, b) => documentSort === 'codeAsc'
+    ? a.document.code.localeCompare(b.document.code)
+    : documentSort === 'codeDesc' ? b.document.code.localeCompare(a.document.code)
+    : b.document.createdAt.localeCompare(a.document.createdAt));
   const pendingOutboundRows = visibleRows.filter(w => {
     if (w.document.kind === 'Issue' && w.document.status === 'Posted') return false;
     if (w.document.kind === 'Request' && docs.data?.some(child => child.document.sourceDocumentId === w.document.id)) {
@@ -348,6 +352,14 @@ export function WarehouseOperationsPage({ workflow }: { workflow: WarehouseWorkf
     </div>}
     {workflow === 'trace' && <WarehouseTraceCenter warehouses={warehouses.data ?? []} docs={docs} setSelected={setSelected} />}
     {error && <p role="alert" className="danger">{error}</p>}{notice && <p role="status">{notice}</p>}
+    {!selected && !creating && isInbound && activeTab !== 'factory' && <Card title="Tìm kiếm và bộ lọc">
+      <div className="warehouse-work-filters">
+        <label>Tìm chứng từ<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã phiếu, SKU, lô hàng hoặc đơn hàng" /></label>
+        <label>Trạng thái<select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="">Tất cả trạng thái</option>{Object.entries(filterStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <label>Kho<select value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho</option>{warehouses.data?.filter(w => admin || user?.scope?.warehouseIds.includes(w.id)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
+        <label>Sắp xếp<select value={documentSort} onChange={e => setDocumentSort(e.target.value)}><option value="">Mới nhất</option><option value="codeAsc">Mã phiếu A–Z</option><option value="codeDesc">Mã phiếu Z–A</option></select></label>
+      </div>
+    </Card>}
     {!selected && !creating && isInbound && (activeTab === 'todo' || activeTab === 'factory') && <div>
       {operationReason === 'Factory' && <div className="warehouse-guide-steps">
         <div className="warehouse-guide-step">
