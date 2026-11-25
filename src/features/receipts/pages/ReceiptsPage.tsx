@@ -261,15 +261,13 @@ export function ReceiptsPage() {
             });
           }
 
+          if (secondaryActions.length === 0) return null;
           return (
             <div
               style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <Button size="sm" onClick={() => navigate(`/receipts/${r.receiptCode || r.id}`)}>
-                Xem
-              </Button>
-              {secondaryActions.length > 0 && <ActionDropdown items={secondaryActions} />}
+              <ActionDropdown items={secondaryActions} />
             </div>
           );
         }}

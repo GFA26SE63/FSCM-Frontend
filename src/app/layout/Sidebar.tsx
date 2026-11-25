@@ -90,10 +90,12 @@ export function Sidebar() {
               </button>
               {isOpen && (
                 <div className="menu-group-items">
-                  {g.items.flatMap((r) => (r.menuLinks ?? [{ key: r.key, label: r.label, to: `/${r.key}` }]).map(link => (
+                  {g.items.flatMap((r) => (r.menuLinks ?? [{ key: r.key, label: r.label, to: `/${r.key}`, roles: undefined }])
+                    .filter((link) => !link.roles || user.role === 'Admin' || link.roles.includes(user.role))
+                    .map(link => (
                     <NavLink key={link.key} to={link.to}
                       isActive={(match, location) => !!match && (!r.menuLinks ||
-                        (new URLSearchParams(location.search).get('kind') ?? 'redemptions') === new URLSearchParams(link.to.split('?')[1]).get('kind'))}
+                        (new URLSearchParams(location.search).get('kind') ?? (user.role === 'WarehouseKeeper' ? 'disposals' : 'redemptions')) === new URLSearchParams(link.to.split('?')[1]).get('kind'))}
                       className={({ isActive }) => `menu menu-sub${isActive ? ' active' : ''}`}>
                       <span className="menu-dot" />
                       <span style={{ flex: 1 }}>{link.label}</span>

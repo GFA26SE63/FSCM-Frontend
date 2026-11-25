@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Eye, MapPin, Pause, Pencil, Play } from 'lucide-react';
+import { MapPin, Pause, Pencil, Play } from 'lucide-react';
 import { useNavigate, useParams } from '@/shared/router/compat';
 import { useReturnToList } from '@/shared/router/listState';
 import { useEnumParam } from '@/shared/router/listState';
@@ -400,25 +400,6 @@ export function RegionWarehousesPage() {
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <Button
-                size="sm"
-                variant="default"
-                onClick={() => navigate(`/whs/${w.code}`)}
-                title="Xem chi tiết kho"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  padding: '4px 8px',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  height: 30,
-                }}
-              >
-                <Eye size={14} />
-                <span>Xem</span>
-              </Button>
-
               {dropdownItems.length > 0 && (
                 <ActionDropdown items={dropdownItems} />
               )}

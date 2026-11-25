@@ -32,7 +32,8 @@ test('Admin and Operator see all report tabs; Keeper and Manager see their own r
   assert.deepEqual(model.dashboardTabs('WarehouseKeeper').map(x=>x.key), ['overview','inventory']);
   assert.deepEqual(model.dashboardTabs('SalesManager').map(x=>x.key), ['overview','sales','customers']);
   const cards=['revenue','allocationIssues','receiptPending','expired'].map(key=>({key}));
-  assert.deepEqual(model.visibleCards(cards,'WarehouseKeeper','overview').map(c=>c.key),['receiptPending','expired']);
+  assert.deepEqual(model.visibleCards(cards,'WarehouseKeeper','overview').map(c=>c.key),['receiptPending']);
+  assert.deepEqual(model.visibleCards(cards,'WarehouseKeeper','inventory').map(c=>c.key),['expired']);
   // Operator's overview now shows money tiles; queue tiles live only on 'Việc cần xử lý'.
   assert.deepEqual(model.visibleCards(cards,'Operator','overview').map(c=>c.key),['revenue']);
   assert.deepEqual(model.visibleCards(cards,'Operator','operations').map(c=>c.key),['allocationIssues']);
@@ -45,11 +46,11 @@ test('finance merges into overview and no block appears on two tabs', () => {
     const roleTabs=model.dashboardTabs(role).map(t=>t.key);
     const owners={};
     for (const tab of roleTabs) for (const [block,on] of Object.entries(model.dashboardSections(role,tab))) if (on) (owners[block] ??= []).push(tab);
-    for (const [block,where] of Object.entries(owners)) if (role!=='WarehouseKeeper' || block!=='stock') assert.equal(where.length,1,role+' '+block+' on '+where);
-    const all=['revenue','completed','collected','outstanding','overdue','prepaid','allocationIssues','quotesPending','cycleOverdue','newRetailers','fillRate','receiptPending'].map(key=>({key}));
+    for (const [block,where] of Object.entries(owners)) assert.equal(where.length,1,role+' '+block+' on '+where);
+    const all=['revenue','completed','collected','outstanding','overdue','prepaid','allocationIssues','quotesPending','cycleOverdue','newRetailers','fillRate','receiptPending','expired'].map(key=>({key}));
     const seen={};
     for (const tab of roleTabs) for (const c of model.visibleCards(all,role,tab)) (seen[c.key] ??= []).push(tab);
-    if (role!=='WarehouseKeeper' && role!=='SalesManager') for (const [key,where] of Object.entries(seen)) assert.equal(where.length,1,role+' '+key+' on '+where);
+    for (const [key,where] of Object.entries(seen)) assert.equal(where.length,1,role+' '+key+' on '+where);
   }
   assert.ok(tabs.includes('sales'));
   assert.equal(model.dashboardSections('Admin','overview').work,false);
@@ -138,7 +139,7 @@ test('dashboard picking link shows and expands the requested sheet, with a way b
     '@/shared/api/errors':{errorMessage:String},
     '../pickingGraphql':{PAGE_SIZES:[10,20,50],PICKING_STATUSES:['Pending','InProgress','Completed','Exception']},
     '../hooks':{usePickingListPage:page,useWarehouseOptions:()=>({data:[]})},
-    '@/shared/ui':{Card:Wrap,Chip:Wrap,PageHeader:Wrap,Stat:Wrap,Button:Wrap,Callout:Wrap,Select:()=>null,SimpleTable:({rows,columns})=>React.createElement('div',null,rows.map((r,i)=>React.createElement('div',{key:i},columns.map((c,j)=>React.createElement('span',{key:j},c.cell(r))))))},
+    '@/shared/ui':{Card:Wrap,Chip:Wrap,PageHeader:Wrap,Stat:Wrap,Button:Wrap,Callout:Wrap,Pagination:()=>null,Select:()=>null,SimpleTable:({rows,columns})=>React.createElement('div',null,rows.map((r,i)=>React.createElement('div',{key:i},columns.map((c,j)=>React.createElement('span',{key:j},c.cell(r))))))},
     '@/shared/lib':{formatCases:String,formatNumber:String,formatPercent:String,...source('shared/lib/status.ts')},
     '@/shared/lib/dates':{formatDate:String,formatInstantDateTime:String},
   });

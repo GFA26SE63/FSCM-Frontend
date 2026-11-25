@@ -51,6 +51,7 @@ export interface WarehouseReportFilters {
   toDate: string;
   regionId: string;
   top: number;
+  allSkus?: boolean;
   /** Warehouses picked by the user; the report loads only once at least one is chosen. */
   warehouseIds?: string[];
 }
@@ -126,6 +127,7 @@ export function toReportParams(f: WarehouseReportFilters): Record<string, string
     fromDate: f.fromDate,
     toDate: f.toDate,
     top: clampTop(f.top),
+    ...(f.allSkus ? { allSkus: 'true' } : {}),
     ...(f.regionId ? { regionId: f.regionId } : {}),
     ...(f.warehouseIds?.length ? { warehouseIds: f.warehouseIds.join(',') } : {}),
   };

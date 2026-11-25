@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRightLeft, Eye, Pause, Pencil, Play, Trash2 } from 'lucide-react';
+import { ArrowRightLeft, Pause, Pencil, Play, Trash2 } from 'lucide-react';
 import { useNavigate } from '@/shared/router/compat';
 import { useEnumParam } from '@/shared/router/listState';
 import {
@@ -526,25 +526,6 @@ export function RegionsPage() {
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <Button
-                  size="sm"
-                  variant="default"
-                  onClick={() => navigate(`/regions/${group.code}`)}
-                  title="Xem chi tiết nhóm"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    padding: '4px 8px',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    height: 30,
-                  }}
-                >
-                  <Eye size={14} />
-                  <span>Xem</span>
-                </Button>
-
                 {dropdownItems.length > 0 && (
                   <ActionDropdown items={dropdownItems} />
                 )}
@@ -637,25 +618,6 @@ export function RegionsPage() {
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <Button
-                  size="sm"
-                  variant="default"
-                  onClick={() => setAreaDlg({ open: true, area, readOnly: true })}
-                  title="Xem chi tiết vùng"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    padding: '4px 8px',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    height: 30,
-                  }}
-                >
-                  <Eye size={14} />
-                  <span>Xem</span>
-                </Button>
-
                 {dropdownItems.length > 0 && (
                   <ActionDropdown items={dropdownItems} />
                 )}

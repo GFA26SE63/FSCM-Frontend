@@ -1,10 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { Eye } from 'lucide-react';
 import { useNavigate } from '@/shared/router/compat';
 import { useEnumParam } from '@/shared/router/listState';
 import { useRestPagination, paginationQueryKeys } from '@/shared/pagination';
 import {
-  Button,
   DataTable,
   PageHeader,
   Select,
@@ -187,20 +185,6 @@ export function AllocationRunPage() {
         }
         server={pagingProps}
         onRowClick={(order) => navigate(`/orders/${order.id}`)}
-        rowActionsWidth="110px"
-        rowActionHeader="Thao tác"
-        rowActions={(order) => (
-          <Button
-            size="sm"
-            variant="default"
-            onClick={() => navigate(`/orders/${order.id}`)}
-            title="Xem chi tiết đơn hàng"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', fontSize: 12, fontWeight: 600, height: 30 }}
-          >
-            <Eye size={14} />
-            <span>Chi tiết</span>
-          </Button>
-        )}
       />
     </>
   );

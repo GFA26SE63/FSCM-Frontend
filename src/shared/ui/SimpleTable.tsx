@@ -1,6 +1,4 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Eye } from 'lucide-react';
-import { Button } from './Button';
 import { listColumns as selectListColumns } from './tableColumns';
 import { Pagination } from '../pagination/components/Pagination';
 
@@ -30,7 +28,6 @@ export function SimpleTable<T>({ columns, summaryColumns, rows, empty = 'Không 
 }) {
   const listColumns = selectListColumns(columns, summaryColumns, c => c.header).map(column => ({ column, index: columns.indexOf(column) }));
   const hasDetails = listColumns.length < columns.length;
-  const showView = !!onRowClick && !listColumns.some(({ column }) => /thao tác/i.test(column.header));
   const [size, setSize] = useState(10);
   const [page, setPage] = useState(1);
   useEffect(() => { setPage(1); }, [resetPageKey]);
@@ -46,7 +43,6 @@ export function SimpleTable<T>({ columns, summaryColumns, rows, empty = 'Không 
           {listColumns.map(({ column: c, index }) => (
             <col key={index} style={/thao tác/i.test(c.header) ? { width: c.width || 180 } : /^chọn$/i.test(c.header) ? { width: 60 } : undefined} />
           ))}
-          {showView && <col style={{ width: 100 }} />}
         </colgroup>
         <thead>
           <tr>
@@ -55,7 +51,6 @@ export function SimpleTable<T>({ columns, summaryColumns, rows, empty = 'Không 
                 {c.header}
               </th>
             ))}
-            {showView && <th style={{ textAlign: 'right' }}>Thao tác</th>}
           </tr>
         </thead>
         <tbody>
@@ -73,7 +68,6 @@ export function SimpleTable<T>({ columns, summaryColumns, rows, empty = 'Không 
                   {c.cell(r, ri + offset)}
                 </td>
               ))}
-              {showView && <td style={{ textAlign: 'right' }}><Button size="sm" onClick={e => { e.stopPropagation(); onRowClick?.(r); }}><Eye size={14} /> Xem</Button></td>}
             </tr>
           ))}
         </tbody>
@@ -85,7 +79,6 @@ export function SimpleTable<T>({ columns, summaryColumns, rows, empty = 'Không 
                   {footer[i]}
                 </td>
               ))}
-              {showView && <td />}
             </tr>
           </tfoot>
         )}

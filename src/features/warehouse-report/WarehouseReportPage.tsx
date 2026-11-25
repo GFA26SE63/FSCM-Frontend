@@ -85,14 +85,12 @@ function WarehouseCard({ warehouse, sort, onSort, onSelect }: {
         // Fixed layout at 100% width: every SKU fits on screen without horizontal scrolling.
         <table className="tbl compact wr-grid">
           <colgroup>
-            <col className="wr-col-action" />
             <col className="wr-col-rank" />
             <col />
             {METRICS.map((m) => <col key={m.key} className="wr-col-metric" />)}
           </colgroup>
           <thead>
             <tr>
-              <th rowSpan={2} aria-label="Thao tác" />
               <th rowSpan={2} className="wr-center">#</th>
               <th rowSpan={2}>SKU · Sản phẩm</th>
               {(Object.keys(GROUP_LABELS) as MetricGroup[]).map((group) => (
@@ -122,8 +120,7 @@ function WarehouseCard({ warehouse, sort, onSort, onSelect }: {
           </thead>
           <tbody>
             {products.slice((current - 1) * size, current * size).map((p) => (
-              <tr key={p.productId}>
-                <td><Button size="sm" onClick={() => onSelect(p)}>Chi tiết</Button></td>
+              <tr key={p.productId} className="clickable" onClick={() => onSelect(p)}>
                 <td className="wr-center">{p.rank}</td>
                 <td className="wr-product" title={`${p.sku} · ${p.name}`}>
                   <span className="bold">{p.sku}</span>
@@ -166,7 +163,14 @@ export function WarehouseReportPage() {
     queryFn: () => getAll<WarehouseOption>('/warehouses'),
     enabled: !!user,
   });
-  const options = selectableWarehouses(warehouseList.data ?? [], filters.regionId);
+  const scopedWarehouses = (warehouseList.data ?? []).filter((w) => {
+    if (user?.role !== 'WarehouseKeeper') return true;
+    const wIds = user.scope?.warehouseIds ?? [];
+    const rIds = user.scope?.regionIds ?? [];
+    if (wIds.length === 0 && rIds.length === 0) return false;
+    return wIds.includes(w.id) || rIds.includes(w.regionId);
+  });
+  const options = selectableWarehouses(scopedWarehouses, filters.regionId);
   const picked = filters.warehouseIds ?? [];
   const togglePicked = (id: string) => setFilters((f) => {
     const ids = f.warehouseIds ?? [];
@@ -225,7 +229,7 @@ export function WarehouseReportPage() {
               setFilters((f) => ({
                 ...f,
                 regionId,
-                warehouseIds: keepSelectable(f.warehouseIds ?? [], selectableWarehouses(warehouseList.data ?? [], regionId)),
+                warehouseIds: keepSelectable(f.warehouseIds ?? [], selectableWarehouses(scopedWarehouses, regionId)),
               }));
             }}
           >
@@ -234,9 +238,19 @@ export function WarehouseReportPage() {
           </select>
         </label>
         <label className="lbl">
-          Sản phẩm bán chạy
-          <select className="inp" value={filters.top} onChange={(e) => setFilters((f) => ({ ...f, top: Number(e.target.value) }))}>
-            {TOP_OPTIONS.map((n) => <option key={n} value={n}>Top {n}</option>)}
+          Sản phẩm hiển thị
+          <select
+            className="inp"
+            value={filters.allSkus ? 'all' : filters.top}
+            onChange={(e) => {
+              const v = e.target.value;
+              setFilters((f) => v === 'all'
+                ? { ...f, allSkus: true }
+                : { ...f, allSkus: false, top: Number(v) });
+            }}
+          >
+            {TOP_OPTIONS.map((n) => <option key={n} value={n}>Top {n} bán chạy</option>)}
+            <option value="all">Tất cả SKU có tồn / biến động</option>
           </select>
         </label>
         <Button onClick={() => void report.refetch()} loading={report.isFetching} disabled={!!invalid || picked.length === 0}>Làm mới</Button>
@@ -294,7 +308,7 @@ export function WarehouseReportPage() {
                   <Stat label="Số kho" value={formatNumber(summary.warehouses)} />
                   <Stat label="Tài xế đang hoạt động" value={formatNumber(summary.drivers)} />
                   <Stat label="Xe đang hoạt động" value={formatNumber(summary.vehicles)} />
-                  <Stat label="SKU bán chạy" value={`${formatNumber(summary.products)} / ${formatNumber(data.top)}`} />
+                  <Stat label={filters.allSkus ? 'Số SKU hiển thị' : 'SKU bán chạy'} value={filters.allSkus ? formatNumber(summary.products) : `${formatNumber(summary.products)} / ${formatNumber(data.top)}`} />
                 </div>
                 <Legend />
                 {data.warehouses.length === 0 ? (

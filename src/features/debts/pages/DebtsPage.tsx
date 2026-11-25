@@ -156,22 +156,26 @@ export function DebtsPage() {
         columns={columns}
         server={pagingProps}
         onRowClick={(r) => navigate(`/orders/${r.orderId}`)}
-        rowActionsWidth="200px"
-        rowActions={(r) => (
-          <>
-            <Button size="sm" onClick={() => navigate(`/orders/${r.orderId}`)}>Xem đơn</Button>
-            {mayCollect && (r.status === 'Unpaid' || r.status === 'Overdue') && (
-              <Button size="sm" variant="primary" onClick={() => setTarget(r)}>
-                Ghi nhận đã thu
-              </Button>
-            )}
-            {user?.role === 'Operator' && r.refundDueAmount > 0 && (
-              <Button size="sm" variant="primary" onClick={() => setRefundTarget(r)}>
-                Tạo phiếu hoàn
-              </Button>
-            )}
-          </>
-        )}
+        rowActionsWidth="150px"
+        rowActions={(r) => {
+          const showCollect = mayCollect && (r.status === 'Unpaid' || r.status === 'Overdue');
+          const showRefund = user?.role === 'Operator' && r.refundDueAmount > 0;
+          if (!showCollect && !showRefund) return null;
+          return (
+            <>
+              {showCollect && (
+                <Button size="sm" variant="primary" onClick={() => setTarget(r)}>
+                  Ghi nhận đã thu
+                </Button>
+              )}
+              {showRefund && (
+                <Button size="sm" variant="primary" onClick={() => setRefundTarget(r)}>
+                  Tạo phiếu hoàn
+                </Button>
+              )}
+            </>
+          );
+        }}
       />
 
       <FormDialog

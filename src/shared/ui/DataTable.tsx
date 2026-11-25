@@ -1,5 +1,4 @@
 import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Eye } from 'lucide-react';
 import { paramName, parsePage, useQueryParams, type ParamUpdates } from '../router/listState';
 import { UrlStateScope } from './urlStateScope';
 import { Button } from './Button';
@@ -262,7 +261,7 @@ export function DataTable<T>({
   const { search, fv, page } = state;
   const listColumns = selectListColumns(columns, summaryColumns, c => c.key);
   const hasSecondaryColumns = listColumns.length < columns.length;
-  const viewActions = rowActions ?? (onRowClick ? (row: T) => <Button size="sm" onClick={() => onRowClick(row)}><Eye size={14} /> Xem</Button> : undefined);
+  const viewActions = rowActions;
 
   // Active pagination mode
   const mode: 'client' | 'rest' | 'cursor' = cursor ? 'cursor' : server ? 'rest' : 'client';
@@ -425,7 +424,7 @@ export function DataTable<T>({
             {listColumns.map((c) => (
               <col key={c.key} style={c.summaryWidth ? { width: c.summaryWidth } : undefined} />
             ))}
-            {viewActions && <col style={{ width: rowActions ? rowActionsWidth : '100px' }} />}
+            {viewActions && <col style={{ width: rowActionsWidth }} />}
           </colgroup>
           <thead>
             <tr>

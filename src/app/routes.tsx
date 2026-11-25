@@ -20,7 +20,7 @@ export interface AppRoute {
   /** Hidden from sidebar menu (e.g. preserved routes not in prototype prod sidebar). */
   hidden?: boolean;
   /** Separate sidebar entries sharing one page, selected by query string. */
-  menuLinks?: { key: string; label: string; to: string }[];
+  menuLinks?: { key: string; label: string; to: string; roles?: PortalRole[] }[];
   list: LazyExoticComponent<ComponentType>;
   /** Extra sub-routes relative to /<key> (detail, create, scan …). */
   sub?: { path: string; element: LazyExoticComponent<ComponentType> }[];
@@ -77,13 +77,16 @@ export const APP_ROUTES: AppRoute[] = [
   { key: 'warehouse-work', label: 'Chứng từ kho', roles: [A, WK], hidden: true, list: page(() => import('@/features/warehouse-work'), 'WarehouseWorkPage') },
   { key: 'dashboard', label: 'Tổng quan & báo cáo', roles: [A, OP, WK, SM], list: page(dashboard, 'DashboardPage') },
   { key: 'notifications', label: 'Thông báo', roles: [A, OP, WK, SM], availableToAllPortalUsers: true, list: page(notifications, 'NotificationsPage') },
-  { key: 'reports', label: 'Báo cáo đổi quà & chương trình', roles: [A, OP], list: page(reports, 'OperationsReportsPage'), menuLinks: [
-    { key: 'report-redemptions', label: 'Báo cáo đổi quà', to: '/reports?kind=redemptions' },
-    { key: 'report-loyalty', label: 'Báo cáo tích điểm', to: '/reports?kind=loyalty' },
-    { key: 'report-promotions', label: 'Báo cáo khuyến mãi', to: '/reports?kind=promotions' },
+  { key: 'reports', label: 'Báo cáo nghiệp vụ', roles: [A, OP, SM, WK], list: page(reports, 'OperationsReportsPage'), menuLinks: [
+    { key: 'report-redemptions', label: 'Báo cáo đổi quà', to: '/reports?kind=redemptions', roles: [A, OP, SM] },
+    { key: 'report-loyalty', label: 'Báo cáo tích điểm', to: '/reports?kind=loyalty', roles: [A, OP, SM] },
+    { key: 'report-promotions', label: 'Báo cáo khuyến mãi', to: '/reports?kind=promotions', roles: [A, OP, SM] },
+    { key: 'report-claims', label: 'Báo cáo khiếu nại & hoàn tiền', to: '/reports?kind=claims', roles: [A, OP, SM] },
+    { key: 'report-receivables', label: 'Báo cáo công nợ & tuổi nợ', to: '/reports?kind=receivables', roles: [A, OP, SM] },
+    { key: 'report-disposals', label: 'Báo cáo hủy hàng & tổn thất', to: '/reports?kind=disposals', roles: [A, OP, WK] },
     { key: 'report-financial', label: 'Báo cáo tài chính', to: '/reports?kind=financial' },
   ] },
-  { key: 'warehouse-report', label: 'Báo cáo kho vận', roles: [A, OP], list: page(warehouseReport, 'WarehouseReportPage') },
+  { key: 'warehouse-report', label: 'Báo cáo kho vận', roles: [A, OP, WK], list: page(warehouseReport, 'WarehouseReportPage') },
   { key: 'orders', label: 'Đơn hàng', roles: [A, OP], badge: 'orders', list: page(orders, 'OrdersPage'), sub: [{ path: ':orderId', element: page(orders, 'OrderDetailPage') }] },
   { key: 'allocation', label: 'Phân bổ theo thời gian thực', roles: [A, OP], list: page(allocation, 'AllocationRunPage') },
   { key: 'debts', label: 'Công nợ', roles: [A, OP], badge: 'debts', list: page(debts, 'DebtsPage') },

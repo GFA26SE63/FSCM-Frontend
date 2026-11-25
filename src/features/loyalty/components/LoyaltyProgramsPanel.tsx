@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Eye, Pause, Pencil, Play } from 'lucide-react';
+import { Pause, Pencil, Play } from 'lucide-react';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { useNavigate } from '@/shared/router/compat';
 import { can } from '@/shared/auth/permissions';
@@ -45,17 +45,17 @@ export function LoyaltyProgramsPanel() {
         <Button loading={query.isFetching} onClick={() => void query.refetch()}>Tải lại chương trình</Button>
         {mayManage && <Button variant="primary" onClick={() => navigate('/loyalty/new')}>+ Tạo chương trình</Button>}
       </>}
-      onRowClick={setDetail} rowActionsWidth={mayManage ? '150px' : '90px'}
-      rowActions={(p) => <div className="table-actions-inline">
-        <Button size="sm" onClick={() => setDetail(p)}><Eye size={14} /> Xem</Button>
-        {mayManage && <ActionDropdown showDisabledItems triggerTitle={`Thao tác chương trình ${p.code}`} items={[
+      onRowClick={setDetail}
+      rowActionsWidth={mayManage ? '60px' : undefined}
+      rowActions={mayManage ? (p) => (
+        <ActionDropdown showDisabledItems triggerTitle={`Thao tác chương trình ${p.code}`} items={[
           { key: 'edit', label: 'Sửa', icon: <Pencil size={16} />, onClick: () => setEditing({ program: p }) },
           { key: 'status', label: p.isActive ? 'Tạm dừng' : 'Kích hoạt',
             icon: p.isActive ? <Pause size={16} /> : <Play size={16} />,
             disabled: change.isPending || (!p.isActive && Date.parse(p.endAt) < now),
             onClick: () => { change.reset(); setConfirm(p); } },
-        ]} />}
-      </div>} />
+        ]} />
+      ) : undefined} />
     {detail && <Modal open width={720} title={`${detail.code} · ${detail.name}`} onClose={() => setDetail(null)}>
       <Card><Fields cols={2} items={[
         { label: 'Trạng thái', value: programStatus(detail, now) },
