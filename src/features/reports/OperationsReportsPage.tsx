@@ -11,6 +11,7 @@ import { defaultDashboardDates } from '@/features/dashboard/dashboardModel';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { loadAllReportRows } from './reportExport';
 import { REPORT_TITLES, summaryColumns } from './reportLayout';
+import { FinancialReportsPage } from './FinancialReportsPage';
 import './reports.css';
 
 type Kind = 'redemptions' | 'loyalty' | 'promotions' | 'disposals' | 'claims' | 'receivables';
@@ -189,6 +190,8 @@ export function OperationsReportsPage() {
   const { user } = useAuth();
   const { search } = useLocation();
   const requested = new URLSearchParams(search).get('kind');
+  if (requested === 'financial') return <FinancialReportsPage />;
+  const kind: Kind = requested === 'loyalty' || requested === 'promotions' ? requested : 'redemptions';
   const validKinds: Kind[] = ['redemptions', 'loyalty', 'promotions', 'disposals', 'claims', 'receivables'];
   const defaultKind: Kind = user?.role === 'WarehouseKeeper' ? 'disposals' : 'redemptions';
   const kind: Kind = validKinds.includes(requested as Kind) ? (requested as Kind) : defaultKind;

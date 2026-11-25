@@ -3,10 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { Button, Callout, Chip, Input, PageHeader, QueryState, Select, SimpleTable, Stat } from '@/shared/ui';
 import { Pagination } from '@/shared/pagination';
 import { usePickingLists } from '@/features/runpicking/hooks';
+import { useRegions, useWarehouses } from '@/features/warehouses/hooks';
 import { shipmentsApi } from '../api';
 import { useOrdersReadiness } from '../hooks';
 import { ExportOrderDetailModal, PART_STATUS } from '../components/ExportOrderCard';
-import { exportStatus, sortExportOrders, type ExportOrderSort, type ShipmentSort } from '../exportList';
+import { exportStatus, sortExportOrders, type ExportOrderSort } from '../exportList';
 import type { ExportOrder } from '../types';
 
 export function OrderReadinessPage() {
@@ -29,17 +30,27 @@ export function OrderReadinessPage() {
 
 function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; pickingCount: number }) {
   const [sort, setSort] = useState<ExportOrderSort>('newest');
-  const [shipmentSort, setShipmentSort] = useState<ShipmentSort>('asc');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'held' | 'ready' | 'left'>('all');
   const [warehouseFilter, setWarehouseFilter] = useState('');
+  const [regionFilter, setRegionFilter] = useState('');
+  const { data: warehouseList = [] } = useWarehouses();
+  const { data: regionList = [] } = useRegions();
+  // Region names come from the Regions API; the ID is only the filter value.
+  const regionNameById = new Map(regionList.map(r => [r.id, r.name]));
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const sorted = useMemo(() => sortExportOrders(orders, sort), [orders, sort]);
   const readiness = useOrdersReadiness(orders.map(order => order.id));
   const byId = new Map(readiness.data.map(item => [item.salesOrderId, item]));
-  const warehouses = [...new Set(readiness.data.flatMap(item => item.parts.map(part => part.warehouseCode)))].sort((a, b) => a.localeCompare(b, 'vi'));
+  // Region of a part = region of its supplying warehouse (from the warehouse list; no order-level region exists).
+  const regionOfCode = new Map(warehouseList.map(w => [w.code, { id: w.regionId ?? '', name: w.regionName ?? '' }]));
+  const usedCodes = [...new Set(readiness.data.flatMap(item => item.parts.map(part => part.warehouseCode)))];
+  const regions = [...new Map(usedCodes.flatMap(code => { const r = regionOfCode.get(code); return r?.id ? [[r.id, regionNameById.get(r.id) || r.name || 'Khu vực (chưa rõ tên)'] as const] : []; })).entries()]
+    .sort((a, b) => a[1].localeCompare(b[1], 'vi'));
+  const warehouses = usedCodes.filter(code => !regionFilter || regionOfCode.get(code)?.id === regionFilter).sort((a, b) => a.localeCompare(b, 'vi'));
+  const hasFilters = !!(sort !== 'newest' || search || warehouseFilter || regionFilter || statusFilter !== 'all');
   const term = search.trim().toLocaleLowerCase('vi');
   const matchesStatus = (order: ExportOrder) => {
     const current = byId.get(order.id);
@@ -54,6 +65,7 @@ function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; picking
     const values = [order.orderCode, ...(current?.parts.flatMap(part => [part.warehouseCode, part.shipmentCode ?? '']) ?? [])];
     return (!term || values.join(' ').toLocaleLowerCase('vi').includes(term))
       && (!warehouseFilter || current?.parts.some(part => part.warehouseCode === warehouseFilter))
+      && (!regionFilter || current?.parts.some(part => regionOfCode.get(part.warehouseCode)?.id === regionFilter))
       && matchesStatus(order);
   });
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -63,7 +75,7 @@ function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; picking
   const count = (label: string) => readiness.data.filter(item => exportStatus(item).label === label).length;
   const partsOf = (order: ExportOrder) => [...(byId.get(order.id)?.parts ?? [])].sort((a, b) => {
     if (!a.shipmentCode !== !b.shipmentCode) return a.shipmentCode ? -1 : 1;
-    return (shipmentSort === 'asc' ? 1 : -1) * (a.shipmentCode ?? a.warehouseCode).localeCompare(b.shipmentCode ?? b.warehouseCode, 'vi', { numeric: true });
+    return (a.shipmentCode ?? a.warehouseCode).localeCompare(b.shipmentCode ?? b.warehouseCode, 'vi', { numeric: true });
   });
   const selectedOrder = selectedOrderId ? orders.find(order => order.id === selectedOrderId) : undefined;
 
@@ -87,23 +99,21 @@ function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; picking
             { value: 'ready', label: 'Sẵn sàng xuất' }, { value: 'left', label: 'Đã rời kho' },
           ]} />
         </label>
+        <label className="lbl">Khu vực
+          <Select value={regionFilter} onChange={event => { setRegionFilter(event.target.value); setWarehouseFilter(''); setPage(1); }} options={[
+            { value: '', label: 'Tất cả khu vực' }, ...regions.map(([id, name]) => ({ value: id, label: name })),
+          ]} />
+        </label>
         <label className="lbl">Kho
           <Select value={warehouseFilter} onChange={event => { setWarehouseFilter(event.target.value); setPage(1); }} options={[
             { value: '', label: 'Tất cả kho' }, ...warehouses.map(warehouse => ({ value: warehouse, label: warehouse })),
           ]} />
         </label>
-        <label className="lbl">Sắp xếp đơn
+        <label className="lbl">Sắp xếp
           <Select value={sort} onChange={event => { setSort(event.target.value as ExportOrderSort); setPage(1); }}
-          options={[
-            { value: 'newest', label: 'Mới nhất trước' }, { value: 'oldest', label: 'Cũ nhất trước' },
-            { value: 'codeAsc', label: 'Mã đơn tăng dần' }, { value: 'codeDesc', label: 'Mã đơn giảm dần' },
-          ]} />
+          options={[{ value: 'newest', label: 'Mới nhất' }, { value: 'oldest', label: 'Cũ nhất' }]} />
         </label>
-        <label className="lbl">Sắp xếp phiếu giao
-          <Select value={shipmentSort} onChange={event => setShipmentSort(event.target.value as ShipmentSort)}
-          options={[{ value: 'asc', label: 'Mã phiếu giao hàng tăng dần' }, { value: 'desc', label: 'Mã phiếu giao hàng giảm dần' }]} />
-        </label>
-        <div className="delivery-filter-action"><Button loading={readiness.loading} onClick={() => { void readiness.refetch(); }}>Tải lại trạng thái</Button></div>
+        <div className="delivery-filter-action">{hasFilters && <Button onClick={() => { setSearch(''); setStatusFilter('all'); setRegionFilter(''); setWarehouseFilter(''); setSort('newest'); setPage(1); }}>Xóa lọc</Button>}<Button loading={readiness.loading} onClick={() => { void readiness.refetch(); }}>Tải lại trạng thái</Button></div>
       </div>
     </section>
     {readiness.error && <Callout tone="danger">Có đơn chưa tải được trạng thái. Chưa thể kết luận điều kiện xuất kho cho các đơn đó.</Callout>}
@@ -129,7 +139,7 @@ function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; picking
     ]} />
     {selectedOrder && <ExportOrderDetailModal order={selectedOrder} readiness={byId.get(selectedOrder.id)}
       loading={readiness.loading && !byId.has(selectedOrder.id)} failed={readiness.failedIds.includes(selectedOrder.id)}
-      sort={shipmentSort} retry={() => { void readiness.refetch(); }} open onClose={() => setSelectedOrderId(null)} />}
+      sort="asc" retry={() => { void readiness.refetch(); }} open onClose={() => setSelectedOrderId(null)} />}
     {/* Common Pagination Foundation — client-side (server-side is a BACKEND DEPENDENCY:
         GET /api/v1/picking-lists does not support page/pageSize params). */}
     <Pagination

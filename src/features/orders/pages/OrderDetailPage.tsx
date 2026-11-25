@@ -1,7 +1,6 @@
 import { useState } from 'react';
 
 import {
-  useNavigate,
   useParams,
 } from '@/shared/router/compat';
 import {
@@ -272,59 +271,6 @@ function PriceBreakdown({
         </div>
       )}
     </details>
-  );
-}
-
-function WorkflowLinks({
-  order,
-}: {
-  order: OrderDetail;
-}) {
-  const navigate = useNavigate();
-  const { user } = useAuth();
-
-  if (
-    !can(user, 'allocation.view')
-  ) {
-    return null;
-  }
-
-  return (
-    <div className="row-wrap">
-      {order.allocationRunId && (
-        <Button
-          onClick={() =>
-            navigate('/allocation')
-          }
-        >
-          Giám sát phân bổ
-        </Button>
-      )}
-
-      {order.warehouseProgress.some(
-        (item) =>
-          item.pickingListId,
-      ) && (
-        <Button
-          onClick={() =>
-            navigate('/runpicking')
-          }
-        >
-          Theo dõi soạn hàng
-        </Button>
-      )}
-
-      {order.officialAmount !=
-        null && (
-        <Button
-          onClick={() =>
-            navigate('/debts')
-          }
-        >
-          Thanh toán / công nợ
-        </Button>
-      )}
-    </div>
   );
 }
 
@@ -765,12 +711,6 @@ function OrderBody({
                     ),
                 },
               ]}
-            />
-          </Card>
-
-          <Card title="Nghiệp vụ liên quan">
-            <WorkflowLinks
-              order={order}
             />
           </Card>
 
