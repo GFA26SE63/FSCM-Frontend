@@ -473,7 +473,7 @@ export function CategoriesPage() {
                       {canAddChild && (
                         <button
                           type="button"
-                          className="btn btn-sm btn-primary"
+                          className="btn btn-primary"
                           onClick={handleOpenAddSubCategory}
                         >
                           + Danh mục con

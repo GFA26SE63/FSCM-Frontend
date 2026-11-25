@@ -137,7 +137,7 @@ export function PalletReceiving({ documentId, version, editable, receivedCount =
         <button className="btn" disabled={busy} onClick={() => setRows(items => items.map(r => r.disposition ? r : { ...r, disposition: 'Accepted' }))}>Đánh dấu các carton chưa kiểm là đạt</button>
         <SimpleTable rows={rows} columns={[
           { header: 'CID', cell: r => r.cartonCode },
-          { header: 'Kiểm đếm', cell: r => <select disabled={busy} aria-label={`Kết quả ${r.cartonCode}`} value={r.disposition} onChange={e => update(r.cartonCode, { disposition: e.target.value as Inspection['disposition'] })}>{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select> },
+          { header: 'Kiểm đếm', cell: r => <select className="inp inp-sm" disabled={busy} aria-label={`Kết quả ${r.cartonCode}`} value={r.disposition} onChange={e => update(r.cartonCode, { disposition: e.target.value as Inspection['disposition'] })}>{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select> },
           { header: 'Lý do thiếu/hỏng', cell: r => <input maxLength={300} disabled={busy || r.disposition === 'Accepted'} aria-label={`Lý do ${r.cartonCode}`} value={r.reason} onChange={e => update(r.cartonCode, { reason: e.target.value })} onBlur={e => update(r.cartonCode, { reason: e.target.value.trim() })} /> },
           { header: 'Vị trí cách ly', cell: r => <input maxLength={100} disabled={busy || r.disposition !== 'Damaged'} aria-label={`Vị trí ${r.cartonCode}`} value={r.quarantineLocation} onChange={e => update(r.cartonCode, { quarantineLocation: e.target.value })} onBlur={e => update(r.cartonCode, { quarantineLocation: e.target.value.trim() })} /> },
         ]} />

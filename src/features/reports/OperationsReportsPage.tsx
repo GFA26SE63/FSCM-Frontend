@@ -11,6 +11,7 @@ import { defaultDashboardDates } from '@/features/dashboard/dashboardModel';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { loadAllReportRows } from './reportExport';
 import { REPORT_TITLES, summaryColumns } from './reportLayout';
+import { FinancialReportsPage } from './FinancialReportsPage';
 import './reports.css';
 
 type Kind = 'redemptions' | 'loyalty' | 'promotions';
@@ -115,6 +116,7 @@ function display(row: Row, col: Column, kind: Kind): string {
 export function OperationsReportsPage() {
   const { search } = useLocation();
   const requested = new URLSearchParams(search).get('kind');
+  if (requested === 'financial') return <FinancialReportsPage />;
   const kind: Kind = requested === 'loyalty' || requested === 'promotions' ? requested : 'redemptions';
   return <OperationsReportSession key={kind} kind={kind} />;
 }

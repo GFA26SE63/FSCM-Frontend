@@ -42,7 +42,7 @@ export function LoyaltyProgramsPanel() {
       rowKey={(p) => p.id} searchPlaceholder="Mã hoặc tên chương trình…"
       emptyText="Chưa có chương trình tích điểm phù hợp."
       actions={<>
-        <Button size="sm" loading={query.isFetching} onClick={() => void query.refetch()}>Tải lại chương trình</Button>
+        <Button loading={query.isFetching} onClick={() => void query.refetch()}>Tải lại chương trình</Button>
         {mayManage && <Button variant="primary" onClick={() => navigate('/loyalty/new')}>+ Tạo chương trình</Button>}
       </>}
       onRowClick={setDetail} rowActionsWidth={mayManage ? '150px' : '90px'}

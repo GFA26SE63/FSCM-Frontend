@@ -21,6 +21,9 @@
 }
 .inventory-filters label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .inventory-filters input, .inventory-filters select { width: 100%; min-width: 0; }
+/* Same treatment as the shared .inp control. */
+.inventory-filters input, .inventory-filters select { height: 38px; box-sizing: border-box; border: 1px solid var(--c-border); border-radius: var(--radius-sm); padding: 0 10px; font-size: 13.5px; font-weight: 400; color: var(--c-text); background: var(--c-surface); }
+.inventory-filters input:focus, .inventory-filters select:focus { outline: 2px solid rgba(20, 101, 91, .25); border-color: var(--c-primary); }
 @media (max-width: 1100px) {
   .inventory-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
