@@ -12,8 +12,8 @@ export const DASHBOARD_TITLES: Record<PortalRole, string> = {
 export function dashboardTabs(role: PortalRole) {
   if (role === 'WarehouseKeeper') return [{ key: 'overview', label: 'Công việc kho' }, { key: 'inventory', label: 'Tồn kho & hạn sử dụng' }];
   if (role === 'SalesManager') return [{ key: 'overview', label: 'Tổng quan nhóm' }, { key: 'sales', label: 'Thành viên & sản phẩm' }, { key: 'customers', label: 'Nhà bán lẻ & công nợ' }];
-  // "Tổng quan" now also holds money and receivables (the old "Tiền & công nợ" tab); "Kinh doanh"
-  // holds people, products and stores. No tile, chart or table appears on two tabs.
+  // "Tổng quan" now also holds money and receivables; "Kinh doanh" holds people, products and stores.
+  // No tile, chart or table appears on two tabs.
   const tabs = [{ key: 'overview', label: 'Tổng quan' }, { key: 'operations', label: 'Việc cần xử lý' },
     { key: 'inventory', label: 'Tồn kho' }, { key: 'quality', label: 'Chất lượng dịch vụ' }, { key: 'sales', label: 'Kinh doanh' }];
   // Background-job health is technical, so only Admin gets the tab.
@@ -23,25 +23,29 @@ export function dashboardTabs(role: PortalRole) {
 const CARD_KEYS = {
   ops: ['allocationIssues', 'quotesPending', 'prepaid', 'shipmentsReady', 'shipmentExceptions', 'shipmentsLate', 'complaintsOpen', 'redemptionOpen', 'pendingDeclarations'],
   stock: ['receiptPending', 'pickingPending', 'pickingActive', 'shipmentsReady', 'nearExpiry', 'expired'],
+  keeperOverview: ['receiptPending', 'pickingPending', 'pickingActive', 'shipmentsReady', 'shipmentExceptions', 'transferArrivalPending'],
+  keeperStock: ['nearExpiry', 'expired', 'lowStock'],
   // Admin/Operator: "prepaid" belongs to "Việc cần xử lý" (a queue), so the overview leaves it out.
   overview: ['revenue', 'completed', 'collected', 'outstanding', 'overdue'],
   managerOverview: ['revenue', 'completed', 'collected', 'outstanding', 'overdue', 'prepaid'],
   quality: ['fillRate', 'onTimeRate', 'allocationSuccess', 'quoteConversion', 'complaintRate'],
   business: ['cycleOverdue', 'newRetailers'],
-  customers: ['cycleOverdue', 'newRetailers', 'pendingDeclarations', 'quoteConversion'],
+  managerSales: ['quoteConversion'],
+  customers: ['cycleOverdue', 'newRetailers', 'pendingDeclarations'],
 };
 
 const GLOBAL_ROLES: PortalRole[] = ['Admin', 'Operator'];
 
 export function visibleCards(cards: DashboardCard[], role: PortalRole, tab: string) {
   const global = GLOBAL_ROLES.includes(role);
-  const keys = tab === 'inventory' || role === 'WarehouseKeeper' ? CARD_KEYS.stock
+  const keys = role === 'WarehouseKeeper'
+    ? (tab === 'inventory' ? CARD_KEYS.keeperStock : CARD_KEYS.keeperOverview)
+    : tab === 'inventory' ? CARD_KEYS.stock
     : tab === 'operations' ? CARD_KEYS.ops
     : tab === 'health' ? []
     : tab === 'quality' ? CARD_KEYS.quality
     : tab === 'customers' ? CARD_KEYS.customers
-    // Sales Manager keeps store tiles on "Nhà bán lẻ & công nợ", so its "Thành viên & sản phẩm" tab has none.
-    : tab === 'sales' ? (global ? CARD_KEYS.business : [])
+    : tab === 'sales' ? (global ? CARD_KEYS.business : CARD_KEYS.managerSales)
     : global ? CARD_KEYS.overview : CARD_KEYS.managerOverview;
   return keys.flatMap(key => cards.filter(card => card.key === key));
 }
@@ -55,9 +59,9 @@ export function dashboardSections(role: PortalRole, tab: string) {
     receivables: !keeper && tab === 'overview',
     // Admin/Operator have a dedicated "Việc cần xử lý" tab; other roles see their work on the overview.
     work: global ? tab === 'operations' : tab === 'overview',
-    stock: keeper || (!(role === 'SalesManager') && tab === 'inventory'),
+    stock: (keeper || global) && tab === 'inventory',
     sales: !keeper && tab === 'sales',
-    customers: role === 'SalesManager' && tab === 'customers',
+    customers: (global && tab === 'sales') || (role === 'SalesManager' && tab === 'customers'),
     health: role === 'Admin' && tab === 'health',
   };
 }

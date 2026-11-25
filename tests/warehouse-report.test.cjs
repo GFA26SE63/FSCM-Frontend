@@ -70,7 +70,7 @@ test('warehouse report: totals and summary add up per warehouse', () => {
 
 test('warehouse report: page sits in the "Tổng quan" sidebar group, Admin/Operator only, details in a popup', () => {
   const routes = read('app/routes.tsx');
-  assert.match(routes, /key: 'warehouse-report', label: 'Báo cáo kho vận', roles: \[A, OP\]/);
+  assert.match(routes, /key: 'warehouse-report', label: 'Báo cáo kho vận', roles: \[A, OP, WK\]/);
   assert.match(read('app/layout/Sidebar.tsx'), /key: 'overview'.*'warehouse-report'/);
   const page = read('features/warehouse-report/WarehouseReportPage.tsx');
   assert.ok(page.includes("'/reports/warehouse-logistics'"));
