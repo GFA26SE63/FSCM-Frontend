@@ -82,5 +82,5 @@ test('report summary tiles fill one row, or two even rows when there are many', 
   assert.equal(summaryColumns(7), 4);   // khuyến mãi: 4 + 3
   assert.equal(summaryColumns(11), 6);  // loyalty: 6 + 5
   assert.equal(summaryColumns(0), 1);
-  assert.deepEqual(Object.keys(REPORT_TITLES), ['redemptions', 'loyalty', 'promotions']);
+  assert.deepEqual(Object.keys(REPORT_TITLES), ['redemptions', 'loyalty', 'promotions', 'disposals', 'claims', 'receivables']);
 });

@@ -45,6 +45,11 @@ function DashboardSession({ role }: { role: PortalRole }) {
         <option value="">Tất cả nhóm được phép xem</option>{options?.salesGroups.filter(g => !filters.regionId || g.regionId === filters.regionId).map(g => <option key={g.id} value={g.id}>{g.code} · {g.name}</option>)}
       </select></label>}
     </section>
+    {role !== 'SalesManager' && role !== 'WarehouseKeeper' && !!filters.warehouseId && (
+      <p className="muted small" style={{ margin: '4px 0 8px' }}>
+        Lưu ý: Bộ lọc <strong>Kho</strong> áp dụng cho Tồn kho, Hạn dùng và Công việc kho; Doanh thu, Đơn hàng và Công nợ được tổng hợp theo Khu vực / Nhóm bán hàng.
+      </p>
+    )}
     {dateError ? <Callout tone="danger">Chọn khoảng ngày hợp lệ, không vượt hôm nay.</Callout> :
       <QueryState query={query}>{data => <DashboardContent data={data} tab={tab} onTabChange={setTab} />}</QueryState>}
   </div>;
@@ -131,20 +136,19 @@ export function DashboardContent({ data, tab, onTabChange }: {
     </>}
     {sections.sales && <>
       <Card title="Nhân viên bán hàng · gồm người chưa có đơn hoàn tất">
-        <SimpleTable rows={data.salesTeam} empty="Chưa có nhân viên bán hàng trong phạm vi này." columns={[
+        <SimpleTable rows={data.salesTeam} onRowClick={s => navigate(`/kpi/sales/${s.id}/${s.groupId}`)} empty="Chưa có nhân viên bán hàng trong phạm vi này." columns={[
           { header: 'Thành viên / nhóm', cell: s => <>{s.name}<br /><span className="muted small">{s.groupCode}</span></> },
           { header: 'Đơn hoàn tất', align: 'right', cell: s => formatNumber(s.completedOrders) },
           { header: 'Nhà bán lẻ phục vụ', align: 'right', cell: s => formatNumber(s.retailersServed) },
           { header: 'Doanh thu', align: 'right', cell: s => formatMoney(s.revenue) },
           { header: 'KPI tổng', align: 'right', cell: s => s.kpiCompletion == null ? 'Chưa cấu hình' : `${s.kpiCompletion.toFixed(1)}%` },
-          { header: '', cell: s => <Button size="sm" onClick={() => navigate(`/kpi/sales/${s.id}/${s.groupId}`)}>Xem KPI</Button> },
         ]} />
         {!!data.unattributedRevenue && <p className="dashboard-note">Doanh thu đơn tự đặt / chưa quy về thành viên đang quản lý: {formatMoney(data.unattributedRevenue)}.</p>}
       </Card>
       <TopProductsCard rows={data.topProducts} />
     </>}
     {sections.customers && <Card title="Nhà bán lẻ trong phạm vi · 30 điểm ưu tiên theo công nợ và lần mua gần nhất">
-      <SimpleTable rows={data.customers} columns={[
+      <SimpleTable rows={data.customers} onRowClick={global ? r => navigate(`/retailers/${r.id}`) : undefined} columns={[
         { header: 'Nhà bán lẻ', cell: r => <>{r.code}<br /><strong>{r.name}</strong></> },
         { header: 'Trạng thái', cell: r => statusLabel('retailer', r.status) }, { header: 'Đơn trong kỳ', align: 'right', cell: r => formatNumber(r.periodOrders) },
         { header: 'Mua gần nhất', cell: r => r.lastOrderAt ? formatInstantDateTime(r.lastOrderAt) : 'Chưa có đơn' },

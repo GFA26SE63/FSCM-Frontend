@@ -12,4 +12,7 @@ export const REPORT_TITLES = {
   redemptions: 'Báo cáo đổi quà',
   loyalty: 'Báo cáo tích điểm',
   promotions: 'Báo cáo khuyến mãi',
+  disposals: 'Báo cáo hủy hàng & tổn thất',
+  claims: 'Báo cáo khiếu nại & hoàn tiền',
+  receivables: 'Báo cáo công nợ & tuổi nợ',
 } as const;
