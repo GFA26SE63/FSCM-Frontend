@@ -121,6 +121,46 @@ interface RawRetailerDistance {
   withinRange?: boolean;
 }
 
+const LEGACY_METERS_AS_KILOMETERS_THRESHOLD = 10_000;
+
+type NormalizedRetailerDistance = {
+  km: number;
+  correctedLegacyMeters: boolean;
+};
+
+/**
+ * MapDistanceCache and the transit-table API use metres as their canonical
+ * unit. Older warehouse-detail payloads have, however, exposed that same
+ * value through `km`/`distanceKm`. Treat only implausibly large Vietnamese
+ * road distances as that legacy metre value; legitimate kilometre values keep
+ * their declared unit.
+ */
+export function normalizeRetailerDistanceKm(
+  raw: RawRetailerDistance,
+): NormalizedRetailerDistance {
+  if (typeof raw.distanceMeters === "number" && Number.isFinite(raw.distanceMeters)) {
+    return {
+      km: Math.round((raw.distanceMeters / 1000) * 10) / 10,
+      correctedLegacyMeters: false,
+    };
+  }
+
+  const declaredKm =
+    typeof raw.km === "number"
+      ? raw.km
+      : typeof raw.distanceKm === "number"
+        ? raw.distanceKm
+        : 0;
+  const correctedLegacyMeters =
+    Number.isFinite(declaredKm) &&
+    declaredKm >= LEGACY_METERS_AS_KILOMETERS_THRESHOLD;
+
+  return {
+    km: Math.round((correctedLegacyMeters ? declaredKm / 1000 : declaredKm) * 10) / 10,
+    correctedLegacyMeters,
+  };
+}
+
 // inventory field does NOT exist on WarehouseEntity — detail falls back to REST /batches.
 // HC0047: first/last must be literals in the query string, not variables.
 // Keep this conservative: the selection has eight warehouse fields, and larger
@@ -573,14 +613,7 @@ export const warehouseApi = {
       rawDetail.retailerDistances.length > 0
     ) {
       retailerDistances = rawDetail.retailerDistances.map((r) => {
-        const km =
-          typeof r.km === "number"
-            ? r.km
-            : typeof r.distanceKm === "number"
-              ? r.distanceKm
-              : typeof r.distanceMeters === "number"
-                ? Math.round((r.distanceMeters / 1000) * 10) / 10
-                : 0;
+        const { km, correctedLegacyMeters } = normalizeRetailerDistanceKm(r);
         const quote = quoteRetailerTransit(km, dmaxRetailerKm, bands);
         return {
           retailerId: r.retailerId,
@@ -590,13 +623,17 @@ export const warehouseApi = {
           lng: r.lng,
           km,
           transitDays:
-            r.transitDays !== undefined ? r.transitDays : (quote?.days ?? null),
+            !correctedLegacyMeters && r.transitDays !== undefined
+              ? r.transitDays
+              : (quote?.days ?? null),
           estimatedCost:
-            r.estimatedCost !== undefined
+            !correctedLegacyMeters && r.estimatedCost !== undefined
               ? r.estimatedCost
               : (quote?.cost ?? null),
           withinRange:
-            r.withinRange !== undefined ? r.withinRange : km <= dmaxRetailerKm,
+            !correctedLegacyMeters && r.withinRange !== undefined
+              ? r.withinRange
+              : km <= dmaxRetailerKm,
         };
       });
     } else {
