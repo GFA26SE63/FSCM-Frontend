@@ -3,8 +3,8 @@ import { Lock, Printer, Trash2, Unlock } from 'lucide-react';
 import { useNavigate } from '@/shared/router/compat';
 import {
   ActionDropdown,
-  Button,
   DataTable,
+  SearchSelect,
   Select,
   useToast,
   type ActionDropdownItem,
@@ -32,8 +32,6 @@ import {
 } from '../components/BatchLockDialog';
 import {
   BATCHES_PAGE_SIZES,
-  BATCHES_SORT_MAP,
-  BATCHES_SORTABLE_FIELDS,
   calculateIssuableQuantity,
   calculateLiveExpiryStatus,
   type BatchesPageSize,
@@ -78,16 +76,15 @@ export function BatchesPage() {
   );
 
   const rawSort = decodeSort(params.get(PAGINATION_PARAM_NAMES.SORT));
-  const activeSort = rawSort?.field && BATCHES_SORT_MAP[rawSort.field as BatchSortField]
+  const activeSort = rawSort?.field === 'expiry'
     ? { field: rawSort.field as BatchSortField, direction: rawSort.direction }
     : undefined;
 
   const { setParams } = useQueryParams();
   const activeSearch = params.get('q') ?? '';
 
-  const hasActiveFilters = !!(statusFilter || warehouseId || productId);
   const clearFilters = () => {
-    setParams({ status: null, wh: null, sku: null, after: null, before: null, page: null });
+    setParams({ status: null, wh: null, sku: null, [PAGINATION_PARAM_NAMES.SORT]: null, after: null, before: null, page: null });
   };
 
   // Reference data — unchanged from before migration: warehouses stays REST
@@ -264,7 +261,10 @@ export function BatchesPage() {
     [warehouses],
   );
   const productOptions = useMemo(
-    () => productCatalog.map((p) => ({ value: p.id, label: `${p.sku} · ${p.name}` })),
+    () =>
+      productCatalog
+        .map((p) => ({ value: p.id, label: `${p.sku} · ${p.name}` }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'vi', { numeric: true, sensitivity: 'base' })),
     [productCatalog],
   );
 
@@ -459,6 +459,7 @@ export function BatchesPage() {
     <>
       <DataTable
         title="Quản lý lô hàng"
+        titleAboveFilters
         subtitle="Theo dõi số lượng tồn kho và tình trạng hạn sử dụng của từng lô hàng."
         rows={sorted}
         loading={query.isLoading || query.isPlaceholderData}
@@ -495,28 +496,28 @@ export function BatchesPage() {
           />
         </label>
         <label className="lbl">Sản phẩm (SKU)
-          <Select
+          <SearchSelect
             value={productId}
-            onChange={e => setProductId(e.target.value)}
-            options={[
-              { value: '', label: 'Tất cả sản phẩm' },
-              ...productOptions,
-            ]}
+            onChange={(v) => setProductId(v)}
+            options={[{ value: '', label: 'Tất cả sản phẩm' }, ...productOptions]}
           />
         </label>
-        {hasActiveFilters && (
-          <Button
-            variant="default"
-            size="sm"
-            onClick={clearFilters}
-            style={{ alignSelf: 'flex-end', marginBottom: 2 }}
-          >
-            Xóa bộ lọc
-          </Button>
-        )}
           </>
         }
-        serverSort={{ ...sortProps, sortableFields: BATCHES_SORTABLE_FIELDS }}
+        onClear={clearFilters}
+        sortSlot={
+          <label className="lbl">Sắp xếp
+            <Select
+              value={activeSort?.direction === 'asc' ? 'asc' : 'desc'}
+              onChange={(e) => sortProps.onChange('expiry', e.target.value as 'asc' | 'desc')}
+              options={[
+                { value: 'asc', label: 'HSD tăng dần' },
+                { value: 'desc', label: 'HSD giảm dần' },
+              ]}
+            />
+          </label>
+        }
+        serverSort={{ ...sortProps, sortableFields: ['expiry'] }}
         onRowClick={(b) => navigate(`/batches/${b.batchId || b.batchCode}`)}
         rowActionsWidth="135px"
         rowActionHeader="Thao tác"

@@ -21,11 +21,13 @@ const LAYOUT_CSS = `
 @page{size:100mm 60mm;margin:2mm}
 html,body{margin:0;padding:0}
 .label{width:96mm;height:55.6mm;padding:3mm 3.5mm;gap:4mm;border:0.3mm solid #000;box-sizing:border-box;overflow:hidden;display:flex;align-items:center;background:#fff}
-.qr{width:38mm;height:38mm;flex:0 0 38mm}
+.label{break-inside:avoid;page-break-inside:avoid}
+.label:last-child{break-after:auto;page-break-after:auto}
+.qr{width:38mm;height:38mm;flex:0 0 38mm;align-self:center}
 .qr svg{width:100%;height:100%;display:block}
-.info{flex:1 1 auto;min-width:0;max-height:100%;font-size:10pt;line-height:1.28;overflow:hidden;overflow-wrap:anywhere;word-break:break-word}
+.info{flex:1 1 auto;min-width:0;min-height:0;align-self:stretch;display:flex;flex-direction:column;justify-content:center;max-height:100%;font-size:9pt;line-height:1.22;overflow:hidden;overflow-wrap:anywhere;word-break:break-word}
 .info>div+div{margin-top:0.4mm}
-.code{font-size:15pt;font-weight:bold;line-height:1.15;margin-bottom:1mm}
+.code{font-size:13pt;font-weight:bold;line-height:1.15;margin-bottom:1mm;overflow-wrap:anywhere}
 .exp{color:#b00;font-weight:bold}
 @media screen{
   html{background:#eef1ee}
