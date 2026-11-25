@@ -84,6 +84,7 @@ export const APP_ROUTES: AppRoute[] = [
     { key: 'report-claims', label: 'Báo cáo khiếu nại & hoàn tiền', to: '/reports?kind=claims', roles: [A, OP, SM] },
     { key: 'report-receivables', label: 'Báo cáo công nợ & tuổi nợ', to: '/reports?kind=receivables', roles: [A, OP, SM] },
     { key: 'report-disposals', label: 'Báo cáo hủy hàng & tổn thất', to: '/reports?kind=disposals', roles: [A, OP, WK] },
+    { key: 'report-financial', label: 'Báo cáo tài chính', to: '/reports?kind=financial' },
   ] },
   { key: 'warehouse-report', label: 'Báo cáo kho vận', roles: [A, OP, WK], list: page(warehouseReport, 'WarehouseReportPage') },
   { key: 'orders', label: 'Đơn hàng', roles: [A, OP], badge: 'orders', list: page(orders, 'OrdersPage'), sub: [{ path: ':orderId', element: page(orders, 'OrderDetailPage') }] },

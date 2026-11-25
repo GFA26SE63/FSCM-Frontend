@@ -421,17 +421,17 @@ describe('source assertions — BatchesPage.tsx', () => {
     assert.ok(!pageCode.includes("setSearchDraft"), "no separate custom search input");
   });
 
-  test('Clear Filters button exists and uses clearFilters + hasActiveFilters', () => {
+  test('single reset: clearFilters is wired to the shared advanced-filter card (onClear)', () => {
     assert.ok(pageCode.includes('clearFilters'), 'clearFilters function must exist');
-    assert.ok(pageCode.includes('hasActiveFilters'), 'hasActiveFilters must control Clear Filters visibility');
-    assert.ok(pageCode.includes('Xóa bộ lọc'), 'Clear Filters button must have Vietnamese label');
+    assert.ok(pageCode.includes('onClear={clearFilters}'), 'shared "Xóa lọc" must call clearFilters');
+    assert.ok(!pageCode.includes('Xóa bộ lọc'), 'no duplicate page-level reset button');
   });
 
   test('clearFilters clears all params atomically via setParams', () => {
     // Phase C.2: clearFilters also clears the cursor params (after/before) since
     // filters now drive a server-side GraphQL query, not a client-side re-filter.
     assert.ok(
-      pageCode.includes("setParams({ status: null, wh: null, sku: null, after: null, before: null, page: null })"),
+      pageCode.includes("setParams({ status: null, wh: null, sku: null, [PAGINATION_PARAM_NAMES.SORT]: null, after: null, before: null, page: null })"),
       'clearFilters must reset all filter + cursor params atomically',
     );
   });

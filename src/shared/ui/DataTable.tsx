@@ -46,6 +46,12 @@ export interface FilterDef<T> {
 interface DataTableProps<T> {
   title?: ReactNode;
   subtitle?: ReactNode;
+  /** Render the title row above the filter card instead of below it. */
+  titleAboveFilters?: boolean;
+  /** Custom sort control placed inside the filter card; replaces the standalone "Sắp xếp danh sách" selector. */
+  sortSlot?: ReactNode;
+  /** Extra reset for feature-owned filter state (called by "Xóa lọc"). */
+  onClear?: () => void;
   columns: Column<T>[];
   /** Keys chosen by this feature for its list; all columns remain available to search, sort and export. */
   summaryColumns?: readonly string[];
@@ -85,7 +91,8 @@ interface DataTableProps<T> {
   /** false: giữ trạng thái cục bộ, không ghi lên URL (bảng trong form). Bảng trong Modal/Drawer tự động là false. */
   urlState?: boolean;
   /** Enables a consistent Excel export of the currently filtered table rows. */
-  excelFileName?: string;
+  /** Pass null to hide the "Xuất Excel" button (e.g. when only the current page could be exported). */
+  excelFileName?: string | null;
 }
 
 const ALL = 'Tất cả';
@@ -218,6 +225,9 @@ const cellText = <T,>(c: Column<T>, row: T): string => {
 export function DataTable<T>({
   title,
   subtitle,
+  titleAboveFilters = false,
+  sortSlot,
+  onClear,
   columns,
   summaryColumns,
   rows,
@@ -246,7 +256,7 @@ export function DataTable<T>({
   excelFileName,
 }: DataTableProps<T>) {
   const inUrlScope = useContext(UrlStateScope);
-  const effectiveExcelFileName = excelFileName ?? (typeof title === 'string' ? title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'danh-sach');
+  const effectiveExcelFileName = excelFileName === null ? undefined : excelFileName ?? (typeof title === 'string' ? title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'danh-sach');
   const state = useTableState(filters, urlState && inUrlScope, stateKey, pageSize, pageSizeOptions);
   const { search, fv, page } = state;
   const listColumns = selectListColumns(columns, summaryColumns, c => c.key);
@@ -320,6 +330,7 @@ export function DataTable<T>({
 
   const clear = () => {
     state.clear();
+    onClear?.();
     if (cursor) {
       serverSearch.reset();
       cursor.onSearchChange?.('');
@@ -334,8 +345,32 @@ export function DataTable<T>({
   // Stale cursor: propagated from useCursorPagination only when backend confirms HC0078.
   const isStaleCursor = cursor?.isStaleCursor ?? false;
 
+  const titleRow = (
+      <>
+      {(title || actions || effectiveExcelFileName) && (
+        <div className="row" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
+          <div className="spacer" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div>
+              <span className={titleAboveFilters ? 'page-title' : 'bold'} style={titleAboveFilters ? undefined : { fontSize: 15 }}>
+                {title}
+              </span>
+            </div>
+            {subtitle && (
+              <span className="muted" style={{ fontSize: 12.5, lineHeight: 1.45 }}>
+                {subtitle}
+              </span>
+            )}
+          </div>
+          {effectiveExcelFileName && <Button loading={exporting} disabled={!ready || filtered.length === 0} onClick={() => void exportExcel()}>Xuất Excel</Button>}
+          {actions}
+        </div>
+      )}
+      </>
+  );
+
   return (
     <>
+      {titleAboveFilters && titleRow}
       {searchable && (
         <section className="card filter-card" aria-label="Bộ lọc nâng cao">
           <div className="row">
@@ -366,6 +401,7 @@ export function DataTable<T>({
               </label>
             ))}
             {filterExtra}
+            {sortSlot}
             <div>
               <Button onClick={clear}>Xóa lọc</Button>
             </div>
@@ -373,26 +409,9 @@ export function DataTable<T>({
         </section>
       )}
 
-      {(title || actions || effectiveExcelFileName) && (
-        <div className="row" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
-          <div className="spacer" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <div>
-              <span className="bold" style={{ fontSize: 15 }}>
-                {title}
-              </span>
-            </div>
-            {subtitle && (
-              <span className="muted" style={{ fontSize: 12.5, lineHeight: 1.45 }}>
-                {subtitle}
-              </span>
-            )}
-          </div>
-          {effectiveExcelFileName && <Button loading={exporting} disabled={!ready || filtered.length === 0} onClick={() => void exportExcel()}>Xuất Excel</Button>}
-          {actions}
-        </div>
-      )}
+      {!titleAboveFilters && titleRow}
 
-      {hasSecondaryColumns && serverSort && <label className="lbl" style={{ marginBottom: 12 }}>Sắp xếp danh sách
+      {hasSecondaryColumns && serverSort && !sortSlot && <label className="lbl" style={{ marginBottom: 12 }}>Sắp xếp danh sách
         <Select value={serverSort.field && serverSort.direction ? `${serverSort.field}:${serverSort.direction}` : ''}
           onChange={e => { const [field, direction] = e.target.value.split(':'); serverSort.onChange(field || serverSort.field || columns[0].key, direction as SortDirection | undefined); }}
           options={[{ value: '', label: 'Mặc định' }, ...columns.filter(c => c.sortable || serverSort.sortableFields?.includes(c.key)).flatMap(c => [

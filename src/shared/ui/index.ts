@@ -20,5 +20,6 @@ export { ConfirmDialog } from './ConfirmDialog';
 export { Callout, type CalloutTone } from './Callout';
 export { ActionDropdown, type ActionDropdownItem } from './ActionDropdown';
 export { SearchSelect } from './SearchSelect';
+export { AdvancedFilterCard } from './AdvancedFilterCard';
 export { AddressLocationPicker, type AddressLocationPickerProps } from './AddressLocationPicker';
 export * from '../pagination';

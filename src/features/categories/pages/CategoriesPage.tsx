@@ -471,8 +471,9 @@ export function CategoriesPage() {
                   {canManage && (
                     <div className="category-detail-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       {canAddChild && (
-                        <Button
-                          variant="primary"
+                        <button
+                          type="button"
+                          className="btn btn-primary"
                           onClick={handleOpenAddSubCategory}
                         >
                           + Danh mục con

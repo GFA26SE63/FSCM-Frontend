@@ -304,3 +304,8 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-lay
 .tbl-nowrap table.tbl { table-layout: auto; }
 .tbl-nowrap .tbl td { white-space: nowrap; overflow-wrap: normal; }
 .tbl-nowrap .tbl .actions { flex-wrap: nowrap; }
+
+/* Nhập/Xuất kho tabs: horizontal scroll instead of wrapping on narrow screens */
+.tabs.warehouse-main-tabs { flex-wrap: nowrap; overflow-x: auto; margin-bottom: 16px; }
+.tabs.warehouse-main-tabs .tab { flex: 0 0 auto; white-space: nowrap; }
+
