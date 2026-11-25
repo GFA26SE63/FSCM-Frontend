@@ -18,6 +18,8 @@ import { TraceLookup } from '@/features/factory-traceability';
 import { formatDate, formatInstantDateTime } from '@/shared/lib/dates';
 import { belongsToWorkflow, warehouseDocumentPath, warehouseScreens, type WarehouseWorkflow } from './workflow';
 import { useStringParam } from '@/shared/router/listState';
+import { WarehouseOutboundTabs } from './WarehouseOutboundTabs';
+import { WarehouseInboundTabs } from './WarehouseInboundTabs';
 
 interface Document { id: string; code: string; kind: 'Request' | 'Picking' | 'Issue' | 'Receipt'; reason: 'Transfer' | 'Order' | 'Factory'; warehouseId: string; destinationWarehouseId: string | null; sourceDocumentId: string | null; status: string; version: number; note: string | null; createdAt: string }
 interface Line { id: string; sku: string; productName: string; batchCode: string | null; sourceLotCode: string | null; orderCode: string | null; quantity: number; expirationDate: string }
@@ -210,10 +212,10 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
   const isInbound = workflow === 'inbound' || workflow === 'receipts';
   const isOutbound = workflow === 'outbound' || workflow === 'issues';
   const isHistoryWorkflow = workflow === 'receipts' || workflow === 'issues';
-  const activeTab = factoryRequests ? 'factory' : (tab ? tab : (isHistoryWorkflow ? 'history' : 'todo'));
-  // Factory inbound has its own workspace; the normal inbound tab is for transfers.
+  const activeTab = factoryRequests ? 'factory' : (isInbound && tab === 'factory' ? 'todo' : tab ? tab : (isHistoryWorkflow ? 'history' : 'todo'));
+  // Keep the source independent of the request/history tab so both sources have a complete workspace.
   const operationReason = factoryRequests ? 'Factory' : isInbound
-    ? (activeTab === 'factory' || (activeTab === 'history' && operationSource !== 'Transfer') ? 'Factory' : 'Transfer')
+    ? (operationSource === 'Transfer' ? 'Transfer' : 'Factory')
     : operationSource === 'Transfer' ? 'Transfer' : 'Order';
   const [cartonEdit, setCartonEdit] = useState<{ documentId: string; cartonCode: string; replace: boolean; replacementCode: string; reason: string } | null>(null);
   const scanInput = useRef<HTMLInputElement>(null);
@@ -221,7 +223,7 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
   const inFlight = useRef(false);
   const docs = useQuery({ queryKey: ['warehouse-documents'], queryFn: () => get<Work[]>(base) });
   // One row per factory dispatch note (PXN) with all its pallets; the PNK opened from it receives them all.
-  const incoming = useQuery({ queryKey: ['factory-pending'], queryFn: () => get<FactoryInboundDispatch[]>(`${base}/factory-pending-dispatches`), enabled: workflow === 'inbound' });
+  const incoming = useQuery({ queryKey: ['factory-pending'], queryFn: () => get<FactoryInboundDispatch[]>(`${base}/factory-pending-dispatches`), enabled: isInbound });
   // PNK history: factory receipts grouped by dispatch note (read-only display grouping).
   const receiptGroups = useQuery({ queryKey: ['warehouse-documents', 'factory-receipt-groups'], queryFn: () => get<FactoryReceiptGroup[]>(`${base}/factory-receipt-groups`), enabled: workflow === 'inbound' || workflow === 'receipts' });
   /** Pallet code for receipts opened from a single pallet (before dispatch notes existed); '' for dispatch-note PNKs. */
@@ -282,7 +284,7 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
     }
     return true;
   });
-  const inProgressReceipts = (docs.data ?? []).filter(w => w.document.reason === 'Factory' && w.document.kind === 'Receipt' && w.document.status !== 'Posted'
+  const inProgressReceipts = (docs.data ?? []).filter(w => w.document.reason === operationReason && w.document.kind === 'Receipt' && w.document.status === 'Open'
     && (admin || user?.scope?.warehouseIds.includes(w.document.warehouseId)));
   const filterStatuses = getWorkflowStatuses(workflow);
   const exportDocuments = async () => {
@@ -347,20 +349,19 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
     <PageHeader title={selected ? `Chi tiết ${screen.title.toLocaleLowerCase('vi')}` : creating ? screen.create : screen.title} subtitle={screen.description}
       back={selected || creating ? screen.path + (d?.reason === 'Transfer' && workflow !== 'transfer' ? '?source=Transfer' : '') : undefined}
       actions={!selected && !creating ? <div className="row-wrap" style={{ gap: 8 }}><Button loading={exporting} disabled={docs.isLoading || (isOutbound && activeTab === 'todo' ? pendingOutboundRows.length === 0 : visibleRows.length === 0)} onClick={() => void exportDocuments()}>Xuất Excel</Button>{canCreate && <Link className="btn btn-primary" to={`${screen.path}/new`}>{screen.create}</Link>}</div> : undefined} />
-    {!selected && !creating && !factoryRequests && (isInbound || isOutbound) && <div className="tabs warehouse-main-tabs" role="tablist">
-      {isInbound ? <>
-        <button type="button" role="tab" aria-selected={activeTab === 'todo'} className={`tab ${activeTab === 'todo' ? 'active' : ''}`} onClick={() => { setTab(''); setStatusFilter(''); }}>Nhập kho</button>
-        <button type="button" role="tab" aria-selected={activeTab === 'history'} className={`tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => { setTab('history'); setStatusFilter(''); }}>Lịch sử Phiếu Nhập Kho (PNK)</button>
-      </> : <>
-        <button type="button" role="tab" aria-selected={activeTab === 'todo'} className={`tab ${activeTab === 'todo' ? 'active' : ''}`} onClick={() => { setTab(''); setStatusFilter(''); }}>Cần xuất & Soạn hàng</button>
-        <button type="button" role="tab" aria-selected={activeTab === 'history'} className={`tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => { setTab('history'); setStatusFilter(''); }}>Lịch sử Phiếu Xuất Kho (PXK)</button>
-      </>}
-    </div>}
+    {!selected && !creating && !factoryRequests && isInbound && <WarehouseInboundTabs
+      reason={operationReason === 'Transfer' ? 'Transfer' : 'Factory'}
+      tab={activeTab}
+      onReasonChange={next => { setOperationSource(next === 'Transfer' ? 'Transfer' : ''); setStatusFilter(''); }}
+      onTabChange={next => { setTab(next); setStatusFilter(''); }}
+    />}
 
-    {!selected && !creating && isOutbound && <div className="row-wrap" role="group" aria-label="Loại nghiệp vụ kho" style={{ gap: 12, marginBottom: 16 }}>
-      <button type="button" className={`btn ${operationReason !== 'Transfer' ? 'btn-primary' : ''}`} aria-pressed={operationReason !== 'Transfer'} onClick={() => setOperationSource('')}>{isOutbound ? (activeTab === 'history' ? 'Phiếu xuất bán hàng' : 'Xuất bán hàng') : (activeTab === 'history' ? 'Phiếu nhập từ nhà máy' : 'Nhập từ nhà máy')}</button>
-      <button type="button" className={`btn ${operationReason === 'Transfer' ? 'btn-primary' : ''}`} aria-pressed={operationReason === 'Transfer'} onClick={() => setOperationSource('Transfer')}>{isOutbound ? (activeTab === 'history' ? 'Phiếu xuất luân chuyển' : 'Xuất luân chuyển') : (activeTab === 'history' ? 'Phiếu nhập luân chuyển' : 'Nhập luân chuyển')}</button>
-    </div>}
+    {!selected && !creating && isOutbound && <WarehouseOutboundTabs
+      reason={operationReason === 'Transfer' ? 'Transfer' : 'Order'}
+      tab={activeTab}
+      onReasonChange={next => { setOperationSource(next === 'Transfer' ? 'Transfer' : ''); setStatusFilter(''); }}
+      onTabChange={next => { setTab(next); setStatusFilter(''); }}
+    />}
     {workflow === 'trace' && <WarehouseTraceCenter warehouses={warehouses.data ?? []} docs={docs} setSelected={setSelected} />}
     {error && <p role="alert" className="danger">{error}</p>}{notice && <p role="status">{notice}</p>}
     {!selected && !creating && isInbound && !factoryRequests && <section className="card filter-card" aria-label="Bộ lọc nâng cao">
@@ -372,14 +373,14 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
         <label className="lbl">Sắp xếp<select className="inp" value={documentSort} onChange={e => setDocumentSort(e.target.value)}><option value="">Mới nhất</option><option value="codeAsc">Mã phiếu A–Z</option><option value="codeDesc">Mã phiếu Z–A</option></select></label>
       </div>
     </section>}
-    {!selected && !creating && isInbound && !factoryRequests && activeTab === 'todo' && inProgressReceipts.length > 0 && <Card title="Phiếu kiểm đếm đang thực hiện dở dang">
+    {!selected && !creating && isInbound && !factoryRequests && activeTab === 'todo' && inProgressReceipts.length > 0 && <Card title={operationReason === 'Transfer' ? 'Phiếu nhập luân chuyển đang thực hiện' : 'Phiếu kiểm đếm đang thực hiện dở dang'}>
       <p className="muted">Các phiếu nhập kho đã mở nhưng chưa hoàn tất ghi sổ. Chọn phiếu để tiếp tục kiểm đếm.</p>
       <SimpleTable rows={inProgressReceipts} onRowClick={w => { setSelected(w.document.id); setError(''); }} columns={[
         { header: 'Mã phiếu', width: '320px', cell: w => <b className="warehouse-document-code">{w.document.code}</b> },
         { header: 'Kho nhận', width: '220px', cell: w => whName(w.document.warehouseId) },
         { header: 'Số thùng', width: '130px', cell: w => `${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
         { header: 'Trạng thái', width: '150px', cell: () => <span className="chip chip-warn">Đang kiểm đếm</span> },
-        { header: 'Thao tác', width: '180px', cell: w => <button className="btn btn-sm btn-primary" onClick={() => { setSelected(w.document.id); setError(''); }}>Tiếp tục kiểm đếm</button> },
+        { header: 'Thao tác', width: '180px', cell: w => <button className="btn btn-sm btn-primary" onClick={() => { setSelected(w.document.id); setError(''); }}>{operationReason === 'Transfer' ? 'Tiếp tục nhập luân chuyển' : 'Tiếp tục kiểm đếm'}</button> },
       ]} />
     </Card>}
     {!selected && !creating && isInbound && (activeTab === 'todo' || activeTab === 'factory') && <div>
