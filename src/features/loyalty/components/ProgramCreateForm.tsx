@@ -58,10 +58,10 @@ export function ProgramCreateForm({ onClose }: { onClose: () => void }) {
           <Input inputMode="numeric" value={values.minimumRedeemPoints} disabled={create.isPending}
             onChange={e => set('minimumRedeemPoints', e.target.value)} />
         </FormField>
-        {(['startAt', 'endAt', 'pointsExpireAt'] as const).map(key => {
-          const label = key === 'startAt' ? 'Hiệu lực từ (giờ Việt Nam)' : key === 'endAt' ? 'Hiệu lực đến (giờ Việt Nam)' : 'Điểm hết hạn lúc (giờ Việt Nam)';
-          return <FormField key={key} label={label} required={key !== 'pointsExpireAt'} error={errors[key]}
-            hint={key === 'pointsExpireAt' ? 'Để trống nếu không đặt hạn điểm.' : 'Ngày theo dd/mm/yyyy, giờ Việt Nam (UTC+7).'}>
+        {(['startAt', 'endAt'] as const).map(key => {
+          const label = key === 'startAt' ? 'Hiệu lực từ (giờ Việt Nam)' : 'Hiệu lực đến (giờ Việt Nam)';
+          return <FormField key={key} label={label} required error={errors[key]}
+            hint="Ngày theo dd/mm/yyyy, giờ Việt Nam (UTC+7).">
             <DateTimeInput value={values[key]} onChange={value => set(key, value)} invalid={!!errors[key]}
               disabled={create.isPending} aria-label={label} />
           </FormField>;
