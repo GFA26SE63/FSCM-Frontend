@@ -477,7 +477,7 @@ export function CategoriesPage() {
                           onClick={handleOpenAddSubCategory}
                         >
                           + Danh mục con
-                        </Button>
+                        </button>
                       )}
                       <button type="button" className="btn" onClick={handleOpenEdit}>
                         Sửa
