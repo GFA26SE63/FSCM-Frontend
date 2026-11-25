@@ -3,7 +3,6 @@ import { Lock, Printer, Trash2, Unlock } from 'lucide-react';
 import { useNavigate } from '@/shared/router/compat';
 import {
   ActionDropdown,
-  Button,
   DataTable,
   SearchSelect,
   Select,

@@ -191,7 +191,6 @@ export function OperationsReportsPage() {
   const { search } = useLocation();
   const requested = new URLSearchParams(search).get('kind');
   if (requested === 'financial') return <FinancialReportsPage />;
-  const kind: Kind = requested === 'loyalty' || requested === 'promotions' ? requested : 'redemptions';
   const validKinds: Kind[] = ['redemptions', 'loyalty', 'promotions', 'disposals', 'claims', 'receivables'];
   const defaultKind: Kind = user?.role === 'WarehouseKeeper' ? 'disposals' : 'redemptions';
   const kind: Kind = validKinds.includes(requested as Kind) ? (requested as Kind) : defaultKind;
