@@ -516,6 +516,15 @@ export const warehouseApi = {
       } catch (err) {
         console.warn('[warehouseApi.get] GraphQL detail failed:', err);
       }
+      // GraphQL `warehouses` has no coordinates (they live on WarehouseResult); take them from REST.
+      if (rawDetail) {
+        try {
+          const rest = await get<RawWarehouse>(`/warehouses/${targetId}`);
+          rawDetail = { ...rawDetail, latitude: rest.latitude ?? rest.lat, longitude: rest.longitude ?? rest.lng };
+        } catch {
+          // Coordinates stay unknown; the page shows the placeholder.
+        }
+      }
     }
     if (!rawDetail) {
       try {
