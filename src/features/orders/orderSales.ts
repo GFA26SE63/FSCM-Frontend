@@ -36,8 +36,9 @@ export function formatSalesName(entry: ResolvedSalesUser | undefined): string {
   if (identity === UNKNOWN_USER) return UNKNOWN_USER;
 
   const role = entry.role;
-  if (!role || role === 'Sales') {
-    return identity;
+  if (!role) return identity;
+  if (role === 'Sales') {
+    return `[Nhân viên bán hàng] ${identity}`;
   }
   if (role === 'Retailer') {
     return `[Nhà bán lẻ] ${identity}`;
