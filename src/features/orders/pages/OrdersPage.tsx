@@ -1,18 +1,15 @@
-import { useMemo, useState } from 'react';
-import { LogOut, RotateCcw } from 'lucide-react';
+import { useMemo } from 'react';
 import { useNavigate } from '@/shared/router/compat';
 import { useDateParam, useEnumParam, useQueryParams } from '@/shared/router/listState';
 import { useCursorPagination } from '@/shared/pagination';
 import { decodeSort, PAGINATION_PARAM_NAMES, PAGINATION_RESETS, parsePageSize } from '@/shared/pagination/urlSync';
 import {
-  ActionDropdown,
   Button,
   DataTable,
   DateInput,
   PageHeader,
   Select,
   StatusChip,
-  type ActionDropdownItem,
   type Column,
 } from '@/shared/ui';
 import {
@@ -22,15 +19,10 @@ import {
   paymentLabel,
   statusLabels, statusLabel,
 } from '@/shared/lib';
-import { useAuth } from '@/shared/auth/AuthContext';
-import { useApiMutation } from '@/shared/hooks';
-import { canWithdrawOrder } from '../orderAccess';
-import { orderApi } from '../api';
 import { useOrdersPage } from '../hooks';
 import { ORDER_PAGE_SIZES, ORDER_SORT_MAP, ORDER_SORTABLE_FIELDS, type OrderPageSize, type OrderSortField } from '../ordersGraphql';
 import type { OrderSummary } from '../types';
 import { useOrderSales } from '../orderSales';
-import { WithdrawOrderDialog } from '../components/OrderDialogs';
 
 const STATUS_VALUES = ['', 'Allocating', 'Quoted', 'AllocationFailed', 'OutOfStock',
   'AllocationConflict', 'Withdrawn', 'QuoteRejected', 'QuoteExpired', 'PaymentPending',
@@ -49,9 +41,6 @@ const statusFilterOptions = [
 export function OrdersPage() {
   const navigate = useNavigate();
   const { params } = useQueryParams();
-  const { user } = useAuth();
-  const retry = useApiMutation(orderApi.retryAllocation, { success: 'Đã thử phân bổ lại đơn.' });
-  const [withdrawTarget, setWithdrawTarget] = useState<OrderSummary | null>(null);
 
   // Read cursor params directly from URL (same source as useCursorPagination)
   const after = params.get('after') ?? undefined;
@@ -247,7 +236,7 @@ export function OrdersPage() {
         error={query.isPlaceholderData ? undefined : query.error}
         rowKey={(order) => order.id}
         columns={columns}
-        summaryColumns={['orderCode', 'retailer', 'createdAt', 'amount', 'status']}
+        summaryColumns={['orderCode', 'retailer', 'sales', 'createdAt', 'amount', 'status']}
         searchPlaceholder="Mã đơn, nhà bán lẻ, người đặt, trạng thái…"
         cursor={pagingProps}
         serverSort={{ ...sortProps, sortableFields: ORDER_SORTABLE_FIELDS }}
@@ -283,47 +272,8 @@ export function OrdersPage() {
           </>
         }
         onRowClick={(order) => navigate(`/orders/${order.id}`)}
-        rowActionsWidth="135px"
-        rowActionHeader="Thao tác"
-        rowActions={(order) => {
-          const dropdownItems: ActionDropdownItem[] = [];
-          if (
-            ['AllocationFailed', 'AllocationConflict'].includes(order.status)
-          ) {
-            dropdownItems.push({
-              key: 'retry',
-              label: retry.isPending ? 'Đang thử lại…' : 'Thử phân bổ lại',
-              icon: <RotateCcw size={14} style={{ color: '#1D4ED8' }} />,
-              color: '#1D4ED8',
-              disabled: retry.isPending,
-              onClick: () => retry.mutate(order),
-            });
-          }
-          if (canWithdrawOrder(user, order)) {
-            dropdownItems.push({
-              key: 'withdraw',
-              label: 'Rút yêu cầu',
-              icon: <LogOut size={14} style={{ color: '#C2410C' }} />,
-              color: '#C2410C',
-              onClick: () => setWithdrawTarget(order),
-            });
-          }
-          if (dropdownItems.length === 0) return null;
-          return (
-            <div
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <ActionDropdown items={dropdownItems} />
-            </div>
-          );
-        }}
       />
 
-      <WithdrawOrderDialog
-        order={withdrawTarget}
-        onClose={() => setWithdrawTarget(null)}
-      />
     </>
   );
 }
