@@ -43,7 +43,7 @@ export interface ScreenGroup {
 }
 
 // ----------------------------------------------------
-// 1. CỔNG WEB (WEB PORTAL - 31 màn hình)
+// 1. CỔNG WEB (WEB PORTAL - 32 màn hình)
 // ----------------------------------------------------
 export const WEB_SCREEN_GROUPS: ScreenGroup[] = [
   {
@@ -75,6 +75,7 @@ export const WEB_SCREEN_GROUPS: ScreenGroup[] = [
     platform: 'web',
     screens: [
       { key: 'warehouse-inbound', name: 'Nhập kho (PNK)', description: 'Lập và kiểm duyệt chứng từ nhập hàng vào kho' },
+      { key: 'warehouse-factory-requests', name: 'Yêu cầu nhận hàng từ nhà máy', description: 'Tiếp nhận phiếu xuất xưởng của nhà máy và mở phiếu kiểm đếm khi hàng đến kho' },
       { key: 'warehouse-outbound', name: 'Xuất kho (PXK)', description: 'Lập và kiểm duyệt chứng từ xuất hàng ra khỏi kho' },
       { key: 'warehouse-transfers', name: 'Luân chuyển kho', description: 'Quản lý phiếu chuyển kho nội bộ giữa các chi nhánh' },
       { key: 'batches', name: 'Quản lý lô hàng', description: 'Theo dõi thông tin chi tiết lô, HSD và in mã QR thùng hàng' },
@@ -188,6 +189,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   WarehouseKeeper: [
     'dashboard',
     'warehouse-inbound',
+    'warehouse-factory-requests',
     'warehouse-outbound',
     'warehouse-transfers',
     'batches',
