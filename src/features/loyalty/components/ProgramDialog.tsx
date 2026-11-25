@@ -14,7 +14,10 @@ export function ProgramDialog({ program, onClose }: Props) {
   const update = useUpdateProgram();
   const retailers = useProgramRetailers();
   const validate = (key: keyof ProgramFormValues): FormFieldDef['validate'] =>
-    (_, values) => validateProgram(values as ProgramFormValues)[key];
+    (_, values) => {
+      const errors = validateProgram(values as ProgramFormValues);
+      return errors[key] ?? (key === 'endAt' ? errors.pointsExpireAt : undefined);
+    };
   const fields: FormFieldDef[] = [
     { key: 'name', label: 'Tên chương trình', required: true, span: 2, validate: validate('name') },
     { key: 'description', label: 'Mô tả', type: 'textarea', span: 2 },
@@ -22,12 +25,11 @@ export function ProgramDialog({ program, onClose }: Props) {
       required: true, validate: validate('spendAmountPerPoint') },
     { key: 'minimumRedeemPoints', label: 'Điểm tối thiểu đổi quà', type: 'number',
       required: true, validate: validate('minimumRedeemPoints') },
-    ...(['startAt', 'endAt', 'pointsExpireAt'] as const).map(key => {
-      const label = key === 'startAt' ? 'Hiệu lực từ (giờ Việt Nam)' : key === 'endAt' ? 'Hiệu lực đến (giờ Việt Nam)' : 'Điểm hết hạn lúc (giờ Việt Nam)';
+    ...(['startAt', 'endAt'] as const).map(key => {
+      const label = key === 'startAt' ? 'Hiệu lực từ (giờ Việt Nam)' : 'Hiệu lực đến (giờ Việt Nam)';
       return { key, label, type: 'custom' as const, validate: validate(key),
         render: (values: Record<string, string>, set: (key: string, value: unknown) => void, error?: string) =>
-          <FormField label={label} required={key !== 'pointsExpireAt'} error={error}
-            hint={key === 'pointsExpireAt' ? 'Để trống nếu không đặt hạn điểm.' : undefined}>
+          <FormField label={label} required error={error}>
             <DateTimeInput value={values[key] ?? ''} onChange={value => set(key, value)} invalid={!!error} aria-label={label} />
           </FormField> };
     }),
