@@ -26,6 +26,7 @@ import type {
 } from '@/shared/auth/roles';
 import {
   errorMessage,
+  toApiError,
 } from '@/shared/api/errors';
 import {
   env,
@@ -217,7 +218,8 @@ export function LoginPage() {
 
       setPassword('');
     } catch (cause) {
-      setError(errorMessage(cause));
+      const error = toApiError(cause);
+      setError(error.code === 'invalid_credentials' ? error.message : errorMessage(error));
     } finally {
       submitting.current = false;
       setBusy(null);
