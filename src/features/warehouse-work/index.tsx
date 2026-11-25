@@ -384,7 +384,7 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
       ]} />
     </Card>}
     {!selected && !creating && isInbound && (activeTab === 'todo' || activeTab === 'factory') && <div>
-      {operationReason === 'Factory' && <div className="warehouse-guide-steps">
+      {factoryRequests && operationReason === 'Factory' && <div className="warehouse-guide-steps">
         <div className="warehouse-guide-step">
           <div className="step-badge">Bước 1</div>
           <div>
@@ -407,7 +407,7 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
           </div>
         </div>
       </div>}
-      {operationReason === 'Factory' && <QueryState query={warehouses}>{() => <FactoryPending query={incoming} warehouses={executionWarehouses ?? []} admin={admin} busy={busy}
+      {factoryRequests && operationReason === 'Factory' && <QueryState query={warehouses}>{() => <FactoryPending query={incoming} warehouses={executionWarehouses ?? []} admin={admin} busy={busy}
         refresh={() => { void incoming.refetch(); }} onOpen={dispatch => {
           const legacyPallet = dispatch.dispatchNoteId ? undefined : dispatch.pallets[0]?.palletCode;
           if (admin && dispatch.receiptDocumentId) history.push(`/warehouse-inbound/${encodeURIComponent(dispatch.receiptDocumentId)}${legacyPallet ? `?pallet=${encodeURIComponent(legacyPallet)}` : ''}`);
