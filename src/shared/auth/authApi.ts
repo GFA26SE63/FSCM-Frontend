@@ -36,6 +36,9 @@ export interface CurrentUser {
   name: string;
   email: string;
   role: PortalRole;
+  roleDefinitionId?: string;
+  roleCode?: string;
+  roleName?: string;
   permissions?: string[];
   mustChangePassword?: boolean;
   scope?: IdentityScope;
@@ -50,6 +53,9 @@ interface BackendCurrentUser {
   email: string;
   fullName: string;
   role: string;
+  roleDefinitionId?: string;
+  roleCode?: string;
+  roleName?: string;
   permissions?: string[];
   mustChangePassword?: boolean;
   scope?: IdentityScope;
@@ -104,6 +110,9 @@ function mapCurrentUser(
     name: user.fullName,
     email: user.email,
     role: user.role,
+    roleDefinitionId: user.roleDefinitionId,
+    roleCode: user.roleCode,
+    roleName: user.roleName,
     permissions: user.permissions ?? [],
     mustChangePassword: Boolean(
       user.mustChangePassword,

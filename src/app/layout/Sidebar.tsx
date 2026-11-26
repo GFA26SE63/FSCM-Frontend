@@ -40,10 +40,9 @@ export function Sidebar() {
         if (r.hidden) return false;
         if (r.availableToAllPortalUsers) return isPortalRole(user.role);
         if (user.role === 'Admin') return true;
-        if (user.permissions && user.permissions.length > 0) {
-          return user.permissions.includes(r.key);
-        }
-        return r.roles.includes(user.role);
+        return user.permissions === undefined
+          ? r.roles.includes(user.role)
+          : user.permissions.includes(r.key);
       })
     : [];
   const groups = buildGroups(items);
@@ -112,7 +111,7 @@ export function Sidebar() {
         <div className="avatar">{initials(user.name)}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="bold" style={{ fontSize: 13 }}>{user.name}</div>
-          <div style={{ fontSize: 11.5, color: 'var(--c-sidebar-sub)' }}>{roleLabel[user.role]}</div>
+          <div style={{ fontSize: 11.5, color: 'var(--c-sidebar-sub)' }}>{user.roleName ?? roleLabel[user.role]}</div>
         </div>
         <button className="btn btn-sm btn-sidebar" onClick={logout}>Thoát</button>
       </div>
