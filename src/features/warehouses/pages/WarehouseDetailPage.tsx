@@ -21,6 +21,7 @@ import {
   useRetailerMapPoints,
   useUpdateWarehouseStatus,
   useWarehouse,
+  useWarehousePalletCount,
   useWarehouses,
 } from '../hooks';
 import type { MapPoint } from '../types';
@@ -36,6 +37,7 @@ export function WarehouseDetailPage() {
 
   const query = useWarehouse(code, canViewInventory);
   const wh = query.data;
+  const palletCount = useWarehousePalletCount(wh?.id, canViewInventory);
   const { data: allWarehouses = [] } = useWarehouses();
   const { data: regions = [] } = useRegions();
   const { data: retailers = [] } = useRetailerMapPoints();
@@ -191,14 +193,19 @@ export function WarehouseDetailPage() {
                   label: 'Tọa độ',
                   value: whData.lat && whData.lng ? `${whData.lat}, ${whData.lng}` : '[lat, lng]',
                 },
-                { label: 'Thủ kho', value: whData.keeperName || '— Chưa gán' },
+                {
+                  label: 'Thủ kho',
+                  value: whData.keeperNames?.length
+                    ? whData.keeperNames.join(', ')
+                    : whData.keeperName || '— Chưa gán',
+                },
                 {
                   label: 'Tồn tối thiểu',
                   value: `${whData.minStock ?? 30} thùng / SKU – cảnh báo khi có thể cấp thấp hơn`,
                 },
                 {
                   label: 'Số lô hàng đang có',
-                  value: `${whData.batchCount} lô hàng (${whData.capacityPallets} pallet)`,
+                  value: `${whData.batchCount} lô hàng (${palletCountText(palletCount)} pallet)`,
                 },
               ]}
             />
@@ -342,4 +349,11 @@ export function WarehouseDetailPage() {
       )}
     </QueryState>
   );
+}
+
+/** Real 0 shows "0"; loading shows "…"; error/no data shows "—" (never a fake 0). */
+export function palletCountText(q: { isLoading?: boolean; isError?: boolean; data?: number }): string {
+  if (q.isLoading) return '…';
+  if (q.isError || typeof q.data !== 'number') return '—';
+  return String(q.data);
 }

@@ -33,6 +33,9 @@ const receiptsStatuses: Record<string, string> = { Posted: 'Đã ghi sổ', Canc
 const issuesStatuses: Record<string, string> = { Posted: 'Đã ghi sổ', Cancelled: 'Đã hủy' };
 const outboundStatuses: Record<string, string> = { Open: 'Chờ thực hiện', Prepared: 'Đã soạn đủ · chờ xuất', Posted: 'Đã ghi sổ', Fulfilled: 'Đã thực hiện', Cancelled: 'Đã hủy' };
 
+/** Outbound work-queue step shown in the "Trạng thái" column, keyed by document kind. */
+export const outboundSteps: Record<string, string> = { Request: 'Chờ soạn hàng', Picking: 'Đang soạn hàng', Issue: 'Đã soạn xong - Chờ xuất' };
+
 function getWorkflowStatuses(workflow: WarehouseWorkflow): Record<string, string> {
   if (workflow === 'receipts') return receiptsStatuses;
   if (workflow === 'issues') return issuesStatuses;
@@ -209,6 +212,7 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
   const [operationSource, setOperationSource] = useStringParam('source');
   const [tab, setTab] = useStringParam('tab');
   const [documentSort, setDocumentSort] = useStringParam('sort');
+  const [stepFilter, setStepFilter] = useStringParam('step');
   const isInbound = workflow === 'inbound' || workflow === 'receipts';
   const isOutbound = workflow === 'outbound' || workflow === 'issues';
   const isHistoryWorkflow = workflow === 'receipts' || workflow === 'issues';
@@ -279,6 +283,7 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
     : b.document.createdAt.localeCompare(a.document.createdAt));
   const pendingOutboundRows = visibleRows.filter(w => {
     if (w.document.kind === 'Issue' && w.document.status === 'Posted') return false;
+    if (stepFilter && w.document.kind !== stepFilter) return false;
     if (w.document.kind === 'Request' && docs.data?.some(child => child.document.sourceDocumentId === w.document.id)) {
       return false;
     }
@@ -485,19 +490,21 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
 <>
           <AdvancedFilterCard>
             <label className="lbl">Tìm chứng từ<input className="inp" value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã chứng từ, đơn hàng, SKU hoặc lô hàng" /></label>
+            <label className="lbl">Trạng thái<select className="inp" value={stepFilter} onChange={e => setStepFilter(e.target.value)}><option value="">Tất cả trạng thái</option>{Object.entries(outboundSteps).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
             <label className="lbl">Lọc theo kho<select className="inp" value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho</option>{warehouses.data?.filter(w => admin || user?.scope?.warehouseIds.includes(w.id)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
+            {(search || stepFilter || warehouseFilter || statusFilter) && <label className="lbl">&nbsp;<button type="button" className="btn" onClick={() => { setSearch(''); setStepFilter(''); setWarehouseFilter(''); setStatusFilter(''); }}>Xóa bộ lọc</button></label>}
           </AdvancedFilterCard>
         <Card title={operationReason === 'Transfer' ? 'Danh sách Lệnh Xuất Luân Chuyển Cần Soạn' : 'Danh sách Lệnh Xuất & Soạn Hàng'}>
           <p className="muted">{pendingOutboundRows.length} yêu cầu cần xuất · Mỗi dòng đại diện cho 1 lệnh xuất hàng. Bắt đầu hoặc tiếp tục soạn hàng theo thứ tự FEFO.</p>
-          <QueryState query={docs}>{() => <SimpleTable paginate rows={pendingOutboundRows} onRowClick={w => { setSelected(w.document.id); setError(''); }} columns={[
+          <QueryState query={docs}>{() => <SimpleTable paginate resetPageKey={[search, stepFilter, warehouseFilter, statusFilter, operationReason].join('|')} rows={pendingOutboundRows} onRowClick={w => { setSelected(w.document.id); setError(''); }} columns={[
             { header: 'Chứng từ / ngày lập', width: '300px', cell: w => <div><b className="warehouse-pallet-code">{w.document.code}</b><div className="muted">{formatInstantDateTime(w.document.createdAt)}</div></div> },
             { header: 'Loại chứng từ', width: '220px', cell: w => documentTypeLabel(w.document.kind, w.document.reason) },
             { header: 'Kho', width: '200px', cell: w => `${whName(w.document.warehouseId)}${w.document.destinationWarehouseId && w.document.destinationWarehouseId !== w.document.warehouseId ? ' → ' + whName(w.document.destinationWarehouseId) : ''}` },
             { header: 'Số thùng', width: '130px', cell: w => `${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
             { header: 'Trạng thái', width: '160px', cell: w => {
-              if (w.document.kind === 'Request') return <span className="chip chip-warn">Chờ soạn hàng</span>;
-              if (w.document.kind === 'Picking') return <span className="chip chip-info">Đang soạn hàng</span>;
-              if (w.document.kind === 'Issue') return <span className="chip chip-warning">Đã soạn xong - Chờ xuất</span>;
+              if (w.document.kind === 'Request') return <span className="chip chip-warn">{outboundSteps.Request}</span>;
+              if (w.document.kind === 'Picking') return <span className="chip chip-info">{outboundSteps.Picking}</span>;
+              if (w.document.kind === 'Issue') return <span className="chip chip-warning">{outboundSteps.Issue}</span>;
               return <span className="chip">{filterStatuses[w.document.status] ?? statuses[w.document.status] ?? w.document.status}</span>;
             } },
           ]} empty="Không có chứng từ cần xuất kho." />}</QueryState>
