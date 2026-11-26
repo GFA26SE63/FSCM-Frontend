@@ -72,6 +72,19 @@ test('transport dispatch nests delivery and transfer request/history tabs', () =
   assert.ok(page.includes('warehouseTransfers(first: 500'));
 });
 
+test('transfer dispatch assignment sends driver, vehicle and optimistic version', () => {
+  const page = read('features/shipments/pages/OrderReadinessPage.tsx');
+  const api = read('features/shipments/api.ts');
+  assert.ok(api.includes('/transport-dispatches/transfers/${input.transferId}/assignment'));
+  assert.ok(api.includes('driverId: input.driverId'));
+  assert.ok(api.includes('vehicleId: input.vehicleId'));
+  assert.ok(api.includes('expectedVersion: input.expectedVersion'));
+  assert.ok(page.includes('shipmentsApi.assignTransfer'));
+  assert.ok(page.includes("row.status !== 'Approved'"));
+  assert.ok(page.includes('item.warehouseId === row.sourceWarehouseId'));
+  assert.ok(page.includes('Gán xe & tài xế'));
+});
+
 test('loyalty report has a totals row for "Biến động điểm" (received / used over the whole filter)', () => {
   const page = read('features/reports/OperationsReportsPage.tsx');
   assert.ok(page.includes("footer={kind === 'loyalty' && data.pointsTotal ? loyaltyFooter(tableCols, data.pointsTotal) : undefined}"));

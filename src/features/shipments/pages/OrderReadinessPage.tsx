@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Callout, Chip, Input, PageHeader, QueryState, Select, SimpleTable, Stat, Tabs } from '@/shared/ui';
 import { Pagination } from '@/shared/pagination';
 import { graphql } from '@/shared/api/graphql';
@@ -189,6 +189,7 @@ interface TransferDispatchRow {
   sourceWarehouseId: string;
   destinationWarehouseId: string;
   status: string;
+  version: number;
   requestedAt: string;
   assignedAt: string | null;
   dispatchedAt: string | null;
@@ -203,7 +204,7 @@ async function loadTransferDispatches(): Promise<TransferDispatchRow[]> {
       entities {
         warehouseTransfers(first: 500, order: [{ requestedAt: DESC }, { id: DESC }]) {
           nodes {
-            id transferCode sourceWarehouseId destinationWarehouseId status requestedAt
+            id transferCode sourceWarehouseId destinationWarehouseId status version requestedAt
             assignedAt dispatchedAt receivedAt driverNameSnapshot plateNumberSnapshot
           }
         }
@@ -220,7 +221,14 @@ function transferStatusLabel(status: string) {
 }
 
 function TransferDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
+  const client = useQueryClient();
   const transfers = useQuery({ queryKey: ['transport-dispatch', 'transfers'], queryFn: loadTransferDispatches });
+  const drivers = useQuery({ queryKey: ['transport-dispatch', 'drivers'], queryFn: shipmentsApi.drivers });
+  const vehicles = useQuery({ queryKey: ['transport-dispatch', 'vehicles'], queryFn: shipmentsApi.vehicles });
+  const [assignment, setAssignment] = useState<Record<string, { driverId: string; vehicleId: string }>>({});
+  const assign = useMutation({ mutationFn: shipmentsApi.assignTransfer, onSuccess: async () => {
+    await client.invalidateQueries({ queryKey: ['transport-dispatch'] });
+  } });
   return <QueryState query={transfers}>{rows => {
     const visible = rows.filter(row => tab === 'history' ? ['Received', 'Rejected'].includes(row.status) : !['Received', 'Rejected'].includes(row.status));
     return <SimpleTable paginate rows={visible} empty={tab === 'history' ? 'Chưa có điều phối luân chuyển trong lịch sử.' : 'Không có yêu cầu điều phối luân chuyển.'} columns={[
@@ -228,6 +236,19 @@ function TransferDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
       { header: 'Thời điểm yêu cầu', width: '190px', cell: row => formatInstantDateTime(row.requestedAt) },
       { header: 'Tài xế / phương tiện', cell: row => row.driverNameSnapshot || row.plateNumberSnapshot ? `${row.driverNameSnapshot ?? 'Chưa phân công'} · ${row.plateNumberSnapshot ?? 'Chưa phân xe'}` : <span className="muted">Chưa phân công</span> },
       { header: 'Trạng thái điều phối', width: '180px', cell: row => <Chip tone={row.status === 'Rejected' ? 'danger' : row.status === 'Received' ? 'success' : row.status === 'InTransit' ? 'info' : 'warn'}>{transferStatusLabel(row.status)}</Chip> },
+      { header: 'Gán xe & tài xế', width: '360px', cell: row => row.status !== 'Approved' ? <span className="muted">Đã khóa</span> : (() => {
+        const value = assignment[row.id] ?? { driverId: '', vehicleId: '' };
+        const availableDrivers = (drivers.data ?? []).filter(item => item.warehouseId === row.sourceWarehouseId);
+        const availableVehicles = (vehicles.data ?? []).filter(item => item.warehouseId === row.sourceWarehouseId);
+        return <div className="row-wrap" onClick={event => event.stopPropagation()}>
+          <Select aria-label="Tài xế" value={value.driverId} onChange={event => setAssignment(current => ({ ...current, [row.id]: { ...value, driverId: event.target.value } }))}
+            options={[{ value: '', label: 'Chọn tài xế' }, ...availableDrivers.map(item => ({ value: item.id, label: `${item.code} · ${item.fullName}` }))]} />
+          <Select aria-label="Xe" value={value.vehicleId} onChange={event => setAssignment(current => ({ ...current, [row.id]: { ...value, vehicleId: event.target.value } }))}
+            options={[{ value: '', label: 'Chọn xe' }, ...availableVehicles.map(item => ({ value: item.id, label: `${item.plateNumber} · ${item.vehicleType}` }))]} />
+          <Button size="sm" variant="primary" loading={assign.isPending} disabled={!value.driverId || !value.vehicleId}
+            onClick={() => assign.mutate({ transferId: row.id, expectedVersion: row.version, ...value })}>Gán</Button>
+        </div>;
+      })() },
       { header: tab === 'history' ? 'Hoàn tất lúc' : 'Điều phối lúc', width: '190px', cell: row => formatInstantDateTime(tab === 'history' ? row.receivedAt : row.assignedAt) },
     ]} />;
   }}</QueryState>;
