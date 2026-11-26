@@ -615,7 +615,7 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
         <strong>Đã hoàn tất nhập kho luân chuyển:</strong>
         <p style={{ margin: '4px 0 0 0' }}>Tồn kho nhận <b>{whName(d.warehouseId)}</b> đã được ghi tăng theo số thùng thực nhận.</p>
       </div>}
-      {d.reason !== 'Factory' && <><h3>Tổng hợp lấy hàng theo SKU / batch</h3>
+      {d.reason !== 'Factory' && <><h3 style={{ marginBottom: 10 }}>Tổng hợp lấy hàng theo SKU / batch</h3>
       <SimpleTable rows={Object.values(active.lines.reduce<Record<string, { sku: string; batch: string; expiry: string; required: number; scanned: number }>>((result, line) => {
         const key = `${line.sku}:${line.batchCode ?? line.sourceLotCode}:${line.expirationDate}`;
         const row = result[key] ??= { sku: line.sku, batch: line.batchCode ?? line.sourceLotCode ?? 'Chờ nhập', expiry: line.expirationDate, required: 0, scanned: 0 };
@@ -641,7 +641,7 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
             initialCode={legacyPalletOf(d.id)}
             documentId={d.id} version={d.version} receivedCount={active.cartons.length} editable={d.status === 'Open'} />
         </>}{d.reason !== 'Factory' && <p>Tiến độ: {active.cartons.filter(c => c.scannedAt).length} / {active.lines.reduce((s, l) => s + l.quantity, 0)} thùng. Mỗi mã QR đại diện một thùng chứa một SKU.</p>}
-        {(d.kind === 'Picking' || d.kind === 'Issue') && d.status === 'Open' && active.lines.some(l => !l.sourceLotCode?.startsWith('BID-')) && <div className="row-wrap" style={{ gap: 12 }}><button className="btn" disabled={busy} onClick={() => void act(`${base}/${d.id}/prepare-cartons`)}>Chuẩn bị nhãn một thùng cho hàng tồn</button><button className="btn" onClick={() => void printLabels(true)}>Mở nhãn hàng tồn để in</button><span className="muted">Dán nhãn mới lên từng thùng; nhãn gộp cũ sau khi tách sẽ hết hiệu lực.</span></div>}{active.cartons.length > 0 && d.reason !== 'Factory' && <button className="btn" onClick={() => void printLabels()}>In nhãn QR thùng</button>}
+        {(d.kind === 'Picking' || d.kind === 'Issue') && d.status === 'Open' && active.lines.some(l => !l.sourceLotCode?.startsWith('BID-')) && <div className="row-wrap" style={{ gap: 12 }}><button className="btn" disabled={busy} onClick={() => void act(`${base}/${d.id}/prepare-cartons`)}>Chuẩn bị nhãn một thùng cho hàng tồn</button><button className="btn" onClick={() => void printLabels(true)}>Mở nhãn hàng tồn để in</button><span className="muted">Dán nhãn mới lên từng thùng; nhãn gộp cũ sau khi tách sẽ hết hiệu lực.</span></div>}{active.cartons.length > 0 && d.reason !== 'Factory' && <button className="btn" style={{ marginBottom: 12 }} onClick={() => void printLabels()}>In nhãn QR thùng</button>}
         {d.reason !== 'Factory' && (d.status === 'Open' || d.status === 'Prepared') && <form onSubmit={e => { e.preventDefault(); if (scan.trim()) void act(`${base}/${d.id}/scans`, { cartonId: scan.trim(), expectedVersion: d.version }); }} className="row-wrap" style={{ gap: 12, margin: '14px 0' }}>
           <label>Quét mã thùng <input ref={scanInput} autoComplete="off" value={scan} onChange={e => setScan(e.target.value)} placeholder="Quét QR bằng máy đọc rồi nhấn phím xác nhận" disabled={busy} /></label>
           <button className="btn" disabled={busy || !scan.trim() || d.status !== 'Open'}>Ghi nhận thùng</button>
