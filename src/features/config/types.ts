@@ -4,6 +4,7 @@ export interface SystemSettings {
   dmaxRetailerKm: number;
   orderStepCartons: number;
   defaultMlorRatio: number;
+  orderCompletionGraceDays: number;
 }
 
 /**
