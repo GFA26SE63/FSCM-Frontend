@@ -17,13 +17,17 @@ const historyModel = (() => {
   new Function('exports', 'module', code)(mod.exports, mod);
   return mod.exports;
 })();
-function page(states, docs = [], post = async () => ({ data: { document: { id: 'receipt', reason: 'Factory' } } }), { workflow = 'inbound', role = 'WarehouseKeeper', search = '?new=1', push = () => {} } = {}) {
+function page(states, docs = [], post = async () => ({ data: { document: { id: 'receipt', reason: 'Factory' } } }), { workflow = 'inbound', role = 'WarehouseKeeper', search = '?new=1', push = () => {}, factoryRequests = false } = {}) {
   let stateIndex = 0;
   const code = ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/features/warehouse-work/index.tsx'), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   const mocks = {
     './PalletReceiving': { PalletReceiving: 'inspection' },
+    './PalletCamera': { PalletCamera: 'camera' },
+    './WarehouseOutboundTabs': { WarehouseOutboundTabs: 'outbound-tabs' },
+    './WarehouseInboundTabs': { WarehouseInboundTabs: 'inbound-tabs' },
+    '@/shared/api/graphql': { graphql: async () => ({ entities: { warehouseTransfers: { nodes: [], pageInfo: { hasNextPage: false } } } }) },
     './FactoryPending': { FactoryPending: 'pending' },
     './FactoryReceiptHistory': { FactoryReceiptHistory: 'receipt-history' },
     './receiptHistoryModel': historyModel,
@@ -47,7 +51,7 @@ function page(states, docs = [], post = async () => ({ data: { document: { id: '
   };
   const mod = { exports: {} };
   new Function('require', 'exports', 'module', code)(name => Object.hasOwn(mocks, name) ? mocks[name] : require(name), mod.exports, mod);
-  return mod.exports.WarehouseOperationsPage({ workflow });
+  return mod.exports.WarehouseOperationsPage({ workflow, factoryRequests });
 }
 function all(node, predicate) {
   if (!node || typeof node !== 'object') return [];
@@ -58,7 +62,7 @@ function states(scan = '', tab = '') { return ['warehouse', '', [], [], 'deliver
 test('a dispatch-note row opens one PNK for the whole note without sending a warehouse chosen by the keeper', async () => {
   const writes = [];
   const navigations = [];
-  const tree = page(states('', 'factory'), [], async (...args) => { writes.push(args); return { data: { document: { id: 'receipt', reason: 'Factory' } } }; }, { search: '', push: path => navigations.push(path) });
+  const tree = page(states('', 'factory'), [], async (...args) => { writes.push(args); return { data: { document: { id: 'receipt', reason: 'Factory' } } }; }, { search: '', factoryRequests: true, push: path => navigations.push(path) });
   const pending = all(tree, n => n.type === 'query')[0].props.children();
   pending.props.onOpen({ dispatchNoteId: 'note-1', dispatchCode: 'PXN-1', destinationWarehouseId: 'factory-selected-warehouse',
     pallets: [{ palletCode: 'PID-1' }, { palletCode: 'PID-2' }] });
@@ -72,7 +76,7 @@ test('a dispatch-note row opens one PNK for the whole note without sending a war
 test('pallets dispatched before dispatch notes still open a receipt from the single pallet', async () => {
   const writes = [];
   const navigations = [];
-  const tree = page(states('', 'factory'), [], async (...args) => { writes.push(args); return { data: { document: { id: 'receipt', reason: 'Factory' } } }; }, { search: '', push: path => navigations.push(path) });
+  const tree = page(states('', 'factory'), [], async (...args) => { writes.push(args); return { data: { document: { id: 'receipt', reason: 'Factory' } } }; }, { search: '', factoryRequests: true, push: path => navigations.push(path) });
   const pending = all(tree, n => n.type === 'query')[0].props.children();
   pending.props.onOpen({ dispatchNoteId: null, dispatchCode: 'PID-1', destinationWarehouseId: 'factory-selected-warehouse', pallets: [{ palletCode: 'PID-1' }] });
   await new Promise(resolve => setImmediate(resolve));
@@ -84,7 +88,7 @@ test('pallets dispatched before dispatch notes still open a receipt from the sin
 });
 
 test('warehouse lists isolate factory, order and transfer documents with separate detail links', () => {
-  const docs = ['Factory', 'Order', 'Transfer'].map(reason => ({ document: { id: reason, reason, kind: 'Receipt', status: 'Posted', code: reason, warehouseId: 'warehouse' }, lines: [], cartons: [] }));
+  const docs = ['Factory', 'Order', 'Transfer'].map(reason => ({ document: { id: reason, reason, kind: reason === 'Transfer' ? 'Request' : 'Receipt', status: 'Posted', code: reason, warehouseId: 'warehouse', createdAt: '2026-01-01' }, lines: [], cartons: [] }));
   for (const [workflow, reason] of [['receipts', 'Factory'], ['outbound', 'Order'], ['transfer', 'Transfer']]) {
     const navigations = [];
     const tree = page(states('', workflow === 'receipts' ? 'history' : ''), docs, undefined, { workflow, search: '', push: path => navigations.push(path) });
@@ -284,15 +288,16 @@ test('an empty reason is refused, and a missing pallet counts as handled so the 
 test('transfer arrivals only offer posted issues for the receiving warehouse and open a receipt', async () => {
   const values = states(); values[13] = 'Transfer';
   const docs = [
-    { document: { id: 'incoming', kind: 'Issue', reason: 'Transfer', status: 'Posted', warehouseId: 'source', destinationWarehouseId: 'warehouse' }, lines: [], cartons: [] },
+    { document: { id: 'incoming', code: 'PXK-1', createdAt: '2026-01-01', kind: 'Issue', reason: 'Transfer', status: 'Posted', warehouseId: 'source', destinationWarehouseId: 'warehouse' }, transportStatus: 'InTransit', lines: [], cartons: [] },
     { document: { id: 'not-exported', kind: 'Issue', reason: 'Transfer', status: 'Open', warehouseId: 'source', destinationWarehouseId: 'warehouse' }, lines: [], cartons: [] },
     { document: { id: 'other-warehouse', kind: 'Issue', reason: 'Transfer', status: 'Posted', warehouseId: 'source', destinationWarehouseId: 'other' }, lines: [], cartons: [] },
   ];
   const writes = [], paths = [];
   const tree = page(values, docs, async (...args) => { writes.push(args); return { data: { document: { id: 'pnk', kind: 'Receipt', reason: 'Transfer' } } }; }, { search: '', push: path => paths.push(path) });
-  const arrivals = all(tree, n => n.type === 'table' && n.props.columns[0].header === 'Phiếu xuất')[0];
-  assert.deepEqual(arrivals.props.rows.map(w => w.document.id), ['incoming']);
-  arrivals.props.columns[2].cell(arrivals.props.rows[0]).props.onClick();
+  const arrivalsQuery = all(tree, n => n.type === 'query').find(n => n.props.query.data === docs);
+  const arrivals = arrivalsQuery.props.children();
+  assert.deepEqual(arrivals.props.rows.map(w => w.issue.document.id), ['incoming']);
+  arrivals.props.onRowClick(arrivals.props.rows[0]);
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(writes[0][0], '/warehouse-documents/incoming/create-document');
   assert.equal(paths[0], '/warehouse-inbound/pnk');

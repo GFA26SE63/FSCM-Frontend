@@ -1,4 +1,4 @@
-export const QR_LABEL_STATUSES = ['Available', 'Picked', 'InTransit', 'Delivered', 'Invalidated', 'Split'] as const;
+export const QR_LABEL_STATUSES = ['Available', 'Picked', 'InTransit', 'Delivered', 'Missing', 'Invalidated', 'Split'] as const;
 
 export interface QrLabel {
   id: string;
@@ -93,6 +93,7 @@ export function labelStatusText(status: string): string {
     Picked: 'Đã soạn',
     InTransit: 'Đang giao',
     Delivered: 'Đã giao',
+    Missing: 'Thiếu khi giao',
     Invalidated: 'Đã vô hiệu hóa',
     Split: 'Đã tách · chỉ lưu lịch sử',
   };

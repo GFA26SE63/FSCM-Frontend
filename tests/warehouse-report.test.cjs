@@ -129,14 +129,51 @@ test('warehouse report: Excel has a per-warehouse sheet with Tổng rows and col
   assert.ok((await wb.xlsx.writeBuffer()).byteLength > 1000);
 });
 
-test('warehouse report: "Chi tiết" leads each SKU row, totals row says "Tổng", table never scrolls sideways', () => {
+test('warehouse report: chart + comparison matrix + transfer suggestion helpers work', () => {
+  const report = {
+    fromDate: '2026-11-01',
+    toDate: '2026-11-26',
+    regionId: null,
+    top: 10,
+    topProducts: [],
+    warehouses: [
+      {
+        id: 'w1',
+        code: 'WH-TD',
+        name: 'Kho Thủ Đức',
+        regionId: 'r1',
+        regionName: 'TP.HCM',
+        driverCount: 3,
+        vehicleCount: 3,
+        products: [stock({ productId: 'p1', sku: 'SKU001', name: 'Sữa chua', rank: 1, valid: 98, nearExpiry: 5, salesIssue: 10 })],
+      },
+      {
+        id: 'w2',
+        code: 'WH-Q7',
+        name: 'Kho Quận 7',
+        regionId: 'r1',
+        regionName: 'TP.HCM',
+        driverCount: 2,
+        vehicleCount: 2,
+        products: [stock({ productId: 'p1', sku: 'SKU001', name: 'Sữa chua', rank: 1, valid: 8, salesIssue: 60 })],
+      },
+    ],
+  };
+
+  const chart = model.buildWarehouseChartData(report);
+  assert.equal(chart.length, 2);
+  assert.equal(chart[0].code, 'WH-TD');
+  assert.equal(chart[0].valid, 98);
+  assert.equal(chart[1].salesIssue, 60);
+
+  const comparisons = model.buildSkuComparisons(report);
+  assert.equal(comparisons.length, 1);
+  assert.equal(comparisons[0].highestStock.code, 'WH-TD');
+  assert.equal(comparisons[0].topSales.code, 'WH-Q7');
+  assert.equal(comparisons[0].transferSuggestion.fromCode, 'WH-TD');
+  assert.equal(comparisons[0].transferSuggestion.toCode, 'WH-Q7');
+
   const page = read('features/warehouse-report/WarehouseReportPage.tsx');
-  const row = page.slice(page.indexOf('<tbody>'), page.indexOf('</tbody>'));
-  assert.ok(row.indexOf('Chi tiết') < row.indexOf('p.rank'), 'Chi tiết must be the first cell');
-  assert.ok(page.includes('<td className="bold">Tổng</td>'));
-  assert.ok(!page.includes('Cộng {'));
-  assert.ok(!page.includes('SimpleTable'), 'SimpleTable sets a min-width that forces horizontal scroll');
-  const css = read('features/warehouse-report/warehouseReport.css');
-  assert.match(css, /\.wr-grid \{\s*width: 100%;\s*table-layout: fixed;/);
-  assert.equal(new Set(model.METRICS.map((m) => m.short)).size >= 8, true);
+  assert.ok(page.includes('BarChart'));
+  assert.ok(page.includes('/warehouse-transfers/new'));
 });

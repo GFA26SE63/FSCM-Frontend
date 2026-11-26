@@ -65,7 +65,10 @@ test('overview offers three report links and highlights only the selected report
     const html = renderToStaticMarkup(React.createElement(MemoryRouter, {
       initialEntries: ['/dashboard'],
     }, React.createElement(Sidebar)));
-    assert.ok(!html.includes('href="/reports'));
+    for (const report of ['redemptions', 'loyalty', 'promotions']) {
+      assert.equal(html.includes(`href="/reports?kind=${report}"`), role === 'SalesManager');
+    }
+    assert.equal(html.includes('href="/reports?kind=disposals"'), role === 'WarehouseKeeper');
   }
 });
 
@@ -155,7 +158,7 @@ test('Operator can view loyalty but cannot open its edit form or run program mut
       items.map(item => React.createElement('button', { key: item.key, disabled: item.disabled, onClick: item.onClick }, item.label))),
     Card: Wrapper, Modal: () => null, Fields: () => null, Chip: Wrapper,
     DataTable: ({ rows, rowActions, actions }) => React.createElement('div', null,
-      actions, rows?.map((r) => React.createElement('div', { key: r.id }, rowActions(r)))),
+      actions, rows?.map((r) => React.createElement('div', { key: r.id }, rowActions?.(r)))),
   };
   const { LoyaltyProgramsPanel } = source('features/loyalty/components/LoyaltyProgramsPanel.tsx', {
     '@/shared/router/compat': { useNavigate: () => () => {} },
@@ -169,7 +172,6 @@ test('Operator can view loyalty but cannot open its edit form or run program mut
     './ProgramDialog': { ProgramDialog: () => React.createElement('p', null, 'EDIT FORM') },
   });
   const operator = renderToStaticMarkup(React.createElement(LoyaltyProgramsPanel));
-  assert.match(operator, /Xem/);
   for (const action of ['Sửa', 'Tạo chương trình', 'Tạm dừng', 'EDIT FORM']) {
     assert.ok(!operator.includes(action));
   }

@@ -149,6 +149,126 @@ export function reportSummary(report: WarehouseReport) {
   };
 }
 
+export interface WarehouseChartPoint {
+  id: string;
+  code: string;
+  name: string;
+  valid: number;
+  nearExpiry: number;
+  salesIssue: number;
+  factoryReceipt: number;
+}
+
+export interface SkuWarehouseSlice {
+  warehouseId: string;
+  code: string;
+  name: string;
+  valid: number;
+  nearExpiry: number;
+  salesIssue: number;
+  onHand: number;
+  product: WarehouseReportProductStock;
+  warehouse: WarehouseReportWarehouse;
+}
+
+export interface SkuComparisonRow {
+  productId: string;
+  sku: string;
+  name: string;
+  rank: number;
+  totalValid: number;
+  totalNearExpiry: number;
+  totalSales: number;
+  highestStock: SkuWarehouseSlice | null;
+  topSales: SkuWarehouseSlice | null;
+  transferSuggestion: {
+    fromCode: string;
+    fromName: string;
+    toCode: string;
+    toName: string;
+    excessValid: number;
+    toSales: number;
+    toValid: number;
+  } | null;
+  slices: SkuWarehouseSlice[];
+}
+
+export function buildWarehouseChartData(report: WarehouseReport, productId?: string): WarehouseChartPoint[] {
+  return report.warehouses.map((w) => {
+    const items = productId ? w.products.filter((p) => p.productId === productId) : w.products;
+    return {
+      id: w.id,
+      code: w.code,
+      name: w.name,
+      valid: items.reduce((s, p) => s + (p.valid ?? 0), 0),
+      nearExpiry: items.reduce((s, p) => s + (p.nearExpiry ?? 0), 0),
+      salesIssue: items.reduce((s, p) => s + (p.salesIssue ?? 0), 0),
+      factoryReceipt: items.reduce((s, p) => s + (p.factoryReceipt ?? 0), 0),
+    };
+  });
+}
+
+export function buildSkuComparisons(report: WarehouseReport): SkuComparisonRow[] {
+  const map = new Map<string, { productId: string; sku: string; name: string; rank: number; slices: SkuWarehouseSlice[] }>();
+  for (const w of report.warehouses) {
+    for (const p of w.products) {
+      let entry = map.get(p.productId);
+      if (!entry) {
+        entry = { productId: p.productId, sku: p.sku, name: p.name, rank: p.rank, slices: [] };
+        map.set(p.productId, entry);
+      }
+      entry.rank = Math.min(entry.rank, p.rank);
+      entry.slices.push({
+        warehouseId: w.id,
+        code: w.code,
+        name: w.name,
+        valid: p.valid ?? 0,
+        nearExpiry: p.nearExpiry ?? 0,
+        salesIssue: p.salesIssue ?? 0,
+        onHand: p.onHand ?? 0,
+        product: p,
+        warehouse: w,
+      });
+    }
+  }
+  return [...map.values()]
+    .sort((a, b) => a.rank - b.rank || a.sku.localeCompare(b.sku, 'vi'))
+    .map((entry) => {
+      const totalValid = entry.slices.reduce((s, x) => s + x.valid, 0);
+      const totalNearExpiry = entry.slices.reduce((s, x) => s + x.nearExpiry, 0);
+      const totalSales = entry.slices.reduce((s, x) => s + x.salesIssue, 0);
+      const byStock = [...entry.slices].sort((a, b) => (b.valid + b.nearExpiry) - (a.valid + a.nearExpiry) || a.salesIssue - b.salesIssue);
+      const bySales = [...entry.slices].sort((a, b) => b.salesIssue - a.salesIssue || a.valid - b.valid);
+      const highestStock = byStock[0] && (byStock[0].valid + byStock[0].nearExpiry) > 0 ? byStock[0] : null;
+      const topSales = bySales[0] && bySales[0].salesIssue > 0 ? bySales[0] : null;
+      const transferSuggestion =
+        highestStock &&
+        topSales &&
+        highestStock.warehouseId !== topSales.warehouseId &&
+        highestStock.valid > topSales.valid
+          ? {
+              fromCode: highestStock.code,
+              fromName: highestStock.name,
+              toCode: topSales.code,
+              toName: topSales.name,
+              excessValid: highestStock.valid,
+              toSales: topSales.salesIssue,
+              toValid: topSales.valid,
+            }
+          : null;
+      return {
+        ...entry,
+        totalValid,
+        totalNearExpiry,
+        totalSales,
+        highestStock,
+        topSales,
+        transferSuggestion,
+        slices: byStock,
+      };
+    });
+}
+
 /** Column sort chosen by clicking a metric header; null = best-seller rank. */
 export type MetricSort = { key: MetricKey; dir: 'desc' | 'asc' } | null;
 

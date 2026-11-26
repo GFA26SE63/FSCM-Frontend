@@ -37,6 +37,8 @@ export interface Retailer {
   creditTermDays: 0 | 7 | 14 | 30 | number;
   creditLimit?: number;
   requestedCreditTermDays?: number | null;
+  /** Retailer contact account created/linked when the retailer is approved. */
+  userAccountId?: string | null;
   declaredByUserId?: string;
   reviewedByUserId?: string | null;
   reviewedAt?: string | null;

@@ -469,6 +469,7 @@ export function BatchesPage() {
         summaryColumns={['code', 'product', 'wh', 'expiry', 'available', 'status', 'qr']}
         cursor={pagingProps}
         searchPlaceholder="Mã lô hàng, SKU, tên sản phẩm…"
+        filterClassName="batches-filter-card"
         filterExtra={
           <>
         <label className="lbl">Trạng thái

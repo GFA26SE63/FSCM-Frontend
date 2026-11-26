@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from '@/shared/router/compat';
+import { useNavigate, useParams } from '@/shared/router/compat';
 import {
   Button,
   Card,
@@ -17,6 +17,7 @@ import type { ScopeKind } from '../types';
 
 export function UserDetailPage() {
   const { id = '' } = useParams();
+  const navigate = useNavigate();
   const auth = useAuth();
   const query = useUser(id);
   const [editing, setEditing] = useState(false);
@@ -121,6 +122,18 @@ export function UserDetailPage() {
                 )}
               </div>
             </Card>
+
+            {user.role === 'Retailer' && user.scope.retailerIds.length > 0 && (
+              <Card title="Hồ sơ nhà bán lẻ liên kết">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {user.scope.retailerIds.map((retailerId) => (
+                    <Button key={retailerId} size="sm" onClick={() => navigate(`/retailers/${retailerId}`)}>
+                      Mở chi tiết nhà bán lẻ
+                    </Button>
+                  ))}
+                </div>
+              </Card>
+            )}
 
             <UserAuditPanel key={user.id} userId={user.id} />
 

@@ -36,8 +36,11 @@ test('dispatch page: two order-sort options, no shipment sort, region names from
 
 test('batches page: single advanced filter card, exactly two HSD sorts, title as page title', () => {
   const b = read('features/batches/pages/BatchesPage.tsx');
+  const css = read('shared/ui/styles.css');
   const d = read('shared/ui/DataTable.tsx');
   assert.match(b, /titleAboveFilters/);
+  assert.match(b, /filterClassName="batches-filter-card"/);
+  assert.match(css, /\.batches-filter-card \.filter-grid \{ grid-template-columns: minmax\(280px, 1\.35fr\) repeat\(4, minmax\(170px, 1fr\)\) auto; \}/);
   assert.equal((b.match(/HSD (tăng|giảm) dần/g) || []).length, 2);
   assert.ok(!/Mặc định|Mới nhất|Cũ nhất/.test(b));
   assert.ok(!/Xóa bộ lọc/.test(b)); // single reset lives in the shared card
