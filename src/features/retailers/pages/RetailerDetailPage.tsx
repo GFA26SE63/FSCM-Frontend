@@ -118,6 +118,7 @@ function RetailerView({ r }: { r: Retailer }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const mayViewAccount = user?.role === 'Admin';
+  const mayOpenLinkedAccount = Boolean(r.userAccountId) && mayViewAccount;
   const mayEdit = can(user, 'retailers.edit');
   const mayReview = r.status === 'PendingApproval' && can(user, 'retailers.review');
   const mayChangeStatus = Boolean(r.id) && can(user, 'retailers.status');
@@ -146,8 +147,13 @@ function RetailerView({ r }: { r: Retailer }) {
         subtitle={r.address || 'Chưa có thông tin địa chỉ'}
         chips={<StatusChip domain="active" value={r.status} />}
         actions={
-          (tab === 'info' && mayEdit) || mayReview || mayDeactivate || mayReactivate ? (
+          (tab === 'info' && mayEdit) || mayOpenLinkedAccount || mayReview || mayDeactivate || mayReactivate ? (
             <div style={{ display: 'inline-flex', gap: 8 }}>
+              {mayOpenLinkedAccount && (
+                <Button variant="default" onClick={() => navigate(`/users/${r.userAccountId}`)}>
+                  Mở chi tiết tài khoản nhà bán lẻ
+                </Button>
+              )}
               {tab === 'info' && mayEdit && (
                 <Button variant="default" onClick={() => setEdit(true)}>
                   Sửa thông tin
@@ -209,20 +215,6 @@ function RetailerView({ r }: { r: Retailer }) {
                 { label: 'Địa chỉ chi tiết', value: r.address || 'Chưa có thông tin' },
               ]}
             />
-          </Card>
-
-          <Card title="Tài khoản nhà bán lẻ liên kết">
-            {r.userAccountId ? (
-              mayViewAccount ? (
-                <Button onClick={() => navigate(`/users/${r.userAccountId}`)}>
-                  Mở chi tiết tài khoản nhà bán lẻ
-                </Button>
-              ) : (
-                <span className="muted">Tài khoản đã liên kết.</span>
-              )
-            ) : (
-              <span className="muted">Chưa có tài khoản liên kết. Tài khoản được tạo khi hồ sơ được duyệt.</span>
-            )}
           </Card>
 
           {/* B. Vị trí */}
