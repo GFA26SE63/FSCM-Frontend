@@ -28,6 +28,30 @@ function source(file, mocks = {}) {
   return module.exports;
 }
 
+test('role save contract submits screen selections without an independent API grant list', async () => {
+  const writes = [];
+  const { roleApi } = source('features/roles/api.ts', {
+    '@/shared/api/http': { put: async (url, body) => { writes.push({ url, body }); return body; } },
+    '@/shared/api/graphql': {},
+  });
+  const selection = { name: 'Kho', selectedScreenCodes: ['warehouse-inbound', 'mobile-wk-picking'] };
+  await roleApi.update('role-id', selection);
+  assert.deepEqual(writes, [{ url: '/roles/role-id', body: selection }]);
+  assert.equal(Object.hasOwn(writes[0].body, 'permissions'), false);
+});
+
+test('screen totals exclude API permissions, duplicates and unknown screen keys', () => {
+  const types = source('features/roles/types.ts');
+  const grants = types.roleScreenGrants([
+    ...types.ALL_SCREEN_KEYS, ...types.ALL_SCREEN_KEYS,
+    ...Array.from({ length: 200 }, (_, index) => `api:Controller.Action${index}`),
+    'mobile-unknown', 'unknown-web-screen',
+  ]);
+  assert.equal(grants.web.length, 32);
+  assert.equal(grants.mobile.length, 23);
+  assert.deepEqual(types.roleScreenGrants(['api:PickingLists.Scan']), { web: [], mobile: [] });
+});
+
 test('RoleDialog UI layout guarantees flexShrink: 0 and accordion toggle on screen groups with dedicated Mobile tab', () => {
   const roleTypes = source('features/roles/types.ts');
   assert.equal(roleTypes.WEB_SCREEN_GROUPS.length, 6, 'Should have 6 web screen groups');

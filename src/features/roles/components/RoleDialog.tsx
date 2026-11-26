@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, type ReactNode } from 'react';
+import { useState, useMemo, type ReactNode } from 'react';
 import { Button, FormField, Input, Select, Modal, Tabs, type TabItem } from '@/shared/ui';
 import { Check, Shield, Layers, AlertCircle, ChevronDown, ChevronRight, Search, Smartphone, Monitor } from 'lucide-react';
 import {
@@ -11,7 +11,6 @@ import {
   type RoleItem,
   type ScreenGroup,
   type UpdateRoleInput,
-  type ScreenFeature,
 } from '../types';
 import { roleApi } from '../api';
 
@@ -21,7 +20,7 @@ interface Props {
   onSuccess: (saved: RoleItem) => void;
 }
 
-type TabKey = 'general' | 'web' | 'mobile' | 'api';
+type TabKey = 'general' | 'web' | 'mobile';
 
 export function RoleDialog({ role, onClose, onSuccess }: Props) {
   const isEdit = !!role;
@@ -34,29 +33,6 @@ export function RoleDialog({ role, onClose, onSuccess }: Props) {
   const [name, setName] = useState(role?.name ?? '');
   const [description, setDescription] = useState(role?.description ?? '');
   const [baseRole, setBaseRole] = useState(role?.baseRole ?? 'Operator');
-  const [apiFeatures, setApiFeatures] = useState<ScreenFeature[]>([]);
-  const [apiSearch, setApiSearch] = useState('');
-  const [catalogError, setCatalogError] = useState('');
-  useEffect(() => {
-    let disposed = false;
-    roleApi.getScreens().then(features => {
-      if (!disposed) setApiFeatures(features.filter(f => f.key.startsWith('api:')));
-    }).catch(() => { if (!disposed) setCatalogError('Không tải được danh mục quyền thao tác. Vui lòng mở lại hộp thoại.'); });
-    return () => { disposed = true; };
-  }, []);
-  const apiGroups = useMemo<ScreenGroup[]>(() => {
-    const groups = new Map<string, ScreenGroup>();
-    for (const feature of apiFeatures) {
-      let group = groups.get(feature.groupKey);
-      if (!group) {
-        group = { key: feature.groupKey, label: feature.groupLabel, screens: [] };
-        groups.set(feature.groupKey, group);
-      }
-      group.screens.push(feature);
-    }
-    return [...groups.values()];
-  }, [apiFeatures]);
-
   // An empty server grant set is an intentional revocation.
   const [selectedPermissions, setSelectedPermissions] = useState<Set<string>>(() => {
     if (isAdminRole) return new Set(ALL_SCREEN_KEYS);
@@ -195,7 +171,7 @@ export function RoleDialog({ role, onClose, onSuccess }: Props) {
         const payload: UpdateRoleInput = {
           name: name.trim(),
           description: description.trim() || undefined,
-          permissions: Array.from(selectedPermissions),
+          selectedScreenCodes: ALL_SCREEN_KEYS.filter(key => selectedPermissions.has(key)),
         };
         const updated = await roleApi.update(role.id, payload);
         onSuccess(updated);
@@ -204,7 +180,7 @@ export function RoleDialog({ role, onClose, onSuccess }: Props) {
           code: code.trim(),
           name: name.trim(),
           description: description.trim() || undefined,
-          permissions: Array.from(selectedPermissions),
+          selectedScreenCodes: ALL_SCREEN_KEYS.filter(key => selectedPermissions.has(key)),
           baseRole,
         };
         const created = await roleApi.create(payload);
@@ -228,7 +204,6 @@ export function RoleDialog({ role, onClose, onSuccess }: Props) {
   }, [selectedPermissions]);
 
   const tabs: TabItem<TabKey>[] = [
-    { key: 'api', label: 'Quyền thao tác' },
     { key: 'general', label: 'Thông tin chung' },
     {
       key: 'web',
@@ -613,9 +588,7 @@ export function RoleDialog({ role, onClose, onSuccess }: Props) {
         )}
 
         <Tabs items={tabs} value={activeTab} onChange={(tab) => setActiveTab(tab)} />
-        {catalogError && <div role="alert">{catalogError}</div>}
-        {activeTab === 'api' && renderGroupList(apiGroups, apiFeatures.map(f => f.key), apiSearch, setApiSearch, 'web',
-          <p className="muted">Chọn các thao tác được phép thực hiện. Người dùng cần có cả quyền màn hình tương ứng và quyền thao tác.</p>)}
+        <p className="muted">Quyền API được tự động đồng bộ theo các màn hình đã chọn khi lưu.</p>
 
         {/* TAB 1: THÔNG TIN CHUNG */}
         {activeTab === 'general' && (

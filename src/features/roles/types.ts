@@ -15,14 +15,14 @@ export interface CreateRoleInput {
   code: string;
   name: string;
   description?: string;
-  permissions: string[];
+  selectedScreenCodes: string[];
   baseRole?: string;
 }
 
 export interface UpdateRoleInput {
   name: string;
   description?: string;
-  permissions: string[];
+  selectedScreenCodes: string[];
 }
 
 export interface ScreenFeature {
@@ -180,6 +180,15 @@ export const SCREEN_GROUPS: ScreenGroup[] = WEB_SCREEN_GROUPS;
 export const ALL_WEB_SCREEN_KEYS = WEB_SCREEN_GROUPS.flatMap((g) => g.screens.map((s) => s.key));
 export const ALL_MOBILE_SCREEN_KEYS = MOBILE_SCREEN_GROUPS.flatMap((g) => g.screens.map((s) => s.key));
 export const ALL_SCREEN_KEYS = [...ALL_WEB_SCREEN_KEYS, ...ALL_MOBILE_SCREEN_KEYS];
+
+/** Count known screen grants once; API grants are a separate permission level. */
+export function roleScreenGrants(permissions: readonly string[]) {
+  const selected = new Set(permissions);
+  return {
+    web: ALL_WEB_SCREEN_KEYS.filter(key => selected.has(key)),
+    mobile: ALL_MOBILE_SCREEN_KEYS.filter(key => selected.has(key)),
+  };
+}
 
 export const ALL_MOBILE_SALES_KEYS = MOBILE_SCREEN_GROUPS.find((g) => g.key === 'mobile-sales')?.screens.map((s) => s.key) ?? [];
 export const ALL_MOBILE_RT_KEYS = MOBILE_SCREEN_GROUPS.find((g) => g.key === 'mobile-retailer')?.screens.map((s) => s.key) ?? [];

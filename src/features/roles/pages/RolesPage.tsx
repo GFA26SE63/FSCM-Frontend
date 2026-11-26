@@ -7,6 +7,7 @@ import { RoleDialog } from '../components/RoleDialog';
 import {
   ALL_WEB_SCREEN_KEYS,
   ALL_MOBILE_SCREEN_KEYS,
+  roleScreenGrants,
   type RoleItem,
 } from '../types';
 
@@ -315,8 +316,7 @@ export function RolesPage() {
           <SimpleTable paginate rows={filteredRoles.map((role) => {
                   const isAdmin = role.code.toLowerCase() === 'admin';
                   const isSalesOrRetailer = role.code === 'Sales' || role.code === 'Retailer';
-                  const webPerms = role.permissions.filter((p) => ALL_WEB_SCREEN_KEYS.includes(p));
-                  const mobilePerms = role.permissions.filter((p) => p.startsWith('mobile-'));
+                  const { web: webPerms, mobile: mobilePerms } = roleScreenGrants(role.permissions);
 
                   const hasWeb = isAdmin || webPerms.length > 0;
                   const hasMobile = isAdmin || mobilePerms.length > 0 || isSalesOrRetailer;
