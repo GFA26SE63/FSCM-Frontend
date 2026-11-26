@@ -94,7 +94,11 @@ interface RawInventoryItem {
   productName?: string;
   expiry?: string;
   expiryDate?: string;
+  expirationDate?: string;
   onHand?: number;
+  onHandQuantity?: number;
+  reservedQuantity?: number;
+  availableQuantity?: number;
   quantityOnHand?: number;
   held?: number;
   quantityReserved?: number;
@@ -239,10 +243,10 @@ function normalizeStatus(raw: RawWarehouse): WarehouseStatus {
 }
 
 function normalizeInventoryItem(raw: RawInventoryItem): WarehouseInventoryItem {
-  const available = Number(raw.available ?? raw.quantityAvailable ?? 0);
-  const held = Number(raw.held ?? raw.reserved ?? raw.quantityReserved ?? 0);
-  const onHand = Number(raw.onHand ?? raw.quantityOnHand ?? available + held);
-  const expiry = String(raw.expiry ?? raw.expiryDate ?? "").slice(0, 10);
+  const available = Number(raw.available ?? raw.quantityAvailable ?? raw.availableQuantity ?? 0);
+  const held = Number(raw.held ?? raw.reserved ?? raw.quantityReserved ?? raw.reservedQuantity ?? 0);
+  const onHand = Number(raw.onHand ?? raw.quantityOnHand ?? raw.onHandQuantity ?? available + held);
+  const expiry = String(raw.expiry ?? raw.expiryDate ?? raw.expirationDate ?? "").slice(0, 10);
   let remainingDays = raw.remainingDays;
   if (remainingDays === undefined && expiry) {
     const diff = Math.ceil(
@@ -308,6 +312,7 @@ function normalizeWarehouse(raw: RawWarehouse): Warehouse {
     type,
     keeperId,
     keeperName,
+    keeperNames: keeperNamesOf(raw.keepers),
     capacityPallets: Number(raw.capacityPallets ?? raw.capacity ?? 0),
     minStock:
       !Number.isNaN(minStockVal) && minStockVal > 0
@@ -399,6 +404,13 @@ async function resolveWarehouseId(idOrCode: string): Promise<string> {
   return idOrCode;
 }
 
+/** All assigned keepers' names (WarehouseResult.Keepers), never IDs. */
+export function keeperNamesOf(keepers: RawWarehouseKeeper[] | null | undefined): string[] {
+  return (keepers ?? [])
+    .map((k) => (k.userFullName ?? k.fullName ?? '').trim())
+    .filter(Boolean);
+}
+
 async function enrichKeepersFromUsers(
   warehouses: Warehouse[],
 ): Promise<Warehouse[]> {
@@ -426,6 +438,9 @@ async function enrichKeepersFromUsers(
 }
 
 export const warehouseApi = {
+  /** Distinct pallets with ≥1 Available carton in the warehouse (GET /inventory/pallet-count, scope enforced server-side). */
+  palletCount: async (warehouseId: string): Promise<number> =>
+    (await get<{ currentPalletCount: number }>('/inventory/pallet-count', { warehouseId })).currentPalletCount,
   async listRegions(includeInactive = true): Promise<WarehouseRegion[]> {
     const res = await getAll<RawRegion>("/regions", { includeInactive });
     return res.map(normalizeRegion);
@@ -520,7 +535,8 @@ export const warehouseApi = {
       if (rawDetail) {
         try {
           const rest = await get<RawWarehouse>(`/warehouses/${targetId}`);
-          rawDetail = { ...rawDetail, latitude: rest.latitude ?? rest.lat, longitude: rest.longitude ?? rest.lng };
+          // Keeper assignments (WarehouseResult.Keepers) are REST-only as well.
+          rawDetail = { ...rawDetail, latitude: rest.latitude ?? rest.lat, longitude: rest.longitude ?? rest.lng, keepers: rest.keepers };
         } catch {
           // Coordinates stay unknown; the page shows the placeholder.
         }
@@ -560,8 +576,8 @@ export const warehouseApi = {
 
     if (inventory.length === 0 && canViewInventory) {
       try {
-        const batchRes = await getAll<RawInventoryItem>("/batches", {
-          warehouse: base.code,
+        // Backend has no GET /batches; batch stock per warehouse is GET /inventory?warehouseId= (BatchInventoryResult[], unpaged).
+        const batchRes = await get<RawInventoryItem[]>("/inventory", {
           warehouseId: base.id,
         });
         inventory = batchRes.map(normalizeInventoryItem);

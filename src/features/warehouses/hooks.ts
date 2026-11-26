@@ -101,3 +101,10 @@ export function useUpdateWarehouseStatus() {
     },
   });
 }
+
+export const useWarehousePalletCount = (warehouseId: string | undefined, enabled = true) =>
+  useQuery({
+    queryKey: ['warehouses', 'pallet-count', warehouseId],
+    queryFn: () => warehouseApi.palletCount(warehouseId!),
+    enabled: enabled && !!warehouseId,
+  });
