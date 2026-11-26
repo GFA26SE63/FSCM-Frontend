@@ -1,6 +1,7 @@
 export interface RoleItem {
   id: string;
   code: string;
+  baseRole?: string;
   name: string;
   description: string | null;
   isSystem: boolean;
@@ -15,6 +16,7 @@ export interface CreateRoleInput {
   name: string;
   description?: string;
   permissions: string[];
+  baseRole?: string;
 }
 
 export interface UpdateRoleInput {

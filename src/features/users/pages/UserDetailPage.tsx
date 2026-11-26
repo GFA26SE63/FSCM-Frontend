@@ -9,8 +9,10 @@ import {
 } from '@/shared/ui';
 import { roleLabel } from '@/shared/auth/roles';
 import { useAuth } from '@/shared/auth/AuthContext';
+import { can } from '@/shared/auth/permissions';
 import { useUser } from '../hooks';
 import { UserDialog } from '../components/UserDialog';
+import { RoleAssignmentDialog } from '../components/RoleAssignmentDialog';
 import { AssignmentPicker } from '../components/AssignmentPicker';
 import { UserAuditPanel } from '../components/UserAuditPanel';
 import type { ScopeKind } from '../types';
@@ -21,6 +23,7 @@ export function UserDetailPage() {
   const auth = useAuth();
   const query = useUser(id);
   const [editing, setEditing] = useState(false);
+  const [assigningRole, setAssigningRole] = useState(false);
 
   return (
     <QueryState query={query}>
@@ -60,13 +63,16 @@ export function UserDetailPage() {
               title={user.fullName}
               subtitle={user.email}
               actions={
-                auth.user?.role === 'Admin' &&
+                (can(auth.user, 'users.edit') || can(auth.user, 'users.assignRole')) &&
                 user.role !== 'Admin' ? (
-                  <Button
+                  <div style={{ display: 'flex', gap: 8 }}>
+                  {can(auth.user, 'users.edit') && <Button
                     onClick={() => setEditing(true)}
                   >
                     Sửa tài khoản
-                  </Button>
+                  </Button>}
+                  {can(auth.user, 'users.assignRole') && <Button onClick={() => setAssigningRole(true)}>Đổi vai trò</Button>}
+                  </div>
                 ) : undefined
               }
             />
@@ -123,7 +129,7 @@ export function UserDetailPage() {
               </div>
             </Card>
 
-            {user.role === 'Retailer' && user.scope.retailerIds.length > 0 && (
+            {(user.businessRole ?? user.role) === 'Retailer' && user.scope.retailerIds.length > 0 && (
               <Card title="Hồ sơ nhà bán lẻ liên kết">
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {user.scope.retailerIds.map((retailerId) => (
@@ -151,6 +157,8 @@ export function UserDetailPage() {
                 onClose={() => setEditing(false)}
               />
             )}
+            {assigningRole && user.role !== 'Admin' && <RoleAssignmentDialog user={user}
+              onClose={() => setAssigningRole(false)} onSaved={() => query.refetch()} />}
           </>
         );
       }}

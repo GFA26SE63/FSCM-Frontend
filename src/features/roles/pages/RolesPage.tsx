@@ -1,5 +1,5 @@
 import { SimpleTable } from '@/shared/ui';
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { Button, ConfirmDialog, Input, PageHeader } from '@/shared/ui';
 import { Shield, Plus, Search, Edit2, Trash2, Users, Layers, AlertCircle, RefreshCw, Smartphone, Monitor } from 'lucide-react';
 import { roleApi } from '../api';
@@ -26,7 +26,7 @@ export function RolesPage() {
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  async function loadRoles() {
+  const loadRoles = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -37,11 +37,11 @@ export function RolesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [search]);
 
   useEffect(() => {
     loadRoles();
-  }, [search]);
+  }, [loadRoles]);
 
   function handleCreateClick() {
     setEditingRole(null);
@@ -86,7 +86,7 @@ export function RolesPage() {
   const webRolesCount = useMemo(() => {
     return roles.filter((r) => {
       if (r.code.toLowerCase() === 'admin') return true;
-      return r.permissions.some((p) => !p.startsWith('mobile-'));
+      return r.permissions.some((p) => ALL_WEB_SCREEN_KEYS.includes(p));
     }).length;
   }, [roles]);
 
@@ -95,8 +95,8 @@ export function RolesPage() {
       if (r.code.toLowerCase() === 'admin') return true;
       return (
         r.permissions.some((p) => p.startsWith('mobile-')) ||
-        r.code === 'Sales' ||
-        r.code === 'Retailer'
+        (r.baseRole ?? r.code) === 'Sales' ||
+        (r.baseRole ?? r.code) === 'Retailer'
       );
     }).length;
   }, [roles]);
@@ -106,7 +106,7 @@ export function RolesPage() {
     if (platformFilter === 'web') {
       return roles.filter((r) => {
         if (r.code.toLowerCase() === 'admin') return true;
-        return r.permissions.some((p) => !p.startsWith('mobile-'));
+        return r.permissions.some((p) => ALL_WEB_SCREEN_KEYS.includes(p));
       });
     }
     if (platformFilter === 'mobile') {
@@ -114,8 +114,8 @@ export function RolesPage() {
         if (r.code.toLowerCase() === 'admin') return true;
         return (
           r.permissions.some((p) => p.startsWith('mobile-')) ||
-          r.code === 'Sales' ||
-          r.code === 'Retailer'
+          (r.baseRole ?? r.code) === 'Sales' ||
+          (r.baseRole ?? r.code) === 'Retailer'
         );
       });
     }
@@ -315,7 +315,7 @@ export function RolesPage() {
           <SimpleTable paginate rows={filteredRoles.map((role) => {
                   const isAdmin = role.code.toLowerCase() === 'admin';
                   const isSalesOrRetailer = role.code === 'Sales' || role.code === 'Retailer';
-                  const webPerms = role.permissions.filter((p) => !p.startsWith('mobile-'));
+                  const webPerms = role.permissions.filter((p) => ALL_WEB_SCREEN_KEYS.includes(p));
                   const mobilePerms = role.permissions.filter((p) => p.startsWith('mobile-'));
 
                   const hasWeb = isAdmin || webPerms.length > 0;

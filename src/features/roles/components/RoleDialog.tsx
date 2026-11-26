@@ -1,5 +1,5 @@
-import { useState, useMemo, type ReactNode } from 'react';
-import { Button, FormField, Input, Modal, Tabs, type TabItem } from '@/shared/ui';
+import { useState, useMemo, useEffect, type ReactNode } from 'react';
+import { Button, FormField, Input, Select, Modal, Tabs, type TabItem } from '@/shared/ui';
 import { Check, Shield, Layers, AlertCircle, ChevronDown, ChevronRight, Search, Smartphone, Monitor } from 'lucide-react';
 import {
   ALL_SCREEN_KEYS,
@@ -7,11 +7,11 @@ import {
   ALL_MOBILE_SCREEN_KEYS,
   WEB_SCREEN_GROUPS,
   MOBILE_SCREEN_GROUPS,
-  DEFAULT_ROLE_PERMISSIONS,
   type CreateRoleInput,
   type RoleItem,
   type ScreenGroup,
   type UpdateRoleInput,
+  type ScreenFeature,
 } from '../types';
 import { roleApi } from '../api';
 
@@ -21,7 +21,7 @@ interface Props {
   onSuccess: (saved: RoleItem) => void;
 }
 
-type TabKey = 'general' | 'web' | 'mobile';
+type TabKey = 'general' | 'web' | 'mobile' | 'api';
 
 export function RoleDialog({ role, onClose, onSuccess }: Props) {
   const isEdit = !!role;
@@ -33,17 +33,34 @@ export function RoleDialog({ role, onClose, onSuccess }: Props) {
   const [code, setCode] = useState(role?.code ?? '');
   const [name, setName] = useState(role?.name ?? '');
   const [description, setDescription] = useState(role?.description ?? '');
+  const [baseRole, setBaseRole] = useState(role?.baseRole ?? 'Operator');
+  const [apiFeatures, setApiFeatures] = useState<ScreenFeature[]>([]);
+  const [apiSearch, setApiSearch] = useState('');
+  const [catalogError, setCatalogError] = useState('');
+  useEffect(() => {
+    let disposed = false;
+    roleApi.getScreens().then(features => {
+      if (!disposed) setApiFeatures(features.filter(f => f.key.startsWith('api:')));
+    }).catch(() => { if (!disposed) setCatalogError('Không tải được danh mục quyền thao tác. Vui lòng mở lại hộp thoại.'); });
+    return () => { disposed = true; };
+  }, []);
+  const apiGroups = useMemo<ScreenGroup[]>(() => {
+    const groups = new Map<string, ScreenGroup>();
+    for (const feature of apiFeatures) {
+      let group = groups.get(feature.groupKey);
+      if (!group) {
+        group = { key: feature.groupKey, label: feature.groupLabel, screens: [] };
+        groups.set(feature.groupKey, group);
+      }
+      group.screens.push(feature);
+    }
+    return [...groups.values()];
+  }, [apiFeatures]);
 
-  // Initialize selected permissions:
-  // If editing an existing role that has permissions, use them.
-  // If role has 0 permissions but has defaults (e.g. Sales, Retailer), pre-fill with defaults.
+  // An empty server grant set is an intentional revocation.
   const [selectedPermissions, setSelectedPermissions] = useState<Set<string>>(() => {
     if (isAdminRole) return new Set(ALL_SCREEN_KEYS);
-    if (role?.permissions && role.permissions.length > 0) return new Set(role.permissions);
-    if (role?.code && DEFAULT_ROLE_PERMISSIONS[role.code]) {
-      return new Set(DEFAULT_ROLE_PERMISSIONS[role.code]);
-    }
-    return new Set();
+    return new Set(role?.permissions ?? []);
   });
 
   // Accordion state
@@ -188,6 +205,7 @@ export function RoleDialog({ role, onClose, onSuccess }: Props) {
           name: name.trim(),
           description: description.trim() || undefined,
           permissions: Array.from(selectedPermissions),
+          baseRole,
         };
         const created = await roleApi.create(payload);
         onSuccess(created);
@@ -210,6 +228,7 @@ export function RoleDialog({ role, onClose, onSuccess }: Props) {
   }, [selectedPermissions]);
 
   const tabs: TabItem<TabKey>[] = [
+    { key: 'api', label: 'Quyền thao tác' },
     { key: 'general', label: 'Thông tin chung' },
     {
       key: 'web',
@@ -594,10 +613,21 @@ export function RoleDialog({ role, onClose, onSuccess }: Props) {
         )}
 
         <Tabs items={tabs} value={activeTab} onChange={(tab) => setActiveTab(tab)} />
+        {catalogError && <div role="alert">{catalogError}</div>}
+        {activeTab === 'api' && renderGroupList(apiGroups, apiFeatures.map(f => f.key), apiSearch, setApiSearch, 'web',
+          <p className="muted">Chọn các thao tác được phép thực hiện. Người dùng cần có cả quyền màn hình tương ứng và quyền thao tác.</p>)}
 
         {/* TAB 1: THÔNG TIN CHUNG */}
         {activeTab === 'general' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8 }}>
+            <FormField label="Phạm vi nghiệp vụ" hint="Quy định phạm vi dữ liệu của tài khoản. Quyền màn hình và thao tác được cấu hình ở các tab riêng.">
+              <Select value={baseRole} disabled={isEdit || busy} onChange={e => setBaseRole(e.target.value)} options={[
+                { value: 'Operator', label: 'Vận hành' }, { value: 'WarehouseKeeper', label: 'Kho được phân công' },
+                { value: 'SalesManager', label: 'Khu vực quản lý' }, { value: 'Sales', label: 'Nhóm bán hàng' },
+                { value: 'Retailer', label: 'Nhà bán lẻ của tài khoản' },
+                ...(isAdminRole ? [{ value: 'Admin', label: 'Quản trị viên' }] : []),
+              ]} />
+            </FormField>
             <FormField label="Tên vai trò" required error={errors.name}>
               <Input
                 placeholder="Ví dụ: Nhân viên kiểm kê, Kế toán công nợ, Nhân viên thị trường..."

@@ -59,6 +59,8 @@ test('RoleDialog UI layout guarantees flexShrink: 0 and accordion toggle on scre
       Button: ({ children, ...props }) => React.createElement('button', props, children),
       FormField: ({ label, children }) => React.createElement('div', null, label, children),
       Input: (props) => React.createElement('input', props),
+      Select: ({ options, ...props }) => React.createElement('select', props,
+        options.map(option => React.createElement('option', { key: option.value, value: option.value }, option.label))),
       Modal: ({ children, title, subtitle, footer }) => React.createElement('div', { className: 'modal-mock' }, title, subtitle, children, footer),
       Tabs: ({ items, value, onChange }) => React.createElement('div', { className: 'tabs-mock' }),
     },

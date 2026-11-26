@@ -78,14 +78,14 @@ function statusPanel({ labels, status = 'all', role = 'WarehouseKeeper', query: 
 const statusLabel = (status, i) => ({ id: `label-${i}`, qrCode: `CID-F01-20261124-A-0001-${String(i).padStart(4, '0')}`,
   qrPayload: `original-payload-${i}`, status, invalidatedAt: status === 'Invalidated' ? '2026-11-24' : null });
 
-test('batch QR tabs count all six backend statuses and change only the displayed rows', () => {
+test('batch QR tabs count all seven backend statuses including split history and change only the displayed rows', () => {
   const labels = qrTypes.QR_LABEL_STATUSES.map(statusLabel);
   const panel = statusPanel({ labels });
   const html = panel.render();
   assert.match(html, /role="tablist"/);
-  assert.equal(panel.tabs.items.find(tab => tab.key === 'all').count, 6);
+  assert.equal(panel.tabs.items.find(tab => tab.key === 'all').count, 7);
   for (const status of qrTypes.QR_LABEL_STATUSES) assert.equal(panel.tabs.items.find(tab => tab.key === status).count, 1);
-  assert.equal(panel.rows.length, 6);
+  assert.equal(panel.rows.length, 7);
   panel.tabs.onChange('Picked');
   panel.render();
   assert.deepEqual(panel.rows.map(row => row.label), labels.filter(row => row.status === 'Picked'));

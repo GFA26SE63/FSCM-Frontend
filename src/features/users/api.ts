@@ -109,8 +109,15 @@ export const userApi = {
     return normalizeUserPage(raw, filters);
   },
 
-  get: (id: string): Promise<UserDetail> =>
-    get<UserDetail>(`/users/${encodeURIComponent(id)}`),
+  get: async (id: string): Promise<UserDetail> => {
+    const data = await graphql<{ entities: { userRead: UserDetail & { roleCode?: string } } }>(
+      `query User($id: UUID!) { entities { userRead(id: $id) {
+        id email fullName role roleCode roleDefinitionId mustChangePassword
+        scope { warehouseIds regionIds salesGroupIds retailerIds }
+      } } }`, { id });
+    const user = data.entities.userRead;
+    return { ...user, businessRole: user.role, role: user.roleCode ?? user.role };
+  },
 
   audit: async (userId: string, after: string | null, pageSize = 20): Promise<UserAuditPage> => {
     if (![10, 20, 50].includes(pageSize)) throw new ApiError(400, 'Số dòng lịch sử mỗi trang phải là 10, 20 hoặc 50.');
@@ -158,6 +165,11 @@ export const userApi = {
       `/users/${encodeURIComponent(input.id)}/status`,
       { isActive: input.isActive },
     );
+  },
+
+  async assignRole(id: string, role: string): Promise<void> {
+    assertCreatableRole(role);
+    await http.patch(`/users/${encodeURIComponent(id)}/role`, { role });
   },
 
   async scopeOptions(
