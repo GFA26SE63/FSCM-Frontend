@@ -10,13 +10,15 @@ export const configApi = {
     return { allocation: { wE: weights.expiry, wD: weights.distance, wQ: weights.coverage },
       dmaxRetailerKm: Number(values.get('allocation.service_radius_meters')) / 1000,
       orderStepCartons: Number(values.get('order.order_step_cartons') ?? 1),
-      defaultMlorRatio: Number(values.get('mlor.default_ratio') ?? 0.25) };
+      defaultMlorRatio: Number(values.get('mlor.default_ratio') ?? 0.25),
+      orderCompletionGraceDays: Number(values.get('order.completion_grace_days') ?? 0) };
   },
   saveSettings: async (s: SystemSettings) => {
     const entries = [
       ['allocation.weights', { expiry: s.allocation.wE, distance: s.allocation.wD, coverage: s.allocation.wQ }],
       ['allocation.service_radius_meters', Math.round(s.dmaxRetailerKm * 1000)],
       ['order.order_step_cartons', s.orderStepCartons], ['mlor.default_ratio', s.defaultMlorRatio],
+      ['order.completion_grace_days', s.orderCompletionGraceDays],
     ] as const;
     await put('/configurations/batch', { entries: entries.map(([key, value]) => ({ key, value })) });
     return s;
