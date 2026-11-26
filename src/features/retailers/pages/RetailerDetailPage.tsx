@@ -207,20 +207,22 @@ function RetailerView({ r }: { r: Retailer }) {
                 { label: 'Số điện thoại', value: r.phone || 'Chưa có thông tin' },
                 { label: 'Email', value: r.email || 'Chưa có thông tin' },
                 { label: 'Địa chỉ chi tiết', value: r.address || 'Chưa có thông tin' },
-                {
-                  label: 'Tài khoản nhà bán lẻ',
-                  value: r.userAccountId
-                    ? mayViewAccount
-                      ? (
-                        <Button size="sm" onClick={() => navigate(`/users/${r.userAccountId}`)}>
-                          Mở chi tiết tài khoản
-                        </Button>
-                      )
-                      : 'Tài khoản đã liên kết'
-                    : 'Chưa có tài khoản liên kết',
-                },
               ]}
             />
+          </Card>
+
+          <Card title="Tài khoản nhà bán lẻ liên kết">
+            {r.userAccountId ? (
+              mayViewAccount ? (
+                <Button onClick={() => navigate(`/users/${r.userAccountId}`)}>
+                  Mở chi tiết tài khoản nhà bán lẻ
+                </Button>
+              ) : (
+                <span className="muted">Tài khoản đã liên kết.</span>
+              )
+            ) : (
+              <span className="muted">Chưa có tài khoản liên kết. Tài khoản được tạo khi hồ sơ được duyệt.</span>
+            )}
           </Card>
 
           {/* B. Vị trí */}
