@@ -1,7 +1,7 @@
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
 import { useState } from 'react';
-import { useParams } from '@/shared/router/compat';
+import { useNavigate, useParams } from '@/shared/router/compat';
 import { useReturnToList } from '@/shared/router/listState';
 import { toApiError } from '@/shared/api/errors';
 import {
@@ -116,6 +116,9 @@ function RetailerView({ r }: { r: Retailer }) {
   const [edit, setEdit] = useState(false);
   const [review, setReview] = useState(false);
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const mayViewAccount = user?.role === 'Admin';
+  const mayOpenLinkedAccount = Boolean(r.userAccountId) && mayViewAccount;
   const mayEdit = can(user, 'retailers.edit');
   const mayReview = r.status === 'PendingApproval' && can(user, 'retailers.review');
   const mayChangeStatus = Boolean(r.id) && can(user, 'retailers.status');
@@ -144,8 +147,13 @@ function RetailerView({ r }: { r: Retailer }) {
         subtitle={r.address || 'Chưa có thông tin địa chỉ'}
         chips={<StatusChip domain="active" value={r.status} />}
         actions={
-          (tab === 'info' && mayEdit) || mayReview || mayDeactivate || mayReactivate ? (
+          (tab === 'info' && mayEdit) || mayOpenLinkedAccount || mayReview || mayDeactivate || mayReactivate ? (
             <div style={{ display: 'inline-flex', gap: 8 }}>
+              {mayOpenLinkedAccount && (
+                <Button variant="default" onClick={() => navigate(`/users/${r.userAccountId}`)}>
+                  Mở chi tiết tài khoản nhà bán lẻ
+                </Button>
+              )}
               {tab === 'info' && mayEdit && (
                 <Button variant="default" onClick={() => setEdit(true)}>
                   Sửa thông tin

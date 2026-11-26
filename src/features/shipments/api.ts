@@ -42,6 +42,10 @@ export const shipmentsApi = {
   list: (orderId: string) => fetchShipmentsForOrder(orderId),
   drivers: () => getAll<DeliveryDriver>('/deliveries/drivers', { includeInactive: false }),
   vehicles: () => getAll<DeliveryVehicle>('/deliveries/vehicles', { includeInactive: false }),
+  assignTransfer: (input: { transferId: string; driverId: string; vehicleId: string; expectedVersion: number }) =>
+    post<void>(`/transport-dispatches/transfers/${input.transferId}/assignment`, {
+      driverId: input.driverId, vehicleId: input.vehicleId, expectedVersion: input.expectedVersion,
+    }),
   busyAssignments: async () => {
     type ActiveAssignment = { status: string; driverId: string | null; vehicleId: string | null };
     type AssignmentConnection = {
