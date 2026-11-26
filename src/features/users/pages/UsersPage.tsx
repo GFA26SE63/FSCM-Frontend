@@ -11,6 +11,7 @@ import {
 import { formatDateTime } from '@/shared/lib';
 import { roleLabel } from '@/shared/auth/roles';
 import { useAuth } from '@/shared/auth/AuthContext';
+import { can } from '@/shared/auth/permissions';
 import { useUsers } from '../hooks';
 import { UserDialog } from '../components/UserDialog';
 import { UserStatusButton } from '../components/UserStatusButton';
@@ -92,7 +93,7 @@ export function UsersPage() {
         title="Người dùng"
         subtitle="Quản lý tài khoản và phân quyền vai trò cho nhân sự."
         actions={
-          auth.user?.role === 'Admin' && (
+          (auth.user?.role === 'Admin' || auth.user?.permissions?.includes('roles')) && (
             <div style={{ display: 'flex', gap: 8 }}>
               <Button
                 variant="ghost"
@@ -187,7 +188,7 @@ export function UsersPage() {
           </>
         }
         actions={
-          auth.user?.role === 'Admin' && (
+          can(auth.user, 'users.create') && (
             <Button
               variant="primary"
               onClick={() => setCreating(true)}

@@ -13,6 +13,7 @@ interface SaveInput {
   email: string;
   fullName: string;
   role: CreatableRole;
+  businessRole?: string;
   assignments: Assignments;
 }
 
@@ -64,14 +65,15 @@ export async function finishUserSave(input: SaveInput) {
     });
   }
 
+  const businessRole = input.businessRole ?? current.businessRole ?? input.role;
   const kinds: ScopeKind[] =
-    input.role === 'WarehouseKeeper'
+    businessRole === 'WarehouseKeeper'
       ? ['regions', 'warehouses']
-      : input.role === 'Sales'
+      : businessRole === 'Sales'
         ? ['sales-groups']
-        : input.role === 'SalesManager'
+        : businessRole === 'SalesManager'
           ? ['regions', 'sales-groups']
-          : input.role === 'Retailer'
+          : businessRole === 'Retailer'
             ? ['retailers']
             : [];
 
