@@ -46,6 +46,7 @@ test('Vietnamese navigation preserves the new warehouse routes, document paths a
   assert.equal(workflow.warehouseDocumentPath({ id: 'issue-1', reason: 'Order' }), '/warehouse-outbound/issue-1');
   assert.equal(workflow.warehouseDocumentPath({ id: 'transfer-1', reason: 'Transfer' }), '/warehouse-transfers/transfer-1');
   assert.equal(workflow.belongsToWorkflow({ id: 'transfer-request', reason: 'Transfer', kind: 'Request' }, 'transfer'), true);
+  assert.equal(workflow.belongsToWorkflow({ id: 'transfer-request', reason: 'Transfer', kind: 'Request' }, 'outbound'), true);
   assert.equal(workflow.belongsToWorkflow({ id: 'transfer-issue', reason: 'Transfer', kind: 'Issue' }, 'transfer'), false);
   assert.equal(workflow.belongsToWorkflow({ id: 'transfer-receipt', reason: 'Transfer', kind: 'Receipt' }, 'transfer'), false);
 });

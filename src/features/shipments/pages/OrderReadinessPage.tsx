@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Callout, Chip, Input, PageHeader, QueryState, Select, SimpleTable, Stat, Tabs } from '@/shared/ui';
+import { Button, Callout, Chip, DataTable, Input, Modal, PageHeader, QueryState, Select, SimpleTable, Stat, Tabs } from '@/shared/ui';
 import { Pagination } from '@/shared/pagination';
 import { graphql } from '@/shared/api/graphql';
+import { errorMessage } from '@/shared/api/errors';
 import { formatInstantDateTime } from '@/shared/lib/dates';
 import { useEnumParam } from '@/shared/router/listState';
 import { usePickingLists } from '@/features/runpicking/hooks';
@@ -225,31 +226,48 @@ function TransferDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
   const transfers = useQuery({ queryKey: ['transport-dispatch', 'transfers'], queryFn: loadTransferDispatches });
   const drivers = useQuery({ queryKey: ['transport-dispatch', 'drivers'], queryFn: shipmentsApi.drivers });
   const vehicles = useQuery({ queryKey: ['transport-dispatch', 'vehicles'], queryFn: shipmentsApi.vehicles });
-  const [assignment, setAssignment] = useState<Record<string, { driverId: string; vehicleId: string }>>({});
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [driverId, setDriverId] = useState('');
+  const [vehicleId, setVehicleId] = useState('');
+  const { data: warehouses = [] } = useWarehouses();
   const assign = useMutation({ mutationFn: shipmentsApi.assignTransfer, onSuccess: async () => {
     await client.invalidateQueries({ queryKey: ['transport-dispatch'] });
+    await client.invalidateQueries({ queryKey: ['warehouse-documents'] });
+    setSelectedId(null);
   } });
   return <QueryState query={transfers}>{rows => {
     const visible = rows.filter(row => tab === 'history' ? ['Received', 'Rejected'].includes(row.status) : !['Received', 'Rejected'].includes(row.status));
-    return <SimpleTable paginate rows={visible} empty={tab === 'history' ? 'Chưa có điều phối luân chuyển trong lịch sử.' : 'Không có yêu cầu điều phối luân chuyển.'} columns={[
-      { header: 'Mã lệnh', width: '180px', cell: row => <b>{row.transferCode}</b> },
-      { header: 'Thời điểm yêu cầu', width: '190px', cell: row => formatInstantDateTime(row.requestedAt) },
-      { header: 'Tài xế / phương tiện', cell: row => row.driverNameSnapshot || row.plateNumberSnapshot ? `${row.driverNameSnapshot ?? 'Chưa phân công'} · ${row.plateNumberSnapshot ?? 'Chưa phân xe'}` : <span className="muted">Chưa phân công</span> },
-      { header: 'Trạng thái điều phối', width: '180px', cell: row => <Chip tone={row.status === 'Rejected' ? 'danger' : row.status === 'Received' ? 'success' : row.status === 'InTransit' ? 'info' : 'warn'}>{transferStatusLabel(row.status)}</Chip> },
-      { header: 'Gán xe & tài xế', width: '360px', cell: row => row.status !== 'Approved' ? <span className="muted">Đã khóa</span> : (() => {
-        const value = assignment[row.id] ?? { driverId: '', vehicleId: '' };
-        const availableDrivers = (drivers.data ?? []).filter(item => item.warehouseId === row.sourceWarehouseId);
-        const availableVehicles = (vehicles.data ?? []).filter(item => item.warehouseId === row.sourceWarehouseId);
-        return <div className="row-wrap" onClick={event => event.stopPropagation()}>
-          <Select aria-label="Tài xế" value={value.driverId} onChange={event => setAssignment(current => ({ ...current, [row.id]: { ...value, driverId: event.target.value } }))}
-            options={[{ value: '', label: 'Chọn tài xế' }, ...availableDrivers.map(item => ({ value: item.id, label: `${item.code} · ${item.fullName}` }))]} />
-          <Select aria-label="Xe" value={value.vehicleId} onChange={event => setAssignment(current => ({ ...current, [row.id]: { ...value, vehicleId: event.target.value } }))}
-            options={[{ value: '', label: 'Chọn xe' }, ...availableVehicles.map(item => ({ value: item.id, label: `${item.plateNumber} · ${item.vehicleType}` }))]} />
-          <Button size="sm" variant="primary" loading={assign.isPending} disabled={!value.driverId || !value.vehicleId}
-            onClick={() => assign.mutate({ transferId: row.id, expectedVersion: row.version, ...value })}>Gán</Button>
-        </div>;
-      })() },
-      { header: tab === 'history' ? 'Hoàn tất lúc' : 'Điều phối lúc', width: '190px', cell: row => formatInstantDateTime(tab === 'history' ? row.receivedAt : row.assignedAt) },
-    ]} />;
+    const selected = rows.find(row => row.id === selectedId);
+    const warehouseName = (id: string) => warehouses.find(warehouse => warehouse.id === id)?.name ?? 'Chưa rõ kho';
+    const close = () => { if (!assign.isPending) setSelectedId(null); };
+    return <>
+      <DataTable title={tab === 'history' ? 'Lịch sử điều phối luân chuyển' : 'Yêu cầu điều phối luân chuyển'}
+        rows={visible} rowKey={row => row.id} stateKey={`transfer-dispatch-${tab}`}
+        searchPlaceholder="Tìm mã điều phối, kho hoặc tài xế"
+        onRowClick={row => { setSelectedId(row.id); setDriverId(''); setVehicleId(''); assign.reset(); }}
+        emptyText={tab === 'history' ? 'Chưa có điều phối luân chuyển trong lịch sử.' : 'Không có yêu cầu điều phối luân chuyển.'}
+        columns={[
+          { key: 'code', header: 'Mã lệnh', text: row => row.transferCode, render: row => <b>{row.transferCode}</b> },
+          { key: 'route', header: 'Kho gửi → kho nhận', text: row => `${warehouseName(row.sourceWarehouseId)} → ${warehouseName(row.destinationWarehouseId)}` },
+          { key: 'requested', header: 'Thời điểm yêu cầu', text: row => formatInstantDateTime(row.requestedAt) },
+          { key: 'assignment', header: 'Tài xế / phương tiện', text: row => [row.driverNameSnapshot, row.plateNumberSnapshot].filter(Boolean).join(' · ') || 'Chưa phân công' },
+          { key: 'status', header: 'Trạng thái điều phối', text: row => transferStatusLabel(row.status), render: row => <Chip tone={row.status === 'Rejected' ? 'danger' : row.status === 'Received' ? 'success' : row.status === 'InTransit' ? 'info' : 'warn'}>{transferStatusLabel(row.status)}</Chip> },
+          { key: 'time', header: tab === 'history' ? 'Hoàn tất lúc' : 'Điều phối lúc', text: row => formatInstantDateTime(tab === 'history' ? row.receivedAt : row.assignedAt) },
+        ]} />
+      {selected && <Modal open title="Chi tiết điều phối luân chuyển" subtitle={selected.transferCode} onClose={close}
+        footer={<><Button onClick={close} disabled={assign.isPending}>Đóng</Button>{selected.status === 'Approved' && <Button variant="primary" loading={assign.isPending} disabled={!driverId || !vehicleId || drivers.isLoading || vehicles.isLoading || drivers.isError || vehicles.isError} onClick={() => assign.mutate({ transferId: selected.id, expectedVersion: selected.version, driverId, vehicleId })}>Gán xe và tài xế</Button>}</>}>
+        <div className="stack">
+          <p><b>Tuyến:</b> {warehouseName(selected.sourceWarehouseId)} → {warehouseName(selected.destinationWarehouseId)}</p>
+          <p><b>Trạng thái:</b> {transferStatusLabel(selected.status)}</p>
+          <p><b>Thời điểm yêu cầu:</b> {formatInstantDateTime(selected.requestedAt)}</p>
+          {selected.status === 'Approved' ? <>
+            {(drivers.isError || vehicles.isError) && <Callout tone="danger">Không tải được danh sách xe hoặc tài xế. Vui lòng thử lại.</Callout>}
+            {assign.isError && <Callout tone="danger">{errorMessage(assign.error)}</Callout>}
+            <label className="lbl">Tài xế<Select value={driverId} onChange={event => setDriverId(event.target.value)} options={[{ value: '', label: drivers.isLoading ? 'Đang tải tài xế...' : 'Chọn tài xế' }, ...(drivers.data ?? []).filter(item => item.warehouseId === selected.sourceWarehouseId).map(item => ({ value: item.id, label: `${item.code} · ${item.fullName}` }))]} /></label>
+            <label className="lbl">Xe<Select value={vehicleId} onChange={event => setVehicleId(event.target.value)} options={[{ value: '', label: vehicles.isLoading ? 'Đang tải xe...' : 'Chọn xe' }, ...(vehicles.data ?? []).filter(item => item.warehouseId === selected.sourceWarehouseId).map(item => ({ value: item.id, label: `${item.plateNumber} · ${item.vehicleType}` }))]} /></label>
+          </> : <p><b>Tài xế / xe:</b> {[selected.driverNameSnapshot, selected.plateNumberSnapshot].filter(Boolean).join(' · ') || 'Chưa phân công'}</p>}
+        </div>
+      </Modal>}
+    </>;
   }}</QueryState>;
 }

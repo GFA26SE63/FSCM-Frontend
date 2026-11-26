@@ -80,9 +80,9 @@ test('transfer dispatch assignment sends driver, vehicle and optimistic version'
   assert.ok(api.includes('vehicleId: input.vehicleId'));
   assert.ok(api.includes('expectedVersion: input.expectedVersion'));
   assert.ok(page.includes('shipmentsApi.assignTransfer'));
-  assert.ok(page.includes("row.status !== 'Approved'"));
-  assert.ok(page.includes('item.warehouseId === row.sourceWarehouseId'));
-  assert.ok(page.includes('Gán xe & tài xế'));
+  assert.ok(page.includes("selected.status === 'Approved'"));
+  assert.ok(page.includes('item.warehouseId === selected.sourceWarehouseId'));
+  assert.ok(page.includes('Gán xe và tài xế'));
 });
 
 test('loyalty report has a totals row for "Biến động điểm" (received / used over the whole filter)', () => {
@@ -109,5 +109,5 @@ test('warehouse report loads only the warehouses the user picked', () => {
     { fromDate: '2026-11-01', toDate: '2026-11-20', top: 10, warehouseIds: 'a,b' });
   const page = read('features/warehouse-report/WarehouseReportPage.tsx');
   assert.ok(page.includes('enabled: !invalid && !!user && picked.length > 0'));
-  assert.ok(page.includes('Chọn ít nhất một kho để xem báo cáo.'));
+  assert.ok(page.includes('Chọn kho ngay'));
 });
