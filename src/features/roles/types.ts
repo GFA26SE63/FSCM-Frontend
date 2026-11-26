@@ -80,7 +80,7 @@ export const WEB_SCREEN_GROUPS: ScreenGroup[] = [
       { key: 'warehouse-transfers', name: 'Luân chuyển kho', description: 'Quản lý phiếu chuyển kho nội bộ giữa các chi nhánh' },
       { key: 'batches', name: 'Quản lý lô hàng', description: 'Theo dõi thông tin chi tiết lô, HSD và in mã QR thùng hàng' },
       { key: 'warehouse-trace', name: 'Tra cứu kiện / thùng', description: 'Quét mã QR tra cứu lịch sử luân chuyển kiện thùng hàng' },
-      { key: 'readiness', name: 'Điều phối giao hàng', description: 'Chuẩn bị kiện hàng, phân bổ phương tiện và tài xế' },
+      { key: 'readiness', name: 'Điều phối vận tải', description: 'Điều phối giao hàng và luân chuyển, phân bổ phương tiện và tài xế' },
       { key: 'batchpromo', name: 'Giảm giá theo HSD', description: 'Thiết lập chính sách giảm giá cho các lô hàng cận date' },
       { key: 'disposal', name: 'Hủy hàng hết hạn', description: 'Biên bản tiêu hủy và xử lý hàng hóa quá hạn sử dụng' },
       { key: 'fleet', name: 'Xe & Tài xế', description: 'Quản lý danh mục phương tiện vận tải và tài xế giao hàng' },

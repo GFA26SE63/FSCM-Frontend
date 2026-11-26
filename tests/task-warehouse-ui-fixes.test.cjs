@@ -60,6 +60,18 @@ test('delivery dispatch follows warehouse transfers in the warehouse sidebar', (
   assert.ok(transfers >= 0 && readiness > transfers && fleet > readiness);
 });
 
+test('transport dispatch nests delivery and transfer request/history tabs', () => {
+  const page = read('features/shipments/pages/OrderReadinessPage.tsx');
+  const routes = read('app/routes.tsx');
+  assert.match(routes, /key: 'readiness', label: 'Điều phối vận tải'/);
+  assert.ok(page.includes('title="Điều phối vận tải"'));
+  assert.ok(page.includes("label: 'Điều phối giao hàng'"));
+  assert.ok(page.includes("label: 'Điều phối luân chuyển'"));
+  assert.ok(page.includes('Yêu cầu Điều phối ${operation}'));
+  assert.ok(page.includes('Lịch sử Điều phối ${operation}'));
+  assert.ok(page.includes('warehouseTransfers(first: 500'));
+});
+
 test('loyalty report has a totals row for "Biến động điểm" (received / used over the whole filter)', () => {
   const page = read('features/reports/OperationsReportsPage.tsx');
   assert.ok(page.includes("footer={kind === 'loyalty' && data.pointsTotal ? loyaltyFooter(tableCols, data.pointsTotal) : undefined}"));

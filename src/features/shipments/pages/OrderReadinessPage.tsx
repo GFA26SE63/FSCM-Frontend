@@ -1,16 +1,38 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Callout, Chip, Input, PageHeader, QueryState, Select, SimpleTable, Stat } from '@/shared/ui';
+import { Button, Callout, Chip, Input, PageHeader, QueryState, Select, SimpleTable, Stat, Tabs } from '@/shared/ui';
 import { Pagination } from '@/shared/pagination';
+import { graphql } from '@/shared/api/graphql';
+import { formatInstantDateTime } from '@/shared/lib/dates';
+import { useEnumParam } from '@/shared/router/listState';
 import { usePickingLists } from '@/features/runpicking/hooks';
 import { useRegions, useWarehouses } from '@/features/warehouses/hooks';
 import { shipmentsApi } from '../api';
 import { useOrdersReadiness } from '../hooks';
 import { ExportOrderDetailModal, PART_STATUS } from '../components/ExportOrderCard';
 import { exportStatus, sortExportOrders, type ExportOrderSort } from '../exportList';
-import type { ExportOrder } from '../types';
+import { HAS_LEFT, type ExportOrder } from '../types';
 
 export function OrderReadinessPage() {
+  const [transport, setTransport] = useEnumParam('transport', ['delivery', 'transfer'] as const, 'delivery', { resets: ['transportTab'] });
+  const [tab, setTab] = useEnumParam('transportTab', ['requests', 'history'] as const, 'requests');
+  const operation = transport === 'delivery' ? 'giao hàng' : 'luân chuyển';
+  return <>
+    <PageHeader title="Điều phối vận tải"
+      subtitle="Điều phối xe và tài xế cho đơn giao hàng và các lệnh luân chuyển giữa kho." />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 16 }}>
+      <Tabs items={[{ key: 'delivery', label: 'Điều phối giao hàng' }, { key: 'transfer', label: 'Điều phối luân chuyển' }]}
+        value={transport} onChange={setTransport} />
+      <Tabs variant="pills" items={[
+        { key: 'requests', label: `Yêu cầu Điều phối ${operation}` },
+        { key: 'history', label: `Lịch sử Điều phối ${operation}` },
+      ]} value={tab} onChange={setTab} />
+    </div>
+    {transport === 'delivery' ? <DeliveryDispatchPanel tab={tab} /> : <TransferDispatchPanel tab={tab} />}
+  </>;
+}
+
+function DeliveryDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
   const lists = usePickingLists();
   const orderIds = useMemo(() => [...new Set((lists.data ?? []).map(list => list.orderId))].sort(), [lists.data]);
   const orders = useQuery({
@@ -19,16 +41,14 @@ export function OrderReadinessPage() {
     enabled: lists.isSuccess && orderIds.length > 0,
   });
   return <>
-    <PageHeader title="Điều phối giao hàng"
-      subtitle="Theo dõi mức sẵn sàng xuất hàng, điều phối xe và tài xế cho các đơn bán hàng đã được soạn tại kho." />
     <QueryState query={lists}>{data => data.length === 0
       ? <Callout tone="info">Chưa có đơn thực hiện nào phát hành phiếu soạn để kiểm tra xuất kho.</Callout>
-      : <QueryState query={orders}>{items => <ExportOrders orders={items} pickingCount={data.length} />}</QueryState>}
+      : <QueryState query={orders}>{items => <ExportOrders orders={items} pickingCount={data.length} tab={tab} />}</QueryState>}
     </QueryState>
   </>;
 }
 
-function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; pickingCount: number }) {
+function ExportOrders({ orders, pickingCount, tab }: { orders: ExportOrder[]; pickingCount: number; tab: 'requests' | 'history' }) {
   const [sort, setSort] = useState<ExportOrderSort>('newest');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'held' | 'ready' | 'left'>('all');
@@ -66,7 +86,12 @@ function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; picking
     return (!term || values.join(' ').toLocaleLowerCase('vi').includes(term))
       && (!warehouseFilter || current?.parts.some(part => part.warehouseCode === warehouseFilter))
       && (!regionFilter || current?.parts.some(part => regionOfCode.get(part.warehouseCode)?.id === regionFilter))
-      && matchesStatus(order);
+      && matchesStatus(order)
+      // A request stays in the active queue until a warehouse part has left.
+      // The server remains authoritative for all part statuses.
+      && (!current || (tab === 'history'
+        ? current.parts.some(part => HAS_LEFT.includes(part.status))
+        : !current.parts.some(part => HAS_LEFT.includes(part.status))));
   });
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -117,7 +142,7 @@ function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; picking
       </div>
     </section>
     {readiness.error && <Callout tone="danger">Có đơn chưa tải được trạng thái. Chưa thể kết luận điều kiện xuất kho cho các đơn đó.</Callout>}
-    <SimpleTable paginate={false} rows={visible} onRowClick={order => setSelectedOrderId(order.id)} empty="Không có đơn phù hợp với bộ lọc." columns={[
+    <SimpleTable paginate={false} rows={visible} onRowClick={order => setSelectedOrderId(order.id)} empty={tab === 'history' ? 'Chưa có điều phối giao hàng trong lịch sử.' : 'Không có yêu cầu điều phối giao hàng phù hợp với bộ lọc.'} columns={[
       { header: 'Mã đơn', width: '150px', cell: order => <b>{order.orderCode}</b> },
       { header: 'Kho xuất', width: '170px', cell: order => {
         const parts = partsOf(order);
@@ -156,4 +181,54 @@ function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; picking
       onPageSizeChange={size => { setPageSize(size); setPage(1); }}
     />
   </div>;
+}
+
+interface TransferDispatchRow {
+  id: string;
+  transferCode: string;
+  sourceWarehouseId: string;
+  destinationWarehouseId: string;
+  status: string;
+  requestedAt: string;
+  assignedAt: string | null;
+  dispatchedAt: string | null;
+  receivedAt: string | null;
+  driverNameSnapshot: string | null;
+  plateNumberSnapshot: string | null;
+}
+
+async function loadTransferDispatches(): Promise<TransferDispatchRow[]> {
+  const data = await graphql<{ entities: { warehouseTransfers: { nodes: TransferDispatchRow[] | null } } }>(`
+    query TransportDispatchTransfers {
+      entities {
+        warehouseTransfers(first: 500, order: [{ requestedAt: DESC }, { id: DESC }]) {
+          nodes {
+            id transferCode sourceWarehouseId destinationWarehouseId status requestedAt
+            assignedAt dispatchedAt receivedAt driverNameSnapshot plateNumberSnapshot
+          }
+        }
+      }
+    }
+  `);
+  const rows = data.entities?.warehouseTransfers?.nodes;
+  if (!Array.isArray(rows)) throw new Error('Không tải được yêu cầu điều phối luân chuyển.');
+  return rows;
+}
+
+function transferStatusLabel(status: string) {
+  return ({ Requested: 'Chờ duyệt', Approved: 'Chờ điều phối', InTransit: 'Đang luân chuyển', Received: 'Đã nhận', Rejected: 'Từ chối' } as Record<string, string>)[status] ?? status;
+}
+
+function TransferDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
+  const transfers = useQuery({ queryKey: ['transport-dispatch', 'transfers'], queryFn: loadTransferDispatches });
+  return <QueryState query={transfers}>{rows => {
+    const visible = rows.filter(row => tab === 'history' ? ['Received', 'Rejected'].includes(row.status) : !['Received', 'Rejected'].includes(row.status));
+    return <SimpleTable paginate rows={visible} empty={tab === 'history' ? 'Chưa có điều phối luân chuyển trong lịch sử.' : 'Không có yêu cầu điều phối luân chuyển.'} columns={[
+      { header: 'Mã lệnh', width: '180px', cell: row => <b>{row.transferCode}</b> },
+      { header: 'Thời điểm yêu cầu', width: '190px', cell: row => formatInstantDateTime(row.requestedAt) },
+      { header: 'Tài xế / phương tiện', cell: row => row.driverNameSnapshot || row.plateNumberSnapshot ? `${row.driverNameSnapshot ?? 'Chưa phân công'} · ${row.plateNumberSnapshot ?? 'Chưa phân xe'}` : <span className="muted">Chưa phân công</span> },
+      { header: 'Trạng thái điều phối', width: '180px', cell: row => <Chip tone={row.status === 'Rejected' ? 'danger' : row.status === 'Received' ? 'success' : row.status === 'InTransit' ? 'info' : 'warn'}>{transferStatusLabel(row.status)}</Chip> },
+      { header: tab === 'history' ? 'Hoàn tất lúc' : 'Điều phối lúc', width: '190px', cell: row => formatInstantDateTime(tab === 'history' ? row.receivedAt : row.assignedAt) },
+    ]} />;
+  }}</QueryState>;
 }
