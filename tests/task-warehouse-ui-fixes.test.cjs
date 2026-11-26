@@ -39,15 +39,25 @@ test('pallet receiving action rows and scan history are spaced apart', () => {
   assert.match(css, /\.pallet-camera \{ margin-bottom: 16px; \}/);
 });
 
-test('receipt (PNK) list and detail no longer show an order count / order column', () => {
+test('receipt, outbound and transfer lists show carton counts without an order count', () => {
   const src = read('features/warehouse-work/index.tsx');
   const pnk = src.slice(src.indexOf("'Danh sách Phiếu Nhập Kho (PNK)'"), src.indexOf("'Danh sách Phiếu Xuất Luân Chuyển (PXK)'"));
   assert.ok(pnk.includes("header: 'Số thùng'"));
   assert.ok(!pnk.includes('đơn ·'));
   assert.ok(src.includes("...(d.kind === 'Receipt' ? [] : [{ header: 'Đơn hàng'"));
-  // Issue (PXK) list still shows orders.
+  // Outbound and transfer lists do not show a zero order count for non-order documents.
   const pxk = src.slice(src.indexOf("'Danh sách Phiếu Xuất Luân Chuyển (PXK)'"));
-  assert.ok(pxk.includes("header: 'Đơn / thùng'"));
+  assert.ok(!pxk.includes("header: 'Đơn / thùng'"));
+  assert.ok(pxk.includes("header: 'Số thùng'"));
+  assert.ok(src.includes('Danh sách lệnh điều chuyển kho'));
+});
+
+test('delivery dispatch follows warehouse transfers in the warehouse sidebar', () => {
+  const sidebar = read('app/layout/Sidebar.tsx');
+  const transfers = sidebar.indexOf("'warehouse-transfers'");
+  const readiness = sidebar.indexOf("'readiness'");
+  const fleet = sidebar.indexOf("'fleet'");
+  assert.ok(transfers >= 0 && readiness > transfers && fleet > readiness);
 });
 
 test('loyalty report has a totals row for "Biến động điểm" (received / used over the whole filter)', () => {
