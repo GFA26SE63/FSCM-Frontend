@@ -1,16 +1,39 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Button, Callout, Chip, Input, PageHeader, QueryState, Select, SimpleTable, Stat } from '@/shared/ui';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Button, Callout, Chip, DataTable, Input, Modal, PageHeader, QueryState, Select, SimpleTable, Stat, Tabs } from '@/shared/ui';
 import { Pagination } from '@/shared/pagination';
+import { graphql } from '@/shared/api/graphql';
+import { errorMessage } from '@/shared/api/errors';
+import { formatInstantDateTime } from '@/shared/lib/dates';
+import { useEnumParam } from '@/shared/router/listState';
 import { usePickingLists } from '@/features/runpicking/hooks';
 import { useRegions, useWarehouses } from '@/features/warehouses/hooks';
 import { shipmentsApi } from '../api';
 import { useOrdersReadiness } from '../hooks';
 import { ExportOrderDetailModal, PART_STATUS } from '../components/ExportOrderCard';
 import { exportStatus, sortExportOrders, type ExportOrderSort } from '../exportList';
-import type { ExportOrder } from '../types';
+import { HAS_LEFT, type ExportOrder } from '../types';
 
 export function OrderReadinessPage() {
+  const [transport, setTransport] = useEnumParam('transport', ['delivery', 'transfer'] as const, 'delivery', { resets: ['transportTab'] });
+  const [tab, setTab] = useEnumParam('transportTab', ['requests', 'history'] as const, 'requests');
+  const operation = transport === 'delivery' ? 'giao hàng' : 'luân chuyển';
+  return <>
+    <PageHeader title="Điều phối vận tải"
+      subtitle="Điều phối xe và tài xế cho đơn giao hàng và các lệnh luân chuyển giữa kho." />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 16 }}>
+      <Tabs items={[{ key: 'delivery', label: 'Điều phối giao hàng' }, { key: 'transfer', label: 'Điều phối luân chuyển' }]}
+        value={transport} onChange={setTransport} />
+      <Tabs variant="pills" items={[
+        { key: 'requests', label: `Yêu cầu Điều phối ${operation}` },
+        { key: 'history', label: `Lịch sử Điều phối ${operation}` },
+      ]} value={tab} onChange={setTab} />
+    </div>
+    {transport === 'delivery' ? <DeliveryDispatchPanel tab={tab} /> : <TransferDispatchPanel tab={tab} />}
+  </>;
+}
+
+function DeliveryDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
   const lists = usePickingLists();
   const orderIds = useMemo(() => [...new Set((lists.data ?? []).map(list => list.orderId))].sort(), [lists.data]);
   const orders = useQuery({
@@ -19,16 +42,14 @@ export function OrderReadinessPage() {
     enabled: lists.isSuccess && orderIds.length > 0,
   });
   return <>
-    <PageHeader title="Điều phối giao hàng"
-      subtitle="Theo dõi mức sẵn sàng xuất hàng, điều phối xe và tài xế cho các đơn bán hàng đã được soạn tại kho." />
     <QueryState query={lists}>{data => data.length === 0
       ? <Callout tone="info">Chưa có đơn thực hiện nào phát hành phiếu soạn để kiểm tra xuất kho.</Callout>
-      : <QueryState query={orders}>{items => <ExportOrders orders={items} pickingCount={data.length} />}</QueryState>}
+      : <QueryState query={orders}>{items => <ExportOrders orders={items} pickingCount={data.length} tab={tab} />}</QueryState>}
     </QueryState>
   </>;
 }
 
-function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; pickingCount: number }) {
+function ExportOrders({ orders, pickingCount, tab }: { orders: ExportOrder[]; pickingCount: number; tab: 'requests' | 'history' }) {
   const [sort, setSort] = useState<ExportOrderSort>('newest');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'held' | 'ready' | 'left'>('all');
@@ -66,7 +87,12 @@ function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; picking
     return (!term || values.join(' ').toLocaleLowerCase('vi').includes(term))
       && (!warehouseFilter || current?.parts.some(part => part.warehouseCode === warehouseFilter))
       && (!regionFilter || current?.parts.some(part => regionOfCode.get(part.warehouseCode)?.id === regionFilter))
-      && matchesStatus(order);
+      && matchesStatus(order)
+      // A request stays in the active queue until a warehouse part has left.
+      // The server remains authoritative for all part statuses.
+      && (!current || (tab === 'history'
+        ? current.parts.some(part => HAS_LEFT.includes(part.status))
+        : !current.parts.some(part => HAS_LEFT.includes(part.status))));
   });
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -117,7 +143,7 @@ function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; picking
       </div>
     </section>
     {readiness.error && <Callout tone="danger">Có đơn chưa tải được trạng thái. Chưa thể kết luận điều kiện xuất kho cho các đơn đó.</Callout>}
-    <SimpleTable paginate={false} rows={visible} onRowClick={order => setSelectedOrderId(order.id)} empty="Không có đơn phù hợp với bộ lọc." columns={[
+    <SimpleTable paginate={false} rows={visible} onRowClick={order => setSelectedOrderId(order.id)} empty={tab === 'history' ? 'Chưa có điều phối giao hàng trong lịch sử.' : 'Không có yêu cầu điều phối giao hàng phù hợp với bộ lọc.'} columns={[
       { header: 'Mã đơn', width: '150px', cell: order => <b>{order.orderCode}</b> },
       { header: 'Kho xuất', width: '170px', cell: order => {
         const parts = partsOf(order);
@@ -156,4 +182,92 @@ function ExportOrders({ orders, pickingCount }: { orders: ExportOrder[]; picking
       onPageSizeChange={size => { setPageSize(size); setPage(1); }}
     />
   </div>;
+}
+
+interface TransferDispatchRow {
+  id: string;
+  transferCode: string;
+  sourceWarehouseId: string;
+  destinationWarehouseId: string;
+  status: string;
+  version: number;
+  requestedAt: string;
+  assignedAt: string | null;
+  dispatchedAt: string | null;
+  receivedAt: string | null;
+  driverNameSnapshot: string | null;
+  plateNumberSnapshot: string | null;
+}
+
+async function loadTransferDispatches(): Promise<TransferDispatchRow[]> {
+  const data = await graphql<{ entities: { warehouseTransfers: { nodes: TransferDispatchRow[] | null } } }>(`
+    query TransportDispatchTransfers {
+      entities {
+        warehouseTransfers(first: 500, order: [{ requestedAt: DESC }, { id: DESC }]) {
+          nodes {
+            id transferCode sourceWarehouseId destinationWarehouseId status version requestedAt
+            assignedAt dispatchedAt receivedAt driverNameSnapshot plateNumberSnapshot
+          }
+        }
+      }
+    }
+  `);
+  const rows = data.entities?.warehouseTransfers?.nodes;
+  if (!Array.isArray(rows)) throw new Error('Không tải được yêu cầu điều phối luân chuyển.');
+  return rows;
+}
+
+function transferStatusLabel(status: string) {
+  return ({ Requested: 'Chờ duyệt', Approved: 'Chờ điều phối', InTransit: 'Đang luân chuyển', Received: 'Đã nhận', Rejected: 'Từ chối' } as Record<string, string>)[status] ?? status;
+}
+
+function TransferDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
+  const client = useQueryClient();
+  const transfers = useQuery({ queryKey: ['transport-dispatch', 'transfers'], queryFn: loadTransferDispatches });
+  const drivers = useQuery({ queryKey: ['transport-dispatch', 'drivers'], queryFn: shipmentsApi.drivers });
+  const vehicles = useQuery({ queryKey: ['transport-dispatch', 'vehicles'], queryFn: shipmentsApi.vehicles });
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [driverId, setDriverId] = useState('');
+  const [vehicleId, setVehicleId] = useState('');
+  const { data: warehouses = [] } = useWarehouses();
+  const assign = useMutation({ mutationFn: shipmentsApi.assignTransfer, onSuccess: async () => {
+    await client.invalidateQueries({ queryKey: ['transport-dispatch'] });
+    await client.invalidateQueries({ queryKey: ['warehouse-documents'] });
+    setSelectedId(null);
+  } });
+  return <QueryState query={transfers}>{rows => {
+    const visible = rows.filter(row => tab === 'history' ? ['Received', 'Rejected'].includes(row.status) : !['Received', 'Rejected'].includes(row.status));
+    const selected = rows.find(row => row.id === selectedId);
+    const warehouseName = (id: string) => warehouses.find(warehouse => warehouse.id === id)?.name ?? 'Chưa rõ kho';
+    const close = () => { if (!assign.isPending) setSelectedId(null); };
+    return <>
+      <DataTable title={tab === 'history' ? 'Lịch sử điều phối luân chuyển' : 'Yêu cầu điều phối luân chuyển'}
+        rows={visible} rowKey={row => row.id} stateKey={`transfer-dispatch-${tab}`}
+        searchPlaceholder="Tìm mã điều phối, kho hoặc tài xế"
+        onRowClick={row => { setSelectedId(row.id); setDriverId(''); setVehicleId(''); assign.reset(); }}
+        emptyText={tab === 'history' ? 'Chưa có điều phối luân chuyển trong lịch sử.' : 'Không có yêu cầu điều phối luân chuyển.'}
+        columns={[
+          { key: 'code', header: 'Mã lệnh', text: row => row.transferCode, render: row => <b>{row.transferCode}</b> },
+          { key: 'route', header: 'Kho gửi → kho nhận', text: row => `${warehouseName(row.sourceWarehouseId)} → ${warehouseName(row.destinationWarehouseId)}` },
+          { key: 'requested', header: 'Thời điểm yêu cầu', text: row => formatInstantDateTime(row.requestedAt) },
+          { key: 'assignment', header: 'Tài xế / phương tiện', text: row => [row.driverNameSnapshot, row.plateNumberSnapshot].filter(Boolean).join(' · ') || 'Chưa phân công' },
+          { key: 'status', header: 'Trạng thái điều phối', text: row => transferStatusLabel(row.status), render: row => <Chip tone={row.status === 'Rejected' ? 'danger' : row.status === 'Received' ? 'success' : row.status === 'InTransit' ? 'info' : 'warn'}>{transferStatusLabel(row.status)}</Chip> },
+          { key: 'time', header: tab === 'history' ? 'Hoàn tất lúc' : 'Điều phối lúc', text: row => formatInstantDateTime(tab === 'history' ? row.receivedAt : row.assignedAt) },
+        ]} />
+      {selected && <Modal open title="Chi tiết điều phối luân chuyển" subtitle={selected.transferCode} onClose={close}
+        footer={<><Button onClick={close} disabled={assign.isPending}>Đóng</Button>{selected.status === 'Approved' && <Button variant="primary" loading={assign.isPending} disabled={!driverId || !vehicleId || drivers.isLoading || vehicles.isLoading || drivers.isError || vehicles.isError} onClick={() => assign.mutate({ transferId: selected.id, expectedVersion: selected.version, driverId, vehicleId })}>Gán xe và tài xế</Button>}</>}>
+        <div className="stack">
+          <p><b>Tuyến:</b> {warehouseName(selected.sourceWarehouseId)} → {warehouseName(selected.destinationWarehouseId)}</p>
+          <p><b>Trạng thái:</b> {transferStatusLabel(selected.status)}</p>
+          <p><b>Thời điểm yêu cầu:</b> {formatInstantDateTime(selected.requestedAt)}</p>
+          {selected.status === 'Approved' ? <>
+            {(drivers.isError || vehicles.isError) && <Callout tone="danger">Không tải được danh sách xe hoặc tài xế. Vui lòng thử lại.</Callout>}
+            {assign.isError && <Callout tone="danger">{errorMessage(assign.error)}</Callout>}
+            <label className="lbl">Tài xế<Select value={driverId} onChange={event => setDriverId(event.target.value)} options={[{ value: '', label: drivers.isLoading ? 'Đang tải tài xế...' : 'Chọn tài xế' }, ...(drivers.data ?? []).filter(item => item.warehouseId === selected.sourceWarehouseId).map(item => ({ value: item.id, label: `${item.code} · ${item.fullName}` }))]} /></label>
+            <label className="lbl">Xe<Select value={vehicleId} onChange={event => setVehicleId(event.target.value)} options={[{ value: '', label: vehicles.isLoading ? 'Đang tải xe...' : 'Chọn xe' }, ...(vehicles.data ?? []).filter(item => item.warehouseId === selected.sourceWarehouseId).map(item => ({ value: item.id, label: `${item.plateNumber} · ${item.vehicleType}` }))]} /></label>
+          </> : <p><b>Tài xế / xe:</b> {[selected.driverNameSnapshot, selected.plateNumberSnapshot].filter(Boolean).join(' · ') || 'Chưa phân công'}</p>}
+        </div>
+      </Modal>}
+    </>;
+  }}</QueryState>;
 }

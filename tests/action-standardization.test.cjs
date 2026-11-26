@@ -49,6 +49,7 @@ test('RegionsPage standardizes both sales groups and areas tables with ActionDro
 
 test('Nested detail tables provide standardized onRowClick actions', () => {
   assert.ok(warehouseDetailPageCode.includes("onRowClick="));
+  assert.ok(warehouseDetailPageCode.includes('navigate(`/retailers/${retailer.retailerId || retailer.retailerCode}`)'));
   assert.ok(groupDetailPageCode.includes("onRowClick="));
 });
 
