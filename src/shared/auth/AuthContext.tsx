@@ -205,6 +205,44 @@ export function AuthProvider({
     };
   }, [clearSession]);
 
+  // Refresh grants while a session is open; revocations also remove cached business data.
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    let disposed = false;
+    let pending = false;
+    const refreshGrants = async () => {
+      if (pending || document.visibilityState === 'hidden') return;
+      pending = true;
+      const sessionVersion = version.current;
+      try {
+        const next = await authApi.me();
+        if (disposed || version.current !== sessionVersion) return;
+        setUser(previous => {
+          if (previous && (previous.role !== next.role ||
+            JSON.stringify(previous.permissions) !== JSON.stringify(next.permissions) ||
+            JSON.stringify(previous.scope) !== JSON.stringify(next.scope))) {
+            queryClient.clear();
+          }
+          return next;
+        });
+      } catch {
+        // HTTP 401 already clears the session through tokenStore.
+      } finally {
+        pending = false;
+      }
+    };
+    const refresh = () => { void refreshGrants(); };
+    const timer = window.setInterval(refresh, 30_000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [status, queryClient]);
+
   const authenticate = useCallback(
     async (
       acquireSession:

@@ -74,7 +74,8 @@ export function UserDialog({ user, onClose }: Props) {
   const createdRef = useRef<CreatedUser | null>(null);
   const savingRef = useRef(false);
 
-  const [dynamicRoles, setDynamicRoles] = useState<{ value: string; label: string }[]>([]);
+  const [dynamicRoles, setDynamicRoles] = useState<{ value: string; label: string; baseRole: string }[]>([]);
+  const businessRole = dynamicRoles.find(r => r.value === role)?.baseRole ?? user?.businessRole ?? role;
 
   useEffect(() => {
     roleApi.list()
@@ -84,6 +85,7 @@ export function UserDialog({ user, onClose }: Props) {
           .filter((r) => r.code.toLowerCase() !== 'admin')
           .map((r) => ({
             value: r.code,
+            baseRole: r.baseRole ?? r.code,
             label: `${r.name} (${r.code})`,
           }));
         if (creatable.length > 0) {
@@ -97,7 +99,7 @@ export function UserDialog({ user, onClose }: Props) {
 
   const identityLocked = !!created;
   const kinds = isCreatableRole(role)
-    ? assignmentKinds[role] ?? []
+    ? assignmentKinds[businessRole] ?? []
     : [];
 
   function close() {
@@ -161,7 +163,7 @@ export function UserDialog({ user, onClose }: Props) {
 
     if (
       !user &&
-      role !== 'Retailer' &&
+      businessRole !== 'Retailer' &&
       (password.trim().length < 12 ||
         !/[A-Z]/.test(password.trim()) ||
         !/[a-z]/.test(password.trim()) ||
@@ -173,21 +175,21 @@ export function UserDialog({ user, onClose }: Props) {
     }
 
     if (
-      role === 'WarehouseKeeper' &&
+      businessRole === 'WarehouseKeeper' &&
       assignments.warehouses.length === 0 && assignments.regions.length === 0
     ) {
       next.warehouses = 'Chọn ít nhất một kho hoặc khu vực.';
     }
 
     if (
-      role === 'Sales' &&
+      businessRole === 'Sales' &&
       assignments['sales-groups'].length !== 1
     ) {
       next['sales-groups'] = 'Chọn một nhóm bán hàng.';
     }
 
     if (
-      role === 'Retailer' &&
+      businessRole === 'Retailer' &&
       assignments.retailers.length !== 1
     ) {
       next.retailers = 'Chọn một nhà bán lẻ.';
@@ -195,7 +197,7 @@ export function UserDialog({ user, onClose }: Props) {
 
     if (
       !user &&
-      role === 'SalesManager' &&
+      businessRole === 'SalesManager' &&
       assignments.regions.length === 0
     ) {
       next.regions = 'Chọn ít nhất một region.';
@@ -261,6 +263,7 @@ export function UserDialog({ user, onClose }: Props) {
         email: email.trim().toLowerCase(),
         role,
         assignments,
+        businessRole,
       });
 
       await refresh();
@@ -485,8 +488,8 @@ export function UserDialog({ user, onClose }: Props) {
                 </FormField>
 
                 <FormField
-                  label={role === 'Retailer' ? 'Mật khẩu (thiết lập qua OTP)' : 'Mật khẩu'}
-                  required={role !== 'Retailer'}
+                  label={businessRole === 'Retailer' ? 'Mật khẩu (thiết lập qua OTP)' : 'Mật khẩu'}
+                  required={businessRole !== 'Retailer'}
                   error={errors.password}
                 >
                   <div className="password-input">
@@ -494,8 +497,8 @@ export function UserDialog({ user, onClose }: Props) {
                       type={showPassword ? 'text' : 'password'}
                       autoComplete="new-password"
                       value={password}
-                      readOnly={identityLocked || role === 'Retailer'}
-                      placeholder={role === 'Retailer' ? 'Nhà bán lẻ tự tạo mật khẩu sau khi xác minh OTP' : undefined}
+                      readOnly={identityLocked || businessRole === 'Retailer'}
+                      placeholder={businessRole === 'Retailer' ? 'Nhà bán lẻ tự tạo mật khẩu sau khi xác minh OTP' : undefined}
                       onChange={(event) =>
                         setPassword(event.target.value)
                       }
@@ -505,7 +508,7 @@ export function UserDialog({ user, onClose }: Props) {
                       className="password-toggle"
                       aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                       aria-pressed={showPassword}
-                      disabled={identityLocked || role === 'Retailer'}
+                      disabled={identityLocked || businessRole === 'Retailer'}
                       onClick={() => setShowPassword((visible) => !visible)}
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -558,7 +561,7 @@ export function UserDialog({ user, onClose }: Props) {
               />
             ))}
 
-            {role === 'SalesManager' && (
+            {businessRole === 'SalesManager' && (
               <p className="muted">
                 Nhóm bán hàng là tùy chọn. Mỗi tài khoản
                 hiện chỉ có một membership nhóm bán hàng
