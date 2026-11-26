@@ -64,8 +64,7 @@ test('loyalty menus keep edit/status handlers and disabled expired activation; O
   const program = { id: 'p', code: 'LP', endAt: '2099-01-01T00:00:00Z', isActive: true };
   const actions = p => nodes(LoyaltyProgramsPanel(), n => n.type === 'DataTable')[0].props.rowActions(p);
   let tree = actions(program);
-  nodes(tree, n => n.type === 'Button')[0].props.onClick();
-  assert.equal(updates.at(-1), program);
+  assert.equal(typeof nodes(LoyaltyProgramsPanel(), n => n.type === 'DataTable')[0].props.onRowClick, 'function');
   const menu = nodes(tree, n => n.type === 'ActionDropdown')[0].props;
   assert.deepEqual(menu.items.map(item => item.key), ['edit', 'status']);
   menu.items[0].onClick(); assert.deepEqual(updates.at(-1), { program });
@@ -75,9 +74,8 @@ test('loyalty menus keep edit/status handlers and disabled expired activation; O
   assert.equal(expired.showDisabledItems, true);
   assert.equal(expired.items[1].label, 'Kích hoạt'); assert.equal(expired.items[1].disabled, true);
   pending = true; assert.equal(nodes(actions(program), n => n.type === 'ActionDropdown')[0].props.items[1].disabled, true);
-  role = 'Operator'; tree = actions(program);
-  assert.equal(nodes(tree, n => n.type === 'ActionDropdown').length, 0);
-  assert.equal(nodes(tree, n => n.type === 'Button').length, 1);
+  role = 'Operator';
+  assert.equal(nodes(LoyaltyProgramsPanel(), n => n.type === 'DataTable')[0].props.rowActions, undefined);
 });
 
 test('dropdown can show disabled actions without allowing their handlers to run', t => {

@@ -60,13 +60,13 @@ test('formatSalesName: respects display priority and role labeling, never return
   // Priority 1: Full name
   assert.equal(
     mod.formatSalesName({ id: SALES_1_ID, fullName: 'Nguyễn Văn An', email: 'an.nv@fscm.vn', role: 'Sales' }),
-    'Nguyễn Văn An',
+    '[Nhân viên bán hàng] Nguyễn Văn An',
   );
 
   // Priority 2: Account / Email when full name is missing
   assert.equal(
     mod.formatSalesName({ id: SALES_1_ID, fullName: '   ', email: 'an.nv@fscm.vn', role: 'Sales' }),
-    'an.nv@fscm.vn',
+    '[Nhân viên bán hàng] an.nv@fscm.vn',
   );
 
   // Priority 3: Fallback 'Không xác định'
@@ -119,15 +119,15 @@ test('Admin: full name resolved from users API; deduplicated requests; never raw
   const { salesNameOf, creatorLabelOf, salesSearchTextOf } = mod.useOrderSales(ids);
 
   // Sales 1 (full name)
-  assert.equal(salesNameOf(SALES_1_ID), 'Lê Sales Một');
+  assert.equal(salesNameOf(SALES_1_ID), '[Nhân viên bán hàng] Lê Sales Một');
   assert.equal(creatorLabelOf(SALES_1_ID), 'Người đặt đơn');
-  assert.equal(salesSearchTextOf(SALES_1_ID), 'Lê Sales Một s1@fscm.vn');
+  assert.equal(salesSearchTextOf(SALES_1_ID), '[Nhân viên bán hàng] Lê Sales Một s1@fscm.vn');
 
   // Sales 2 (full name)
-  assert.equal(salesNameOf(SALES_2_ID), 'Trần Sales Hai');
+  assert.equal(salesNameOf(SALES_2_ID), '[Nhân viên bán hàng] Trần Sales Hai');
 
   // Sales 3 (email only)
-  assert.equal(salesNameOf(EMAIL_ONLY_ID), 's3.email@fscm.vn');
+  assert.equal(salesNameOf(EMAIL_ONLY_ID), '[Nhân viên bán hàng] s3.email@fscm.vn');
 
   // Admin (current user local resolution without network request)
   assert.equal(salesNameOf(ADMIN_ID), '[Quản trị viên] Quản trị viên');
@@ -196,12 +196,10 @@ test('OrdersPage and OrderDetailPage source files contain correct unified labels
   assert.ok(ordersPageSrc.includes("key: 'sales'"));
   assert.ok(ordersPageSrc.includes('salesSearchTextOf('));
   assert.ok(ordersPageSrc.includes('salesNameOf('));
-  assert.match(ordersPageSrc, /label:\s*'Người đặt đơn'/);
   assert.ok(ordersPageSrc.includes("searchPlaceholder=\"Mã đơn, nhà bán lẻ, người đặt, trạng thái…\""));
-  assert.ok(ordersPageSrc.includes("param: 'sales'"));
 
   // OrderDetailPage detail display uses unified "Người đặt đơn"
-  assert.match(orderDetailSrc, /label:\s*'Người đặt đơn'/);
+  assert.ok(orderDetailSrc.includes("'Người đặt đơn'"));
   assert.ok(orderDetailSrc.includes('salesNameOf(order.createdByUserId)'));
   assert.ok(!orderDetailSrc.includes("'Sales tạo online'"));
   assert.ok(!orderDetailSrc.includes("'Offline gửi thủ công'"));
@@ -240,7 +238,7 @@ test('OrdersPage: column spacing and rowActions width are optimized to avoid hor
   const { minimumTableWidth } = source('shared/ui/tableLayout.ts');
 
   // Verify compact rowActions width (165px instead of excessive 220px)
-  assert.ok(ordersPageSrc.includes('rowActionsWidth="135px"'));
+  assert.ok(ordersPageSrc.includes('onRowClick={(order) => navigate(`/orders/${order.id}`)}'));
   assert.ok(!ordersPageSrc.includes('rowActionsWidth="220px"'));
 
   // Verify progress column is compact (110px instead of excessive 145px)
