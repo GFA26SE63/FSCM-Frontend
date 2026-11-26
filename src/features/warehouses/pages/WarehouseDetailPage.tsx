@@ -265,6 +265,7 @@ export function WarehouseDetailPage() {
                 },
               ]}
               rows={whData.retailerDistances ?? []}
+              onRowClick={(retailer) => navigate(`/retailers/${retailer.retailerId || retailer.retailerCode}`)}
               empty="Chưa có dữ liệu khoảng cách tới nhà bán lẻ."
             />
           </Card>
