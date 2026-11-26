@@ -16,7 +16,9 @@ export function belongsToWorkflow(document: DocumentReference, workflow: Warehou
   if (workflow === 'trace') return true;
   if (workflow === 'inbound' || workflow === 'receipts') return document.reason === 'Factory' || document.reason === 'Transfer' && document.kind === 'Receipt';
   if (workflow === 'outbound' || workflow === 'issues') return document.reason === 'Order' || document.reason === 'Transfer' && ['Picking', 'Issue'].includes(document.kind ?? '');
-  return document.reason === 'Transfer';
+  // The transfer workspace is the command board. Execution documents belong to
+  // their respective inbound/outbound workspaces instead of appearing here.
+  return document.reason === 'Transfer' && document.kind === 'Request';
 }
 
 export function warehouseDocumentPath(document: DocumentReference) {

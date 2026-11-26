@@ -476,7 +476,7 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
             { header: 'Phiếu xuất / ngày lập', width: '320px', cell: w => <div><b className="warehouse-pallet-code">{w.document.code}</b><div className="muted">{formatInstantDateTime(w.document.createdAt)}</div></div> },
             { header: 'Loại chứng từ', width: '250px', cell: w => documentTypeLabel(w.document.kind, w.document.reason) },
             { header: 'Kho xuất', width: '220px', cell: w => `${whName(w.document.warehouseId)}${w.document.destinationWarehouseId && w.document.destinationWarehouseId !== w.document.warehouseId ? ' → ' + whName(w.document.destinationWarehouseId) : ''}` },
-            { header: 'Đơn / thùng', width: '130px', cell: w => `${new Set(w.lines.map(l => l.orderCode).filter(Boolean)).size} đơn · ${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
+            { header: 'Số thùng', width: '130px', cell: w => `${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
             { header: 'Trạng thái', width: '150px', cell: w => <span className={`chip ${w.document.status === 'Posted' ? 'chip-ok' : ''}`}>{filterStatuses[w.document.status] ?? statuses[w.document.status] ?? w.document.status}</span> },
           ]} empty="Không có phiếu xuất kho phù hợp." />}</QueryState>
         </Card>
@@ -493,7 +493,7 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
             { header: 'Chứng từ / ngày lập', width: '300px', cell: w => <div><b className="warehouse-pallet-code">{w.document.code}</b><div className="muted">{formatInstantDateTime(w.document.createdAt)}</div></div> },
             { header: 'Loại chứng từ', width: '220px', cell: w => documentTypeLabel(w.document.kind, w.document.reason) },
             { header: 'Kho', width: '200px', cell: w => `${whName(w.document.warehouseId)}${w.document.destinationWarehouseId && w.document.destinationWarehouseId !== w.document.warehouseId ? ' → ' + whName(w.document.destinationWarehouseId) : ''}` },
-            { header: 'Đơn / thùng', width: '130px', cell: w => `${new Set(w.lines.map(l => l.orderCode).filter(Boolean)).size} đơn · ${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
+            { header: 'Số thùng', width: '130px', cell: w => `${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
             { header: 'Trạng thái', width: '160px', cell: w => {
               if (w.document.kind === 'Request') return <span className="chip chip-warn">Chờ soạn hàng</span>;
               if (w.document.kind === 'Picking') return <span className="chip chip-info">Đang soạn hàng</span>;
@@ -506,17 +506,16 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
       ) : workflow === 'transfer' ? (
 <>
           <AdvancedFilterCard>
-            <label className="lbl">Tìm chứng từ<input className="inp" value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã chứng từ, đơn hàng, SKU hoặc lô hàng" /></label>
+            <label className="lbl">Tìm lệnh điều chuyển<input className="inp" value={search} onChange={e => setSearch(e.target.value)} placeholder="Mã lệnh, SKU hoặc lô hàng" /></label>
             <label className="lbl">Trạng thái<select className="inp" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="">Tất cả trạng thái</option>{Object.entries(filterStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
             <label className="lbl">Lọc theo kho<select className="inp" value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)}><option value="">Tất cả kho</option>{warehouses.data?.filter(w => admin || user?.scope?.warehouseIds.includes(w.id)).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
           </AdvancedFilterCard>
-        <Card title={`Danh sách ${screen.title.toLocaleLowerCase('vi')}`}>
-          <p className="muted">{visibleRows.length} chứng từ · Chọn mã chứng từ để xem và xử lý.</p>
+        <Card title="Danh sách lệnh điều chuyển kho">
+          <p className="muted">{visibleRows.length} lệnh điều chuyển · Chọn mã lệnh để xem và xử lý.</p>
           <QueryState query={docs}>{() => <SimpleTable paginate rows={visibleRows} onRowClick={w => { setSelected(w.document.id); setError(''); }} columns={[
-            { header: 'Chứng từ / ngày lập', width: '320px', cell: w => <div><b className="warehouse-pallet-code">{w.document.code}</b><div className="muted">{formatInstantDateTime(w.document.createdAt)}</div></div> },
-            { header: 'Loại chứng từ', width: '250px', cell: w => documentTypeLabel(w.document.kind, w.document.reason) },
+            { header: 'Lệnh điều chuyển / ngày lập', width: '320px', cell: w => <div><b className="warehouse-pallet-code">{w.document.code}</b><div className="muted">{formatInstantDateTime(w.document.createdAt)}</div></div> },
             { header: 'Kho', width: '220px', cell: w => `${whName(w.document.warehouseId)}${w.document.destinationWarehouseId && w.document.destinationWarehouseId !== w.document.warehouseId ? ' → ' + whName(w.document.destinationWarehouseId) : ''}` },
-            { header: 'Đơn / thùng', width: '130px', cell: w => `${new Set(w.lines.map(l => l.orderCode).filter(Boolean)).size} đơn · ${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
+            { header: 'Số thùng', width: '130px', cell: w => `${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
             { header: 'Trạng thái', width: '150px', cell: w => filterStatuses[w.document.status] ?? statuses[w.document.status] ?? w.document.status },
           ]} empty="Không có chứng từ phù hợp." />}</QueryState>
         </Card>
