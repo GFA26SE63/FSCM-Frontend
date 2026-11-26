@@ -66,6 +66,8 @@ export interface OrdersPageQuery {
   search?: string;
   /** Vietnam local date yyyy-MM-dd — backend receives as ISO DateTime (Vietnam midnight UTC+7). */
   from?: string;
+  /** Vietnam local date yyyy-MM-dd — inclusive through the final millisecond of the day. */
+  to?: string;
   /** User-selected sort. Default when absent: createdAt DESC, id DESC. */
   sort?: { field: OrderSortField; direction: 'asc' | 'desc' };
 }
@@ -178,6 +180,11 @@ function buildFilter(q: OrdersPageQuery) {
     conditions.push('{ createdAt: { gte: $from } }');
     declarations.push('$from: DateTime!');
     variables.from = `${q.from}T00:00:00+07:00`;
+  }
+  if (q.to) {
+    conditions.push('{ createdAt: { lte: $to } }');
+    declarations.push('$to: DateTime!');
+    variables.to = `${q.to}T23:59:59.999+07:00`;
   }
   if (q.source) {
     conditions.push('{ source: { eq: $source } }');

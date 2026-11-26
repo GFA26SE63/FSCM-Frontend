@@ -72,6 +72,8 @@ interface DataTableProps<T> {
   filters?: FilterDef<T>[];
   /** Extra controls placed in the filter grid (e.g. date inputs). */
   filterExtra?: ReactNode;
+  /** Optional page-specific class for sizing the advanced-filter grid. */
+  filterClassName?: string;
   /** Keep every cell on one line; the table scrolls horizontally instead of wrapping. */
   nowrap?: boolean;
   pageSize?: number;
@@ -244,6 +246,7 @@ export function DataTable<T>({
   searchable = true,
   filters = [],
   filterExtra,
+  filterClassName,
   pageSize = 10,
   pageSizeOptions = DEFAULT_PAGE_SIZES,
   server,
@@ -372,7 +375,7 @@ export function DataTable<T>({
     <>
       {titleAboveFilters && titleRow}
       {searchable && (
-        <section className="card filter-card" aria-label="Bộ lọc nâng cao">
+        <section className={`card filter-card${filterClassName ? ` ${filterClassName}` : ''}`} aria-label="Bộ lọc nâng cao">
           <div className="row">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14655B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M3 5h18l-7 8v6l-4 2v-8z" />

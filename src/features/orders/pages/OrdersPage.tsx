@@ -52,6 +52,7 @@ export function OrdersPage() {
     'status', STATUS_VALUES, '', { resets: PAGE_RESETS },
   );
   const [from, setFrom] = useDateParam('from', { resets: PAGE_RESETS });
+  const [to, setTo] = useDateParam('to', { resets: PAGE_RESETS });
   const [sort, setSort] = useEnumParam<'newest' | 'oldest'>('sort', ['newest', 'oldest'] as const, 'newest', { resets: PAGE_RESETS });
   const search = params.get('q') ?? undefined;
   const source = params.get('nguon') ?? undefined;
@@ -72,6 +73,7 @@ export function OrdersPage() {
     before,
     status: statusFilter || undefined,
     from: from || undefined,
+    to: to || undefined,
     source,
     search,
     sort: activeSort,
@@ -88,11 +90,12 @@ export function OrdersPage() {
     urlState: true,
   });
 
-  // Apply from-date filter client-side only for rows already on this page (server-side date filter
-  // goes through GraphQL where clause; client-side keeps visual consistency during placeholder phase).
+  // Keep the current page visually consistent while a server-side date-filter request is in flight.
   const visibleRows = useMemo(
-    () => (query.data?.rows ?? []).filter((order) => !from || vietnamDate(order.createdAt) >= from),
-    [query.data?.rows, from],
+    () => (query.data?.rows ?? []).filter((order) =>
+      (!from || vietnamDate(order.createdAt) >= from)
+      && (!to || vietnamDate(order.createdAt) <= to)),
+    [query.data?.rows, from, to],
   );
 
   const creatorIds = useMemo(
@@ -100,15 +103,6 @@ export function OrdersPage() {
     [visibleRows],
   );
   const { salesNameOf, salesSearchTextOf } = useOrderSales(creatorIds);
-
-  const salesFilterOptions = useMemo(() => {
-    const options = new Set<string>();
-    for (const order of visibleRows) {
-      const name = salesNameOf(order.createdByUserId);
-      if (name && name !== '…') options.add(name);
-    }
-    return [...options].sort((a, b) => a.localeCompare(b, 'vi-VN'));
-  }, [visibleRows, salesNameOf]);
 
   const columns: Column<OrderSummary>[] = [
     {
@@ -238,16 +232,16 @@ export function OrdersPage() {
         columns={columns}
         summaryColumns={['orderCode', 'retailer', 'sales', 'createdAt', 'amount', 'status']}
         searchPlaceholder="Mã đơn, nhà bán lẻ, người đặt, trạng thái…"
+        filterClassName="orders-filter-card"
+        onClear={() => {
+          setStatusFilter('');
+          setFrom('');
+          setTo('');
+          setSort('newest');
+        }}
         cursor={pagingProps}
         serverSort={{ ...sortProps, sortableFields: ORDER_SORTABLE_FIELDS }}
         filters={[
-          {
-            label: 'Người đặt đơn',
-            param: 'sales',
-            searchable: true,
-            options: salesFilterOptions,
-            value: (order) => salesNameOf(order.createdByUserId),
-          },
           {
             label: 'Nguồn',
             options: ['Online', 'Offline'],
@@ -266,7 +260,25 @@ export function OrdersPage() {
             </label>
             <label className="lbl">
               Từ ngày
-              <DateInput value={from} onChange={setFrom} />
+              <DateInput
+                value={from}
+                max={to || undefined}
+                onChange={(value) => {
+                  setFrom(value);
+                  if (value && to && value > to) setTo(value);
+                }}
+              />
+            </label>
+            <label className="lbl">
+              Đến ngày
+              <DateInput
+                value={to}
+                min={from || undefined}
+                onChange={(value) => {
+                  setTo(value);
+                  if (value && from && value < from) setFrom(value);
+                }}
+              />
             </label>
             <label className="lbl">Thời gian<Select value={sort} options={[{ value: 'newest', label: 'Mới nhất' }, { value: 'oldest', label: 'Cũ nhất' }]} onChange={e => setSort(e.target.value as 'newest' | 'oldest')} /></label>
           </>
