@@ -36,6 +36,8 @@ export interface Warehouse {
   type?: WarehouseType;
   keeperId?: string | null;
   keeperName: string | null;
+  /** Every assigned keeper (REST WarehouseResult.Keepers). */
+  keeperNames?: string[];
   capacityPallets: number;
   minStock: number;
   isActive?: boolean;
