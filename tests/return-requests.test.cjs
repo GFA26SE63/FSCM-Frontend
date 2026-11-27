@@ -34,7 +34,7 @@ function review(role, claim = {}) {
   const component = source('features/complaints/components/ResolveDialog.tsx', {
     '@/shared/auth/AuthContext':{useAuth:()=>({user:{role}})},
     '@/shared/auth/permissions':{can:u=>u.role==='Admin'},
-    '@/shared/ui':{FormDialog:()=>null}, '../hooks':{useDecideComplaint:()=>({mutateAsync:async()=>{}}),
+    '@/shared/ui':{FormDialog:()=>null}, '../types':source('features/complaints/types.ts', {}), '../hooks':{useDecideComplaint:()=>({mutateAsync:async()=>{}}),
       useComplaint:()=>({data:{id:'id',status:'Open',requestType:'Return',requestedQuantity:4,version:3,settlementMethod:'DebtOffset',...claim}})}
   }).ResolveDialog;
   form = component({code:'KN-1',onClose(){}}).props;
@@ -51,7 +51,13 @@ test('review blocks fractional and excessive approval quantities and preserves a
   for (const bad of [0,-1,1.5,5]) assert.ok(qty.validate(bad));
   assert.equal(qty.validate(4),undefined);
   assert.equal(form.fields.find(f=>f.key==='settlementMethod').options.some(o=>o.value==='None'),false);
-  assert.equal(review('Admin',{requestType:'DamagedCollection'}).fields.find(f=>f.key==='settlementMethod').options.some(o=>o.value==='None'),true);
+  assert.equal(review('Admin',{requestType:'DamagedCollection'}).fields.find(f=>f.key==='settlementMethod').options.some(o=>o.value==='None'),false);
+});
+test('settlement is fixed by the order payment method', () => {
+  const methods = claim => review('Admin',claim).fields.find(f=>f.key==='settlementMethod').options.map(o=>o.value);
+  assert.deepEqual(methods({orderPaymentMethod:'Prepaid'}),['CashRefund']);
+  assert.deepEqual(methods({orderPaymentMethod:'Credit',requestType:'DamagedCollection'}),['DebtOffset']);
+  assert.equal(review('Admin',{orderPaymentMethod:'Prepaid',settlementMethod:'DebtOffset'}).initial.settlementMethod,'CashRefund');
 });
 test('physical confirmation accepts zero, blocks excess/future values and retains sub-minute timestamp', async () => {
   const dates = source('shared/lib/dates.ts', {});
