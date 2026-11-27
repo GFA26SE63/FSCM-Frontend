@@ -13,6 +13,13 @@ function load(file, mocks) {
 }
 const errors = load('shared/api/errors.ts', {});
 const permissions = load('shared/auth/permissions.ts', { '../api/errors': errors });
+
+test('Admin retains every UI action, screen and operation with an empty delegated grant list', () => {
+  const admin = { role: 'Admin', permissions: [] };
+  for (const action of Object.keys(permissions.ACTION_SCREENS)) assert.equal(permissions.can(admin, action), true, action);
+  for (const screen of Object.values(permissions.ACTION_SCREENS)) assert.equal(permissions.hasScreen(admin, screen), true, screen);
+  for (const operation of Object.values(permissions.ACTION_OPERATIONS).flat()) assert.equal(permissions.hasOperation(admin, operation), true, operation);
+});
 test('operation delegation is independent of business profile and missing grants fail closed', () => {
   for (const role of ['Operator', 'WarehouseKeeper', 'SalesManager', 'Sales', 'Retailer']) {
     const user = { role, permissions: ['api:Shipments.Assign', 'api:Retailers.UpdateProfile'] };

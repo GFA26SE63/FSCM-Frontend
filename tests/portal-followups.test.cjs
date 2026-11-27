@@ -55,6 +55,8 @@ test('issued, delivering and partially received dispatches remain actionable unt
   }
   assert.equal(isDispatchInTab({ dispatchStatus: 'Delivered', isHistory: true }, 'history'), true);
   assert.equal(isDispatchInTab({ dispatchStatus: 'Delivered', isHistory: true }, 'requests'), false);
+  assert.equal(isDispatchInTab({ dispatchStatus: 'Exception', isHistory: true }, 'history'), true);
+  assert.equal(isDispatchInTab({ dispatchStatus: 'Exception', isHistory: true }, 'requests'), false);
   assert.equal(isDispatchInTab(undefined, 'history'), false);
 });
 
@@ -71,6 +73,15 @@ test('export row opens a popup retaining warehouse, pending picking, payment and
     '@/shared/api/graphql': {},
     react: React,
     '@/shared/ui': ui,
+    '@/shared/ui/ExpandableRecord': source('shared/ui/ExpandableRecord.tsx', { './ExpandableRecord.css': {} }),
+    '@/features/orders/components/OrderCartons': {
+      useOrderCartons: () => ({ data: [
+        { warehouseId: 'w-a', sku: 'SKU-A', cartonId: 'CID-MATCH' },
+        { warehouseId: 'w-b', sku: 'SKU-A', cartonId: 'CID-OTHER-WAREHOUSE' },
+        { warehouseId: 'w-a', sku: 'SKU-B', cartonId: 'CID-OTHER-PRODUCT' },
+      ] }),
+      OrderCartonTable: ({ cartons }) => React.createElement('div', null, cartons.map(carton => carton.cartonId).join(',')),
+    },
     '../types': { HAS_LEFT: ['Issued', 'Delivering', 'Received'] },
     '../exportList': { exportStatus },
     './ShipmentOperations': { ShipmentOperations: () => React.createElement('div', null, 'shipment operations') },
@@ -94,10 +105,14 @@ test('export row opens a popup retaining warehouse, pending picking, payment and
   assert.match(html, /Hàng A/);
   assert.match(html, /12/);
   assert.match(html, /chưa có — kho chưa đóng phiếu soạn/);
-  assert.match(html, /Warehouse B still picking/);
-  assert.match(html, /chưa thanh toán đủ/);
+  assert.doesNotMatch(html, /Warehouse B still picking|chưa thanh toán đủ/);
   assert.match(html, /shipment operations/);
   assert.match(html, /không còn hủy được/);
+  assert.match(html, /<details class="expandable-record"><summary/);
+  assert.match(html, /class="expandable-record__body"/);
+  assert.doesNotMatch(html, /<details[^>]*\bopen/);
+  assert.match(html, /CID-MATCH/);
+  assert.doesNotMatch(html, /CID-OTHER-WAREHOUSE|CID-OTHER-PRODUCT/);
 });
 
 test('export metadata requests lightweight scoped entities and refuses missing dates/orders', async () => {

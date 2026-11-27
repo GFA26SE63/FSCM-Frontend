@@ -29,6 +29,7 @@ export interface ShipmentReadinessPart {
 
 export interface OrderShipmentReadiness {
   dispatchStatus: 'WaitingToPick' | 'Preparing' | 'AwaitingAssignment' | 'Delivering' | 'Delivered' | 'Exception';
+  /** Server-owned: every expected trip is Received or Exception; pending picking stays active. */
   isHistory: boolean;
   salesOrderId: string;
   orderCode: string;

@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { graphql } from '@/shared/api/graphql';
-import { Callout, Chip, Modal, SimpleTable, type Tone } from '@/shared/ui';
+import { Callout, Chip, Modal, type Tone } from '@/shared/ui';
+import { ExpandableRecord } from '@/shared/ui/ExpandableRecord';
 import { HAS_LEFT, type ExportOrder, type OrderShipmentReadiness, type ShipmentPartStatus } from '../types';
 import { exportStatus, type ShipmentSort } from '../exportList';
 import { ShipmentOperations } from './ShipmentOperations';
+import { OrderCartonTable, useOrderCartons } from '@/features/orders/components/OrderCartons';
 
 export const PART_STATUS: Record<ShipmentPartStatus, { tone: Tone; label: string }> = {
   WaitingToPick: { tone: 'info', label: 'Chưa soạn xong' },
@@ -25,6 +27,7 @@ export function ExportOrderDetailModal({ order, pickingReads = [], readiness, lo
   open: boolean;
   onClose: () => void;
 }) {
+  const cartons = useOrderCartons(order.id, open);
   const goods = useQuery({
     queryKey: ['dispatch-warehouse-goods', order.id], enabled: open,
     queryFn: async () => {
@@ -59,11 +62,14 @@ export function ExportOrderDetailModal({ order, pickingReads = [], readiness, lo
       if (current) current.quantity += item.requestedQuantity;
       else grouped.set(item.sku, { sku: item.sku, productName: item.productName, quantity: item.requestedQuantity });
     }
-    return <>{goods.isLoading && <p>Đang tải hàng hóa…</p>}{goods.isError && <Callout tone="danger">Không tải được hàng hóa. <button onClick={() => void goods.refetch()}>Thử lại</button></Callout>}<SimpleTable paginate={false} rows={[...grouped.values()]} empty="Chưa có hàng hóa phân bổ cho kho này." columns={[
-      { header: 'Mã SKU', cell: item => item.sku },
-      { header: 'Tên hàng', cell: item => item.productName },
-      { header: 'Số lượng (thùng)', cell: item => item.quantity.toLocaleString('vi-VN') },
-    ]} /></>;
+    return <>{goods.isLoading && <p>Đang tải hàng hóa…</p>}{goods.isError && <Callout tone="danger">Không tải được hàng hóa. <button onClick={() => void goods.refetch()}>Thử lại</button></Callout>}
+      {grouped.size === 0 && !goods.isLoading && <p className="muted">Chưa có hàng hóa phân bổ cho kho này.</p>}
+      {[...grouped.values()].map(item => <ExpandableRecord key={item.sku} title={item.productName} subtitle={item.sku} meta={`${item.quantity.toLocaleString('vi-VN')} thùng`} actionLabel="Danh sách thùng">
+        {cartons.isPending ? <p role="status">Đang tải danh sách thùng…</p>
+          : cartons.isError ? <Callout tone="danger">Không tải được danh sách thùng. <button type="button" onClick={() => void cartons.refetch()}>Thử lại</button></Callout>
+            : <OrderCartonTable productContext cartons={cartons.data.filter(carton => carton.warehouseId === warehouseId && carton.sku === item.sku)} />}
+      </ExpandableRecord>)}
+    </>;
   };
   const status = readiness ? exportStatus(readiness) : {
     tone: failed ? 'danger' as const : 'info' as const,
@@ -81,12 +87,6 @@ export function ExportOrderDetailModal({ order, pickingReads = [], readiness, lo
       {failed && <Callout tone="danger">Không tải được trạng thái đơn. <button type="button" onClick={retry}>Thử lại</button></Callout>}
       {loading && <p className="muted">Đang kiểm tra điều kiện xuất kho…</p>}
       {readiness && <>
-        {readiness.blockingReasons.length > 0 && <Callout tone={readiness.hasException ? 'danger' : 'warn'}>
-          <ul>{readiness.blockingReasons.map(reason => <li key={reason}>{reason}</li>)}</ul>
-        </Callout>}
-        {!readiness.paymentSettled && <Callout tone="warn">
-          Đơn trả trước chưa thanh toán đủ. Đơn công nợ hợp lệ không bị chặn ở cửa kho.
-        </Callout>}
         <div className="dispatch-warehouse-list">
           {parts.length === 0 && <p className="muted">Đơn này chưa có phần hàng theo kho nào.</p>}
           {parts.map(part => <section className="dispatch-warehouse-card" key={part.warehouseId}>
