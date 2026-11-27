@@ -9,7 +9,7 @@ export const PART_STATUS: Record<ShipmentPartStatus, { tone: Tone; label: string
   WaitingToPick: { tone: 'info', label: 'Chưa soạn xong' },
   Ready: { tone: 'success', label: 'Sẵn sàng' },
   Issued: { tone: 'warn', label: 'Chờ điều phối' },
-  Delivering: { tone: 'warn', label: 'Đang giao' },
+  Delivering: { tone: 'warn', label: 'Đang giao hàng' },
   Received: { tone: 'success', label: 'Đã nhận' },
   Exception: { tone: 'danger', label: 'Ngoại lệ' },
 };
