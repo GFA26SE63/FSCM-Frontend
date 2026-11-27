@@ -12,8 +12,9 @@ export const PART_STATUS: Record<ShipmentPartStatus, { tone: Tone; label: string
   Exception: { tone: 'danger', label: 'Ngoại lệ' },
 };
 
-export function ExportOrderDetailModal({ order, readiness, loading, failed, sort, retry, open, onClose }: {
+export function ExportOrderDetailModal({ order, pickingReads = [], readiness, loading, failed, sort, retry, open, onClose }: {
   order: ExportOrder;
+  pickingReads?: { warehouseId: string; items: { sku: string; productName: string; requestedQuantity: number }[] }[];
   readiness?: OrderShipmentReadiness;
   loading: boolean;
   failed: boolean;
@@ -52,6 +53,25 @@ export function ExportOrderDetailModal({ order, readiness, loading, failed, sort
           Đơn trả trước chưa thanh toán đủ. Đơn công nợ hợp lệ không bị chặn ở cửa kho.
         </Callout>}
         <SimpleTable columns={columns} rows={parts} empty="Đơn này chưa có phần hàng theo kho nào." />
+        <h3>Hàng hóa theo kho xuất</h3>
+        {parts.map(part => {
+          const items = pickingReads.filter(read => read.warehouseId === part.warehouseId).flatMap(read => read.items);
+          const grouped = new Map<string, { sku: string; productName: string; quantity: number }>();
+          for (const item of items) {
+            const key = JSON.stringify([item.sku, item.productName]);
+            const current = grouped.get(key);
+            if (current) current.quantity += item.requestedQuantity;
+            else grouped.set(key, { sku: item.sku, productName: item.productName, quantity: item.requestedQuantity });
+          }
+          return <section key={part.warehouseId}>
+            <h4>{part.warehouseCode}</h4>
+            <SimpleTable paginate={false} rows={[...grouped.values()]} empty="Chưa có thông tin hàng hóa cho kho này." columns={[
+              { header: 'Mã SKU', cell: item => item.sku },
+              { header: 'Tên hàng', cell: item => item.productName },
+              { header: 'Số lượng yêu cầu', cell: item => item.quantity.toLocaleString('vi-VN') },
+            ]} />
+          </section>;
+        })}
         <ShipmentOperations orderId={order.id} sort={sort} />
         <p className="muted small">
           {readiness.parts.some(part => HAS_LEFT.includes(part.status))

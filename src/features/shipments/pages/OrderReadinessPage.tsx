@@ -37,12 +37,17 @@ export function OrderReadinessPage() {
   </>;
 }
 
+interface DispatchPickingRead {
+  id: string; orderId: string; warehouseId: string;
+  items: { sku: string; productName: string; requestedQuantity: number }[];
+}
+
 function DeliveryDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
   const lists = useQuery({
     queryKey: ['shipments', 'delivery-picking-orders'],
     queryFn: async () => {
-      const data = await graphql<{ entities: { deliveryPickingReads: { id: string; orderId: string }[] } }>(`
-        query DeliveryPickingOrders { entities { deliveryPickingReads { id orderId } } }
+      const data = await graphql<{ entities: { deliveryPickingReads: DispatchPickingRead[] } }>(`
+        query DeliveryPickingOrders { entities { deliveryPickingReads { id orderId warehouseId items { sku productName requestedQuantity } } } }
       `);
       return data.entities.deliveryPickingReads;
     },
@@ -56,12 +61,12 @@ function DeliveryDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
   return <>
     <QueryState query={lists}>{data => data.length === 0
       ? <Callout tone="info">Chưa có đơn thực hiện nào phát hành phiếu soạn để kiểm tra xuất kho.</Callout>
-      : <QueryState query={orders}>{items => <ExportOrders orders={items} pickingCount={data.length} tab={tab} />}</QueryState>}
+      : <QueryState query={orders}>{items => <ExportOrders orders={items} pickingCount={data.length} pickingReads={data} tab={tab} />}</QueryState>}
     </QueryState>
   </>;
 }
 
-function ExportOrders({ orders, pickingCount, tab }: { orders: ExportOrder[]; pickingCount: number; tab: 'requests' | 'history' }) {
+function ExportOrders({ orders, pickingCount, pickingReads, tab }: { orders: ExportOrder[]; pickingCount: number; pickingReads: DispatchPickingRead[]; tab: 'requests' | 'history' }) {
   const { user } = useAuth();
   const [sort, setSort] = useState<ExportOrderSort>('newest');
   const [search, setSearch] = useState('');
@@ -174,7 +179,7 @@ function ExportOrders({ orders, pickingCount, tab }: { orders: ExportOrder[]; pi
       } },
     ]} />
     </div>
-    {selectedOrder && <ExportOrderDetailModal order={selectedOrder} readiness={byId.get(selectedOrder.id)}
+    {selectedOrder && <ExportOrderDetailModal order={selectedOrder} pickingReads={pickingReads.filter(read => read.orderId === selectedOrder.id)} readiness={byId.get(selectedOrder.id)}
       loading={readiness.loading && !byId.has(selectedOrder.id)} failed={readiness.failedIds.includes(selectedOrder.id)}
       sort="asc" retry={() => { void readiness.refetch(); }} open onClose={() => setSelectedOrderId(null)} />}
     {/* Common Pagination Foundation — client-side (server-side is a BACKEND DEPENDENCY:
