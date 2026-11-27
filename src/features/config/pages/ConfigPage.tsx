@@ -28,8 +28,12 @@ export function SettingsForm({ settings }: { settings: SystemSettings }) {
         <FormField label="Bán kính phục vụ (km)"><Input value={radius} onChange={e => setRadius(e.target.value)} inputMode="decimal" /></FormField>
         <FormField label="Bước số lượng (thùng)"><Input value={step} onChange={e => setStep(e.target.value)} inputMode="numeric" /></FormField>
         <FormField label="Yêu cầu HSD tối thiểu mặc định (%)"><Input value={mlor} onChange={e => setMlor(e.target.value)} inputMode="decimal" /></FormField>
-        <FormField label="Số ngày chờ không khiếu nại trước khi hoàn tất đơn"><Input value={graceDays} onChange={e => setGraceDays(e.target.value)} inputMode="numeric" /></FormField>
+        <FormField label="Hạn gửi khiếu nại / chờ hoàn tất đơn (ngày)"><Input value={graceDays} onChange={e => setGraceDays(e.target.value)} inputMode="numeric" /></FormField>
       </div>
+      <Callout tone={Number(graceDays) === 0 ? 'danger' : 'info'}>
+        Số ngày này vừa là hạn nhà bán lẻ gửi khiếu nại (tính từ lúc xác nhận nhận hàng), vừa là thời gian chờ trước khi hoàn tất đơn và cộng điểm.
+        {Number(graceDays) === 0 && ' 0 ngày = nhà bán lẻ không thể gửi yêu cầu.'}
+      </Callout>
       {!valid && <Callout tone="danger">Trọng số phải không âm và có tổng bằng 1; bán kính và bước thùng phải dương; yêu cầu HSD tối thiểu phải nằm giữa 0 và 100%; số ngày chờ hoàn tất từ 0 đến 365.</Callout>}
       <Button variant="primary" style={{ marginTop: 16 }} disabled={!valid} loading={save.isPending} onClick={() => { if (!valid || save.isPending) return; save.mutate({ settings: {
         allocation: { wE: Number(weights.wE), wD: Number(weights.wD), wQ: Number(weights.wQ) },

@@ -41,7 +41,7 @@ test('OperationsReportsPage contains promotion-grouping tabs and program summary
   assert.ok(source.includes('Tổng hợp theo khuyến mãi'), 'OperationsReportsPage must have view switch for promotions');
   assert.ok(source.includes('Chi tiết các đơn hàng áp dụng'), 'OperationsReportsPage must have order detail tab');
   assert.ok(source.includes('Tổng hợp giá trị sử dụng theo chương trình khuyến mãi'), 'OperationsReportsPage must render summary card');
-  assert.ok(source.includes('Tổng tiền giảm KM (đ)'), 'OperationsReportsPage must show total discount column');
+  assert.ok(source.includes('Tổng tiền giảm KM (VND)'), 'OperationsReportsPage must show total discount column');
   assert.ok(source.includes('Xem đơn hàng'), 'OperationsReportsPage must have button to drill into orders of that promo');
 });
 

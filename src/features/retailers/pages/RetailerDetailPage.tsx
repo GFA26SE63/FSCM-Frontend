@@ -1,5 +1,5 @@
 import { useAuth } from '@/shared/auth/AuthContext';
-import { can } from '@/shared/auth/permissions';
+import { can, hasOperation } from '@/shared/auth/permissions';
 import { useState } from 'react';
 import { useNavigate, useParams } from '@/shared/router/compat';
 import { useReturnToList } from '@/shared/router/listState';
@@ -117,7 +117,7 @@ function RetailerView({ r }: { r: Retailer }) {
   const [review, setReview] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
-  const mayViewAccount = user?.role === 'Admin';
+  const mayViewAccount = hasOperation(user, 'api:Users.Get');
   const mayOpenLinkedAccount = Boolean(r.userAccountId) && mayViewAccount;
   const mayEdit = can(user, 'retailers.edit');
   const mayReview = r.status === 'PendingApproval' && can(user, 'retailers.review');

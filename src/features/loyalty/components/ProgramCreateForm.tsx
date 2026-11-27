@@ -13,6 +13,7 @@ export function ProgramCreateForm({ onClose }: { onClose: () => void }) {
   const create = useCreateProgram();
   const [values, setValues] = useState(programInitial);
   const [retailers, setRetailers] = useState<ProgramRetailerOption[]>([]);
+  const [selectingRetailers, setSelectingRetailers] = useState(false);
   const [tried, setTried] = useState(false);
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
   const [failure, setFailure] = useState('');
@@ -23,7 +24,7 @@ export function ProgramCreateForm({ onClose }: { onClose: () => void }) {
     setServerErrors(current => { const next = { ...current }; delete next[key]; return next; });
   };
   async function submit() {
-    if (saving.current) return;
+    if (saving.current || selectingRetailers) return;
     setTried(true);
     if (Object.keys(validateProgram(values)).length) return;
     saving.current = true;
@@ -50,7 +51,7 @@ export function ProgramCreateForm({ onClose }: { onClose: () => void }) {
         </FormField>
         <FormField label="Mô tả" span={2} error={errors.description}><TextArea value={values.description} disabled={create.isPending}
           onChange={e => set('description', e.target.value)} /></FormField>
-        <FormField label="Số tiền quy đổi 1 điểm (đồng)" required error={errors.spendAmountPerPoint}>
+        <FormField label="Số tiền quy đổi 1 điểm (VND)" required error={errors.spendAmountPerPoint}>
           <Input inputMode="decimal" value={values.spendAmountPerPoint} disabled={create.isPending}
             onChange={e => set('spendAmountPerPoint', e.target.value)} />
         </FormField>
@@ -69,11 +70,11 @@ export function ProgramCreateForm({ onClose }: { onClose: () => void }) {
       </div>
     </Card>
     <ProgramRetailerTable value={retailers} onChange={rows => { setRetailers(rows); set('retailerIds', rows.map(r => r.id)); }}
-      error={errors.retailerIds} disabled={create.isPending} />
+      error={errors.retailerIds} disabled={create.isPending} onBusyChange={setSelectingRetailers} />
     <Callout>Chương trình mới chưa được kích hoạt. Quy đổi điểm làm tròn xuống theo máy chủ.</Callout>
     <div className="row-wrap" style={{ justifyContent: 'flex-end', gap: 8 }}>
       <Button disabled={create.isPending} onClick={onClose}>Hủy</Button>
-      <Button variant="primary" loading={create.isPending} onClick={() => void submit()}>Tạo chương trình</Button>
+      <Button variant="primary" loading={create.isPending} disabled={selectingRetailers} onClick={() => void submit()}>Tạo chương trình</Button>
     </div>
   </>;
 }

@@ -35,7 +35,7 @@ test('pallet receiving action rows and scan history are spaced apart', () => {
   assert.ok(src.includes('<h3 className="pallet-receiving-history">Lịch sử quét pallet trên phiếu</h3>'));
   const css = read('features/warehouse-work/warehouse-work.css');
   assert.match(css, /\.pallet-receiving-actions \{[^}]*gap: 12px;[^}]*margin: 16px 0;/);
-  assert.match(css, /\.pallet-receiving-history \{ margin-top: 28px; \}/);
+  assert.match(css, /\.pallet-receiving-history \{ margin: 28px 0 10px; \}/);
   assert.match(css, /\.pallet-camera \{ margin-bottom: 16px; \}/);
 });
 
@@ -69,7 +69,8 @@ test('transport dispatch nests delivery and transfer request/history tabs', () =
   assert.ok(page.includes("label: 'Điều phối luân chuyển'"));
   assert.ok(page.includes('Yêu cầu Điều phối ${operation}'));
   assert.ok(page.includes('Lịch sử Điều phối ${operation}'));
-  assert.ok(page.includes('warehouseTransfers(first: 500'));
+  assert.ok(page.includes('warehouseTransfers(first: 100, after: $after'));
+  assert.ok(page.includes('pageInfo { hasNextPage endCursor }'));
 });
 
 test('transfer dispatch assignment sends driver, vehicle and optimistic version', () => {

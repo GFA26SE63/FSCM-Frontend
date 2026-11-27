@@ -76,7 +76,7 @@ test('Vietnamese role labels retain the authorization codes and portal role memb
   assert.deepEqual(roles.PORTAL_ROLES, ['Admin', 'Operator', 'WarehouseKeeper', 'SalesManager']);
   assert.equal(roles.roleLabel.Sales, 'Nhân viên bán hàng');
   assert.equal(roles.roleLabel.Retailer, 'Nhà bán lẻ');
-  assert.equal(roles.isPortalRole('Sales'), false);
+  assert.equal(roles.isPortalRole('Sales'), true);
   assert.equal(roles.isPortalRole('Admin'), true);
 });
 

@@ -21,7 +21,7 @@ function source(file, mocks) {
   return mod.exports;
 }
 
-const { sortExportOrders, EXPORT_PAGE_SIZE, exportStatus } = source('features/shipments/exportList.ts', {
+const { sortExportOrders, EXPORT_PAGE_SIZE, exportStatus, isDispatchInTab } = source('features/shipments/exportList.ts', {
   './types': { HAS_LEFT: ['Issued', 'Delivering', 'Received'] },
 });
 
@@ -37,12 +37,25 @@ test('newest export orders use creation time, not code; paging does not discard 
   assert.equal(sortExportOrders(orders, 'codeAsc')[0].orderCode, 'DH-78');
 });
 
-test('aggregate departed label is separate from individual shipment dispatch status', () => {
-  const order = { isReady: true, hasException: false, parts: [{ status: 'Issued' }, { status: 'Delivering' }] };
-  assert.equal(exportStatus(order).label, 'Đã rời kho');
+test('dispatch labels follow the server aggregate across assignment, delivery and receipt', () => {
+  const order = { dispatchStatus: 'Delivering', isReady: true, hasException: false, parts: [{ status: 'Issued' }, { status: 'Delivering' }] };
+  assert.equal(exportStatus(order).label, 'Đang giao hàng');
   assert.equal(order.parts[0].status, 'Issued');
-  assert.equal(exportStatus({ ...order, parts: [{ status: 'Ready' }] }).label, 'Được xuất');
-  assert.equal(exportStatus({ ...order, isReady: false, hasException: true, parts: [{ status: 'Exception' }] }).label, 'Ngoại lệ');
+  assert.equal(exportStatus({ ...order, dispatchStatus: 'Preparing', parts: [{ status: 'Ready' }] }).label, 'Được xuất');
+  assert.equal(exportStatus({ ...order, dispatchStatus: 'AwaitingAssignment' }).label, 'Chờ vận tải');
+  assert.equal(exportStatus({ ...order, dispatchStatus: 'Delivered' }).label, 'Đã giao');
+  assert.equal(exportStatus({ ...order, dispatchStatus: 'Exception', isReady: false, hasException: true, parts: [{ status: 'Exception' }] }).label, 'Ngoại lệ');
+});
+
+test('issued, delivering and partially received dispatches remain actionable until the server closes them', () => {
+  for (const dispatchStatus of ['AwaitingAssignment', 'Delivering', 'Exception']) {
+    const readiness = { dispatchStatus, isHistory: false };
+    assert.equal(isDispatchInTab(readiness, 'requests'), true);
+    assert.equal(isDispatchInTab(readiness, 'history'), false);
+  }
+  assert.equal(isDispatchInTab({ dispatchStatus: 'Delivered', isHistory: true }, 'history'), true);
+  assert.equal(isDispatchInTab({ dispatchStatus: 'Delivered', isHistory: true }, 'requests'), false);
+  assert.equal(isDispatchInTab(undefined, 'history'), false);
 });
 
 test('export row opens a popup retaining warehouse, pending picking, payment and operation details', () => {
@@ -54,6 +67,8 @@ test('export row opens a popup retaining warehouse, pending picking, payment and
       React.createElement('div', { key: i }, columns.map((col, j) => React.createElement('span', { key: j }, col.cell(row)))))),
   };
   const { ExportOrderDetailModal } = source('features/shipments/components/ExportOrderCard.tsx', {
+    '@tanstack/react-query': { useQuery: () => ({ data: [{ warehouseId: 'w-a', sku: 'SKU-A', productName: 'Hàng A', requestedQuantity: 12 }] }) },
+    '@/shared/api/graphql': {},
     react: React,
     '@/shared/ui': ui,
     '../types': { HAS_LEFT: ['Issued', 'Delivering', 'Received'] },
@@ -63,7 +78,7 @@ test('export row opens a popup retaining warehouse, pending picking, payment and
   const props = {
     order: { id: 'order', orderCode: 'DH-100' }, loading: false, failed: false, sort: 'asc', retry() {},
     readiness: { isReady: false, hasException: false, paymentSettled: false, blockingReasons: ['Warehouse B still picking'],
-      parts: [ { warehouseCode: 'WH-A', shipmentCode: 'SHIP-1', status: 'Issued' }, { warehouseCode: 'WH-B', shipmentCode: null, status: 'WaitingToPick' } ] },
+      parts: [ { warehouseId: 'w-a', warehouseCode: 'WH-A', shipmentCode: 'SHIP-1', status: 'Issued' }, { warehouseId: 'w-b', warehouseCode: 'WH-B', shipmentCode: null, status: 'WaitingToPick' } ] },
   };
   const html = renderToStaticMarkup(React.createElement(ExportOrderDetailModal, {
     ...props,
@@ -75,6 +90,9 @@ test('export row opens a popup retaining warehouse, pending picking, payment and
   assert.match(html, /WH-A/);
   assert.match(html, /WH-B/);
   assert.match(html, /SHIP-1/);
+  assert.match(html, /SKU-A/);
+  assert.match(html, /Hàng A/);
+  assert.match(html, /12/);
   assert.match(html, /chưa có — kho chưa đóng phiếu soạn/);
   assert.match(html, /Warehouse B still picking/);
   assert.match(html, /chưa thanh toán đủ/);
@@ -87,11 +105,14 @@ test('export metadata requests lightweight scoped entities and refuses missing d
   let response = { entities: { salesOrders: { nodes: [{ id: 'a', orderCode: 'DH-1', createdAt: '2026-11-12T00:00:00Z' }] } } };
   const { shipmentsApi } = source('features/shipments/api.ts', {
     '@/shared/api/http': {},
-    '@/shared/api/graphql': { graphql: async (query, variables) => { calls.push({ query, variables }); return response; } },
+    '@/shared/api/graphql': { graphql: async (query, variables) => { calls.push({ query, variables }); return query.includes('ExportAssignmentTimes') ? { entities: { shipments: { nodes: [{ id: 'ship-1', salesOrderId: 'a', assignedAt: '2026-11-12T03:00:00Z' }], pageInfo: { hasNextPage: false, endCursor: null } } } } : response; } },
     '@/shared/api/errors': { ApiError: class extends Error {} },
     './shipmentsGraphql': { fetchShipmentsForOrder: async () => [] },
   });
-  assert.equal((await shipmentsApi.exportOrders(['a', 'a'])).length, 1);
+  const orders = await shipmentsApi.exportOrders(['a', 'a']);
+  assert.equal(orders.length, 1);
+  assert.equal(orders[0].assignmentTimes['ship-1'], '2026-11-12T03:00:00Z');
+  assert.match(calls[1].query, /id salesOrderId assignedAt/);
   assert.deepEqual(calls[0].variables.ids, ['a']);
   assert.match(calls[0].query, /entities\s*{\s*salesOrders/);
   assert.match(calls[0].query, /id orderCode createdAt/);

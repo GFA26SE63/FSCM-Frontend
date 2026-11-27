@@ -43,7 +43,7 @@ test('Retailer Edit: "Sửa thông tin" button action in RetailerDetailPage and 
     '../api/errors': errors,
   });
   assert.equal(permissions.can({ role: 'Admin' }, 'retailers.edit'), true);
-  assert.equal(permissions.can({ role: 'Operator' }, 'retailers.edit'), true);
+  assert.equal(permissions.can({ role: 'Operator', permissions: ['api:Retailers.UpdateProfile'] }, 'retailers.edit'), true);
   assert.equal(permissions.can({ role: 'SalesManager' }, 'retailers.edit'), false);
   assert.equal(permissions.can({ role: 'WarehouseKeeper' }, 'retailers.edit'), false);
   assert.equal(permissions.can({ role: 'Retailer' }, 'retailers.edit'), false);

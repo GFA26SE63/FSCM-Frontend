@@ -1,3 +1,4 @@
+import { can } from '@/shared/auth/permissions';
 import { useMemo, useState } from 'react';
 import { MapPin, Pause, Pencil, Play } from 'lucide-react';
 import { useNavigate, useParams } from '@/shared/router/compat';
@@ -37,7 +38,7 @@ export function RegionWarehousesPage() {
   const returnToList = useReturnToList();
   const toast = useToast();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'Admin';
+  const isAdmin = can(user, 'warehouses.manage');
 
   const [sortOrder, setSortOrder] = useEnumParam<SortOrder>('sort', SORT_ORDERS, 'desc');
   const [netMapOpen, setNetMapOpen] = useState(false);

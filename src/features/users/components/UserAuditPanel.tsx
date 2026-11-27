@@ -1,3 +1,4 @@
+import { hasOperation } from '@/shared/auth/permissions';
 import { useState } from 'react';
 import { Button, Card, Pagination, QueryState, SimpleTable } from '@/shared/ui';
 import { useAuth } from '@/shared/auth/AuthContext';
@@ -25,9 +26,9 @@ export function UserAuditPanel({ userId }: { userId: string }) {
   const [cursors, setCursors] = useState<(string | null)[]>([null]);
   const [pageSize, setPageSize] = useState(20);
   const after = cursors[cursors.length - 1];
-  const query = useUserAudit(userId, after, user?.role === 'Admin', pageSize);
+  const query = useUserAudit(userId, after, hasOperation(user, 'api:Users.List'), pageSize);
 
-  if (user?.role !== 'Admin') return null;
+  if (!hasOperation(user, 'api:Users.List')) return null;
 
   return (
     <Card title="Lịch sử tài khoản" actions={

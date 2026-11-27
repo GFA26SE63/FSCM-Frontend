@@ -57,7 +57,7 @@ export const buildOrdersByIdQuery = (ids: string[]) => ({
   variables: { ids },
 });
 
-/** Integer minor units (1/100 ₫) so that summing is exact; non-finite/missing amounts are rejected. */
+/** Integer minor units (1/100 VND) so that summing is exact; non-finite/missing amounts are rejected. */
 export const toMinor = (amount: unknown): number | null =>
   typeof amount === 'number' && Number.isFinite(amount) ? Math.round(amount * 100) : null;
 
@@ -65,7 +65,7 @@ export const formatMinorVnd = (minor: number) => {
   const whole = Math.trunc(minor / 100);
   const frac = Math.abs(minor % 100);
   const grouped = Math.abs(whole).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  return `${minor < 0 ? '-' : ''}${grouped}${frac ? `,${String(frac).padStart(2, '0')}` : ''} ₫`;
+  return `${minor < 0 ? '-' : ''}${grouped}${frac ? `,${String(frac).padStart(2, '0')}` : ''} VND`;
 };
 
 export async function fetchOrderValueTotal(

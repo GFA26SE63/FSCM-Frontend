@@ -32,7 +32,7 @@ const permissions = source('shared/auth/permissions.ts', {
   '../lib/env': { env: { useMock: false } },
 });
 
-const user = (role) => ({ id: 'user-' + role, role, name: role, email: role + '@example.com' });
+const user = (role) => ({ permissions: require('./authorization-fixtures.cjs').grantsFor(role, permissions), id: 'user-' + role, role, name: role, email: role + '@example.com' });
 
 test('RBAC: retailers.edit and mlor.manage permissions conform strictly to authorization matrix', () => {
   // retailers.edit: Admin and Operator
