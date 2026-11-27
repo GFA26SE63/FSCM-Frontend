@@ -1,3 +1,4 @@
+import { can } from '@/shared/auth/permissions';
 import { useState } from 'react';
 import { useNavigate, useParams } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
@@ -10,7 +11,7 @@ export function CategoryDetailPage() {
   const { code = '' } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'Admin';
+  const isAdmin = can(user, 'categories.manage');
   const query = useCategory(code);
   const [edit, setEdit] = useState(false);
 

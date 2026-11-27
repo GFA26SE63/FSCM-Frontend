@@ -1,3 +1,4 @@
+import { hasOperation } from '@/shared/auth/permissions';
 import { useQuery } from '@tanstack/react-query';
 import { useApiMutation } from '@/shared/hooks';
 import { useAuth } from '@/shared/auth/AuthContext';
@@ -6,12 +7,12 @@ import { loyaltyApi } from './api';
 export const usePrograms = () => {
   const { user } = useAuth();
   return useQuery({ queryKey: ['loyalty', 'programs', user?.id], queryFn: loyaltyApi.programs,
-    enabled: user?.role === 'Admin' || user?.role === 'Operator' });
+    enabled: hasOperation(user, 'api:Loyalty.List') });
 };
 export const useProgramRetailers = () => {
   const { user } = useAuth();
   return useQuery({ queryKey: ['loyalty', 'program-retailers', user?.id],
-    queryFn: loyaltyApi.programRetailers, enabled: user?.role === 'Admin' || user?.role === 'Operator' });
+    queryFn: loyaltyApi.programRetailers, enabled: hasOperation(user, 'api:Loyalty.List') });
 };
 export const useCreateProgram = () => useApiMutation(loyaltyApi.createProgram, {
   permission: 'loyalty.manage', success: 'Đã tạo chương trình. Hãy kích hoạt khi sẵn sàng.',

@@ -159,7 +159,7 @@ export function DebtsPage() {
         rowActionsWidth="150px"
         rowActions={(r) => {
           const showCollect = mayCollect && (r.status === 'Unpaid' || r.status === 'Overdue');
-          const showRefund = user?.role === 'Operator' && r.refundDueAmount > 0;
+          const showRefund = can(user, 'refunds.manage') && r.refundDueAmount > 0;
           if (!showCollect && !showRefund) return null;
           return (
             <>
@@ -220,10 +220,10 @@ export function DebtsPage() {
         server={refundPagingProps}
         rowActions={(refund) => (
           <>
-            {user?.role === 'Operator' && refund.status === 'PendingRefund' && (
+            {can(user, 'refunds.manage') && refund.status === 'PendingRefund' && (
               <Button size="sm" onClick={() => setEvidenceTarget(refund)}>Nộp bằng chứng</Button>
             )}
-            {user?.role === 'Admin' && refund.status === 'AwaitingVerification' && (
+            {can(user, 'refunds.verify') && refund.status === 'AwaitingVerification' && (
               <Button size="sm" variant="primary" onClick={() => setVerifyTarget(refund)}>Xác minh</Button>
             )}
           </>
@@ -231,7 +231,7 @@ export function DebtsPage() {
       />
 
       <FormDialog
-        open={user?.role === 'Operator' && !!refundTarget}
+        open={can(user, 'refunds.manage') && !!refundTarget}
         width={560}
         columns={1}
         title={`Tạo phiếu hoàn · ${refundTarget?.orderCode ?? ''}`}
@@ -261,7 +261,7 @@ export function DebtsPage() {
       />
 
       <FormDialog
-        open={user?.role === 'Operator' && !!evidenceTarget}
+        open={can(user, 'refunds.manage') && !!evidenceTarget}
         width={560}
         columns={1}
         title={`Bằng chứng hoàn tiền · ${evidenceTarget?.orderCode ?? ''}`}
@@ -295,7 +295,7 @@ export function DebtsPage() {
       />
 
       <FormDialog
-        open={user?.role === 'Admin' && !!verifyTarget}
+        open={can(user, 'refunds.verify') && !!verifyTarget}
         width={560}
         columns={1}
         title={`Xác minh hoàn tiền · ${verifyTarget?.orderCode ?? ''}`}

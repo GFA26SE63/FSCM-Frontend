@@ -4,25 +4,32 @@ import type { SelectOption } from './FormField';
 const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').toLocaleLowerCase();
 
 /** Search labels while keeping only a known option's identifier in form state. */
-export function SearchSelect({ value, options, onChange, placeholder = 'Tìm mã hoặc tên sản phẩm…', disabled, invalid }: {
+export function SearchSelect({ value, options, onChange, placeholder = 'Tìm mã hoặc tên sản phẩm…', disabled, invalid, onQueryChange, ariaLabel }: {
   value: string; options: (SelectOption | string)[]; onChange: (value: string) => void;
   placeholder?: string; disabled?: boolean; invalid?: boolean;
+  /** When set, the caller searches server-side, so options are shown as given. */
+  onQueryChange?: (query: string) => void; ariaLabel?: string;
 }) {
   const id = useId();
-  const [query, setQuery] = useState('');
+  const [query, setQueryState] = useState('');
+  const setQuery = (q: string) => { setQueryState(q); onQueryChange?.(q); };
+  // Server-side search keeps its text so the caller's results and paging stay in sync.
+  const keep = !!onQueryChange;
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const opts = options.map((o) => typeof o === 'string' ? { value: o, label: o } : o);
   const selected = opts.find((o) => o.value === value);
-  const matches = opts.filter((o) => !o.disabled && normalize(o.label).includes(normalize(query)));
-  const choose = (option: SelectOption) => { onChange(option.value); setOpen(false); setQuery(''); };
+  const matches = opts.filter((o) => !o.disabled && (onQueryChange || normalize(o.label).includes(normalize(query))));
+  // Server-search mode stays open so several items can be added in a row.
+  const choose = (option: SelectOption) => { onChange(option.value); if (!keep) { setOpen(false); setQuery(''); } };
   return <div style={{ position: 'relative', minWidth: 0 }}>
-    <input className={`inp${invalid ? ' invalid' : ''}`} role="combobox" autoComplete="off"
+    <input className={`inp${invalid ? ' invalid' : ''}`} role="combobox" autoComplete="off" aria-label={ariaLabel}
       aria-expanded={open} aria-controls={id} aria-autocomplete="list"
       aria-activedescendant={open && matches[active] ? `${id}-${active}` : undefined}
-      disabled={disabled} placeholder={placeholder} value={open ? query : selected?.label ?? ''}
-      onFocus={() => { setQuery(''); setActive(0); setOpen(true); }}
-      onBlur={() => { setOpen(false); setQuery(''); }}
+      disabled={disabled} placeholder={placeholder} value={open || keep ? query : selected?.label ?? ''}
+      onFocus={() => { if (!keep) setQuery(''); setActive(0); setOpen(true); }}
+      onClick={() => setOpen(true)}
+      onBlur={() => { setOpen(false); if (!keep) setQuery(''); }}
       onChange={(e) => { setQuery(e.target.value); setActive(0); setOpen(true); if (value) onChange(''); }}
       onKeyDown={(e) => {
         if (e.key === 'Escape' && open) { e.stopPropagation(); setOpen(false); setQuery(''); }

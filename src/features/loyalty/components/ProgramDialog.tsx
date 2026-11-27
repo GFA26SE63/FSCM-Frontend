@@ -21,7 +21,7 @@ export function ProgramDialog({ program, onClose }: Props) {
   const fields: FormFieldDef[] = [
     { key: 'name', label: 'Tên chương trình', required: true, span: 2, validate: validate('name') },
     { key: 'description', label: 'Mô tả', type: 'textarea', span: 2 },
-    { key: 'spendAmountPerPoint', label: 'Số tiền quy đổi 1 điểm (đồng)', type: 'number',
+    { key: 'spendAmountPerPoint', label: 'Số tiền quy đổi 1 điểm (VND)', type: 'number',
       required: true, validate: validate('spendAmountPerPoint') },
     { key: 'minimumRedeemPoints', label: 'Điểm tối thiểu đổi quà', type: 'number',
       required: true, validate: validate('minimumRedeemPoints') },

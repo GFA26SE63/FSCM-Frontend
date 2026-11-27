@@ -229,7 +229,7 @@ export function ShelfLifeDialog({ initial, currentFrom, onClose }: { initial: Sh
                         <Select
                           style={{ width: 110 }}
                           value={tier.discountType}
-                          options={[{ value: 'Percent', label: '% Phần trăm' }, { value: 'FixedPerUnit', label: 'đ / đơn vị' }]}
+                          options={[{ value: 'Percent', label: '% Phần trăm' }, { value: 'FixedPerUnit', label: 'VND / đơn vị' }]}
                           onChange={(e) => update(originalIndex, { discountType: e.target.value as ShelfLifeTier['discountType'] })}
                         />
                         <Input

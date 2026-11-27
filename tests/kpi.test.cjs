@@ -28,8 +28,10 @@ function source(file, mocks = {}) {
 
 const errors = source('shared/api/errors.ts');
 const filters = source('features/kpi/filters.ts');
+const permissions = source('shared/auth/permissions.ts', { '../api/errors': errors });
 
 const user = (role, scope = {}) => ({
+  permissions: ['Operator', 'SalesManager'].includes(role) ? ['api:Reports.SalesKpis'] : [],
   id: 'user-' + role.toLowerCase(),
   role,
   name: role + ' User',
@@ -302,6 +304,7 @@ const mockClient = {
 };
 
 const api = source('features/kpi/api.ts', {
+  '@/shared/auth/permissions': permissions,
   '@/shared/api/http': mockClient,
   '@/shared/api/errors': errors,
   './filters': filters,

@@ -146,6 +146,6 @@ test('20 no write-off valuation in this module; page keeps write-off value unava
   assert.ok(page.includes('writeOffValueText'));
 });
 test('minor-unit arithmetic exact and formatted', () => {
-  assert.equal(ov.formatMinorVnd(350010050), '3.500.100,50 ₫');
+  assert.equal(ov.formatMinorVnd(350010050), '3.500.100,50 VND');
   assert.equal(ov.toMinor(0.1) + ov.toMinor(0.2), 30);
 });

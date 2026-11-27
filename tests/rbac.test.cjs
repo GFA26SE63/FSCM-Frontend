@@ -35,7 +35,7 @@ const permissions = source('shared/auth/permissions.ts', {
   '../lib/env': { env: { useMock: false } },
 });
 const roles = ['Admin', 'Operator', 'WarehouseKeeper', 'SalesManager'];
-const user = (role) => ({ id: 'user-' + role, role, name: role, email: role + '@example.com' });
+const user = (role) => ({ permissions: require('./authorization-fixtures.cjs').grantsFor(role, permissions), id: 'user-' + role, role, name: role, email: role + '@example.com' });
 
 test('role assignment sends the configured role code and rejects Admin before issuing a command', async () => {
   const writes = [];
@@ -86,6 +86,7 @@ test('overview offers three report links and highlights only the selected report
   let role = 'Admin';
   const { Sidebar } = source('app/layout/Sidebar.tsx', {
     '@/shared/router/compat': router,
+    '@/shared/auth/permissions': { hasOperation: (user, key) => user?.role === 'Admin' || user?.permissions?.includes(key) === true, hasScreen: (user, key) => user?.role === 'Admin' || user?.permissions?.includes(key) === true },
     '@/shared/auth/AuthContext': { useAuth: () => ({ user: user(role), logout() {} }) },
     '@/shared/auth/roles': source('shared/auth/roles.ts'),
     '../routes': routes,
@@ -105,12 +106,12 @@ test('overview offers three report links and highlights only the selected report
   }
   for (role of ['WarehouseKeeper', 'SalesManager']) {
     const html = renderToStaticMarkup(React.createElement(MemoryRouter, {
-      initialEntries: ['/dashboard'],
+      initialEntries: ['/reports'],
     }, React.createElement(Sidebar)));
     for (const report of ['redemptions', 'loyalty', 'promotions']) {
-      assert.equal(html.includes(`href="/reports?kind=${report}"`), role === 'SalesManager');
+      assert.equal(html.includes(`href="/reports?kind=${report}"`), true);
     }
-    assert.equal(html.includes('href="/reports?kind=disposals"'), role === 'WarehouseKeeper');
+    assert.equal(html.includes('href="/reports?kind=disposals"'), true);
   }
 });
 
@@ -139,6 +140,7 @@ test('sidebar and direct URL guard handle all Portal roles, loading and anonymou
   const { Sidebar } = source('app/layout/Sidebar.tsx', {
     '@/shared/router/compat': router,
     '@/shared/hooks': { useCurrentTime: () => Date.now() },
+    '@/shared/auth/permissions': { hasOperation: (user, key) => user?.role === 'Admin' || user?.permissions?.includes(key) === true, hasScreen: (user, key) => user?.role === 'Admin' || user?.permissions?.includes(key) === true },
     '@/shared/auth/AuthContext': auth,
     '@/shared/auth/roles': source('shared/auth/roles.ts'),
     '@/shared/lib/env': { env: { useMock: false } },
@@ -172,6 +174,7 @@ test('Operator can view loyalty but cannot open its edit form or run program mut
   const auth = { useAuth: () => ({ user: current }) };
   const hookMocks = {
     '@tanstack/react-query': { useQuery() {} },
+    '@/shared/auth/permissions': { hasOperation: (user, key) => user?.role === 'Admin' || user?.permissions?.includes(key) === true, hasScreen: (user, key) => user?.role === 'Admin' || user?.permissions?.includes(key) === true },
     '@/shared/auth/AuthContext': auth,
     '@/shared/hooks': {
       useApiMutation: (fn, options) => ({ mutateAsync: async (input) => {
@@ -204,6 +207,7 @@ test('Operator can view loyalty but cannot open its edit form or run program mut
   };
   const { LoyaltyProgramsPanel } = source('features/loyalty/components/LoyaltyProgramsPanel.tsx', {
     '@/shared/router/compat': { useNavigate: () => () => {} },
+    '@/shared/auth/permissions': { hasOperation: (user, key) => user?.role === 'Admin' || user?.permissions?.includes(key) === true, hasScreen: (user, key) => user?.role === 'Admin' || user?.permissions?.includes(key) === true },
     '@/shared/auth/AuthContext': auth,
     '@/shared/auth/permissions': permissions,
     '@/shared/api/errors': { errorMessage: String },

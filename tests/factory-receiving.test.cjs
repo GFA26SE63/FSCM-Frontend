@@ -23,6 +23,7 @@ function page(states, docs = [], post = async () => ({ data: { document: { id: '
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   const mocks = {
+    '@/features/warehouses/hooks': { useWarehouses: () => ({ data: [] }), useRegions: () => ({ data: [] }) },
     './PalletReceiving': { PalletReceiving: 'inspection' },
     './PalletCamera': { PalletCamera: 'camera' },
     './WarehouseOutboundTabs': { WarehouseOutboundTabs: 'outbound-tabs' },
@@ -38,7 +39,8 @@ function page(states, docs = [], post = async () => ({ data: { document: { id: '
       useQuery: options => options.queryKey[0] === 'warehouse-documents' ? { data: docs } : { data: [] },
       useQueryClient: () => ({ invalidateQueries: async () => {} }),
     },
-    '@/shared/auth/AuthContext': { useAuth: () => ({ user: { role, scope: { warehouseIds: ['warehouse'] } } }) },
+    '@/shared/auth/permissions': { hasOperation: (user, key) => user?.role === 'Admin' || user?.permissions?.includes(key) === true, hasScreen: (user, key) => user?.role === 'Admin' || user?.permissions?.includes(key) === true },
+    '@/shared/auth/AuthContext': { useAuth: () => ({ user: { role, permissions: role === 'WarehouseKeeper' ? ['api:WarehouseDocuments.Post', 'warehouse-inbound', 'warehouse-outbound', 'warehouse-transfers', 'warehouse-factory-requests'] : [], scope: { warehouseIds: ['warehouse'] } } }) },
     '@/shared/api/http': { get() {}, http: { post } },
     '@/shared/api/errors': { errorMessage: e => e.message },
     '@/shared/ui': { Button: 'button', Card: 'section', PageHeader: 'header', QueryState: 'query', SimpleTable: 'table' },
@@ -161,6 +163,7 @@ function inspection(states, { reports = [], post = async () => {}, get = async (
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   const mocks = {
+    '@/features/warehouses/hooks': { useWarehouses: () => ({ data: [] }), useRegions: () => ({ data: [] }) },
     react: { useState: () => [states[index++], () => {}], useRef: value => ({ current: value }) },
     '@tanstack/react-query': { useQuery: options => ({ data: options.queryKey[0] === 'receipt-expected' ? expected : reports }), useQueryClient: () => ({ invalidateQueries: async () => {} }) },
     '@/shared/api/http': { get, http: { post } },

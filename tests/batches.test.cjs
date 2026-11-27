@@ -37,7 +37,7 @@ const statusChip = source('shared/ui/StatusChip.tsx', {
   '../lib/status': status,
 });
 
-const user = (role) => ({ id: 'user-' + role, role, name: role, email: role + '@example.com' });
+const user = (role) => ({ permissions: require('./authorization-fixtures.cjs').grantsFor(role, permissions), id: 'user-' + role, role, name: role, email: role + '@example.com' });
 
 test('only Administrator can unlock inventory; Keeper and Admin can lock', () => {
   assert.equal(permissions.can(user('Admin'), 'inventory.unlock'), true);

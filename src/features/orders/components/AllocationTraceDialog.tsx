@@ -35,11 +35,10 @@ export function AllocationTraceDialog({ order, open, onClose }: {
         ? `${order.allocationRunCode} · chạy theo thời gian thực · ${formatDateTime(order.officialPricedAt)}`
         : 'Đơn chưa có kết quả phân bổ'}
     >
-      <Callout tone={fragments.length > 0 ? 'info' : 'warn'}>
-        {fragments.length > 0
-          ? 'Đây là kết quả phân bổ đã lưu và đã giữ tồn bằng khóa lạc quan; không có bước quản trị viên duyệt phương án.'
-          : 'Đơn chưa có lô hàng được chọn. Xem trạng thái và lý do trong lịch sử đơn.'}
-      </Callout>
+      <div className="allocation-trace-content">
+      {fragments.length === 0 && (
+        <Callout tone="warn">Đơn chưa có lô hàng được chọn. Xem trạng thái và lý do trong lịch sử đơn.</Callout>
+      )}
 
       <Tabs
         variant="pills"
@@ -52,7 +51,7 @@ export function AllocationTraceDialog({ order, open, onClose }: {
       />
 
       {line && (
-        <div style={{ display: 'grid', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 14 }}>
           <section className="card" style={{ padding: 16 }}>
             <h3 style={{ marginTop: 0 }}>B1 · Nhận đơn bán hàng và đóng băng điều kiện</h3>
             <div className="row-wrap">
@@ -124,10 +123,6 @@ export function AllocationTraceDialog({ order, open, onClose }: {
                 { header: 'Tổng điểm', cell: item => item.weightedScore.toFixed(3) },
                 { header: 'Lựa chọn', cell: item => item.selected ? `Cấp ${item.selectedQuantity}` : 'Không chọn trong lượt này' },
               ]} />}
-            <p className="muted small">
-              Trong mỗi lượt, hệ thống chọn ứng viên có weighted score cao nhất, cấp tối đa phần nhu cầu còn thiếu,
-              rồi tính lại cho lượt kế tiếp. Sau khi lô hàng đã được chọn, hệ thống mới áp dụng giảm HSD.
-            </p>
             <SimpleTable
               compact
               rows={fragments}
@@ -145,6 +140,7 @@ export function AllocationTraceDialog({ order, open, onClose }: {
           </section>
         </div>
       )}
+      </div>
     </Modal>
   );
 }

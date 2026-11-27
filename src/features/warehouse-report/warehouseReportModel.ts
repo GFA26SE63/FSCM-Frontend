@@ -171,6 +171,33 @@ export interface SkuWarehouseSlice {
   warehouse: WarehouseReportWarehouse;
 }
 
+export type WarehouseHealthStatus = 'shortage' | 'overstock' | 'balanced' | 'idle';
+
+export interface WarehouseSkuHighlight {
+  productId: string;
+  sku: string;
+  name: string;
+  valid: number;
+  nearExpiry: number;
+  salesIssue: number;
+}
+
+export interface WarehouseHealthRow {
+  warehouse: WarehouseReportWarehouse;
+  valid: number;
+  nearExpiry: number;
+  expired: number;
+  locked: number;
+  available: number;
+  salesIssue: number;
+  factoryReceipt: number;
+  sellThroughRate: number;
+  daysOfSupply: number | null;
+  status: WarehouseHealthStatus;
+  topSellingSku: WarehouseSkuHighlight | null;
+  slowestSku: WarehouseSkuHighlight | null;
+}
+
 export interface SkuComparisonRow {
   productId: string;
   sku: string;
@@ -180,6 +207,7 @@ export interface SkuComparisonRow {
   totalNearExpiry: number;
   totalSales: number;
   highestStock: SkuWarehouseSlice | null;
+  slowestStock: SkuWarehouseSlice | null;
   topSales: SkuWarehouseSlice | null;
   transferSuggestion: {
     fromCode: string;
@@ -191,6 +219,90 @@ export interface SkuComparisonRow {
     toValid: number;
   } | null;
   slices: SkuWarehouseSlice[];
+}
+
+export function buildWarehouseHealth(report: WarehouseReport, productId?: string): WarehouseHealthRow[] {
+  const rawDays = (Date.parse(report.toDate) - Date.parse(report.fromDate)) / 86_400_000;
+  const periodDays = Number.isFinite(rawDays) && rawDays >= 0 ? Math.max(1, Math.round(rawDays) + 1) : 30;
+
+  return report.warehouses
+    .map((w) => {
+      const items = productId ? w.products.filter((p) => p.productId === productId) : w.products;
+      const valid = items.reduce((s, p) => s + (p.valid ?? 0), 0);
+      const nearExpiry = items.reduce((s, p) => s + (p.nearExpiry ?? 0), 0);
+      const expired = items.reduce((s, p) => s + (p.expired ?? 0), 0);
+      const locked = items.reduce((s, p) => s + (p.locked ?? 0), 0);
+      const salesIssue = items.reduce((s, p) => s + (p.salesIssue ?? 0), 0);
+      const factoryReceipt = items.reduce((s, p) => s + (p.factoryReceipt ?? 0), 0);
+      const available = valid + nearExpiry;
+      const denom = available + salesIssue;
+      const sellThroughRate = denom > 0 ? Math.round((salesIssue / denom) * 100) : 0;
+      const dailyVelocity = salesIssue / periodDays;
+      const daysOfSupply = dailyVelocity > 0 ? Math.round(available / dailyVelocity) : null;
+
+      let status: WarehouseHealthStatus = 'balanced';
+      if (available === 0 && salesIssue === 0) {
+        status = 'idle';
+      } else if ((salesIssue > 0 && available === 0) || (daysOfSupply !== null && daysOfSupply <= 7)) {
+        status = 'shortage';
+      } else if ((available > 0 && salesIssue === 0) || (daysOfSupply !== null && daysOfSupply >= 45)) {
+        status = 'overstock';
+      }
+
+      const topProduct = [...items]
+        .filter((p) => (p.salesIssue ?? 0) > 0)
+        .sort((a, b) => (b.salesIssue ?? 0) - (a.salesIssue ?? 0) || a.rank - b.rank)[0];
+      const slowProduct = [...items]
+        .filter((p) => (p.valid ?? 0) + (p.nearExpiry ?? 0) > 0)
+        .sort((a, b) => {
+          const aStock = (a.valid ?? 0) + (a.nearExpiry ?? 0);
+          const bStock = (b.valid ?? 0) + (b.nearExpiry ?? 0);
+          const aZero = (a.salesIssue ?? 0) === 0 ? 1 : 0;
+          const bZero = (b.salesIssue ?? 0) === 0 ? 1 : 0;
+          if (aZero !== bZero) return bZero - aZero;
+          const aRatio = aStock / Math.max(1, a.salesIssue ?? 0);
+          const bRatio = bStock / Math.max(1, b.salesIssue ?? 0);
+          return bRatio - aRatio || bStock - aStock;
+        })[0];
+
+      return {
+        warehouse: w,
+        valid,
+        nearExpiry,
+        expired,
+        locked,
+        available,
+        salesIssue,
+        factoryReceipt,
+        sellThroughRate,
+        daysOfSupply,
+        status,
+        topSellingSku: topProduct
+          ? {
+              productId: topProduct.productId,
+              sku: topProduct.sku,
+              name: topProduct.name,
+              valid: topProduct.valid ?? 0,
+              nearExpiry: topProduct.nearExpiry ?? 0,
+              salesIssue: topProduct.salesIssue ?? 0,
+            }
+          : null,
+        slowestSku: slowProduct
+          ? {
+              productId: slowProduct.productId,
+              sku: slowProduct.sku,
+              name: slowProduct.name,
+              valid: slowProduct.valid ?? 0,
+              nearExpiry: slowProduct.nearExpiry ?? 0,
+              salesIssue: slowProduct.salesIssue ?? 0,
+            }
+          : null,
+      };
+    })
+    .sort((a, b) => {
+      const order: Record<WarehouseHealthStatus, number> = { shortage: 0, overstock: 1, balanced: 2, idle: 3 };
+      return order[a.status] - order[b.status] || b.salesIssue - a.salesIssue || b.available - a.available;
+    });
 }
 
 export function buildWarehouseChartData(report: WarehouseReport, productId?: string): WarehouseChartPoint[] {
@@ -239,7 +351,16 @@ export function buildSkuComparisons(report: WarehouseReport): SkuComparisonRow[]
       const totalSales = entry.slices.reduce((s, x) => s + x.salesIssue, 0);
       const byStock = [...entry.slices].sort((a, b) => (b.valid + b.nearExpiry) - (a.valid + a.nearExpiry) || a.salesIssue - b.salesIssue);
       const bySales = [...entry.slices].sort((a, b) => b.salesIssue - a.salesIssue || a.valid - b.valid);
+      const bySlowest = [...entry.slices]
+        .filter((x) => x.valid + x.nearExpiry > 0)
+        .sort((a, b) => {
+          const aZero = a.salesIssue === 0 ? 1 : 0;
+          const bZero = b.salesIssue === 0 ? 1 : 0;
+          if (aZero !== bZero) return bZero - aZero;
+          return (b.valid + b.nearExpiry) / Math.max(1, b.salesIssue) - (a.valid + a.nearExpiry) / Math.max(1, a.salesIssue);
+        });
       const highestStock = byStock[0] && (byStock[0].valid + byStock[0].nearExpiry) > 0 ? byStock[0] : null;
+      const slowestStock = bySlowest[0] ?? null;
       const topSales = bySales[0] && bySales[0].salesIssue > 0 ? bySales[0] : null;
       const transferSuggestion =
         highestStock &&
@@ -262,6 +383,7 @@ export function buildSkuComparisons(report: WarehouseReport): SkuComparisonRow[]
         totalNearExpiry,
         totalSales,
         highestStock,
+        slowestStock,
         topSales,
         transferSuggestion,
         slices: byStock,

@@ -69,16 +69,6 @@ export function ProductDetailPage() {
               }
             />
 
-            {p.status === 'Published' && (
-              <Callout tone="neutral">
-                Thông tin sản phẩm đã khóa.
-                Dùng “Tạo bản mới” để tạo một
-                bản nháp độc lập, hoặc “Tạo bản thay thế”
-                để thay SKU nguồn khi công bố. Giá và
-                thông tin không được sửa sau khi
-                đăng bán.
-              </Callout>
-            )}
 
             {p.status === 'Inactive' && <Callout tone="neutral">Sản phẩm đã ngừng bán. Thông tin và giá chỉ được xem.</Callout>}
 

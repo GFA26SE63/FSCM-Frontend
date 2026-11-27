@@ -107,6 +107,7 @@ const roles = [
 ];
 
 const user = (role) => ({
+  permissions: role === 'Operator' ? ['api:Orders.Cancel'] : [],
   id: `user-${role}`,
   name: role,
   email: `${role}@example.com`,

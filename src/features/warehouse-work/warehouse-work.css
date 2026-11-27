@@ -282,6 +282,15 @@
 /* Pallet receiving: the action rows and the scan history each get their own breathing room. */
 .pallet-camera { margin-bottom: 16px; }
 .pallet-receiving-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
-.pallet-receiving-history { margin-top: 28px; }
+.pallet-receiving-history { margin: 28px 0 10px; }
 /* Dispatch-note PNK: the pallets to receive, above the scanner. */
 .pallet-expected { margin: 12px 0 16px; padding: 12px 14px; border: 1px solid var(--c-border-soft, #e2e5e0); border-radius: 8px; background: var(--c-bg, #f3f4f1); }
+
+.warehouse-request-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 420px)); gap: 20px; margin: 20px 0; }
+.warehouse-request-note { max-width: 860px; margin-top: 24px; }
+.warehouse-request-actions { display: flex; justify-content: flex-end; gap: 12px; padding-top: 20px; margin-top: 20px; border-top: 1px solid #dce5df; }
+
+.warehouse-carton-scanner { border: 1px solid var(--c-border, #dce5df); border-radius: 10px; padding: 20px; margin: 20px 0; background: #f6faf8; }
+.warehouse-carton-scanner h3 { margin: 0 0 12px; }
+.warehouse-carton-scanner form { align-items: flex-end; }
+.warehouse-carton-scanner form .lbl { flex: 1 1 320px; }

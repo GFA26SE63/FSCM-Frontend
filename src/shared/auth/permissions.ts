@@ -1,95 +1,8 @@
 import type { CurrentUser } from './authApi';
-import type { PortalRole } from './roles';
 import { ApiError } from '../api/errors';
 
-export const ACTION_ROLES = {
-  'users.manage': ['Admin'],
-  'users.create': ['Admin'],
-  'users.edit': ['Admin'],
-  'users.assignRole': ['Admin'],
-  'users.status': ['Admin'],
-
-  'regions.manage': ['Admin'],
-  'salesGroups.manage': ['Admin'],
-  'territory.assign': ['Admin', 'SalesManager'],
-
-  'products.manage': ['Admin'],
-  'loyalty.manage': ['Admin'],
-  'categories.manage': ['Admin'],
-  'warehouses.manage': ['Admin'],
-
-  // SO chỉ được rút trước khi allocation hoàn tất.
-  // Trạng thái cụ thể được kiểm tra tại orderAccess.ts
-  // và được backend kiểm tra lại.
-  'orders.withdraw': ['Admin', 'Operator'],
-
-  // Allocation real-time là màn theo dõi.
-  'allocation.view': ['Admin', 'Operator'],
-
-  // Portal chỉ có Operator trong các role được collect.
-  'payments.collect': ['Operator'],
-  'payments.adjust': ['Admin', 'Operator'],
-  // F101: create refund records and submit transfer proof; only Admin verifies it.
-  'refunds.manage': ['Admin', 'Operator'],
-  'refunds.verify': ['Admin'],
-
-  'receipts.create': ['Admin', 'WarehouseKeeper'],
-  'receipts.approve': ['Admin', 'WarehouseKeeper'],
-
-  'picking.scan': ['WarehouseKeeper'],
-  'picking.complete': ['WarehouseKeeper'],
-  'picking.viewPrice': ['Admin', 'Operator'],
-
-  'fleet.manage': ['Admin', 'Operator'],
-  'redeem.manage': ['Admin', 'Operator'],
-
-  // Operator may request more evidence; only Admin approves/rejects (F62).
-  'complaints.resolve': ['Admin', 'Operator'],
-  'complaints.decide': ['Admin'],
-
-  'inventory.lock': [
-    'Admin',
-    'WarehouseKeeper',
-    'Operator',
-  ],
-  'inventory.unlock': [
-    'Admin',
-  ],
-  'inventory.viewHistory': [
-    'Admin',
-    'WarehouseKeeper',
-    'Operator',
-  ],
-
-  'retailers.review': ['Admin', 'Operator'],
-  'retailers.status': ['Admin'],
-
-  // Endpoint /mlor-configurations hỗ trợ quản trị và vận hành.
-  'mlor.read': ['Admin', 'Operator'],
-  'mlor.manage': ['Admin', 'Operator'],
-
-  // Chỉnh sửa hồ sơ retailer theo khai báo/xét duyệt.
-  'retailers.create': ['Admin'],
-  'retailers.edit': ['Admin', 'Operator'],
-
-  // Quản lý và in tem QR lô hàng kho.
-  'qr.view': ['Admin', 'WarehouseKeeper', 'Operator'],
-  'qr.generate': ['Admin', 'WarehouseKeeper', 'Operator'],
-  'qr.print': ['Admin', 'WarehouseKeeper', 'Operator'],
-
-  // InternalTransfersController hiện có [NonController].
-  'transfers.manage': [],
-  'transfers.receive': [],
-} as const satisfies Record<
-  string,
-  readonly PortalRole[]
->;
-
-export type Permission =
-  keyof typeof ACTION_ROLES;
-
 /** Screen grants are the server contract; an empty grant list grants nothing. */
-export const ACTION_SCREENS: Record<Permission, string> = {
+export const ACTION_SCREENS = {
   'users.manage': 'users',
   'users.create': 'users',
   'users.edit': 'users',
@@ -131,7 +44,9 @@ export const ACTION_SCREENS: Record<Permission, string> = {
   'qr.print': 'batches',
   'transfers.manage': 'warehouse-transfers',
   'transfers.receive': 'warehouse-transfers',
-};
+} as const;
+
+export type Permission = keyof typeof ACTION_SCREENS;
 
 export const ACTION_OPERATIONS: Partial<Record<Permission, readonly string[]>> = {
   'users.create': ['api:Users.Create'],
@@ -185,12 +100,21 @@ export function can(
   // Sessions created before the permission contract are upgraded on /auth/me.
   // An explicit empty list must never restore role defaults.
   if (user.permissions === undefined) {
-    const legacyRoles: readonly string[] = ACTION_ROLES[permission];
-    return legacyRoles.includes(user.role);
+    return false;
   }
   const operations = ACTION_OPERATIONS[permission];
-  return user.permissions.includes(ACTION_SCREENS[permission]) &&
-    (!operations || operations.some(key => user.permissions!.includes(key)));
+  return operations
+    ? operations.some(key => user.permissions!.includes(key))
+    : user.permissions.includes(ACTION_SCREENS[permission]);
+}
+
+/** Exact API capabilities control actions; business profiles only describe data scope/layout. */
+export function hasOperation(user: CurrentUser | null | undefined, operation: string): boolean {
+  return !!user && (user.role === 'Admin' || user.permissions?.includes(operation) === true);
+}
+
+export function hasScreen(user: CurrentUser | null | undefined, screen: string): boolean {
+  return !!user && (user.role === 'Admin' || user.permissions?.includes(screen) === true);
 }
 
 export function assertPermission(

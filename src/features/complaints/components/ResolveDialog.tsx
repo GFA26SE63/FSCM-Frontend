@@ -3,6 +3,7 @@ import { can } from '@/shared/auth/permissions';
 import { FormDialog, FormField, TextArea } from '@/shared/ui';
 import { useComplaint, useDecideComplaint } from '../hooks';
 import type { ComplaintDecision } from '../api';
+import { settlementLabel } from '../types';
 
 const MIN_REASON_LENGTH = 5;
 
@@ -37,6 +38,13 @@ export function ResolveDialog({ code, onClose }: { code: string | null; onClose:
         ]
       : []),
   ];
+  // The server fixes compensation by payment method: prepaid is refunded, credit reduces debt.
+  const requiredSettlement = claim.orderPaymentMethod === 'Prepaid' ? 'CashRefund'
+    : claim.orderPaymentMethod === 'Credit' ? 'DebtOffset' : undefined;
+  const settlementOptions = claim.status === 'Approved' && claim.approvedSettlementMethod
+    ? [{ value: claim.approvedSettlementMethod, label: settlementLabel(claim.approvedSettlementMethod) }]
+    : [{ value: 'DebtOffset', label: 'Cấn trừ công nợ' }, { value: 'CashRefund', label: 'Hoàn tiền' }]
+        .filter(o => !requiredSettlement || o.value === requiredSettlement);
   return (
     <FormDialog
       open={!!code}
@@ -45,16 +53,15 @@ export function ResolveDialog({ code, onClose }: { code: string | null; onClose:
       title={`Xử lý yêu cầu ${code}`}
       submitLabel="Xác nhận"
       initial={{ decision: claim.status === 'Approved' ? 'approve' : 'requestEvidence', result: '', approvedQuantity: claim.approvedQuantity ?? claim.requestedQuantity ?? claim.expectedQuantity - claim.actualQuantity,
-        settlementMethod: claim.approvedSettlementMethod ?? claim.settlementMethod ?? 'DebtOffset', waive: false, waiverReason: '' }}
+        settlementMethod: claim.approvedSettlementMethod ?? requiredSettlement ?? claim.settlementMethod ?? 'DebtOffset', waive: false, waiverReason: '' }}
       fields={[
         { key: 'decision', type: 'select', required: true, label: 'Quyết định', options },
         { key: 'approvedQuantity', type: 'number', required: true, label: 'Số thùng được duyệt', visible: v => v.decision === 'approve',
           validate: value => !Number.isInteger(Number(value)) || Number(value) <= 0 || Number(value) > (claim.requestedQuantity ?? claim.expectedQuantity - claim.actualQuantity) ? 'Số nguyên dương, không vượt số yêu cầu.' : undefined },
         { key: 'settlementMethod', type: 'select', label: 'Phương án xác nhận', required: true, visible: v => v.decision === 'approve',
-          options: [{value:'DebtOffset',label:'Cấn trừ công nợ'}, {value:'CashRefund',label:'Hoàn tiền'},
-            ...(claim.requestType === 'DamagedCollection' ? [{value:'None',label:'Chỉ thu hồi, không bồi hoàn'}] : [])] },
+          options: settlementOptions },
         { key: 'policy', type: 'info', label: 'Đối soát', visible: v => v.decision === 'approve',
-          info: () => 'Giảm nợ trong chính đơn gốc trước; phần tiền đã thu thừa tự tạo phiếu hoàn. Yêu cầu có xử lý hàng chỉ chốt tiền sau xác nhận thực tế.' },
+          info: () => 'Đơn trả trước được hoàn tiền; đơn công nợ được cấn trừ vào công nợ của đơn. Yêu cầu có xử lý hàng chỉ chốt tiền sau xác nhận thực tế.' },
         { key: 'waive', type: 'check', label: 'Miễn xử lý hàng thực tế và chốt tài chính ngay',
           visible: v => v.decision === 'approve' && (claim.requestType !== 'Complaint' || !!claim.requiresCollection) },
         { key: 'waiverReason', type: 'textarea', required: true, label: 'Lý do miễn xử lý hàng', visible: v => v.decision === 'approve' && !!v.waive },

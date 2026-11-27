@@ -198,6 +198,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   Sales: ALL_MOBILE_SALES_KEYS,
   Retailer: ALL_MOBILE_RT_KEYS,
   WarehouseKeeper: [
+    'readiness',
     'dashboard',
     'warehouse-inbound',
     'warehouse-factory-requests',

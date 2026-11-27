@@ -37,7 +37,6 @@ export function RequireAuth({
 }
 
 export function RequireRole({
-  roles,
   routeKey,
   allowAllPortalRoles = false,
   children,
@@ -65,8 +64,7 @@ export function RequireRole({
   const isAllowed = user && (
     user.role === 'Admin' ||
     (allowAllPortalRoles && isPortalRole(user.role)) ||
-    (screenKey && user.permissions?.includes(screenKey)) ||
-    (user.permissions === undefined && roles.includes(user.role))
+    (screenKey && user.permissions?.includes(screenKey))
   );
 
   if (!user || !isAllowed) {

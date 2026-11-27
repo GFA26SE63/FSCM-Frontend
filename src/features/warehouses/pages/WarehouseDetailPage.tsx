@@ -1,3 +1,4 @@
+import { can, hasOperation } from '@/shared/auth/permissions';
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
@@ -29,11 +30,8 @@ import type { MapPoint } from '../types';
 export function WarehouseDetailPage() {
   const { code = '' } = useParams();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'Admin';
-  const canViewInventory =
-    user?.role === 'Admin' ||
-    user?.role === 'Operator' ||
-    user?.role === 'WarehouseKeeper';
+  const isAdmin = can(user, 'warehouses.manage');
+  const canViewInventory = hasOperation(user, 'api:Inventory.List');
 
   const query = useWarehouse(code, canViewInventory);
   const wh = query.data;

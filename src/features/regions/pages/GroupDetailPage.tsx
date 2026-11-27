@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from '@/shared/router/compat';
 import { useReturnToList } from '@/shared/router/listState';
 import { useAuth } from '@/shared/auth/AuthContext';
-import { can } from '@/shared/auth/permissions';
+import { can, hasOperation } from '@/shared/auth/permissions';
 import {
   Button,
   Card,
@@ -54,7 +54,7 @@ export function GroupDetailPage() {
 
   const manageGroups = can(user, 'salesGroups.manage');
   const assignTerritory = can(user, 'territory.assign');
-  const mayOpenRetailers = user?.role === 'Admin' || user?.role === 'Operator';
+  const mayOpenRetailers = hasOperation(user, 'api:Retailers.List');
 
   const handleOpenReactivate = () => {
     const g = query.data;
