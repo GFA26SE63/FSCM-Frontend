@@ -11,8 +11,8 @@ import { useRegions, useWarehouses } from '@/features/warehouses/hooks';
 import { shipmentsApi } from '../api';
 import { useOrdersReadiness } from '../hooks';
 import { ExportOrderDetailModal, PART_STATUS } from '../components/ExportOrderCard';
-import { exportStatus, sortExportOrders, type ExportOrderSort } from '../exportList';
-import { HAS_LEFT, type ExportOrder } from '../types';
+import { exportStatus, isDispatchInTab, sortExportOrders, type ExportOrderSort } from '../exportList';
+import { type ExportOrder } from '../types';
 
 export function OrderReadinessPage() {
   const [transport, setTransport] = useEnumParam('transport', ['delivery', 'transfer'] as const, 'delivery', { resets: ['transportTab'] });
@@ -79,7 +79,7 @@ function ExportOrders({ orders, pickingCount, tab }: { orders: ExportOrder[]; pi
     const status = exportStatus(current).label;
     return statusFilter === 'held' ? ['Đang bị giữ', 'Ngoại lệ'].includes(status)
       : statusFilter === 'ready' ? status === 'Được xuất'
-        : status === 'Đã rời kho';
+        : ['Chờ vận tải', 'Đang giao hàng', 'Đã giao'].includes(status);
   };
   const filtered = sorted.filter(order => {
     const current = byId.get(order.id);
@@ -88,11 +88,8 @@ function ExportOrders({ orders, pickingCount, tab }: { orders: ExportOrder[]; pi
       && (!warehouseFilter || current?.parts.some(part => part.warehouseCode === warehouseFilter))
       && (!regionFilter || current?.parts.some(part => regionOfCode.get(part.warehouseCode)?.id === regionFilter))
       && matchesStatus(order)
-      // A request stays in the active queue until a warehouse part has left.
-      // The server remains authoritative for all part statuses.
-      && (!current || (tab === 'history'
-        ? current.parts.some(part => HAS_LEFT.includes(part.status))
-        : !current.parts.some(part => HAS_LEFT.includes(part.status))));
+      // The server closes a dispatch only after all expected warehouse trips are received.
+      && isDispatchInTab(current, tab);
   });
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -111,7 +108,8 @@ function ExportOrders({ orders, pickingCount, tab }: { orders: ExportOrder[]; pi
       <Stat label="Phiếu soạn" value={String(pickingCount)} />
       <Stat label="Cần xử lý" value={countsKnown ? String(count('Đang bị giữ') + count('Ngoại lệ')) : '—'} />
       <Stat label="Sẵn sàng xuất" value={countsKnown ? String(count('Được xuất')) : '—'} />
-      <Stat label="Đã rời kho" value={countsKnown ? String(count('Đã rời kho')) : '—'} />
+      <Stat label="Đang giao hàng" value={countsKnown ? String(count('Đang giao hàng')) : '—'} />
+      <Stat label="Đã giao" value={countsKnown ? String(count('Đã giao')) : '—'} />
     </div>
     <section className="card filter-card delivery-filter-card" aria-label="Bộ lọc nâng cao điều phối giao hàng">
       <div className="row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14655B" strokeWidth="2" aria-hidden><path d="M3 5h18l-7 8v6l-4 2v-8z" /></svg><h2 className="sec">Bộ lọc nâng cao</h2></div>
@@ -122,7 +120,7 @@ function ExportOrders({ orders, pickingCount, tab }: { orders: ExportOrder[]; pi
         <label className="lbl">Trạng thái điều phối
           <Select value={statusFilter} onChange={event => { setStatusFilter(event.target.value as typeof statusFilter); setPage(1); }} options={[
             { value: 'all', label: 'Tất cả trạng thái' }, { value: 'held', label: 'Cần xử lý' },
-            { value: 'ready', label: 'Sẵn sàng xuất' }, { value: 'left', label: 'Đã rời kho' },
+            { value: 'ready', label: 'Sẵn sàng xuất' }, { value: 'left', label: 'Vận tải / đã giao' },
           ]} />
         </label>
         <label className="lbl">Khu vực

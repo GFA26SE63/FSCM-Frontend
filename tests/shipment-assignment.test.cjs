@@ -76,6 +76,7 @@ test('an issued assigned shipment can start delivery even after the order left t
   const props = { shipment: { ...shipment, status: 'Issued', driverId: 'driver', vehicleId: 'vehicle' }, drivers: [driver], vehicles: [vehicle] };
   const operator = renderToStaticMarkup(React.createElement(mod.exports.ShipmentActionRow, { ...props, mayDispatch: true }));
   assert.match(operator, /Bắt đầu giao/);
+  assert.match(operator, /Cập nhật xe &amp; tài xế/);
   const keeper = renderToStaticMarkup(React.createElement(mod.exports.ShipmentActionRow, { ...props, mayDispatch: false }));
   assert.doesNotMatch(keeper, /Bắt đầu giao/);
   for (const status of ['Delivering', 'Received']) {

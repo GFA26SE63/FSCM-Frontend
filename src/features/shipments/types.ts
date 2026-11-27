@@ -28,6 +28,8 @@ export interface ShipmentReadinessPart {
 }
 
 export interface OrderShipmentReadiness {
+  dispatchStatus: 'WaitingToPick' | 'Preparing' | 'AwaitingAssignment' | 'Delivering' | 'Delivered' | 'Exception';
+  isHistory: boolean;
   salesOrderId: string;
   orderCode: string;
   /** The only thing an issue action may be enabled on. The rest of this record explains it. */

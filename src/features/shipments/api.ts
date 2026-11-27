@@ -1,4 +1,4 @@
-import { get, getAll, patch, post } from '@/shared/api/http';
+import { getAll, patch, post } from '@/shared/api/http';
 import { graphql } from '@/shared/api/graphql';
 import { ApiError } from '@/shared/api/errors';
 import { fetchShipmentsForOrder } from './shipmentsGraphql';
@@ -37,7 +37,17 @@ export const shipmentsApi = {
    * order draws from warehouses a sheet knows nothing about and is gated on a payment the Portal
    * has no view of.
    */
-  readiness: (orderId: string) => get<OrderShipmentReadiness>(`/shipments/orders/${orderId}/readiness`),
+  readiness: async (orderId: string): Promise<OrderShipmentReadiness> => {
+    const data = await graphql<{ entities: { shipmentReadinessRead: OrderShipmentReadiness } }>(`
+      query ShipmentReadiness($orderId: UUID!) {
+        entities { shipmentReadinessRead(orderId: $orderId) {
+          salesOrderId orderCode isReady paymentSettled hasException dispatchStatus isHistory
+          blockingReasons parts { shipmentId shipmentCode warehouseId warehouseCode status exceptionReason }
+        } }
+      }
+    `, { orderId });
+    return data.entities.shipmentReadinessRead;
+  },
   /** Order-scoped read via GraphQL (see shipmentsGraphql.ts); writes below stay REST. */
   list: (orderId: string) => fetchShipmentsForOrder(orderId),
   drivers: () => getAll<DeliveryDriver>('/deliveries/drivers', { includeInactive: false }),
@@ -47,45 +57,11 @@ export const shipmentsApi = {
       driverId: input.driverId, vehicleId: input.vehicleId, expectedVersion: input.expectedVersion,
     }),
   busyAssignments: async () => {
-    type ActiveAssignment = { status: string; driverId: string | null; vehicleId: string | null };
-    type AssignmentConnection = {
-      nodes: ActiveAssignment[];
-      pageInfo: { hasNextPage: boolean; endCursor: string | null };
-    };
-
-    // Fetch separately and page the narrow active set. A single query asking for 500
-    // rows from both connections exceeds Hot Chocolate's request-cost safeguard.
-    const loadActiveAssignments = async (entity: 'shipments' | 'warehouseTransfers', status: string) => {
-      const assignments: ActiveAssignment[] = [];
-      let after: string | null = null;
-      do {
-        const data: { entities: Record<'shipments' | 'warehouseTransfers', AssignmentConnection> } = await graphql<{ entities: Record<'shipments' | 'warehouseTransfers', AssignmentConnection> }>(`
-          query BusyTransportAssignments($after: String) {
-            entities {
-              ${entity}(first: 50, after: $after, where: { status: { eq: "${status}" } }) {
-                nodes { status driverId vehicleId }
-                pageInfo { hasNextPage endCursor }
-              }
-            }
-          }
-        `, { after });
-        const page: AssignmentConnection = data.entities[entity];
-        assignments.push(...page.nodes.filter(item => item.status === status));
-        // Older client mocks (and an empty connection from older API deployments)
-        // may omit pageInfo; in that case the received page is the complete result.
-        after = page.pageInfo?.hasNextPage ? page.pageInfo.endCursor : null;
-      } while (after);
-      return assignments;
-    };
-
-    const [shipments, warehouseTransfers] = await Promise.all([
-      loadActiveAssignments('shipments', 'Delivering'),
-      loadActiveAssignments('warehouseTransfers', 'InTransit'),
-    ]);
-    const busyDriverIds = new Set<string>(), busyVehicleIds = new Set<string>();
-    for (const item of shipments) { if (item.driverId) busyDriverIds.add(item.driverId); if (item.vehicleId) busyVehicleIds.add(item.vehicleId); }
-    for (const item of warehouseTransfers) { if (item.driverId) busyDriverIds.add(item.driverId); if (item.vehicleId) busyVehicleIds.add(item.vehicleId); }
-    return { busyDriverIds, busyVehicleIds };
+    const data = await graphql<{ entities: { busyTransportRead: { driverIds: string[]; vehicleIds: string[] } } }>(`
+      query BusyTransport { entities { busyTransportRead { driverIds vehicleIds } } }
+    `);
+    const busy = data.entities.busyTransportRead;
+    return { busyDriverIds: new Set(busy.driverIds), busyVehicleIds: new Set(busy.vehicleIds) };
   },
   issue: (shipment: Shipment) =>
     post<Shipment>(`/shipments/${shipment.id}/issue`, { expectedVersion: shipment.version }),
