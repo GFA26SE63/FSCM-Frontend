@@ -153,7 +153,7 @@ export function TransitTableSection({ current }: { current: TransitTable }) {
             cell: (_, i) => <Input className="inp-sm" inputMode="numeric" value={draft[i].transitMinutes} onChange={(e) => set(i, { transitMinutes: e.target.value })} />,
           },
           {
-            header: 'Chi phí ước tính (đ)', width: '180px',
+            header: 'Chi phí ước tính (VND)', width: '180px',
             cell: (_, i) => <Input className="inp-sm" inputMode="numeric" value={draft[i].cost} onChange={(e) => set(i, { cost: e.target.value })} />,
           },
           {

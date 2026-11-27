@@ -95,7 +95,7 @@ function columns(kind: Kind): Column[] {
       { key: 'itemCode', label: 'SKU' },
       { key: 'itemName', label: 'Sản phẩm' },
       { key: 'quantity', label: 'Số lượng hủy (thùng)', numeric: true },
-      { key: 'grossAmount', label: 'Giá trị tổn thất ước tính (đ)', numeric: true },
+      { key: 'grossAmount', label: 'Giá trị tổn thất ước tính (VND)', numeric: true },
       { key: 'status', label: 'Hình thức xử lý' },
       { key: 'createdByName', label: 'Người lập phiếu' },
       { key: 'note', label: 'Chi tiết hạn dùng' },
@@ -113,9 +113,9 @@ function columns(kind: Kind): Column[] {
       { key: 'programCode', label: 'Loại yêu cầu' },
       { key: 'programName', label: 'Phương thức xử lý' },
       { key: 'quantity', label: 'SL khiếu nại / duyệt', numeric: true },
-      { key: 'campaignDiscountAmount', label: 'Cấn trừ công nợ (đ)', numeric: true },
-      { key: 'shelfLifeDiscountAmount', label: 'Hoàn tiền mặt (đ)', numeric: true },
-      { key: 'grossAmount', label: 'Tổng điều chỉnh tài chính (đ)', numeric: true },
+      { key: 'campaignDiscountAmount', label: 'Cấn trừ công nợ (VND)', numeric: true },
+      { key: 'shelfLifeDiscountAmount', label: 'Hoàn tiền mặt (VND)', numeric: true },
+      { key: 'grossAmount', label: 'Tổng điều chỉnh tài chính (VND)', numeric: true },
       { key: 'status', label: 'Trạng thái' },
       { key: 'approvedByName', label: 'Người duyệt' },
       { key: 'approvedAt', label: 'Ngày duyệt', date: true },
@@ -135,9 +135,9 @@ function columns(kind: Kind): Column[] {
       { key: 'programName', label: 'Nhóm Sales' },
       { key: 'deliveredAt', label: 'Ngày giao hàng', date: true },
       { key: 'itemName', label: 'Hạn thanh toán' },
-      { key: 'grossAmount', label: 'Phải thu sau điều chỉnh (đ)', numeric: true },
-      { key: 'discountAmount', label: 'Đã thanh toán (đ)', numeric: true },
-      { key: 'netAmount', label: 'Còn phải thu (đ)', numeric: true },
+      { key: 'grossAmount', label: 'Phải thu sau điều chỉnh (VND)', numeric: true },
+      { key: 'discountAmount', label: 'Đã thanh toán (VND)', numeric: true },
+      { key: 'netAmount', label: 'Còn phải thu (VND)', numeric: true },
       { key: 'status', label: 'Nhóm tuổi nợ' },
       { key: 'note', label: 'Ghi chú' },
     ];
@@ -147,10 +147,10 @@ function columns(kind: Kind): Column[] {
     { key: 'retailerCode', label: 'Mã nhà bán lẻ' }, { key: 'retailerName', label: 'Nhà bán lẻ' }, { key: 'regionName', label: 'Khu vực' },
     { key: 'programCode', label: 'Mã chương trình' }, { key: 'programName', label: 'Chương trình' }, { key: 'status', label: 'Trạng thái / nghiệp vụ' }];
   if (kind !== 'loyalty') common.push({ key: 'itemCode', label: kind === 'redemptions' ? 'Mã quà' : 'SKU' }, { key: 'itemName', label: kind === 'redemptions' ? 'Quà' : 'Sản phẩm' }, { key: 'quantity', label: 'Số lượng', numeric: true });
-  if (kind === 'promotions') common.push({ key: 'grossAmount', label: 'Trước giảm (đ)', numeric: true },
-    { key: 'campaignDiscountAmount', label: 'Giảm chiến dịch (đ)', numeric: true },
-    { key: 'shelfLifeDiscountAmount', label: 'Giảm HSD (đ)', numeric: true },
-    { key: 'discountAmount', label: 'Tiền giảm (đ)', numeric: true }, { key: 'netAmount', label: 'Sau giảm (đ)', numeric: true });
+  if (kind === 'promotions') common.push({ key: 'grossAmount', label: 'Trước giảm (VND)', numeric: true },
+    { key: 'campaignDiscountAmount', label: 'Giảm chiến dịch (VND)', numeric: true },
+    { key: 'shelfLifeDiscountAmount', label: 'Giảm HSD (VND)', numeric: true },
+    { key: 'discountAmount', label: 'Tiền giảm (VND)', numeric: true }, { key: 'netAmount', label: 'Sau giảm (VND)', numeric: true });
   else common.push({ key: 'points', label: kind === 'loyalty' ? 'Biến động điểm' : 'Điểm đổi', numeric: true });
   if (kind === 'loyalty') common.push({ key: 'balanceAfter', label: 'Số dư thẻ sau giao dịch', numeric: true });
   // Kept for the detail popup and Excel export; which columns the list shows is TABLE_COLUMNS.
@@ -263,9 +263,9 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
             columns: [
               { header: 'Mã CTKM', width: 16 }, { header: 'Tên chương trình khuyến mãi', width: 36 },
               { header: 'Số đơn áp dụng', numeric: true }, { header: 'Sản lượng (thùng)', numeric: true },
-              { header: 'Trước giảm (đ)', numeric: true, width: 18 }, { header: 'Giảm chiến dịch (đ)', numeric: true, width: 18 },
-              { header: 'Giảm HSD (đ)', numeric: true, width: 18 }, { header: 'Tổng tiền giảm KM (đ)', numeric: true, width: 18, font: 'FFB42318' },
-              { header: 'Sau giảm (đ)', numeric: true, width: 18 },
+              { header: 'Trước giảm (VND)', numeric: true, width: 18 }, { header: 'Giảm chiến dịch (VND)', numeric: true, width: 18 },
+              { header: 'Giảm HSD (VND)', numeric: true, width: 18 }, { header: 'Tổng tiền giảm KM (VND)', numeric: true, width: 18, font: 'FFB42318' },
+              { header: 'Sau giảm (VND)', numeric: true, width: 18 },
             ],
             rows: query.data.byProgram.map(p => [p.programCode, p.programName, p.orderCount, p.totalQuantity, p.grossAmount,
               p.campaignDiscountAmount, p.shelfLifeDiscountAmount, p.discountAmount, p.netAmount]),
@@ -334,11 +334,11 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
                   { header: 'Tên chương trình khuyến mãi', cell: p => p.programName },
                   { header: 'Số đơn áp dụng', align: 'right', cell: p => formatNumber(p.orderCount) },
                   { header: 'Sản lượng (thùng)', align: 'right', cell: p => formatNumber(p.totalQuantity) },
-                  { header: 'Trước giảm (đ)', align: 'right', cell: p => formatNumber(p.grossAmount) },
-                  { header: 'Giảm chiến dịch (đ)', align: 'right', cell: p => formatNumber(p.campaignDiscountAmount) },
-                  { header: 'Giảm HSD (đ)', align: 'right', cell: p => formatNumber(p.shelfLifeDiscountAmount) },
+                  { header: 'Trước giảm (VND)', align: 'right', cell: p => formatNumber(p.grossAmount) },
+                  { header: 'Giảm chiến dịch (VND)', align: 'right', cell: p => formatNumber(p.campaignDiscountAmount) },
+                  { header: 'Giảm HSD (VND)', align: 'right', cell: p => formatNumber(p.shelfLifeDiscountAmount) },
                   {
-                    header: 'Tổng tiền giảm KM (đ)',
+                    header: 'Tổng tiền giảm KM (VND)',
                     align: 'right',
                     cell: p => (
                       <strong style={{ color: 'var(--color-danger, #e53e3e)' }}>
@@ -346,7 +346,7 @@ function OperationsReportSession({ kind }: { kind: Kind }) {
                       </strong>
                     ),
                   },
-                  { header: 'Sau giảm (đ)', align: 'right', cell: p => formatNumber(p.netAmount) },
+                  { header: 'Sau giảm (VND)', align: 'right', cell: p => formatNumber(p.netAmount) },
                   {
                     header: 'Thao tác',
                     align: 'right',

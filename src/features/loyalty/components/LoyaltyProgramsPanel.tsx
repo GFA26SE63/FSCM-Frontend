@@ -91,6 +91,12 @@ export function LoyaltyProgramsPanel() {
 function ProgramAudience({ ids }: { ids: string[] }) {
   const query = useProgramRetailers();
   const retailers = query.data;
+  const byId = new Map(retailers?.map(retailer => [retailer.id, retailer]));
+  const audience = ids.map(id => ({ id, retailer: byId.get(id) })).sort((a, b) => {
+    if (!a.retailer) return b.retailer ? 1 : a.id.localeCompare(b.id);
+    if (!b.retailer) return -1;
+    return a.retailer.code.localeCompare(b.retailer.code, 'vi', { numeric: true }) || a.id.localeCompare(b.id);
+  });
   return <div>
     <h3>Nhà bán lẻ áp dụng</h3>
     {query.isLoading && <p>Đang tải thông tin nhà bán lẻ…</p>}
@@ -98,8 +104,7 @@ function ProgramAudience({ ids }: { ids: string[] }) {
       {errorMessage(query.error)} <Button size="sm" onClick={() => void query.refetch()}>Tải lại nhà bán lẻ</Button>
     </div>}
     {!query.isLoading && !query.error && retailers && <ul>
-      {ids.map((id) => {
-        const retailer = retailers.find((r) => r.id === id);
+      {audience.map(({ id, retailer }) => {
         return <li key={id}>{retailer ? `${retailer.code} · ${retailer.name}` : `Không tìm thấy thông tin nhà bán lẻ (${id})`}</li>;
       })}
     </ul>}

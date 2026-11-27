@@ -1,9 +1,10 @@
 import { hasOperation } from '@/shared/auth/permissions';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { Button, Card, Checkbox, DataTable, type Column } from '@/shared/ui';
 import { statusLabel } from '@/shared/lib/status';
+import { errorMessage } from '@/shared/api/errors';
 import { loyaltyApi } from '../api';
 import type { ProgramRetailerOption } from '../types';
 
@@ -17,22 +18,41 @@ const columns: Column<ProgramRetailerOption>[] = [
   { key: 'status', header: 'Trạng thái', width: '130px', text: r => statusLabel('retailer', r.status) },
 ];
 
-export function ProgramRetailerTable({ value, onChange, error, disabled }: {
+export function ProgramRetailerTable({ value, onChange, error, disabled, onBusyChange }: {
   value: ProgramRetailerOption[]; onChange: (rows: ProgramRetailerOption[]) => void; error?: string; disabled?: boolean;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const { user } = useAuth();
   const [selectedOnly, setSelectedOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState('');
+  const [selecting, setSelecting] = useState(false);
+  const [selectionError, setSelectionError] = useState('');
+  const busy = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  async function selectAll() {
+    if (disabled || busy.current || !hasOperation(user, 'api:Loyalty.List')) return;
+    busy.current = true; setSelecting(true); setSelectionError(''); onBusyChange?.(true);
+    try {
+      const rows = await loyaltyApi.activeProgramRetailers();
+      if (mounted.current) onChange([...new Map([...value, ...rows].map(row => [row.id, row])).values()]);
+    } catch (cause) {
+      if (mounted.current) setSelectionError(errorMessage(cause));
+    } finally {
+      busy.current = false;
+      if (mounted.current) { setSelecting(false); onBusyChange?.(false); }
+    }
+  }
   const query = useQuery({ queryKey: ['loyalty', 'program-retailer-page', user?.id, 'Active', page, search, pageSize],
     queryFn: () => loyaltyApi.programRetailersPage(page, search, pageSize), enabled: hasOperation(user, 'api:Loyalty.List') && !selectedOnly });
   const selectionColumns: Column<ProgramRetailerOption>[] = [{
     key: 'select', header: 'Chọn', width: '65px', render: row => <input type="checkbox"
       aria-label={`Chọn ${row.code} · ${row.name}`} checked={value.some(item => item.id === row.id)}
-      disabled={disabled || (!selectedOnly && (query.isFetching || !!query.error))}
+      disabled={disabled || selecting || (!selectedOnly && (query.isFetching || !!query.error))}
       onChange={event => {
-        if (disabled) return;
+        if (disabled || busy.current) return;
         onChange(event.target.checked
           ? [...value.filter(item => item.id !== row.id), row]
           : value.filter(item => item.id !== row.id));
@@ -42,8 +62,13 @@ export function ProgramRetailerTable({ value, onChange, error, disabled }: {
     <p>Chọn ít nhất một nhà bán lẻ. Lựa chọn được lưu cùng chương trình khi nhấn Tạo chương trình.</p>
     <div className="row-wrap" style={{ gap: 16, marginBottom: 12 }}>
       <strong>Đã chọn {value.length} nhà bán lẻ</strong>
+      <Button size="sm" loading={selecting} disabled={disabled || selecting} onClick={() => void selectAll()}>Chọn tất cả</Button>
+      <Button size="sm" disabled={disabled || selecting || value.length === 0}
+        onClick={() => { if (!busy.current) { setSelectionError(''); onChange([]); } }}>Bỏ chọn tất cả</Button>
       <Checkbox label="Chỉ hiện đã chọn" checked={selectedOnly} onChange={setSelectedOnly} />
     </div>
+    <p className="muted small">Chọn tất cả nhà bán lẻ đang hoạt động, gồm mọi trang và ngoài kết quả tìm kiếm.</p>
+    {selectionError && <p className="field-err" role="alert">{selectionError}</p>}
     {error && <p className="field-err" role="alert">{error}</p>}
     {selectedOnly ? <DataTable key="selected" urlState={false} title="Nhà bán lẻ đã chọn" rows={value}
       columns={selectionColumns} rowKey={r => r.id} pageSize={10} searchPlaceholder="Tìm trong danh sách đã chọn…"

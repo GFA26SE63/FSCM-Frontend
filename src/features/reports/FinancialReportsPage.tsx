@@ -15,7 +15,7 @@ import { fetchOrderValueTotal, formatMinorVnd } from './orderValueTotal';
 import { fetchWriteOffValueTotal, writeOffReasonText } from './writeOffValueTotal';
 import './reports.css';
 
-const money = (n: number) => `${formatNumber(n)} ₫`;
+const money = (n: number) => `${formatNumber(n)} VND`;
 
 function useDebounced<T>(value: T, ms: number) {
   const [v, setV] = useState(value);

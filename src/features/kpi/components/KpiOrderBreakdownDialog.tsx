@@ -88,10 +88,10 @@ export function KpiOrderBreakdownDialog({
       key: 'promotionAmount',
       header: 'Khuyến mãi',
       align: 'right',
-      text: (row) => (row.promotionAmount > 0 ? `-${formatMoney(row.promotionAmount)}` : '0 đ'),
+      text: (row) => (row.promotionAmount > 0 ? `-${formatMoney(row.promotionAmount)}` : '0 VND'),
       render: (row) => (
         <span style={{ color: row.promotionAmount > 0 ? 'var(--c-danger, #DC2626)' : undefined }}>
-          {row.promotionAmount > 0 ? `-${formatMoney(row.promotionAmount)}` : '0 đ'}
+          {row.promotionAmount > 0 ? `-${formatMoney(row.promotionAmount)}` : '0 VND'}
         </span>
       ),
     },

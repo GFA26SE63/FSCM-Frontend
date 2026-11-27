@@ -23,7 +23,7 @@ function hooks() {
     if (!(key in state)) state[key] = typeof initial === 'function' ? initial() : initial;
     return [state[key], next => { state[key] = typeof next === 'function' ? next(state[key]) : next; }];
   };
-  return { reset: () => { index = 0; }, useState, useRef: initial => useState(() => ({ current: initial }))[0] };
+  return { reset: () => { index = 0; }, useState, useRef: initial => useState(() => ({ current: initial }))[0], useEffect: () => {} };
 }
 function nodes(node, predicate) {
   if (!node || typeof node !== 'object') return [];
@@ -92,6 +92,7 @@ test('inline retailer selection persists across pages/search and can filter and 
   const { ProgramRetailerTable } = load('features/loyalty/components/ProgramRetailerTable.tsx', {
     react, '@/shared/ui': ui,
     '@/shared/auth/permissions': { hasOperation: (user, key) => user?.role === 'Admin' || user?.permissions?.includes(key) === true, hasScreen: (user, key) => user?.role === 'Admin' || user?.permissions?.includes(key) === true },
+    '@/shared/api/errors': errors,
     '@/shared/auth/AuthContext': { useAuth: () => ({ user: { id: 'admin', role: 'Admin' } }) },
     '@/shared/lib/status': { statusLabel: (_, value) => value }, '../api': { loyaltyApi: {} },
     '@tanstack/react-query': { useQuery: options => { queryOptions = options; return { data: { items: [], totalCount: 21 }, isFetching: fetching, error }; } },
@@ -151,16 +152,83 @@ test('create page validates audience and dates, preserves payload and stays open
   const save = () => nodes(tree, n => n.type === 'Button' && n.props.children === 'Tạo chương trình')[0];
   await save().props.onClick(); tree = render(); assert.equal(sent, undefined);
   const fields = nodes(tree, n => n.type === 'FormField');
-  for (const [label, value] of [['Tên chương trình', 'Program demo'], ['Số tiền quy đổi 1 điểm (đồng)', '10000'], ['Điểm tối thiểu đổi quà', '0']]) {
+  for (const [label, value] of [['Tên chương trình', 'Program demo'], ['Số tiền quy đổi 1 điểm (VND)', '10000'], ['Điểm tối thiểu đổi quà', '0']]) {
     fields.find(n => n.props.label === label).props.children.props.onChange({ target: { value } });
   }
   const dates = nodes(tree, n => n.type === 'DateTimeInput');
   dates[0].props.onChange('2026-12-01T08:30'); dates[1].props.onChange('2026-12-31T20:00');
   nodes(tree, n => n.type === 'Retailers')[0].props.onChange([{ id, code: '1001', name: 'Shop', status: 'Active' }]);
+  nodes(tree, n => n.type === 'Retailers')[0].props.onBusyChange(true);
+  tree = render(); assert.equal(save().props.disabled, true);
+  await save().props.onClick(); assert.equal(sent, undefined);
+  nodes(tree, n => n.type === 'Retailers')[0].props.onBusyChange(false);
   tree = render(); await save().props.onClick(); tree = render();
   assert.equal(closed, 0); assert.deepEqual(sent.retailerIds, [id]);
   assert.equal(sent.startAt, '2026-12-01T01:30:00.000Z');
   assert.equal(sent.endAt, '2026-12-31T13:00:00.000Z'); assert.equal(sent.pointsExpireAt, null);
   assert.ok(nodes(tree, n => n.type === 'Callout' && n.props.tone === 'danger').length);
   fail = false; await save().props.onClick(); assert.equal(closed, 1);
+});
+
+test('select all reads every active GraphQL page and rejects partial or changing results', async () => {
+  const rows = Array.from({ length: 51 }, (_, i) => ({ id: `r${i}`, code: `${i}`, name: 'Shop', status: 'Active' }));
+  let calls = []; let mode = 'ok';
+  const { loyaltyApi } = load('features/loyalty/api.ts', {
+    '@/shared/api/errors': errors, '@/shared/api/http': {},
+    '@/shared/api/graphql': { graphql: async (query, vars) => {
+      calls.push(vars); assert.match(query, /status: "Active"/); assert.match(query, /pageSize: 50/);
+      assert.equal(vars.search, null);
+      if (mode === 'error' && vars.page === 2) throw new errors.ApiError(403, 'Forbidden');
+      const items = mode === 'empty' && vars.page === 2 ? [] : rows.slice((vars.page - 1) * 50, vars.page * 50);
+      return { entities: { retailerProfiles: { items, totalCount: mode === 'changed' && vars.page === 2 ? 52 : 51 } } };
+    } },
+  });
+  assert.deepEqual(await loyaltyApi.activeProgramRetailers(), rows);
+  assert.deepEqual(calls.map(c => c.page), [1, 2]);
+  mode = 'error'; await assert.rejects(loyaltyApi.activeProgramRetailers(), { status: 403 });
+  for (mode of ['empty', 'changed']) await assert.rejects(loyaltyApi.activeProgramRetailers(), { status: 409 });
+});
+
+test('bulk selection commits only a complete result, blocks concurrent changes and preserves selection on failure', async () => {
+  const react = hooks(); let value = [{ id: 'r1', code: '1001', name: 'One', status: 'Active' }];
+  let resolve; let reject; const changes = [];
+  const { ProgramRetailerTable } = load('features/loyalty/components/ProgramRetailerTable.tsx', {
+    react, '@/shared/ui': ui, '@/shared/api/errors': errors,
+    '@/shared/auth/permissions': { hasOperation: (user, key) => user?.role === 'Admin' || user?.permissions?.includes(key) === true },
+    '@/shared/auth/AuthContext': { useAuth: () => ({ user: { id: 'admin', role: 'Admin' } }) },
+    '@/shared/lib/status': { statusLabel: (_, value) => value },
+    '../api': { loyaltyApi: { activeProgramRetailers: () => new Promise((ok, fail) => { resolve = ok; reject = fail; }) } },
+    '@tanstack/react-query': { useQuery: () => ({ data: { items: value, totalCount: 1 } }) },
+  });
+  const render = () => { react.reset(); return ProgramRetailerTable({ value, onChange: rows => { value = rows; }, onBusyChange: b => changes.push(b) }); };
+  let tree = render();
+  const button = label => nodes(tree, n => n.type === 'Button' && n.props.children === label)[0];
+  button('Chọn tất cả').props.onClick(); tree = render();
+  assert.equal(button('Bỏ chọn tất cả').props.disabled, true);
+  button('Bỏ chọn tất cả').props.onClick(); assert.equal(value.length, 1);
+  reject(new errors.ApiError(503, 'Offline')); await new Promise(setImmediate); tree = render();
+  assert.deepEqual(value.map(r => r.id), ['r1']);
+  assert.ok(nodes(tree, n => n.props.role === 'alert').length);
+  button('Chọn tất cả').props.onClick();
+  resolve([{ id: 'r2', code: '1002', name: 'Two', status: 'Active' }, value[0]]);
+  await new Promise(setImmediate); tree = render();
+  assert.deepEqual(value.map(r => r.id), ['r1', 'r2']);
+  assert.deepEqual(changes, [true, false, true, false]);
+  button('Bỏ chọn tất cả').props.onClick(); assert.deepEqual(value, []);
+});
+
+test('edit picker offers only active retailers without silently deleting existing inactive links', () => {
+  const react = hooks(); let changed;
+  const { ProgramRetailerPicker } = load('features/loyalty/components/ProgramRetailerPicker.tsx', {
+    react, '@/shared/ui': ui, '@/shared/api/errors': errors,
+    '@/shared/lib/status': { statusLabel: (_, value) => value },
+  });
+  const tree = ProgramRetailerPicker({ value: ['inactive'], onChange: ids => { changed = ids; },
+    options: [{ id: 'inactive', code: '1', name: 'Closed shop', status: 'Inactive' },
+      { id: 'active', code: '2', name: 'Open shop', status: 'Active' }], loading: false });
+  const checkboxes = nodes(tree, n => n.type === 'Checkbox');
+  assert.equal(checkboxes.length, 1);
+  assert.match(checkboxes[0].props.label, /Open shop/);
+  checkboxes[0].props.onChange(true);
+  assert.deepEqual(changed, ['inactive', 'active']);
 });

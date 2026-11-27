@@ -17,7 +17,8 @@ interface Props {
 export function ProgramRetailerPicker({ value, onChange, options, loading, error, onRetry, validationError }: Props) {
   const [search, setSearch] = useState('');
   const selected = new Set(value);
-  const filtered = (options ?? []).filter((r) =>
+  const inactiveSelected = (options ?? []).filter(r => r.status !== 'Active' && selected.has(r.id));
+  const filtered = (options ?? []).filter((r) => r.status === 'Active' &&
     `${r.code} ${r.name}`.toLowerCase().includes(search.trim().toLowerCase()));
   const unknown = value.filter((id) => options && !options.some((r) => r.id === id));
 
@@ -39,6 +40,9 @@ export function ProgramRetailerPicker({ value, onChange, options, loading, error
               ? [...value, r.id] : value.filter((id) => id !== r.id))} />
         </div>)}
       </div>}
+      {inactiveSelected.length > 0 && <p className="muted small">
+        {inactiveSelected.length} nhà bán lẻ đã chọn không còn hoạt động; liên kết hiện có được giữ nguyên khi lưu.
+      </p>}
       {unknown.length > 0 && <div className="callout callout-info">
         <p>Một số nhà bán lẻ đã chọn không còn trong danh sách hiện tại. Lựa chọn được giữ để bạn kiểm tra.</p>
         {unknown.map((id) => <Checkbox key={id} label={id} checked

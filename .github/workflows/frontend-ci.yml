@@ -2,9 +2,9 @@ name: Frontend CI
 
 on:
   push:
-    branches: [main, staging]
+    branches: [main, develop, staging]
   pull_request:
-    branches: [main, staging]
+    branches: [main, develop, staging]
   workflow_dispatch:
 
 permissions:
@@ -34,6 +34,9 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Test
+        run: npm run test --if-present
 
       - name: Build
         run: npm run build

@@ -93,7 +93,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
   }));
 
   return (
-    <div className="stack" style={{ gap: '20px' }}>
+    <div className="stack retailer-mlor-tab" style={{ gap: '20px' }}>
       {(configsQuery.isLoading || productsQuery.isLoading || categoriesQuery.isLoading) &&
         <Callout tone="info">Đang tải yêu cầu hạn sử dụng và danh mục sản phẩm…</Callout>}
       {(configsQuery.error || productsQuery.error || categoriesQuery.error) &&
@@ -144,7 +144,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
             {
               header: 'Thao tác',
               align: 'right',
-              width: '70px',
+              width: '100px',
               cell: (r) =>
                 mayManage ? (
                   <ActionDropdown showDisabledItems items={[
@@ -202,7 +202,7 @@ export function RetailerMlorTab({ retailer }: RetailerMlorTabProps) {
             {
               header: 'Thao tác',
               align: 'right',
-              width: '70px',
+              width: '100px',
               cell: (r) =>
                 mayManage ? (
                   <ActionDropdown showDisabledItems items={[
