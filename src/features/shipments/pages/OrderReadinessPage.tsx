@@ -17,7 +17,7 @@ import { useAuth } from '@/shared/auth/AuthContext';
 
 export function OrderReadinessPage() {
   const { user } = useAuth();
-  const keeper = !hasOperation(user, 'api:InternalTransfers.List');
+  const keeper = user?.role === 'WarehouseKeeper' || !hasOperation(user, 'api:InternalTransfers.List');
   const [transport, setTransport] = useEnumParam('transport', ['delivery', 'transfer'] as const, 'delivery', { resets: ['transportTab'] });
   const [tab, setTab] = useEnumParam('transportTab', ['requests', 'history'] as const, 'requests');
   const operation = keeper || transport === 'delivery' ? 'giao hàng' : 'luân chuyển';
