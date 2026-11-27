@@ -33,6 +33,49 @@ const driver = { id: 'driver', warehouseId: 'warehouse-a', fullName: 'Correct dr
 const vehicle = { id: 'vehicle', warehouseId: 'warehouse-a', plateNumber: 'ENOUGH', capacity: 60, isActive: true };
 const render = (drivers, vehicles) => renderToStaticMarkup(React.createElement(mod.exports.ShipmentActionRow, { shipment, mayDispatch: true, drivers, vehicles }));
 
+test('assignment waits for confirmation, cancellation sends nothing, and confirmation uses the displayed selection', async () => {
+  const slots = [];
+  let cursor = 0;
+  const calls = [];
+  const ConfirmDialog = () => null;
+  const local = { exports: {} };
+  const overrides = {
+    ...mocks,
+    react: { ...React, useState: initial => {
+      const index = cursor++;
+      if (!(index in slots)) slots[index] = initial;
+      return [slots[index], value => { slots[index] = value; }];
+    } },
+    '@/shared/ui': { ...mocks['@/shared/ui'], ConfirmDialog },
+    '@/shared/hooks/useApiMutation': { useApiMutation: fn => ({ mutateAsync: fn, isPending: false }) },
+    '../api': { shipmentsApi: { assign: async input => { calls.push(input); return input.shipment; } } },
+  };
+  new Function('require', 'exports', 'module', code)(name => Object.hasOwn(overrides, name) ? overrides[name] : require(name), local.exports, local);
+  const tree = () => { cursor = 0; return local.exports.ShipmentActionRow({ shipment, mayDispatch: true, mayStartDelivery: false, drivers: [driver], vehicles: [vehicle] }); };
+  function find(node, predicate) {
+    if (!React.isValidElement(node)) return null;
+    if (predicate(node)) return node;
+    return React.Children.toArray(node.props.children).map(child => find(child, predicate)).find(Boolean);
+  }
+  const assignButton = () => find(tree(), node => node.props.children === 'Gán xe & tài xế');
+  assignButton().props.onClick();
+  assert.equal(calls.length, 0);
+  let dialog = find(tree(), node => node.type === ConfirmDialog);
+  const message = renderToStaticMarkup(dialog.props.message);
+  assert.match(message, /Correct driver/);
+  assert.match(message, /ENOUGH/);
+  dialog.props.onClose();
+  assert.equal(calls.length, 0);
+  assert.equal(find(tree(), node => node.type === ConfirmDialog), undefined);
+  assignButton().props.onClick();
+  dialog = find(tree(), node => node.type === ConfirmDialog);
+  await dialog.props.onConfirm();
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].driverId, driver.id);
+  assert.equal(calls[0].vehicleId, vehicle.id);
+  assert.equal(find(tree(), node => node.type === ConfirmDialog), undefined);
+});
+
 test('assignment offers only active same-warehouse vehicles with enough capacity', () => {
   const html = render([driver], [vehicle, { ...vehicle, id: 'small', plateNumber: 'TOO-SMALL', capacity: 59 }, { ...vehicle, id: 'other', plateNumber: 'OTHER-WAREHOUSE', warehouseId: 'warehouse-b' }, { ...vehicle, id: 'inactive', plateNumber: 'INACTIVE', isActive: false }]);
   assert.match(html, /ENOUGH · 60 thùng/);

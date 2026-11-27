@@ -1,7 +1,7 @@
 import { hasOperation } from '@/shared/auth/permissions';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Callout, Card, Chip, DataTable, Input, Modal, PageHeader, QueryState, Select, SimpleTable, Stat, Tabs } from '@/shared/ui';
+import { Button, Callout, Card, Chip, ConfirmDialog, DataTable, Input, Modal, PageHeader, QueryState, Select, SimpleTable, Stat, Tabs } from '@/shared/ui';
 import { Pagination } from '@/shared/pagination';
 import { graphql } from '@/shared/api/graphql';
 import { errorMessage } from '@/shared/api/errors';
@@ -258,11 +258,16 @@ function TransferDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [driverId, setDriverId] = useState('');
   const [vehicleId, setVehicleId] = useState('');
+  const [pendingAssignment, setPendingAssignment] = useState<{
+    input: Parameters<typeof shipmentsApi.assignTransfer>[0];
+    transferCode: string; driverName: string; plateNumber: string;
+  } | null>(null);
   const { data: warehouses = [] } = useWarehouses();
   const assign = useMutation({ mutationFn: shipmentsApi.assignTransfer, onSuccess: async () => {
     await client.invalidateQueries({ queryKey: ['transport-dispatch'] });
     await client.invalidateQueries({ queryKey: ['warehouse-documents'] });
     setSelectedId(null);
+    setPendingAssignment(null);
   } });
   return <QueryState query={transfers}>{rows => {
     const visible = rows.filter(row => tab === 'history' ? ['Received', 'Rejected'].includes(row.status) : !['Received', 'Rejected'].includes(row.status));
@@ -293,7 +298,12 @@ function TransferDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
           { key: 'time', header: tab === 'history' ? 'Hoàn tất lúc' : 'Điều phối lúc', text: row => formatInstantDateTime(tab === 'history' ? row.receivedAt : row.assignedAt) },
         ]} />
       {selected && <Modal open title="Chi tiết điều phối luân chuyển" subtitle={selected.transferCode} onClose={close}
-        footer={<><Button onClick={close} disabled={assign.isPending}>Đóng</Button>{selected.status === 'Approved' && mayAssign && <Button variant="primary" loading={assign.isPending} disabled={!driverId || !vehicleId || drivers.isLoading || vehicles.isLoading || drivers.isError || vehicles.isError} onClick={() => assign.mutate({ transferId: selected.id, expectedVersion: selected.version, driverId, vehicleId })}>Gán xe và tài xế</Button>}</>}>
+        footer={<><Button onClick={close} disabled={assign.isPending}>Đóng</Button>{selected.status === 'Approved' && mayAssign && <Button variant="primary" loading={assign.isPending} disabled={!driverId || !vehicleId || drivers.isLoading || vehicles.isLoading || drivers.isError || vehicles.isError} onClick={() => setPendingAssignment({
+          input: { transferId: selected.id, expectedVersion: selected.version, driverId, vehicleId },
+          transferCode: selected.transferCode,
+          driverName: drivers.data?.find(driver => driver.id === driverId)?.fullName ?? '',
+          plateNumber: vehicles.data?.find(vehicle => vehicle.id === vehicleId)?.plateNumber ?? '',
+        })}>Gán xe và tài xế</Button>}</>}>
         <div className="stack">
           <p><b>Tuyến:</b> {warehouseName(selected.sourceWarehouseId)} → {warehouseName(selected.destinationWarehouseId)}</p>
           <p><b>Trạng thái:</b> {transferStatusLabel(selected.status)}</p>
@@ -306,6 +316,18 @@ function TransferDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
           </> : <p><b>Tài xế / xe:</b> {[selected.driverNameSnapshot, selected.plateNumberSnapshot].filter(Boolean).join(' · ') || 'Chưa phân công'}</p>}
         </div>
       </Modal>}
+      {pendingAssignment && <ConfirmDialog open title="Xác nhận gán xe và tài xế" confirmLabel="Xác nhận gán"
+        onClose={() => { if (!assign.isPending) setPendingAssignment(null); }}
+        onConfirm={async () => { try { await assign.mutateAsync(pendingAssignment.input); } catch { /* Displayed in the confirmation dialog. */ } }}
+        message={<div className="stack">
+          <p>Vui lòng kiểm tra thông tin điều phối trước khi xác nhận.</p>
+          <dl className="table-detail-fields">
+            <div><dt>Lệnh luân chuyển</dt><dd>{pendingAssignment.transferCode}</dd></div>
+            <div><dt>Tài xế</dt><dd>{pendingAssignment.driverName}</dd></div>
+            <div><dt>Xe</dt><dd>{pendingAssignment.plateNumber}</dd></div>
+          </dl>
+          {assign.isError && <Callout tone="danger">{errorMessage(assign.error)}</Callout>}
+        </div>} />}
     </>;
   }}</QueryState>;
 }
