@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Button, Input, Select } from '@/shared/ui';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { Button, SearchSelect } from '@/shared/ui';
 import { errorMessage } from '@/shared/api/errors';
 import { getAssignmentNames, userApi } from '../api';
 import type { ScopeKind } from '../types';
@@ -39,6 +39,7 @@ export function AssignmentPicker({
     ],
     queryFn: () => userApi.scopeOptions(kind, search, after),
     enabled: !readOnly,
+    placeholderData: keepPreviousData,
   });
 
   const selected = useQuery({
@@ -47,130 +48,119 @@ export function AssignmentPicker({
     enabled: value.length > 0,
   });
 
-  return (
-    <div style={{ display: 'grid', gap: 8 }}>
-      <strong>{label}</strong>
+  const selectedList = (
+    <div className="card" style={{ overflow: 'hidden' }}>
+      {value.length === 0 ? (
+        <div className="muted" style={{ padding: '10px 12px' }}>
+          Chưa chọn.
+        </div>
+      ) : (
+        value.map((id, index) => {
+          const item =
+            selected.data?.find((option) => option.id === id) ??
+            options.data?.nodes.find((option) => option.id === id);
 
-      {value.length === 0 && (
-        <span className="muted">Chưa chọn.</span>
-      )}
-
-      {value.map((id) => {
-        const item =
-          selected.data?.find((option) => option.id === id) ??
-          options.data?.nodes.find((option) => option.id === id);
-
-        return (
-          <div
-            key={id}
-            style={{
-              display: 'flex',
-              gap: 8,
-              alignItems: 'center',
-            }}
-          >
-            <span
+          return (
+            <div
+              key={id}
               style={{
-                flex: 1,
-                overflowWrap: 'anywhere',
+                display: 'flex',
+                gap: 8,
+                alignItems: 'center',
+                padding: '8px 12px',
+                borderTop:
+                  index === 0 ? undefined : '1px solid var(--c-border-soft)',
               }}
             >
-              {item ? `${item.code} · ${item.name}` : id}
-            </span>
+              <span style={{ flex: 1, overflowWrap: 'anywhere' }}>
+                {item ? (
+                  <>
+                    <strong>{item.code}</strong> · {item.name}
+                  </>
+                ) : (
+                  id
+                )}
+              </span>
 
-            {!readOnly && (
-              <Button
-                size="sm"
-                disabled={disabled}
-                onClick={() =>
-                  onChange(
-                    value.filter((itemId) => itemId !== id),
-                  )
-                }
-              >
-                Bỏ chọn
-              </Button>
-            )}
-          </div>
-        );
-      })}
-
-      {selected.error && (
-        <div className="callout callout-danger">
-          Không tải được tên assignment:{' '}
-          {errorMessage(selected.error)}
-          <Button
-            size="sm"
-            onClick={() => void selected.refetch()}
-          >
-            Thử lại
-          </Button>
-        </div>
+              {!readOnly && (
+                <Button
+                  size="sm"
+                  disabled={disabled}
+                  onClick={() =>
+                    onChange(value.filter((itemId) => itemId !== id))
+                  }
+                >
+                  Bỏ chọn
+                </Button>
+              )}
+            </div>
+          );
+        })
       )}
+    </div>
+  );
+
+  return (
+    <div style={{ display: 'grid', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <strong>{label}</strong>
+        {value.length > 0 && (
+          <span className="muted">({value.length} đã chọn)</span>
+        )}
+      </div>
 
       {!readOnly && (
         <>
-          <Input
-            aria-label={`Tìm ${label}`}
-            placeholder="Tìm mã hoặc tên"
-            value={search}
-            disabled={disabled}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              setAfter(null);
-            }}
-          />
-
-          <Select
-            aria-label={label}
+          <SearchSelect
+            ariaLabel={label}
             value=""
             placeholder={
-              options.isFetching
-                ? 'Đang tải…'
-                : 'Chọn để thêm'
+              options.isFetching ? 'Đang tải…' : 'Tìm mã hoặc tên để thêm'
             }
-            disabled={disabled || options.isFetching}
+            disabled={disabled}
+            onQueryChange={(query) => {
+              setSearch(query);
+              setAfter(null);
+            }}
             options={(options.data?.nodes ?? [])
               .filter((item) => !value.includes(item.id))
               .map((item) => ({
                 value: item.id,
                 label: `${item.code} · ${item.name}`,
               }))}
-            onChange={(event) => {
-              const id = event.target.value;
+            onChange={(id) => {
               if (!id) return;
-
-              onChange(
-                multiple ? [...value, id] : [id],
-              );
+              onChange(multiple ? [...value, id] : [id]);
             }}
           />
 
-          <div style={{ display: 'flex', gap: 8 }}>
-            {after && (
-              <Button
-                size="sm"
-                disabled={disabled || options.isFetching}
-                onClick={() => setAfter(null)}
-              >
-                Về đầu
-              </Button>
-            )}
+          {(after || options.data?.pageInfo.hasNextPage) && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              {after && (
+                <Button
+                  size="sm"
+                  disabled={disabled || options.isFetching}
+                  onClick={() => setAfter(null)}
+                >
+                  Về đầu
+                </Button>
+              )}
 
-            {options.data?.pageInfo.hasNextPage && (
-              <Button
-                size="sm"
-                disabled={disabled || options.isFetching}
-                onClick={() =>
-                  setAfter(
-                    options.data?.pageInfo.endCursor ?? null,
-                  )
-                }
-              >
-                Xem tiếp
-              </Button>
-            )}
-          </div>
+              {options.data?.pageInfo.hasNextPage && (
+                <Button
+                  size="sm"
+                  disabled={disabled || options.isFetching}
+                  onClick={() =>
+                    setAfter(
+                      options.data?.pageInfo.endCursor ?? null,
+                    )
+                  }
+                >
+                  Xem tiếp
+                </Button>
+              )}
+            </div>
+          )}
 
           {options.error && (
             <div className="callout callout-danger">
@@ -184,6 +174,21 @@ export function AssignmentPicker({
             </div>
           )}
         </>
+      )}
+
+      {selectedList}
+
+      {selected.error && (
+        <div className="callout callout-danger">
+          Không tải được tên assignment:{' '}
+          {errorMessage(selected.error)}
+          <Button
+            size="sm"
+            onClick={() => void selected.refetch()}
+          >
+            Thử lại
+          </Button>
+        </div>
       )}
 
       {error && (

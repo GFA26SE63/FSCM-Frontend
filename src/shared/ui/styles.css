@@ -45,7 +45,7 @@
 
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; font-family: var(--font); }
-body { margin: 0; background: var(--c-bg); color: var(--c-text); font-family: var(--font); font-size: 13.5px; -webkit-font-smoothing: antialiased; }
+body { margin: 0; background: var(--c-bg); color: var(--c-text); font-family: var(--font); font-size: 13.5px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
 button, input, select, textarea { font-family: inherit; }
 code, pre, kbd, samp, svg text, svg tspan { font-family: var(--font); }
 html [data-sonner-toaster], html [data-sonner-toast] { font-family: var(--font); }
