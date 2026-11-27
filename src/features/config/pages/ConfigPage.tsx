@@ -13,6 +13,7 @@ export function SettingsForm({ settings }: { settings: SystemSettings }) {
   const [step, setStep] = useState(String(settings.orderStepCartons));
   const [mlor, setMlor] = useState(String(settings.defaultMlorRatio * 100));
   const [graceDays, setGraceDays] = useState(String(settings.orderCompletionGraceDays));
+  const [demoFastScan, setDemoFastScan] = useState(settings.demoFastScanEnabled);
   const save = useSaveConfig();
   const valid = validAllocationWeights(Object.values(weights))
     && validKilometers(Number(radius)) && Number(radius) > 0
@@ -34,11 +35,16 @@ export function SettingsForm({ settings }: { settings: SystemSettings }) {
         Số ngày này vừa là hạn nhà bán lẻ gửi khiếu nại (tính từ lúc xác nhận nhận hàng), vừa là thời gian chờ trước khi hoàn tất đơn và cộng điểm.
         {Number(graceDays) === 0 && ' 0 ngày = nhà bán lẻ không thể gửi yêu cầu.'}
       </Callout>
+      <label className="check" style={{ marginTop: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
+        <input type="checkbox" checked={demoFastScan} onChange={e => setDemoFastScan(e.target.checked)} />
+        Hiện nút "Quét nhanh" (demo) trên ứng dụng di động
+      </label>
+      {demoFastScan && <Callout tone="danger">Khi bật, ứng dụng nhận sẵn danh sách mã thùng của phiếu nhập kho và lô hàng đang giao, nên việc quét không còn chứng minh hàng thực tế. Chỉ bật khi demo và tắt ngay sau đó.</Callout>}
       {!valid && <Callout tone="danger">Trọng số phải không âm và có tổng bằng 1; bán kính và bước thùng phải dương; yêu cầu HSD tối thiểu phải nằm giữa 0 và 100%; số ngày chờ hoàn tất từ 0 đến 365.</Callout>}
       <Button variant="primary" style={{ marginTop: 16 }} disabled={!valid} loading={save.isPending} onClick={() => { if (!valid || save.isPending) return; save.mutate({ settings: {
         allocation: { wE: Number(weights.wE), wD: Number(weights.wD), wQ: Number(weights.wQ) },
         dmaxRetailerKm: Number(radius), orderStepCartons: Number(step), defaultMlorRatio: Number(mlor) / 100,
-        orderCompletionGraceDays: Number(graceDays),
+        orderCompletionGraceDays: Number(graceDays), demoFastScanEnabled: demoFastScan,
       } }); }}>Lưu cấu hình</Button>
     </Card>
   </>;

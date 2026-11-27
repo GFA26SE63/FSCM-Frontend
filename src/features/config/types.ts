@@ -5,6 +5,8 @@ export interface SystemSettings {
   orderStepCartons: number;
   defaultMlorRatio: number;
   orderCompletionGraceDays: number;
+  /** Shows the demo "Quét nhanh" button on the mobile receiving screens. */
+  demoFastScanEnabled: boolean;
 }
 
 /**
