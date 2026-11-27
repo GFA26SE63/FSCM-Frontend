@@ -1,3 +1,4 @@
+import { useRegions, useWarehouses } from '@/features/warehouses/hooks';
 import { hasOperation, hasScreen } from '@/shared/auth/permissions';
 import { PalletReceiving } from "./PalletReceiving";
 import { PalletCamera } from './PalletCamera';
@@ -11,7 +12,7 @@ import { useAuth } from '@/shared/auth/AuthContext';
 import { get, http } from '@/shared/api/http';
 import { errorMessage } from '@/shared/api/errors';
 import { graphql } from '@/shared/api/graphql';
-import { AdvancedFilterCard, Button, Card, Fields, FormField, TextArea, Input, Modal, PageHeader, Pagination, QueryState, Select, SimpleTable } from '@/shared/ui';
+import { AdvancedFilterCard, Button, Card, Fields, FormField, TextArea, Input, Modal, PageHeader, Pagination, QueryState, Select, SearchSelect, SimpleTable } from '@/shared/ui';
 import { downloadExcel } from '@/shared/lib/excel';
 import { receiptApi } from '@/features/receipts/api';
 import { pickingApi } from '@/features/runpicking/api';
@@ -200,6 +201,8 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
   const { documentId: selected = '' } = useParams<{ documentId?: string }>();
   const creating = location.pathname.endsWith('/new');
   const [wh, setWh] = useState('');
+  const requestWarehouseMetadata = useWarehouses();
+  const requestRegions = useRegions(true, hasOperation(user, 'api:Regions.List'));
   const [destination, setDestination] = useState('');
   const reason = workflow === 'transfer' ? 'Transfer' : 'Order';
   const [orderIds, setOrderIds] = useState<string[]>([]);
@@ -268,6 +271,7 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
     if (group) return group.dispatchNoteId ? '' : group.pallets[0]?.palletCode ?? '';
     return new URLSearchParams(location.search).get('pallet') ?? '';
   };
+  const [requestRegion, setRequestRegion] = useState('');
   const warehouses = useQuery({ queryKey: ['warehouse-work', 'warehouses'], queryFn: receiptApi.warehouses });
   const requiredPerm = workflow === 'transfer' ? 'warehouse-transfers' : 'warehouse-outbound';
   const hasWorkflowPerm = hasScreen(user, requiredPerm);
@@ -478,8 +482,12 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
       <p className="muted">{workflow === 'outbound' ? 'Chọn kho và đơn đã có đơn thực hiện để phát hành đợt soạn thùng.' : 'Lập lệnh điều chuyển nội bộ: Chọn kho gửi, kho nhận và số thùng từng lô hàng cần chuyển. Thủ kho gửi sẽ tiếp nhận lệnh để xuất hàng.'}</p>
       <form onSubmit={e => { e.preventDefault(); void act(`${base}/requests`, { warehouseId: wh, destinationWarehouseId: reason === 'Transfer' ? destination : null, reason, orderIds: reason === 'Order' ? orderIds : [], lines: reason === 'Transfer' ? transferLines : [], note }, true); }}>
         <div className="warehouse-request-fields">
+
           <FormField label={workflow === 'transfer' ? 'Kho gửi' : 'Kho xuất'} required>
-            <Select required value={wh} onChange={e => { setWh(e.target.value); if (e.target.value === destination) setDestination(''); setOrderIds([]); setTransferLines([]); }} options={[{ value: '', label: 'Chọn kho' }, ...(executionWarehouses ?? []).map(w => ({ value: w.id, label: `${w.code} · ${w.name}` }))]} />
+            <SearchSelect value={wh} placeholder="Tìm mã hoặc tên kho…" onChange={value => { setWh(value); if (value === destination) setDestination(''); setOrderIds([]); setTransferLines([]); }} options={(executionWarehouses ?? []).filter(w => !requestRegion || requestWarehouseMetadata.data?.some(meta => meta.id === w.id && meta.regionId === requestRegion)).map(w => ({ value: w.id, label: `${w.code} · ${w.name}` }))} />
+          </FormField>
+          <FormField label="Khu vực">
+            <Select value={requestRegion} onChange={e => { setRequestRegion(e.target.value); setWh(''); setOrderIds([]); setTransferLines([]); }} options={[{ value: '', label: 'Tất cả khu vực' }, ...(requestRegions.data ?? []).filter(region => requestWarehouseMetadata.data?.some(w => w.regionId === region.id && executionWarehouses?.some(allowed => allowed.id === w.id))).map(region => ({ value: region.id, label: region.name }))]} />
           </FormField>
           {reason === 'Transfer' && <FormField label="Kho nhận" required>
             <Select required value={destination} onChange={e => setDestination(e.target.value)} options={[{ value: '', label: 'Chọn kho nhận' }, ...(warehouses.data ?? []).filter(w => w.id !== wh && w.isActive).map(w => ({ value: w.id, label: `${w.code} · ${w.name}` }))]} />

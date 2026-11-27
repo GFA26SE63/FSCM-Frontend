@@ -23,6 +23,7 @@ function page(states, docs = [], post = async () => ({ data: { document: { id: '
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   const mocks = {
+    '@/features/warehouses/hooks': { useWarehouses: () => ({ data: [] }), useRegions: () => ({ data: [] }) },
     './PalletReceiving': { PalletReceiving: 'inspection' },
     './PalletCamera': { PalletCamera: 'camera' },
     './WarehouseOutboundTabs': { WarehouseOutboundTabs: 'outbound-tabs' },
@@ -162,6 +163,7 @@ function inspection(states, { reports = [], post = async () => {}, get = async (
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
   const mocks = {
+    '@/features/warehouses/hooks': { useWarehouses: () => ({ data: [] }), useRegions: () => ({ data: [] }) },
     react: { useState: () => [states[index++], () => {}], useRef: value => ({ current: value }) },
     '@tanstack/react-query': { useQuery: options => ({ data: options.queryKey[0] === 'receipt-expected' ? expected : reports }), useQueryClient: () => ({ invalidateQueries: async () => {} }) },
     '@/shared/api/http': { get, http: { post } },
