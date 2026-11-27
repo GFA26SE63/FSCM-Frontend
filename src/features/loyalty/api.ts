@@ -48,6 +48,25 @@ export const loyaltyApi = {
     }
     return result;
   },
+  activeProgramRetailers: async (): Promise<ProgramRetailerOption[]> => {
+    const rows: ProgramRetailerOption[] = [];
+    const seen = new Set<string>();
+    let total: number | undefined;
+    for (let page = 1; ; page++) {
+      const result = await loyaltyApi.programRetailersPage(page, '', 50);
+      total ??= result.totalCount;
+      if (result.totalCount !== total || (!result.items.length && rows.length < total))
+        throw new ApiError(409, 'Danh sách nhà bán lẻ đã thay đổi. Vui lòng chọn lại.');
+      for (const row of result.items) {
+        if (row.status !== 'Active' || seen.has(row.id))
+          throw new ApiError(409, 'Danh sách nhà bán lẻ đã thay đổi. Vui lòng chọn lại.');
+        seen.add(row.id);
+        rows.push(row);
+      }
+      if (rows.length > total) throw new ApiError(409, 'Danh sách nhà bán lẻ đã thay đổi. Vui lòng chọn lại.');
+      if (rows.length === total) return rows;
+    }
+  },
   programs: async (): Promise<LoyaltyProgram[]> => {
     const data = await get<LoyaltyProgram[]>('/loyalty/programs', { includeInactive: true });
     if (!Array.isArray(data)) throw new ApiError(502, 'Thiếu danh sách chương trình tích điểm.');

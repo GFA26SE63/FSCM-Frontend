@@ -151,7 +151,7 @@ function ProductEditor({ mode, product, categories }: {
               <FormField label="Đơn vị bán" required error={errors.unit}>
                 <Input value={values.unit} maxLength={50} onChange={(e) => set('unit', e.target.value)} />
               </FormField>
-              <FormField label="Giá bán / đơn vị (đ)" required error={errors.unitPrice}>
+              <FormField label="Giá bán / đơn vị (VND)" required error={errors.unitPrice}>
                 <Input inputMode="decimal" value={values.unitPrice} onChange={(e) => set('unitPrice', e.target.value)} />
               </FormField>
             </div>

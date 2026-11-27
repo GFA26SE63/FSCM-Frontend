@@ -120,7 +120,7 @@ export function PromoFormPage() {
       selectedIds={selectedProductIds} rowLabel={p => `${p.sku} · ${p.name}`}
       searchPlaceholder="Tìm mã SKU hoặc tên sản phẩm…" loading={products.isLoading} error={products.error}
       onApply={applyProducts} onCancel={() => setPicker(null)} />}
-    {picker === 'retailers' && <PromoSelectionModal title="Chọn khách hàng được hưởng ưu đãi"
+    {picker === 'retailers' && <PromoSelectionModal bulkSelection title="Chọn khách hàng được hưởng ưu đãi"
       rows={retailers.data?.filter(r => r.status === 'Active')} columns={retailerColumns}
       selectedIds={retailerIds} rowLabel={r => `${r.code} · ${r.name}`}
       searchPlaceholder="Tìm mã, tên, số điện thoại hoặc địa chỉ cửa hàng…" loading={retailers.isLoading} error={retailers.error}

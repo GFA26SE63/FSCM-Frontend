@@ -218,7 +218,7 @@ function SalesKpiDetail() {
               o.promotionAmount > 0 ? (
                 <span className="text-danger">-{formatMoney(o.promotionAmount)}</span>
               ) : (
-                '0đ'
+                '0 VND'
               ),
           },
           {
@@ -229,7 +229,7 @@ function SalesKpiDetail() {
               o.approvedAdjustmentAmount !== 0 ? (
                 <span>{formatMoney(o.approvedAdjustmentAmount)}</span>
               ) : (
-                '0đ'
+                '0 VND'
               ),
           },
           {
