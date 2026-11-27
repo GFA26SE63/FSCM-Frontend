@@ -323,9 +323,6 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-lay
 .tabs.warehouse-main-tabs .tab { flex: 0 0 auto; white-space: nowrap; }
 
 
-.delivery-dispatch-table .tbl-wrap { border: 1px solid #a6bbb4; border-radius: 6px; }
-.delivery-dispatch-table table.tbl tbody td { border-bottom: 1px solid #a6bbb4; }
-.delivery-dispatch-table table.tbl thead th { border-bottom: 2px solid #849e95; }
 
 .dispatch-warehouse-list { display: grid; gap: 18px; margin: 20px 0; }
 .dispatch-warehouse-card { border: 1px solid #b8ccc4; border-radius: 10px; overflow: hidden; background: #fff; }

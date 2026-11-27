@@ -1,7 +1,7 @@
 import { hasOperation } from '@/shared/auth/permissions';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Callout, Chip, DataTable, Input, Modal, PageHeader, QueryState, Select, SimpleTable, Stat, Tabs } from '@/shared/ui';
+import { Button, Callout, Card, Chip, ConfirmDialog, DataTable, Input, Modal, PageHeader, QueryState, Select, SimpleTable, Stat, Tabs } from '@/shared/ui';
 import { Pagination } from '@/shared/pagination';
 import { graphql } from '@/shared/api/graphql';
 import { errorMessage } from '@/shared/api/errors';
@@ -11,6 +11,7 @@ import { useRegions, useWarehouses } from '@/features/warehouses/hooks';
 import { shipmentsApi } from '../api';
 import { useOrdersReadiness } from '../hooks';
 import { ExportOrderDetailModal, PART_STATUS } from '../components/ExportOrderCard';
+import { TransferDispatchGoods } from '../components/TransferDispatchGoods';
 import { exportStatus, isDispatchInTab, sortExportOrders, type ExportOrderSort } from '../exportList';
 import { type ExportOrder } from '../types';
 import { useAuth } from '@/shared/auth/AuthContext';
@@ -159,7 +160,7 @@ function ExportOrders({ orders, pickingCount, pickingReads, tab }: { orders: Exp
       </div>
     </section>
     {readiness.error && <Callout tone="danger">Có đơn chưa tải được trạng thái. Chưa thể kết luận điều kiện xuất kho cho các đơn đó.</Callout>}
-    <div className="delivery-dispatch-table"><SimpleTable paginate={false} rows={visible} onRowClick={order => setSelectedOrderId(order.id)} empty={tab === 'history' ? 'Chưa có điều phối giao hàng trong lịch sử.' : 'Không có yêu cầu điều phối giao hàng phù hợp với bộ lọc.'} columns={[
+    <Card><SimpleTable paginate={false} rows={visible} onRowClick={order => setSelectedOrderId(order.id)} empty={tab === 'history' ? 'Chưa có điều phối giao hàng trong lịch sử.' : 'Không có yêu cầu điều phối giao hàng phù hợp với bộ lọc.'} columns={[
       { header: 'Mã đơn', width: '150px', cell: order => <b>{order.orderCode}</b> },
       { header: 'Kho xuất', width: '170px', cell: order => {
         const parts = partsOf(order);
@@ -178,7 +179,7 @@ function ExportOrders({ orders, pickingCount, pickingReads, tab }: { orders: Exp
         return <div className="delivery-table-stack">{parts.length ? parts.map(part => <span key={part.warehouseId}>{order.assignmentTimes?.[part.shipmentId ?? ''] ? formatInstantDateTime(order.assignmentTimes[part.shipmentId!]) : <span className="muted">Chưa điều phối</span>}</span>) : <span className="muted">—</span>}</div>;
       } },
     ]} />
-    </div>
+    </Card>
     {selectedOrder && <ExportOrderDetailModal order={selectedOrder} pickingReads={pickingReads.filter(read => read.orderId === selectedOrder.id)} readiness={byId.get(selectedOrder.id)}
       loading={readiness.loading && !byId.has(selectedOrder.id)} failed={readiness.failedIds.includes(selectedOrder.id)}
       sort="asc" retry={() => { void readiness.refetch(); }} open onClose={() => setSelectedOrderId(null)} />}
@@ -202,6 +203,7 @@ function ExportOrders({ orders, pickingCount, pickingReads, tab }: { orders: Exp
 
 interface TransferDispatchRow {
   id: string;
+  sourceIssueDocumentId: string | null;
   transferCode: string;
   sourceWarehouseId: string;
   destinationWarehouseId: string;
@@ -225,7 +227,7 @@ async function loadTransferDispatches(): Promise<TransferDispatchRow[]> {
         entities {
           warehouseTransfers(first: 100, after: $after, order: [{ requestedAt: DESC }, { id: DESC }]) {
             nodes {
-              id transferCode sourceWarehouseId destinationWarehouseId status version requestedAt
+              id sourceIssueDocumentId transferCode sourceWarehouseId destinationWarehouseId status version requestedAt
               assignedAt dispatchedAt receivedAt driverNameSnapshot plateNumberSnapshot
             }
             pageInfo { hasNextPage endCursor }
@@ -258,11 +260,16 @@ function TransferDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [driverId, setDriverId] = useState('');
   const [vehicleId, setVehicleId] = useState('');
+  const [pendingAssignment, setPendingAssignment] = useState<{
+    input: Parameters<typeof shipmentsApi.assignTransfer>[0];
+    transferCode: string; driverName: string; plateNumber: string;
+  } | null>(null);
   const { data: warehouses = [] } = useWarehouses();
   const assign = useMutation({ mutationFn: shipmentsApi.assignTransfer, onSuccess: async () => {
     await client.invalidateQueries({ queryKey: ['transport-dispatch'] });
     await client.invalidateQueries({ queryKey: ['warehouse-documents'] });
     setSelectedId(null);
+    setPendingAssignment(null);
   } });
   return <QueryState query={transfers}>{rows => {
     const visible = rows.filter(row => tab === 'history' ? ['Received', 'Rejected'].includes(row.status) : !['Received', 'Rejected'].includes(row.status));
@@ -292,12 +299,18 @@ function TransferDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
           { key: 'status', header: 'Trạng thái điều phối', text: row => transferStatusLabel(row.status), render: row => <Chip tone={row.status === 'Rejected' ? 'danger' : row.status === 'Received' ? 'success' : row.status === 'InTransit' ? 'info' : 'warn'}>{transferStatusLabel(row.status)}</Chip> },
           { key: 'time', header: tab === 'history' ? 'Hoàn tất lúc' : 'Điều phối lúc', text: row => formatInstantDateTime(tab === 'history' ? row.receivedAt : row.assignedAt) },
         ]} />
-      {selected && <Modal open title="Chi tiết điều phối luân chuyển" subtitle={selected.transferCode} onClose={close}
-        footer={<><Button onClick={close} disabled={assign.isPending}>Đóng</Button>{selected.status === 'Approved' && mayAssign && <Button variant="primary" loading={assign.isPending} disabled={!driverId || !vehicleId || drivers.isLoading || vehicles.isLoading || drivers.isError || vehicles.isError} onClick={() => assign.mutate({ transferId: selected.id, expectedVersion: selected.version, driverId, vehicleId })}>Gán xe và tài xế</Button>}</>}>
+      {selected && <Modal open width={1100} title="Chi tiết điều phối luân chuyển" subtitle={selected.transferCode} onClose={close}
+        footer={<><Button onClick={close} disabled={assign.isPending}>Đóng</Button>{selected.status === 'Approved' && mayAssign && <Button variant="primary" loading={assign.isPending} disabled={!driverId || !vehicleId || drivers.isLoading || vehicles.isLoading || drivers.isError || vehicles.isError} onClick={() => setPendingAssignment({
+          input: { transferId: selected.id, expectedVersion: selected.version, driverId, vehicleId },
+          transferCode: selected.transferCode,
+          driverName: drivers.data?.find(driver => driver.id === driverId)?.fullName ?? '',
+          plateNumber: vehicles.data?.find(vehicle => vehicle.id === vehicleId)?.plateNumber ?? '',
+        })}>Gán xe và tài xế</Button>}</>}>
         <div className="stack">
           <p><b>Tuyến:</b> {warehouseName(selected.sourceWarehouseId)} → {warehouseName(selected.destinationWarehouseId)}</p>
           <p><b>Trạng thái:</b> {transferStatusLabel(selected.status)}</p>
           <p><b>Thời điểm yêu cầu:</b> {formatInstantDateTime(selected.requestedAt)}</p>
+          <TransferDispatchGoods key={selected.id} issueDocumentId={selected.sourceIssueDocumentId} />
           {selected.status === 'Approved' && mayAssign ? <>
             {(drivers.isError || vehicles.isError) && <Callout tone="danger">Không tải được danh sách xe hoặc tài xế. Vui lòng thử lại.</Callout>}
             {assign.isError && <Callout tone="danger">{errorMessage(assign.error)}</Callout>}
@@ -306,6 +319,18 @@ function TransferDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
           </> : <p><b>Tài xế / xe:</b> {[selected.driverNameSnapshot, selected.plateNumberSnapshot].filter(Boolean).join(' · ') || 'Chưa phân công'}</p>}
         </div>
       </Modal>}
+      {pendingAssignment && <ConfirmDialog open title="Xác nhận gán xe và tài xế" confirmLabel="Xác nhận gán"
+        onClose={() => { if (!assign.isPending) setPendingAssignment(null); }}
+        onConfirm={async () => { try { await assign.mutateAsync(pendingAssignment.input); } catch { /* Displayed in the confirmation dialog. */ } }}
+        message={<div className="stack">
+          <p>Vui lòng kiểm tra thông tin điều phối trước khi xác nhận.</p>
+          <dl className="table-detail-fields">
+            <div><dt>Lệnh luân chuyển</dt><dd>{pendingAssignment.transferCode}</dd></div>
+            <div><dt>Tài xế</dt><dd>{pendingAssignment.driverName}</dd></div>
+            <div><dt>Xe</dt><dd>{pendingAssignment.plateNumber}</dd></div>
+          </dl>
+          {assign.isError && <Callout tone="danger">{errorMessage(assign.error)}</Callout>}
+        </div>} />}
     </>;
   }}</QueryState>;
 }

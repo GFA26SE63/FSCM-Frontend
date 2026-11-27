@@ -414,15 +414,15 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
         <label className="lbl">Sắp xếp<select className="inp" value={documentSort} onChange={e => setDocumentSort(e.target.value)}><option value="">Mới nhất</option><option value="codeAsc">Mã phiếu A–Z</option><option value="codeDesc">Mã phiếu Z–A</option></select></label>
       </div>
     </section>}
-    {!selected && !creating && isInbound && !factoryRequests && operationReason !== 'Transfer' && activeTab === 'todo' && inProgressReceipts.length > 0 && <Card title="Phiếu kiểm đếm đang thực hiện dở dang">
+    {!selected && !creating && isInbound && !factoryRequests && operationReason !== 'Transfer' && activeTab === 'todo' && <Card title="Phiếu nhập kho chờ kiểm đếm">
       <p className="muted">Các phiếu nhập kho đã mở nhưng chưa hoàn tất ghi sổ. Chọn phiếu để tiếp tục kiểm đếm.</p>
-      <SimpleTable rows={inProgressReceipts} onRowClick={w => { setSelected(w.document.id); setError(''); }} columns={[
+      <QueryState query={docs}>{() => <SimpleTable rows={inProgressReceipts} onRowClick={w => { setSelected(w.document.id); setError(''); }} columns={[
         { header: 'Mã phiếu', width: '320px', cell: w => <b className="warehouse-document-code">{w.document.code}</b> },
         { header: 'Kho nhận', width: '220px', cell: w => whName(w.document.warehouseId) },
         { header: 'Số thùng', width: '130px', cell: w => `${w.lines.reduce((s, l) => s + l.quantity, 0)} carton` },
         { header: 'Trạng thái', width: '150px', cell: () => <span className="chip chip-warn">Đang kiểm đếm</span> },
         { header: 'Thao tác', width: '180px', cell: w => <button className="btn btn-sm btn-primary" onClick={() => { setSelected(w.document.id); setError(''); }}>Tiếp tục kiểm đếm</button> },
-      ]} />
+      ]} empty="Chưa có phiếu nhập kho chờ kiểm đếm phù hợp." />}</QueryState>
     </Card>}
     {!selected && !creating && isInbound && (activeTab === 'todo' || activeTab === 'factory') && <div>
       {factoryRequests && operationReason === 'Factory' && <div className="warehouse-guide-steps">
