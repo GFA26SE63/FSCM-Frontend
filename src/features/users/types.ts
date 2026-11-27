@@ -37,6 +37,8 @@ export interface UserDetail {
   email: string;
   fullName: string;
   role: UserRole;
+  businessRole?: string;
+  roleDefinitionId?: string;
   mustChangePassword: boolean;
   scope: UserScope;
 }

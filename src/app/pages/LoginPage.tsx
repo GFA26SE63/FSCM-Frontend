@@ -40,7 +40,6 @@ import {
 } from '@/shared/ui';
 import {
   APP_ROUTES,
-  HOME_BY_ROLE,
 } from '../routes';
 
 type LoginMethod =
@@ -174,7 +173,7 @@ export function LoginPage() {
       getReturnPath(
         location.state,
         user.role,
-      ) ?? HOME_BY_ROLE[user.role];
+      ) ?? '/';
 
     return (
       <Navigate

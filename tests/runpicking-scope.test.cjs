@@ -248,7 +248,7 @@ describe('GraphQL authentication — entities endpoint', () => {
 
   test('EntityQueryAccess constructed from server-sourced user data', () => {
     assert.ok(
-      systemQuery.includes('new EntityQueryAccess(current.Id, current.Role, current.Scope)'),
+      systemQuery.includes('new EntityQueryAccess(current.Id, current.Role, current.Scope, current.Permissions)'),
       'EntityQueryAccess must use server-sourced current.Scope',
     );
   });

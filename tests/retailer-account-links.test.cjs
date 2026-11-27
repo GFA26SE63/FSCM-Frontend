@@ -15,6 +15,6 @@ const userDetail = fs.readFileSync(
 test('retailer and retailer account details link to one another using canonical identifiers', () => {
   assert.ok(retailerDetail.includes('r.userAccountId'));
   assert.ok(retailerDetail.includes('navigate(`/users/${r.userAccountId}`)'));
-  assert.ok(userDetail.includes("user.role === 'Retailer'"));
+  assert.ok(userDetail.includes("(user.businessRole ?? user.role) === 'Retailer'"));
   assert.ok(userDetail.includes('navigate(`/retailers/${retailerId}`)'));
 });

@@ -37,6 +37,48 @@ const permissions = source('shared/auth/permissions.ts', {
 const roles = ['Admin', 'Operator', 'WarehouseKeeper', 'SalesManager'];
 const user = (role) => ({ id: 'user-' + role, role, name: role, email: role + '@example.com' });
 
+test('role assignment sends the configured role code and rejects Admin before issuing a command', async () => {
+  const writes = [];
+  const policy = source('features/users/userPolicy.ts', { '@/shared/api/errors': errors });
+  const { userApi } = source('features/users/api.ts', {
+    '@/shared/api/errors': errors,
+    '@/shared/api/http': { http: { patch: async (url, body) => writes.push({ url, body }) } },
+    '@/shared/api/graphql': { graphql: async () => ({}) },
+    './userPolicy': policy,
+  });
+  await userApi.assignRole('account-1', 'CUSTOM_WAREHOUSE');
+  assert.deepEqual(writes, [{ url: '/users/account-1/role', body: { role: 'CUSTOM_WAREHOUSE' } }]);
+  await assert.rejects(userApi.assignRole('account-1', 'Admin'), { status: 400 });
+  assert.equal(writes.length, 1);
+});
+
+test('server grants override role defaults, preserve empty revocations and support delegated screens', () => {
+  for (const permission of Object.keys(permissions.ACTION_SCREENS)) {
+    const key = permissions.ACTION_SCREENS[permission];
+    assert.equal(permissions.can({ ...user('Operator'), permissions: [] }, permission), false);
+    assert.equal(permissions.can({ ...user('CustomRole'), permissions: [key, ...(permissions.ACTION_OPERATIONS[permission] ?? [])] }, permission), true);
+    assert.equal(permissions.can({ ...user('CustomRole'), permissions: ['unrelated'] }, permission), false);
+    assert.equal(permissions.can({ ...user('Admin'), permissions: [] }, permission), true);
+  }
+});
+
+test('direct guards require the selected screen, resolve legacy aliases and reject wildcard grants', () => {
+  let current = { ...user('CustomRole'), permissions: ['warehouse-inbound'] };
+  const { RequireRole } = source('shared/auth/guards.tsx', {
+    '@/shared/router/compat': { useLocation: () => ({ pathname: '/receipts' }), Navigate: () => null },
+    './AuthContext': { useAuth: () => ({ status: 'authenticated', user: current }) },
+    './roles': source('shared/auth/roles.ts'),
+    '../ui/EmptyState': { EmptyState: ({ title }) => React.createElement('p', null, title) },
+  });
+  const render = (routeKey) => renderToStaticMarkup(React.createElement(RequireRole,
+    { roles: ['Admin'], routeKey }, 'GRANTED'));
+  assert.match(render('receipts'), /GRANTED/);
+  assert.match(render('users'), /403/);
+  assert.match(render(undefined), /403/);
+  current = { ...user('WarehouseKeeper'), permissions: [] };
+  assert.match(render('warehouse-inbound'), /403/);
+});
+
 test('overview offers three report links and highlights only the selected report for authorized roles', () => {
   const { MemoryRouter } = require('react-router-dom');
   const router = source('shared/router/compat.tsx');
