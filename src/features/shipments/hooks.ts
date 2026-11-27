@@ -14,6 +14,7 @@ export const useOrdersReadiness = (orderIds: string[]) =>
     queries: orderIds.map((orderId) => ({
       queryKey: ['shipments', 'readiness', orderId],
       queryFn: () => shipmentsApi.readiness(orderId),
+      refetchInterval: 15000,
     })),
     combine: (results) => ({
       loading: results.some((result) => result.isPending),

@@ -1,3 +1,4 @@
+import { hasOperation } from '@/shared/auth/permissions';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/shared/auth/AuthContext';
@@ -32,7 +33,7 @@ export function ProgramRetailerTable({ value, onChange, error, disabled, onBusyC
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   async function selectAll() {
-    if (disabled || busy.current || user?.role !== 'Admin') return;
+    if (disabled || busy.current || !hasOperation(user, 'api:Loyalty.List')) return;
     busy.current = true; setSelecting(true); setSelectionError(''); onBusyChange?.(true);
     try {
       const rows = await loyaltyApi.activeProgramRetailers();
@@ -45,7 +46,7 @@ export function ProgramRetailerTable({ value, onChange, error, disabled, onBusyC
     }
   }
   const query = useQuery({ queryKey: ['loyalty', 'program-retailer-page', user?.id, 'Active', page, search, pageSize],
-    queryFn: () => loyaltyApi.programRetailersPage(page, search, pageSize), enabled: user?.role === 'Admin' && !selectedOnly });
+    queryFn: () => loyaltyApi.programRetailersPage(page, search, pageSize), enabled: hasOperation(user, 'api:Loyalty.List') && !selectedOnly });
   const selectionColumns: Column<ProgramRetailerOption>[] = [{
     key: 'select', header: 'Chọn', width: '65px', render: row => <input type="checkbox"
       aria-label={`Chọn ${row.code} · ${row.name}`} checked={value.some(item => item.id === row.id)}

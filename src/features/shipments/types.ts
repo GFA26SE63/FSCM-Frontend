@@ -28,6 +28,8 @@ export interface ShipmentReadinessPart {
 }
 
 export interface OrderShipmentReadiness {
+  dispatchStatus: 'WaitingToPick' | 'Preparing' | 'AwaitingAssignment' | 'Delivering' | 'Delivered' | 'Exception';
+  isHistory: boolean;
   salesOrderId: string;
   orderCode: string;
   /** The only thing an issue action may be enabled on. The rest of this record explains it. */
@@ -40,6 +42,7 @@ export interface OrderShipmentReadiness {
 
 /** Lightweight metadata for ordering the export list by actual order creation time. */
 export interface ExportOrder {
+  assignmentTimes?: Record<string, string | null>;
   id: string;
   orderCode: string;
   createdAt: string;

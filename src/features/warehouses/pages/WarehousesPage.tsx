@@ -1,3 +1,4 @@
+import { can } from '@/shared/auth/permissions';
 import { useMemo, useState } from 'react';
 import { MapPin, Pause, Pencil, Play } from 'lucide-react';
 import { useLocation, useNavigate } from '@/shared/router/compat';
@@ -34,7 +35,7 @@ const SORT_ORDERS: readonly SortOrder[] = ['desc', 'asc'];
 
 export function WarehousesPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'Admin';
+  const isAdmin = can(user, 'warehouses.manage');
   const navigate = useNavigate();
   const toast = useToast();
 

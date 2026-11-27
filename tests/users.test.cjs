@@ -85,6 +85,7 @@ test('history is Admin-only and renders backend audit metadata without inventing
   const requests = [];
   const Wrap = ({ children }) => React.createElement('section', null, children);
   const { UserAuditPanel } = source('features/users/components/UserAuditPanel.tsx', {
+    '@/shared/auth/permissions': { hasOperation: (user, key) => user?.role === 'Admin' || user?.permissions?.includes(key) === true, hasScreen: (user, key) => user?.role === 'Admin' || user?.permissions?.includes(key) === true },
     '@/shared/auth/AuthContext': { useAuth: () => ({ user: { role } }) },
     '@/shared/lib': { formatDateTime: (value) => value },
     '@/shared/ui': {

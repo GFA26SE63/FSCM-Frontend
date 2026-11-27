@@ -44,9 +44,6 @@ export interface ManagerTerritory {
 
 /** Use scoped assignment APIs; /users is an Admin-only directory. */
 export async function loadManagerTerritory(user: CurrentUser): Promise<ManagerTerritory> {
-  if (user.role !== 'SalesManager') {
-    throw new ApiError(403, 'Chỉ quản lý bán hàng được dùng luồng này.');
-  }
   const ids = user.scope?.salesGroupIds ?? [];
   if (ids.length === 0) return { areas: [], groups: [], staff: [] };
 

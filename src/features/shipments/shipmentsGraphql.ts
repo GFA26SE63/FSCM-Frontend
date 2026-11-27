@@ -12,7 +12,7 @@
  * Scope is enforced server-side by the entity resolver (order scope; keepers also by warehouse), the
  * same roles the REST endpoint scopes. The list stays order-scoped and bounded (one part per warehouse),
  * so it is read with a cursor loop rather than a paged UI. Issue / assign / dispatch / resolve-exception
- * stay REST; drivers/vehicles lookups stay REST.
+ * stay REST; drivers/vehicles lookups use GraphQL.
  *
  * Default order: createdAt DESC, id DESC (same as REST's newest-first).
  */

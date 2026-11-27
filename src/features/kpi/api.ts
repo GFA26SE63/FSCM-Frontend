@@ -1,3 +1,4 @@
+import { hasOperation } from '@/shared/auth/permissions';
 import { get, put } from '@/shared/api/http';
 import { ApiError } from '@/shared/api/errors';
 import type { CurrentUser } from '@/shared/auth/authApi';
@@ -16,16 +17,13 @@ import type {
 export function canReadRankings(
   user: CurrentUser | null,
 ): boolean {
-  return Boolean(
-    user &&
-    ['Admin', 'Operator', 'SalesManager'].includes(user.role),
-  );
+  return hasOperation(user, 'api:Reports.SalesKpis');
 }
 
 export function canManageKpi(
   user: CurrentUser | null,
 ): boolean {
-  return Boolean(user && user.role === 'Admin');
+  return hasOperation(user, 'api:BusinessConfigurations.Update');
 }
 
 function assertReportAccess(

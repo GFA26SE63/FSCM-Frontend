@@ -32,7 +32,7 @@ const permissions = source('shared/auth/permissions.ts', {
   '../lib/env': { env: { useMock: false } },
 });
 
-const user = (role) => ({ id: 'user-' + role, role, name: role, email: role + '@example.com' });
+const user = (role) => ({ permissions: require('./authorization-fixtures.cjs').grantsFor(role, permissions), id: 'user-' + role, role, name: role, email: role + '@example.com' });
 
 test('RBAC: retailers.review permission is granted strictly to Admin and Operator', () => {
   assert.equal(permissions.can(user('Admin'), 'retailers.review'), true);

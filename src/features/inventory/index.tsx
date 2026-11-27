@@ -1,3 +1,4 @@
+import { hasScreen } from '@/shared/auth/permissions';
 import './inventory.css';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -43,7 +44,7 @@ export function InventoryPage() {
     setFilters(current => ({ ...current, [name]: value, page: 1 }));
   return <div className="carton-inventory">
     <PageHeader title="Danh sách carton trong kho" subtitle="Theo dõi từng carton đã nhận vào FSCM, mapping pallet / batch / SKU và xác nhận nhập về Traceability." />
-    <p className="row-wrap" style={{ gap: 12 }}><Link className="btn" to="/batches">Tồn và reservation theo batch</Link>{user?.role !== 'Operator' && <Link className="btn" to="/warehouse-inbound">Nhập kho</Link>}</p>
+    <p className="row-wrap" style={{ gap: 12 }}><Link className="btn" to="/batches">Tồn và reservation theo batch</Link>{hasScreen(user, 'warehouse-inbound') && <Link className="btn" to="/warehouse-inbound">Nhập kho</Link>}</p>
     <Card title="Danh sách QR đã nhận">
       <p>Mỗi dòng là một carton. Pallet là pallet đóng gói gốc; kho và trạng thái QR phản ánh vị trí hiện tại hoặc kho xuất khi đang vận chuyển.</p>
       <p className="muted">Allocation giữ số lượng theo batch; QR “Sẵn sàng” chưa được soạn nhưng có thể thuộc batch đang giữ cho đơn. Xem tồn khả dụng ở bảng batch. Trạng thái xác nhận nhà máy không làm thay đổi tồn đã nhập.</p>

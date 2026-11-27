@@ -7,6 +7,7 @@ const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
 
 const mocks = {
+  '@/shared/auth/permissions': { hasOperation: (user, key) => user?.permissions?.includes(key) === true },
   '@/shared/ui': {
     Button: ({ disabled, children }) => React.createElement('button', { disabled }, children),
     Select: ({ options, value, onChange }) => React.createElement('select', { value, onChange }, options.map(item => React.createElement('option', { key: item.value, value: item.value }, item.label))),
@@ -76,10 +77,46 @@ test('an issued assigned shipment can start delivery even after the order left t
   const props = { shipment: { ...shipment, status: 'Issued', driverId: 'driver', vehicleId: 'vehicle' }, drivers: [driver], vehicles: [vehicle] };
   const operator = renderToStaticMarkup(React.createElement(mod.exports.ShipmentActionRow, { ...props, mayDispatch: true }));
   assert.match(operator, /Bắt đầu giao/);
+  assert.match(operator, /Cập nhật xe &amp; tài xế/);
   const keeper = renderToStaticMarkup(React.createElement(mod.exports.ShipmentActionRow, { ...props, mayDispatch: false }));
   assert.doesNotMatch(keeper, /Bắt đầu giao/);
   for (const status of ['Delivering', 'Received']) {
     const html = renderToStaticMarkup(React.createElement(mod.exports.ShipmentActionRow, { ...props, shipment: { ...props.shipment, status }, mayDispatch: true }));
     assert.doesNotMatch(html, /Bắt đầu giao|Xác nhận xuất kho|Gán xe/);
+  }
+});
+
+test('keeper can start an assigned trip without assignment or exception-management controls', () => {
+  const props = {
+    shipment: { ...shipment, status: 'Issued', driverId: 'driver', vehicleId: 'vehicle' },
+    drivers: [], vehicles: [], mayDispatch: false, mayStartDelivery: true,
+  };
+  const html = renderToStaticMarkup(React.createElement(mod.exports.ShipmentActionRow, props));
+  assert.match(html, /Bắt đầu giao/);
+  assert.doesNotMatch(html, /Gán xe|Cập nhật xe|Hoàn tất xử lý ngoại lệ/);
+  const foreign = renderToStaticMarkup(React.createElement(mod.exports.ShipmentActionRow, { ...props, mayStartDelivery: false }));
+  assert.doesNotMatch(foreign, /Bắt đầu giao/);
+  const unassigned = renderToStaticMarkup(React.createElement(mod.exports.ShipmentActionRow, {
+    ...props, shipment: { ...props.shipment, driverId: null },
+  }));
+  assert.doesNotMatch(unassigned, /Bắt đầu giao/);
+});
+
+test('assigning an issued shipment starts delivery using the returned version', async () => {
+  const captured = [];
+  const calls = [];
+  const original = mocks['@/shared/hooks/useApiMutation'].useApiMutation;
+  mocks['@/shared/hooks/useApiMutation'].useApiMutation = fn => { if (typeof fn === 'function') captured.push(fn); return { mutate() {}, isPending: false }; };
+  mocks['../api'].shipmentsApi.assign = async () => { calls.push('assign'); return { ...shipment, version: 8, status: 'Issued' }; };
+  mocks['../api'].shipmentsApi.dispatch = async assigned => { calls.push(['dispatch', assigned.version]); return { ...assigned, status: 'Delivering' }; };
+  try {
+    render([driver], [vehicle]);
+    const result = await captured[0]({ shipment, driverId: driver.id, vehicleId: vehicle.id });
+    assert.equal(result.status, 'Delivering');
+    assert.deepEqual(calls, ['assign', ['dispatch', 8]]);
+  } finally {
+    mocks['@/shared/hooks/useApiMutation'].useApiMutation = original;
+    delete mocks['../api'].shipmentsApi.assign;
+    delete mocks['../api'].shipmentsApi.dispatch;
   }
 });

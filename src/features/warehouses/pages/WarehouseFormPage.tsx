@@ -1,3 +1,4 @@
+import { can } from '@/shared/auth/permissions';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
@@ -51,7 +52,7 @@ export function WarehouseFormPage() {
 
   const edit = Boolean(code);
   const { user } = useAuth();
-  const isAdmin = user?.role === 'Admin';
+  const isAdmin = can(user, 'warehouses.manage');
   const query = useWarehouse(edit ? code! : '', false);
 
   if (!isAdmin) {

@@ -1,3 +1,4 @@
+import { can } from '@/shared/auth/permissions';
 import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { useCreateCategory, useUpdateCategory, useCategories } from '../hooks';
@@ -37,7 +38,7 @@ export function CategoryDialog({
     () => propCategories ?? fallbackCategoriesQuery.data ?? [],
     [propCategories, fallbackCategoriesQuery.data],
   );
-  const isAdmin = propIsAdmin ?? (user?.role === 'Admin');
+  const isAdmin = propIsAdmin ?? (can(user, 'categories.manage'));
 
   const createMutation = useCreateCategory();
   const updateMutation = useUpdateCategory();
