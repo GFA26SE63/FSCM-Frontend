@@ -13,6 +13,41 @@ export interface OrderCarton extends DocumentCarton {
   sku: string; productName: string; warehouseId: string; documentCode: string;
 }
 
+export interface OrderCartonGroup {
+  id: string;
+  shipmentCode: string | null;
+  documentCodes: string[];
+  cartons: OrderCarton[];
+}
+
+export async function fetchOrderCartonGroups(orderId: string): Promise<OrderCartonGroup[]> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId)) {
+    throw new Error('Mã đơn hàng không hợp lệ.');
+  }
+  const [cartons, shipments] = await Promise.all([
+    fetchOrderCartons(orderId),
+    pages<{ id: string; warehouseId: string; shipmentCode: string }>('shipments', 'id warehouseId shipmentCode',
+      `{ salesOrderId: { eq: ${JSON.stringify(orderId)} } }`),
+  ]);
+  // The server defines one shipment per (order, warehouse). Both reads are
+  // already order-scoped; never associate cartons by product/SKU alone.
+  const shipmentByWarehouse = new Map(shipments.map(shipment => [shipment.warehouseId, shipment]));
+  const groups = new Map<string, OrderCartonGroup>(shipments.map(shipment => [shipment.id,
+    { id: shipment.id, shipmentCode: shipment.shipmentCode, documentCodes: [], cartons: [] }]));
+  for (const carton of cartons) {
+    const shipment = shipmentByWarehouse.get(carton.warehouseId);
+    const key = shipment?.id ?? `unassigned:${carton.documentId}`;
+    let group = groups.get(key);
+    if (!group) {
+      group = { id: key, shipmentCode: null, documentCodes: [], cartons: [] };
+      groups.set(key, group);
+    }
+    group.cartons.push(carton);
+    if (!group.documentCodes.includes(carton.documentCode)) group.documentCodes.push(carton.documentCode);
+  }
+  return [...groups.values()].sort((a, b) => (a.shipmentCode ?? '').localeCompare(b.shipmentCode ?? '', 'vi', { numeric: true }));
+}
+
 // Each collection is cursor-paged. Use the issue snapshot, rather than counting
 // the same carton again on its source picking document. Scope stays server-side.
 async function pages<T>(field: string, selection: string, where: string): Promise<T[]> {

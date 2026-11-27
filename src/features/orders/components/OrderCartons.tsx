@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { formatInstantDateTime } from '@/shared/lib/dates';
 import { Callout, SimpleTable } from '@/shared/ui';
-import { fetchOrderCartons, type OrderCarton } from '../orderCartons';
+import { ExpandableRecord } from '@/shared/ui/ExpandableRecord';
+import { fetchOrderCartons, fetchOrderCartonGroups, type OrderCarton } from '../orderCartons';
 import './OrderCartons.css';
 
 export function useOrderCartons(orderId: string, enabled = true) {
@@ -25,8 +26,19 @@ export function OrderCartonTable({ cartons, productContext = false }: { cartons:
 }
 
 export function OrderCartons({ orderId }: { orderId: string }) {
-  const query = useOrderCartons(orderId);
+  const query = useQuery({
+    queryKey: ['orders', 'carton-groups', orderId],
+    queryFn: () => fetchOrderCartonGroups(orderId),
+    enabled: !!orderId,
+  });
   if (query.isPending) return <p role="status">Đang tải danh sách thùng…</p>;
   if (query.isError) return <Callout tone="danger">Không tải được danh sách thùng. <button type="button" onClick={() => void query.refetch()}>Thử lại</button></Callout>;
-  return <OrderCartonTable cartons={query.data} />;
+  if (!query.data.length) return <p className="muted">Chưa có phiếu giao hàng hoặc thùng trên phiếu xuất kho cho đơn hàng này.</p>;
+  return <div className="order-carton-groups">{query.data.map(group => <ExpandableRecord
+    key={group.id}
+    title={group.shipmentCode ? `Phiếu giao hàng · ${group.shipmentCode}` : 'Chưa có phiếu giao hàng'}
+    subtitle={group.documentCodes.length ? `Phiếu xuất kho: ${group.documentCodes.join(', ')}` : 'Chưa có thùng trên phiếu xuất kho'}
+    meta={`${group.cartons.length.toLocaleString('vi-VN')} thùng`}
+    actionLabel="Danh sách thùng"
+  ><OrderCartonTable cartons={group.cartons} /></ExpandableRecord>)}</div>;
 }

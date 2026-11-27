@@ -72,3 +72,25 @@ test('invalid order identity never reaches the backend', async () => {
   const api = load(async () => assert.fail('must not request'));
   await assert.rejects(api.fetchOrderCartons('invalid'), /không hợp lệ/);
 });
+
+test('order detail separates identical SKUs by shipment warehouse and preserves unmatched cartons', async () => {
+  const api = load(async query => {
+    if (query.includes('shipments(')) {
+      assert.match(query, new RegExp(`salesOrderId: \\{ eq: "${orderId}"`));
+      return page('shipments', [
+        { id: 's1', warehouseId: 'w1', shipmentCode: 'SHIP-1' },
+        { id: 's2', warehouseId: 'w2', shipmentCode: 'SHIP-2' },
+        { id: 's3', warehouseId: 'w3', shipmentCode: 'SHIP-3' },
+      ]);
+    }
+    if (query.includes('warehouseDocumentLines(')) return page('warehouseDocumentLines', [1, 2, 4].map(i => ({ id: `l${i}`, documentId: `d${i}`, sku: 'SAME-SKU', productName: 'Product' })));
+    if (query.includes('warehouseDocuments(')) return page('warehouseDocuments', [1, 2, 4].map(i => ({ id: `d${i}`, code: `PXK-${i}`, warehouseId: `w${i}` })));
+    return page('warehouseDocumentCartons', [1, 2, 4].map(i => ({ id: `c${i}`, documentId: `d${i}`, lineId: `l${i}`, cartonId: `CID-${i}`, scannedAt: null })));
+  });
+  const groups = await api.fetchOrderCartonGroups(orderId);
+  assert.deepEqual(groups.find(group => group.shipmentCode === 'SHIP-1').cartons.map(carton => carton.cartonId), ['CID-1']);
+  assert.deepEqual(groups.find(group => group.shipmentCode === 'SHIP-2').cartons.map(carton => carton.cartonId), ['CID-2']);
+  assert.deepEqual(groups.find(group => group.shipmentCode === 'SHIP-3').cartons, []);
+  assert.deepEqual(groups.find(group => group.shipmentCode === null).documentCodes, ['PXK-4']);
+  assert.equal(groups.flatMap(group => group.cartons).length, 3);
+});
