@@ -150,7 +150,7 @@ export function RetailerFormDialog({
     { key: 'storeSizeSquareMeters', label: 'Diện tích (m²)', type: 'number' },
     {
       key: 'forecastRevenue',
-      label: 'Doanh thu dự báo / tháng (đ)',
+      label: 'Doanh thu dự báo / tháng (VND)',
       type: 'number',
       required: true,
     },

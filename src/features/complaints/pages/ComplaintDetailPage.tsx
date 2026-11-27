@@ -45,7 +45,7 @@ export function ComplaintDetailPage() {
               { label: 'Số thùng yêu cầu / được duyệt / thực tế', value: `${c.requestedQuantity ?? c.expectedQuantity - c.actualQuantity} / ${c.approvedQuantity ?? '—'} / ${c.handledQuantity ?? '—'}` },
               { label: 'Số lượng dự kiến', value: c.expectedQuantity },
               ...(c.requestType === 'Complaint' || !c.requestType ? [{ label: 'Số lượng sử dụng được', value: c.actualQuantity }] : []),
-              { label: 'Giá trị điều chỉnh dự kiến', value: `${c.adjustmentAmount.toLocaleString('vi-VN')}đ` },
+              { label: 'Giá trị điều chỉnh dự kiến', value: `${c.adjustmentAmount.toLocaleString('vi-VN')} VND` },
               { label: 'Mô tả', value: c.note ?? '—' },
               { label: 'Bằng chứng', value: c.evidenceUrl ? <a href={c.evidenceUrl} target="_blank" rel="noreferrer">Mở bằng chứng</a> : 'Chưa có' },
             ]} />

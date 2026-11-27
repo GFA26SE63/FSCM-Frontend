@@ -148,7 +148,7 @@ test('create page validates audience and dates, preserves payload and stays open
   const save = () => nodes(tree, n => n.type === 'Button' && n.props.children === 'Tạo chương trình')[0];
   await save().props.onClick(); tree = render(); assert.equal(sent, undefined);
   const fields = nodes(tree, n => n.type === 'FormField');
-  for (const [label, value] of [['Tên chương trình', 'Program demo'], ['Số tiền quy đổi 1 điểm (đồng)', '10000'], ['Điểm tối thiểu đổi quà', '0']]) {
+  for (const [label, value] of [['Tên chương trình', 'Program demo'], ['Số tiền quy đổi 1 điểm (VND)', '10000'], ['Điểm tối thiểu đổi quà', '0']]) {
     fields.find(n => n.props.label === label).props.children.props.onChange({ target: { value } });
   }
   const dates = nodes(tree, n => n.type === 'DateTimeInput');

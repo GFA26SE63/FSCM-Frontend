@@ -101,7 +101,7 @@ export function priceText(
     ? 'Chưa có giá'
     : price.toLocaleString('vi-VN', {
         maximumFractionDigits: 2,
-      }) + 'đ';
+      }) + ' VND';
 }
 
 export function productFormError(

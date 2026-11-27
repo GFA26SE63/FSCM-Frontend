@@ -1,14 +1,14 @@
-/** Formatting helpers – vi-VN locale, money in đồng (đ). */
+/** Formatting helpers – vi-VN locale, money in VND. */
 const nf = new Intl.NumberFormat('vi-VN');
 
 export const formatNumber = (n: number | null | undefined, digits = 0): string =>
   n == null || Number.isNaN(n) ? '—' : n.toLocaleString('vi-VN', { maximumFractionDigits: digits, minimumFractionDigits: 0 });
 
-/** 1250000 → "1.250.000đ" (same as prototype fmt()). */
-export const formatMoney = (n: number | null | undefined): string => (n == null ? '—' : nf.format(Math.round(n)) + 'đ');
+/** 1250000 → "1.250.000 VND". */
+export const formatMoney = (n: number | null | undefined): string => (n == null ? '—' : nf.format(Math.round(n)) + ' VND');
 
-/** 1250000 → "1,3 tr" for compact cells. */
-export const formatMoneyShort = (n: number): string => (n / 1e6).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + ' tr';
+/** 1250000 → "1,3 tr VND" for compact cells. */
+export const formatMoneyShort = (n: number): string => (n / 1e6).toLocaleString('vi-VN', { maximumFractionDigits: 1 }) + ' tr VND';
 
 export const formatScore = (n: number | null | undefined): string => (n == null ? '—' : n.toFixed(3));
 

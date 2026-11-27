@@ -129,7 +129,7 @@ export function PromoDetailPage() {
                     />
                     <Stat
                       label="Tổng giá trị khuyến mãi đã dùng"
-                      value={`${formatNumber(usageQuery.data.items.reduce((sum, i) => sum + (i.discountAmount || 0), 0))} đ`}
+                      value={`${formatNumber(usageQuery.data.items.reduce((sum, i) => sum + (i.discountAmount || 0), 0))} VND`}
                     />
                     <Stat
                       label="Tổng sản lượng tiêu thụ"
@@ -158,7 +158,7 @@ export function PromoDetailPage() {
                         align: 'right',
                         cell: row => (
                           <strong style={{ color: 'var(--color-danger, #e53e3e)' }}>
-                            {formatNumber(row.discountAmount)} đ
+                            {formatNumber(row.discountAmount)} VND
                           </strong>
                         ),
                       },

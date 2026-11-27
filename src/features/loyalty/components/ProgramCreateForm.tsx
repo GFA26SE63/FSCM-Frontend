@@ -50,7 +50,7 @@ export function ProgramCreateForm({ onClose }: { onClose: () => void }) {
         </FormField>
         <FormField label="Mô tả" span={2} error={errors.description}><TextArea value={values.description} disabled={create.isPending}
           onChange={e => set('description', e.target.value)} /></FormField>
-        <FormField label="Số tiền quy đổi 1 điểm (đồng)" required error={errors.spendAmountPerPoint}>
+        <FormField label="Số tiền quy đổi 1 điểm (VND)" required error={errors.spendAmountPerPoint}>
           <Input inputMode="decimal" value={values.spendAmountPerPoint} disabled={create.isPending}
             onChange={e => set('spendAmountPerPoint', e.target.value)} />
         </FormField>
