@@ -4,6 +4,7 @@ import { Callout, Chip, Modal, SimpleTable, type Tone } from '@/shared/ui';
 import { HAS_LEFT, type ExportOrder, type OrderShipmentReadiness, type ShipmentPartStatus } from '../types';
 import { exportStatus, type ShipmentSort } from '../exportList';
 import { ShipmentOperations } from './ShipmentOperations';
+import { OrderCartonTable, useOrderCartons } from '@/features/orders/components/OrderCartons';
 
 export const PART_STATUS: Record<ShipmentPartStatus, { tone: Tone; label: string }> = {
   WaitingToPick: { tone: 'info', label: 'Chưa soạn xong' },
@@ -25,6 +26,7 @@ export function ExportOrderDetailModal({ order, pickingReads = [], readiness, lo
   open: boolean;
   onClose: () => void;
 }) {
+  const cartons = useOrderCartons(order.id, open);
   const goods = useQuery({
     queryKey: ['dispatch-warehouse-goods', order.id], enabled: open,
     queryFn: async () => {
@@ -63,6 +65,12 @@ export function ExportOrderDetailModal({ order, pickingReads = [], readiness, lo
       { header: 'Mã SKU', cell: item => item.sku },
       { header: 'Tên hàng', cell: item => item.productName },
       { header: 'Số lượng (thùng)', cell: item => item.quantity.toLocaleString('vi-VN') },
+      { header: 'Danh sách thùng', cell: item => <details>
+        <summary style={{ cursor: 'pointer' }}>Xem danh sách thùng</summary>
+        {cartons.isPending ? <p role="status">Đang tải danh sách thùng…</p>
+          : cartons.isError ? <Callout tone="danger">Không tải được danh sách thùng. <button type="button" onClick={() => void cartons.refetch()}>Thử lại</button></Callout>
+            : <OrderCartonTable cartons={cartons.data.filter(carton => carton.warehouseId === warehouseId && carton.sku === item.sku)} />}
+      </details> },
     ]} /></>;
   };
   const status = readiness ? exportStatus(readiness) : {

@@ -71,6 +71,14 @@ test('export row opens a popup retaining warehouse, pending picking, payment and
     '@/shared/api/graphql': {},
     react: React,
     '@/shared/ui': ui,
+    '@/features/orders/components/OrderCartons': {
+      useOrderCartons: () => ({ data: [
+        { warehouseId: 'w-a', sku: 'SKU-A', cartonId: 'CID-MATCH' },
+        { warehouseId: 'w-b', sku: 'SKU-A', cartonId: 'CID-OTHER-WAREHOUSE' },
+        { warehouseId: 'w-a', sku: 'SKU-B', cartonId: 'CID-OTHER-PRODUCT' },
+      ] }),
+      OrderCartonTable: ({ cartons }) => React.createElement('div', null, cartons.map(carton => carton.cartonId).join(',')),
+    },
     '../types': { HAS_LEFT: ['Issued', 'Delivering', 'Received'] },
     '../exportList': { exportStatus },
     './ShipmentOperations': { ShipmentOperations: () => React.createElement('div', null, 'shipment operations') },
@@ -98,6 +106,10 @@ test('export row opens a popup retaining warehouse, pending picking, payment and
   assert.match(html, /chưa thanh toán đủ/);
   assert.match(html, /shipment operations/);
   assert.match(html, /không còn hủy được/);
+  assert.match(html, /<details><summary[^>]*>Xem danh sách thùng<\/summary>/);
+  assert.doesNotMatch(html, /<details[^>]*\bopen/);
+  assert.match(html, /CID-MATCH/);
+  assert.doesNotMatch(html, /CID-OTHER-WAREHOUSE|CID-OTHER-PRODUCT/);
 });
 
 test('export metadata requests lightweight scoped entities and refuses missing dates/orders', async () => {
