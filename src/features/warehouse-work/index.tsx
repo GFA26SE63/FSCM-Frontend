@@ -703,11 +703,11 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
           <PalletCamera target="thùng" disabled={busy} onScan={async code => { await act(`${base}/${d.id}/scans`, { cartonId: code.trim(), expectedVersion: d.version }); }} />
           <div className="pallet-receiving-actions"><button type="button" className="btn btn-primary" disabled={busy || active.cartons.length === 0 || active.cartons.filter(c => c.scannedAt).length !== active.lines.reduce((s, l) => s + l.quantity, 0)} onClick={() => void act(`${base}/${d.id}/post`, { expectedVersion: d.version })}>Hoàn tất &amp; Thực hiện nhập kho</button></div>
         </>}
-        {d.reason !== 'Factory' && d.kind !== 'Receipt' && (d.status === 'Open' || d.status === 'Prepared') && <form onSubmit={e => { e.preventDefault(); if (scan.trim()) void act(`${base}/${d.id}/scans`, { cartonId: scan.trim(), expectedVersion: d.version }); }} className="row-wrap" style={{ gap: 12, margin: '14px 0' }}>
-          <label>Quét mã thùng <input ref={scanInput} autoComplete="off" value={scan} onChange={e => setScan(e.target.value)} placeholder="Quét QR bằng máy đọc rồi nhấn phím xác nhận" disabled={busy} /></label>
+        {d.reason !== 'Factory' && d.kind !== 'Receipt' && (d.status === 'Open' || d.status === 'Prepared') && <section className="warehouse-carton-scanner"><h3>Quét thùng xuất kho</h3><PalletCamera target="thùng" disabled={busy || d.status !== 'Open'} onScan={async code => { if (code.trim()) await act(`${base}/${d.id}/scans`, { cartonId: code.trim(), expectedVersion: d.version }); }} /><form onSubmit={e => { e.preventDefault(); if (scan.trim()) void act(`${base}/${d.id}/scans`, { cartonId: scan.trim(), expectedVersion: d.version }); }} className="row-wrap" style={{ gap: 12, margin: '14px 0' }}>
+          <FormField label="Mã thùng / QR"><Input ref={scanInput} autoComplete="off" value={scan} onChange={e => setScan(e.target.value)} placeholder="Nhập mã hoặc quét bằng máy đọc QR" disabled={busy || d.status !== 'Open'} /></FormField>
           <button className="btn" disabled={busy || !scan.trim() || d.status !== 'Open'}>Ghi nhận thùng</button>
           <button type="button" className="btn btn-primary" disabled={busy || active.cartons.length === 0 || active.cartons.filter(c => c.scannedAt).length !== active.lines.reduce((s, l) => s + l.quantity, 0)} onClick={() => void act(`${base}/${d.id}/post`, { expectedVersion: d.version })}>Xác nhận xuất và ghi sổ PXK</button>
-        </form>}
+        </form></section>}
         {cartonEdit?.documentId === d.id && (d.kind === 'Picking' || d.kind === 'Issue') && ['Open', 'Prepared'].includes(d.status) && <form aria-label="Sửa thùng đang soạn" onSubmit={e => {
           e.preventDefault();
           if (!cartonEdit.reason.trim() || cartonEdit.replace && !cartonEdit.replacementCode.trim()) return;
