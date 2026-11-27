@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { graphql } from '@/shared/api/graphql';
-import { Callout, Chip, Modal, SimpleTable, type Tone } from '@/shared/ui';
+import { Callout, Chip, Modal, type Tone } from '@/shared/ui';
+import { ExpandableRecord } from '@/shared/ui/ExpandableRecord';
 import { HAS_LEFT, type ExportOrder, type OrderShipmentReadiness, type ShipmentPartStatus } from '../types';
 import { exportStatus, type ShipmentSort } from '../exportList';
 import { ShipmentOperations } from './ShipmentOperations';
@@ -61,17 +62,14 @@ export function ExportOrderDetailModal({ order, pickingReads = [], readiness, lo
       if (current) current.quantity += item.requestedQuantity;
       else grouped.set(item.sku, { sku: item.sku, productName: item.productName, quantity: item.requestedQuantity });
     }
-    return <>{goods.isLoading && <p>Đang tải hàng hóa…</p>}{goods.isError && <Callout tone="danger">Không tải được hàng hóa. <button onClick={() => void goods.refetch()}>Thử lại</button></Callout>}<SimpleTable paginate={false} rows={[...grouped.values()]} empty="Chưa có hàng hóa phân bổ cho kho này." columns={[
-      { header: 'Mã SKU', cell: item => item.sku },
-      { header: 'Tên hàng', cell: item => item.productName },
-      { header: 'Số lượng (thùng)', cell: item => item.quantity.toLocaleString('vi-VN') },
-      { header: 'Danh sách thùng', cell: item => <details>
-        <summary style={{ cursor: 'pointer' }}>Xem danh sách thùng</summary>
+    return <>{goods.isLoading && <p>Đang tải hàng hóa…</p>}{goods.isError && <Callout tone="danger">Không tải được hàng hóa. <button onClick={() => void goods.refetch()}>Thử lại</button></Callout>}
+      {grouped.size === 0 && !goods.isLoading && <p className="muted">Chưa có hàng hóa phân bổ cho kho này.</p>}
+      {[...grouped.values()].map(item => <ExpandableRecord key={item.sku} title={item.productName} subtitle={item.sku} meta={`${item.quantity.toLocaleString('vi-VN')} thùng`} actionLabel="Danh sách thùng">
         {cartons.isPending ? <p role="status">Đang tải danh sách thùng…</p>
           : cartons.isError ? <Callout tone="danger">Không tải được danh sách thùng. <button type="button" onClick={() => void cartons.refetch()}>Thử lại</button></Callout>
-            : <OrderCartonTable cartons={cartons.data.filter(carton => carton.warehouseId === warehouseId && carton.sku === item.sku)} />}
-      </details> },
-    ]} /></>;
+            : <OrderCartonTable productContext cartons={cartons.data.filter(carton => carton.warehouseId === warehouseId && carton.sku === item.sku)} />}
+      </ExpandableRecord>)}
+    </>;
   };
   const status = readiness ? exportStatus(readiness) : {
     tone: failed ? 'danger' as const : 'info' as const,

@@ -71,6 +71,7 @@ test('export row opens a popup retaining warehouse, pending picking, payment and
     '@/shared/api/graphql': {},
     react: React,
     '@/shared/ui': ui,
+    '@/shared/ui/ExpandableRecord': source('shared/ui/ExpandableRecord.tsx', { './ExpandableRecord.css': {} }),
     '@/features/orders/components/OrderCartons': {
       useOrderCartons: () => ({ data: [
         { warehouseId: 'w-a', sku: 'SKU-A', cartonId: 'CID-MATCH' },
@@ -106,7 +107,8 @@ test('export row opens a popup retaining warehouse, pending picking, payment and
   assert.match(html, /chưa thanh toán đủ/);
   assert.match(html, /shipment operations/);
   assert.match(html, /không còn hủy được/);
-  assert.match(html, /<details><summary[^>]*>Xem danh sách thùng<\/summary>/);
+  assert.match(html, /<details class="expandable-record"><summary/);
+  assert.match(html, /class="expandable-record__body"/);
   assert.doesNotMatch(html, /<details[^>]*\bopen/);
   assert.match(html, /CID-MATCH/);
   assert.doesNotMatch(html, /CID-OTHER-WAREHOUSE|CID-OTHER-PRODUCT/);
