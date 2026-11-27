@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { graphql } from '@/shared/api/graphql';
 import { Callout, Chip, Modal, SimpleTable, type Tone } from '@/shared/ui';
-import { HAS_LEFT, type ExportOrder, type OrderShipmentReadiness, type ShipmentPartStatus, type ShipmentReadinessPart } from '../types';
+import { HAS_LEFT, type ExportOrder, type OrderShipmentReadiness, type ShipmentPartStatus } from '../types';
 import { exportStatus, type ShipmentSort } from '../exportList';
 import { ShipmentOperations } from './ShipmentOperations';
 
@@ -74,15 +74,7 @@ export function ExportOrderDetailModal({ order, pickingReads = [], readiness, lo
     return (sort === 'asc' ? 1 : -1) * (a.shipmentCode ?? a.warehouseCode)
       .localeCompare(b.shipmentCode ?? b.warehouseCode, 'vi', { numeric: true });
   }) : [];
-  const columns = [
-    { header: 'Kho', cell: (row: ShipmentReadinessPart) => <strong>{row.warehouseCode}</strong> },
-    { header: 'Hàng hóa', cell: (row: ShipmentReadinessPart) => warehouseGoods(row.warehouseId) },
-    { header: 'Trạng thái', cell: (row: ShipmentReadinessPart) =>
-      <Chip tone={PART_STATUS[row.status]?.tone ?? 'neutral'}>{PART_STATUS[row.status]?.label ?? row.status}</Chip> },
-    { header: 'Phiếu giao', cell: (row: ShipmentReadinessPart) => row.shipmentCode ??
-      <span className="muted small">chưa có — kho chưa đóng phiếu soạn</span> },
-    { header: 'Ghi chú', cell: (row: ShipmentReadinessPart) => row.exceptionReason ?? '—' },
-  ];
+
 
   return <Modal open={open} width={1100} title={`Chi tiết điều phối · ${order.orderCode}`} onClose={onClose}>
       <div><Chip tone={status.tone}>{status.label}</Chip></div>
@@ -95,7 +87,18 @@ export function ExportOrderDetailModal({ order, pickingReads = [], readiness, lo
         {!readiness.paymentSettled && <Callout tone="warn">
           Đơn trả trước chưa thanh toán đủ. Đơn công nợ hợp lệ không bị chặn ở cửa kho.
         </Callout>}
-        <SimpleTable paginate={false} columns={columns} rows={parts} empty="Đơn này chưa có phần hàng theo kho nào." />
+        <div className="dispatch-warehouse-list">
+          {parts.length === 0 && <p className="muted">Đơn này chưa có phần hàng theo kho nào.</p>}
+          {parts.map(part => <section className="dispatch-warehouse-card" key={part.warehouseId}>
+            <header className="dispatch-warehouse-header">
+              <div className="dispatch-warehouse-identity"><span className="dispatch-warehouse-caption">Kho xuất</span><strong>{part.warehouseCode}</strong></div>
+              <Chip tone={PART_STATUS[part.status]?.tone ?? 'neutral'}>{PART_STATUS[part.status]?.label ?? part.status}</Chip>
+              <div className="dispatch-warehouse-shipment"><span className="dispatch-warehouse-caption">Phiếu giao hàng</span>{part.shipmentCode ? <strong>{part.shipmentCode}</strong> : <span className="muted small">chưa có — kho chưa đóng phiếu soạn</span>}</div>
+            </header>
+            <div className="dispatch-warehouse-items">{warehouseGoods(part.warehouseId)}</div>
+            {part.exceptionReason && <div className="dispatch-warehouse-note"><b>Ghi chú:</b> {part.exceptionReason}</div>}
+          </section>)}
+        </div>
         <ShipmentOperations orderId={order.id} sort={sort} />
         <p className="muted small">
           {readiness.parts.some(part => HAS_LEFT.includes(part.status))
