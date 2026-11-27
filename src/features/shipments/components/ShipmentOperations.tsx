@@ -19,7 +19,7 @@ const PART_STATUS: Record<ShipmentPartStatus, { tone: Tone; label: string }> = {
   Exception: { tone: 'danger', label: 'Ngoại lệ' },
 };
 
-export function ShipmentOperations({ orderId, sort }: { orderId: string; sort: ShipmentSort }) {
+export function ShipmentOperations({ orderId, sort, warehouseId }: { orderId: string; sort: ShipmentSort; warehouseId?: string }) {
   const { user } = useAuth();
   const mayDispatch = hasOperation(user, 'api:Shipments.Assign');
   const mayStart = hasOperation(user, 'api:Shipments.Dispatch');
@@ -43,7 +43,8 @@ export function ShipmentOperations({ orderId, sort }: { orderId: string; sort: S
 
   if (shipments.isPending) return <p className="muted small">Đang tải thao tác vận hành…</p>;
   if (shipments.isError) return <Callout tone="danger">Không tải được phiếu giao hàng của đơn.\n{errorMessage(shipments.error)}</Callout>;
-  if (!shipments.data?.length) return <p className="muted small">Chưa có phiếu giao hàng được tạo cho đơn này.</p>;
+  const visibleShipments = (shipments.data ?? []).filter(item => !warehouseId || item.warehouseId === warehouseId);
+  if (!visibleShipments.length) return <p className="muted small">Chưa có phiếu giao hàng được tạo cho đơn này.</p>;
 
   return (
     <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
@@ -51,7 +52,7 @@ export function ShipmentOperations({ orderId, sort }: { orderId: string; sort: S
       {mayDispatch && (drivers.isError || vehicles.isError || busyAssignments.isError) && <Callout tone="danger">
         Không tải đầy đủ tài xế, xe hoặc trạng thái chuyến đang hoạt động.\n{errorMessage(drivers.error ?? vehicles.error ?? busyAssignments.error)} <Button size="sm" onClick={() => { void drivers.refetch(); void vehicles.refetch(); void busyAssignments.refetch(); }}>Thử lại</Button>
       </Callout>}
-      {[...shipments.data].sort((a, b) => (sort === 'asc' ? 1 : -1) * a.shipmentCode.localeCompare(b.shipmentCode, 'vi', { numeric: true })).map((shipment) => (
+      {[...visibleShipments].sort((a, b) => (sort === 'asc' ? 1 : -1) * a.shipmentCode.localeCompare(b.shipmentCode, 'vi', { numeric: true })).map((shipment) => (
         <ShipmentActionRow
           key={shipment.id}
           shipment={shipment}

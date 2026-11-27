@@ -96,10 +96,10 @@ export function ExportOrderDetailModal({ order, pickingReads = [], readiness, lo
               <div className="dispatch-warehouse-shipment"><span className="dispatch-warehouse-caption">Phiếu giao hàng</span>{part.shipmentCode ? <strong>{part.shipmentCode}</strong> : <span className="muted small">chưa có — kho chưa đóng phiếu soạn</span>}</div>
             </header>
             <div className="dispatch-warehouse-items">{warehouseGoods(part.warehouseId)}</div>
+            <div className="dispatch-warehouse-transport"><h4>Xe và tài xế</h4><ShipmentOperations orderId={order.id} sort={sort} warehouseId={part.warehouseId} /></div>
             {part.exceptionReason && <div className="dispatch-warehouse-note"><b>Ghi chú:</b> {part.exceptionReason}</div>}
           </section>)}
         </div>
-        <ShipmentOperations orderId={order.id} sort={sort} />
         <p className="muted small">
           {readiness.parts.some(part => HAS_LEFT.includes(part.status))
             ? 'Đã có phần hàng rời kho, nên không còn hủy được — phát sinh phải đi theo luồng khiếu nại.'

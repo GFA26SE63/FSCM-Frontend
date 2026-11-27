@@ -337,3 +337,8 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-lay
 .dispatch-warehouse-items table.tbl th { background: #fff; color: #52685e; }
 .dispatch-warehouse-note { padding: 12px 20px; border-top: 1px solid #e0e8e3; background: #fffbf3; }
 @media (max-width: 600px) { .dispatch-warehouse-header { padding: 14px; gap: 12px; } .dispatch-warehouse-shipment { margin-left: 0; flex-basis: 100%; } .dispatch-warehouse-items { padding: 4px 12px 12px; } }
+
+.dispatch-warehouse-transport { padding: 16px 20px; border-top: 1px solid #e0e8e3; background: #fafcfb; }
+.dispatch-warehouse-transport h4 { margin: 0; color: #52685e; font-size: 13px; }
+.dispatch-warehouse-transport .card { border: 0; padding: 0 !important; background: transparent; box-shadow: none; }
+.dispatch-warehouse-transport .card > .row-wrap:first-child > strong, .dispatch-warehouse-transport .card > .row-wrap:first-child > .chip { display: none; }
