@@ -101,3 +101,22 @@ test('keeper can start an assigned trip without assignment or exception-manageme
   }));
   assert.doesNotMatch(unassigned, /Bắt đầu giao/);
 });
+
+test('assigning an issued shipment starts delivery using the returned version', async () => {
+  const captured = [];
+  const calls = [];
+  const original = mocks['@/shared/hooks/useApiMutation'].useApiMutation;
+  mocks['@/shared/hooks/useApiMutation'].useApiMutation = fn => { if (typeof fn === 'function') captured.push(fn); return { mutate() {}, isPending: false }; };
+  mocks['../api'].shipmentsApi.assign = async () => { calls.push('assign'); return { ...shipment, version: 8, status: 'Issued' }; };
+  mocks['../api'].shipmentsApi.dispatch = async assigned => { calls.push(['dispatch', assigned.version]); return { ...assigned, status: 'Delivering' }; };
+  try {
+    render([driver], [vehicle]);
+    const result = await captured[0]({ shipment, driverId: driver.id, vehicleId: vehicle.id });
+    assert.equal(result.status, 'Delivering');
+    assert.deepEqual(calls, ['assign', ['dispatch', 8]]);
+  } finally {
+    mocks['@/shared/hooks/useApiMutation'].useApiMutation = original;
+    delete mocks['../api'].shipmentsApi.assign;
+    delete mocks['../api'].shipmentsApi.dispatch;
+  }
+});

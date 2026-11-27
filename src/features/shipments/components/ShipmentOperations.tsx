@@ -13,7 +13,7 @@ import type { ShipmentSort } from '../exportList';
 const PART_STATUS: Record<ShipmentPartStatus, { tone: Tone; label: string }> = {
   WaitingToPick: { tone: 'info', label: 'Chưa soạn xong' },
   Ready: { tone: 'success', label: 'Sẵn sàng' },
-  Issued: { tone: 'success', label: 'Đã xuất' },
+  Issued: { tone: 'warn', label: 'Chờ điều phối' },
   Delivering: { tone: 'warn', label: 'Đang giao' },
   Received: { tone: 'success', label: 'Đã nhận' },
   Exception: { tone: 'danger', label: 'Ngoại lệ' },
@@ -109,7 +109,10 @@ export function ShipmentActionRow({
     ? warehouseVehicles.find(item => item.id === shipment.vehicleId) ?? warehouseVehicles[0]
     : warehouseVehicles.find(item => item.id === vehicleId);
   const issue = useApiMutation(shipmentsApi.issue, { success: 'Đã xác nhận phiếu giao hàng rời kho; tồn thực tế đã được trừ.' });
-  const assign = useApiMutation(shipmentsApi.assign, { success: 'Đã gán tài xế và xe.' });
+  const assign = useApiMutation(async (input: Parameters<typeof shipmentsApi.assign>[0]) => {
+    const assigned = await shipmentsApi.assign(input);
+    return mayStartDelivery && assigned.status === 'Issued' ? shipmentsApi.dispatch(assigned) : assigned;
+  }, { success: mayStartDelivery ? 'Đã điều phối xe, tài xế và bắt đầu giao hàng.' : 'Đã gán tài xế và xe.' });
   const dispatch = useApiMutation(shipmentsApi.dispatch, { success: 'Phiếu giao hàng đã bắt đầu giao; tem đã chuyển InTransit.' });
 
   return (
