@@ -33,7 +33,8 @@ function RefundDetail({ refund }: { refund: Refund }) {
 
   const canSubmit = mayManage && (refund.status === 'PendingRefund' || refund.status === 'EvidenceRejected');
   const submittedByMe = !!user && refund.submittedByUserId === user.id;
-  const canVerify = mayVerify && refund.status === 'AwaitingVerification' && !submittedByMe;
+  const selfVerificationBlocked = submittedByMe && user?.role !== 'Admin';
+  const canVerify = mayVerify && refund.status === 'AwaitingVerification' && !selfVerificationBlocked;
 
   return (
     <>
@@ -65,7 +66,7 @@ function RefundDetail({ refund }: { refund: Refund }) {
           Chưa có khoản nào được xác nhận là đã chuyển. Hồ sơ chỉ thành “Đã hoàn” sau khi quản trị viên xác minh bằng chứng chuyển tiền.
         </Callout>
       )}
-      {refund.status === 'AwaitingVerification' && mayVerify && submittedByMe && (
+      {refund.status === 'AwaitingVerification' && mayVerify && selfVerificationBlocked && (
         <Callout tone="warn">Bạn là người nộp bằng chứng này nên không được tự xác minh. Cần một quản trị viên khác.</Callout>
       )}
       {refund.status === 'EvidenceRejected' && (

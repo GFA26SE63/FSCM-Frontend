@@ -30,6 +30,7 @@ import {
   statusLabel,
 } from '@/shared/lib';
 import { useOrder } from '../hooks';
+import { OrderCartons } from '../components/OrderCartons';
 import { useOrderSales } from '../orderSales';
 import {
   AllocationTraceDialog,
@@ -707,6 +708,10 @@ function OrderBody({
                 },
               ]}
             />
+          </Card>
+
+          <Card title="Danh sách thùng">
+            <OrderCartons orderId={order.id} />
           </Card>
 
           <Card title="Lịch sử xử lý">
