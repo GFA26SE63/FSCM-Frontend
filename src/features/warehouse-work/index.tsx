@@ -11,7 +11,7 @@ import { useAuth } from '@/shared/auth/AuthContext';
 import { get, http } from '@/shared/api/http';
 import { errorMessage } from '@/shared/api/errors';
 import { graphql } from '@/shared/api/graphql';
-import { AdvancedFilterCard, Button, Card, Fields, Input, Modal, PageHeader, Pagination, QueryState, Select, SimpleTable } from '@/shared/ui';
+import { AdvancedFilterCard, Button, Card, Fields, FormField, TextArea, Input, Modal, PageHeader, Pagination, QueryState, Select, SimpleTable } from '@/shared/ui';
 import { downloadExcel } from '@/shared/lib/excel';
 import { receiptApi } from '@/features/receipts/api';
 import { pickingApi } from '@/features/runpicking/api';
@@ -477,9 +477,13 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
     {creating && canCreate && <Card title={screen.create}>
       <p className="muted">{workflow === 'outbound' ? 'Chọn kho và đơn đã có đơn thực hiện để phát hành đợt soạn thùng.' : 'Lập lệnh điều chuyển nội bộ: Chọn kho gửi, kho nhận và số thùng từng lô hàng cần chuyển. Thủ kho gửi sẽ tiếp nhận lệnh để xuất hàng.'}</p>
       <form onSubmit={e => { e.preventDefault(); void act(`${base}/requests`, { warehouseId: wh, destinationWarehouseId: reason === 'Transfer' ? destination : null, reason, orderIds: reason === 'Order' ? orderIds : [], lines: reason === 'Transfer' ? transferLines : [], note }, true); }}>
-        <div className="row-wrap" style={{ gap: 12, marginBottom: 12 }}>
-          <label>{workflow === 'transfer' ? 'Kho gửi' : 'Kho xuất'} <select required value={wh} onChange={e => { setWh(e.target.value); if (e.target.value === destination) setDestination(''); setOrderIds([]); setTransferLines([]); }}><option value="">Chọn kho</option>{executionWarehouses?.map(w => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select></label>
-          {reason === 'Transfer' && <label>Kho nhận <select required value={destination} onChange={e => setDestination(e.target.value)}><option value="">Chọn kho nhận</option>{warehouses.data?.filter(w => w.id !== wh && w.isActive).map(w => <option key={w.id} value={w.id}>{w.code} · {w.name}</option>)}</select></label>}
+        <div className="warehouse-request-fields">
+          <FormField label={workflow === 'transfer' ? 'Kho gửi' : 'Kho xuất'} required>
+            <Select required value={wh} onChange={e => { setWh(e.target.value); if (e.target.value === destination) setDestination(''); setOrderIds([]); setTransferLines([]); }} options={[{ value: '', label: 'Chọn kho' }, ...(executionWarehouses ?? []).map(w => ({ value: w.id, label: `${w.code} · ${w.name}` }))]} />
+          </FormField>
+          {reason === 'Transfer' && <FormField label="Kho nhận" required>
+            <Select required value={destination} onChange={e => setDestination(e.target.value)} options={[{ value: '', label: 'Chọn kho nhận' }, ...(warehouses.data ?? []).filter(w => w.id !== wh && w.isActive).map(w => ({ value: w.id, label: `${w.code} · ${w.name}` }))]} />
+          </FormField>}
         </div>
         {reason === 'Order' && <><p>Chọn các đơn có đơn thực hiện tại kho để phát hành một yêu cầu xuất tổng.</p>{pickings.isError && <p role="alert">{errorMessage(pickings.error)}</p>}<SimpleTable paginate rows={selectable} columns={[
           { header: 'Chọn', cell: p => <input type="checkbox" aria-label={`Chọn đơn ${p.orderCode}`} checked={orderIds.includes(p.orderId)} onChange={e => setOrderIds(e.target.checked ? [...orderIds, p.orderId] : orderIds.filter(id => id !== p.orderId))} /> },
@@ -489,9 +493,10 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
         {reason === 'Transfer' && <>{batches.isError && <p role="alert">{errorMessage(batches.error)}</p>}<SimpleTable paginate rows={(batches.data ?? []).filter(b => b.availableQuantity > 0 && b.expiryStatus !== 'Expired')} columns={[
           { header: 'SKU / lô hàng / HSD', cell: b => `${b.sku} · ${b.batchCode} · ${formatDate(b.expirationDate)}` },
           { header: 'Khả dụng', cell: b => b.availableQuantity },
-          { header: 'Thùng chuyển', cell: b => <input aria-label={`Số thùng ${b.batchCode}`} type="number" min={0} max={b.availableQuantity} step={1} value={transferLines.find(l => l.batchId === b.batchId)?.quantity ?? 0} onChange={e => setTransferLines([...transferLines.filter(l => l.batchId !== b.batchId), ...(Number(e.target.value) > 0 ? [{ batchId: b.batchId, quantity: Number(e.target.value) }] : [])])} /> },
+          { header: 'Thùng chuyển', cell: b => <Input aria-label={`Số thùng ${b.batchCode}`} type="number" min={0} max={b.availableQuantity} step={1} value={transferLines.find(l => l.batchId === b.batchId)?.quantity ?? 0} onChange={e => setTransferLines([...transferLines.filter(l => l.batchId !== b.batchId), ...(Number(e.target.value) > 0 ? [{ batchId: b.batchId, quantity: Number(e.target.value) }] : [])])} /> },
         ]} /></>}
-        <div className="row-wrap" style={{ gap: 12, marginTop: 12 }}><label>Ghi chú <input value={note} onChange={e => setNote(e.target.value)} /></label><button className="btn btn-primary" disabled={busy || !wh || (reason === 'Order' ? !orderIds.length : !transferLines.length || !destination || destination === wh)}>{screen.create}</button><Link className="btn" to={screen.path}>Hủy</Link></div>
+        <div className="warehouse-request-note"><FormField label="Ghi chú"><TextArea rows={3} value={note} onChange={e => setNote(e.target.value)} placeholder="Nhập ghi chú cho yêu cầu xuất kho (không bắt buộc)" /></FormField></div>
+        <div className="warehouse-request-actions"><Link className="btn" to={screen.path}>Hủy</Link><Button type="submit" variant="primary" loading={busy} disabled={busy || !wh || (reason === 'Order' ? !orderIds.length : !transferLines.length || !destination || destination === wh)}>{screen.create}</Button></div>
       </form>
     </Card>}
     {workflow !== 'trace' && !selected && !creating && (
