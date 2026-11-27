@@ -67,6 +67,8 @@ test('export row opens a popup retaining warehouse, pending picking, payment and
       React.createElement('div', { key: i }, columns.map((col, j) => React.createElement('span', { key: j }, col.cell(row)))))),
   };
   const { ExportOrderDetailModal } = source('features/shipments/components/ExportOrderCard.tsx', {
+    '@tanstack/react-query': { useQuery: () => ({ data: [{ warehouseId: 'w-a', sku: 'SKU-A', productName: 'Hàng A', requestedQuantity: 12 }] }) },
+    '@/shared/api/graphql': {},
     react: React,
     '@/shared/ui': ui,
     '../types': { HAS_LEFT: ['Issued', 'Delivering', 'Received'] },
@@ -76,7 +78,7 @@ test('export row opens a popup retaining warehouse, pending picking, payment and
   const props = {
     order: { id: 'order', orderCode: 'DH-100' }, loading: false, failed: false, sort: 'asc', retry() {},
     readiness: { isReady: false, hasException: false, paymentSettled: false, blockingReasons: ['Warehouse B still picking'],
-      parts: [ { warehouseCode: 'WH-A', shipmentCode: 'SHIP-1', status: 'Issued' }, { warehouseCode: 'WH-B', shipmentCode: null, status: 'WaitingToPick' } ] },
+      parts: [ { warehouseId: 'w-a', warehouseCode: 'WH-A', shipmentCode: 'SHIP-1', status: 'Issued' }, { warehouseId: 'w-b', warehouseCode: 'WH-B', shipmentCode: null, status: 'WaitingToPick' } ] },
   };
   const html = renderToStaticMarkup(React.createElement(ExportOrderDetailModal, {
     ...props,
@@ -88,6 +90,9 @@ test('export row opens a popup retaining warehouse, pending picking, payment and
   assert.match(html, /WH-A/);
   assert.match(html, /WH-B/);
   assert.match(html, /SHIP-1/);
+  assert.match(html, /SKU-A/);
+  assert.match(html, /Hàng A/);
+  assert.match(html, /12/);
   assert.match(html, /chưa có — kho chưa đóng phiếu soạn/);
   assert.match(html, /Warehouse B still picking/);
   assert.match(html, /chưa thanh toán đủ/);

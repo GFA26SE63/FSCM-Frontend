@@ -1,3 +1,5 @@
+import { useQuery } from '@tanstack/react-query';
+import { graphql } from '@/shared/api/graphql';
 import { Callout, Chip, Modal, SimpleTable, type Tone } from '@/shared/ui';
 import { HAS_LEFT, type ExportOrder, type OrderShipmentReadiness, type ShipmentPartStatus, type ShipmentReadinessPart } from '../types';
 import { exportStatus, type ShipmentSort } from '../exportList';
@@ -23,6 +25,46 @@ export function ExportOrderDetailModal({ order, pickingReads = [], readiness, lo
   open: boolean;
   onClose: () => void;
 }) {
+  const goods = useQuery({
+    queryKey: ['dispatch-warehouse-goods', order.id], enabled: open,
+    queryFn: async () => {
+      async function pages<T>(field: string, selection: string, where: string): Promise<T[]> {
+        const rows: T[] = []; let after: string | null = null;
+        const seen = new Set<string>();
+        for (;;) {
+          const result: { entities: Record<string, { nodes: T[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } }> } = await graphql(`query DispatchGoods($after: String) { entities { ${field}(first: 100, after: $after, where: ${where}, order: [{ id: ASC }]) { nodes { ${selection} } pageInfo { hasNextPage endCursor } } } }`, { after });
+          const page = result.entities[field];
+          if (!Array.isArray(page?.nodes) || !page.pageInfo) throw new Error('Không tải được hàng hóa theo kho.');
+          rows.push(...page.nodes);
+          if (!page.pageInfo.hasNextPage) return rows;
+          const next = page.pageInfo.endCursor;
+          if (!next || seen.has(next)) throw new Error('Phân trang hàng hóa không hợp lệ.');
+          seen.add(next); after = next;
+        }
+      }
+      const lines = await pages<{ id: string; skuSnapshot: string; productNameSnapshot: string }>('salesOrderLines', 'id skuSnapshot productNameSnapshot', `{ salesOrderId: { eq: ${JSON.stringify(order.id)} } }`);
+      if (!lines.length) return [];
+      const allocations = await pages<{ salesOrderLineId: string; warehouseId: string; allocatedQuantity: number }>('allocations', 'id salesOrderLineId warehouseId allocatedQuantity', `{ salesOrderLineId: { in: ${JSON.stringify(lines.map(line => line.id))} } }`);
+      return allocations.map(allocation => {
+        const line = lines.find(item => item.id === allocation.salesOrderLineId)!;
+        return { warehouseId: allocation.warehouseId, sku: line.skuSnapshot, productName: line.productNameSnapshot, requestedQuantity: allocation.allocatedQuantity };
+      });
+    },
+  });
+  const warehouseGoods = (warehouseId: string) => {
+    const items = goods.data?.filter(item => item.warehouseId === warehouseId) ?? pickingReads.filter(read => read.warehouseId === warehouseId).flatMap(read => read.items);
+    const grouped = new Map<string, { sku: string; productName: string; quantity: number }>();
+    for (const item of items) {
+      const current = grouped.get(item.sku);
+      if (current) current.quantity += item.requestedQuantity;
+      else grouped.set(item.sku, { sku: item.sku, productName: item.productName, quantity: item.requestedQuantity });
+    }
+    return <>{goods.isLoading && <p>Đang tải hàng hóa…</p>}{goods.isError && <Callout tone="danger">Không tải được hàng hóa. <button onClick={() => void goods.refetch()}>Thử lại</button></Callout>}<SimpleTable paginate={false} rows={[...grouped.values()]} empty="Chưa có hàng hóa phân bổ cho kho này." columns={[
+      { header: 'Mã SKU', cell: item => item.sku },
+      { header: 'Tên hàng', cell: item => item.productName },
+      { header: 'Số lượng (thùng)', cell: item => item.quantity.toLocaleString('vi-VN') },
+    ]} /></>;
+  };
   const status = readiness ? exportStatus(readiness) : {
     tone: failed ? 'danger' as const : 'info' as const,
     label: failed ? 'Chưa tải được trạng thái' : 'Đang kiểm tra',
@@ -34,6 +76,7 @@ export function ExportOrderDetailModal({ order, pickingReads = [], readiness, lo
   }) : [];
   const columns = [
     { header: 'Kho', cell: (row: ShipmentReadinessPart) => <strong>{row.warehouseCode}</strong> },
+    { header: 'Hàng hóa', cell: (row: ShipmentReadinessPart) => warehouseGoods(row.warehouseId) },
     { header: 'Trạng thái', cell: (row: ShipmentReadinessPart) =>
       <Chip tone={PART_STATUS[row.status]?.tone ?? 'neutral'}>{PART_STATUS[row.status]?.label ?? row.status}</Chip> },
     { header: 'Phiếu giao', cell: (row: ShipmentReadinessPart) => row.shipmentCode ??
@@ -52,26 +95,7 @@ export function ExportOrderDetailModal({ order, pickingReads = [], readiness, lo
         {!readiness.paymentSettled && <Callout tone="warn">
           Đơn trả trước chưa thanh toán đủ. Đơn công nợ hợp lệ không bị chặn ở cửa kho.
         </Callout>}
-        <SimpleTable columns={columns} rows={parts} empty="Đơn này chưa có phần hàng theo kho nào." />
-        <h3>Hàng hóa theo kho xuất</h3>
-        {parts.map(part => {
-          const items = pickingReads.filter(read => read.warehouseId === part.warehouseId).flatMap(read => read.items);
-          const grouped = new Map<string, { sku: string; productName: string; quantity: number }>();
-          for (const item of items) {
-            const key = JSON.stringify([item.sku, item.productName]);
-            const current = grouped.get(key);
-            if (current) current.quantity += item.requestedQuantity;
-            else grouped.set(key, { sku: item.sku, productName: item.productName, quantity: item.requestedQuantity });
-          }
-          return <section key={part.warehouseId}>
-            <h4>{part.warehouseCode}</h4>
-            <SimpleTable paginate={false} rows={[...grouped.values()]} empty="Chưa có thông tin hàng hóa cho kho này." columns={[
-              { header: 'Mã SKU', cell: item => item.sku },
-              { header: 'Tên hàng', cell: item => item.productName },
-              { header: 'Số lượng yêu cầu', cell: item => item.quantity.toLocaleString('vi-VN') },
-            ]} />
-          </section>;
-        })}
+        <SimpleTable paginate={false} columns={columns} rows={parts} empty="Đơn này chưa có phần hàng theo kho nào." />
         <ShipmentOperations orderId={order.id} sort={sort} />
         <p className="muted small">
           {readiness.parts.some(part => HAS_LEFT.includes(part.status))
