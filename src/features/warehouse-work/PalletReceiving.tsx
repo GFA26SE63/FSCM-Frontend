@@ -101,7 +101,7 @@ export function PalletReceiving({ documentId, version, editable, receivedCount =
     missing: rows.filter(r => r.disposition === 'Missing').length,
   };
   return <section>
-    <h3>Kiểm đếm pallet và sổ hàng cách ly</h3>
+    <h3 style={{ marginBottom: 10 }}>Kiểm đếm pallet và sổ hàng cách ly</h3>
     <p>Quét pallet chỉ mở danh sách kiểm đếm. Xác nhận nhận mới cộng thùng đạt vào tồn. Hàng hỏng giữ tại vị trí cách ly, không có QR khả dụng để soạn; hàng thiếu không cộng tồn. Kết quả đã nhận không sửa trực tiếp.</p>
     {error && <p role="alert" className="danger">{error}</p>}
     {reports.isError && <p role="alert">{errorMessage(reports.error)}</p>}

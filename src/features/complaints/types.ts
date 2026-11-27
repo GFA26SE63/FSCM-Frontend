@@ -36,6 +36,7 @@ export interface Complaint {
   requestType?: 'Complaint' | 'Return' | 'DamagedCollection';
   settlementMethod?: 'DebtOffset' | 'CashRefund' | 'None';
   approvedSettlementMethod?: 'DebtOffset' | 'CashRefund' | 'None' | null;
+  orderPaymentMethod?: 'Prepaid' | 'Credit' | null;
   requestedQuantity?: number;
   approvedQuantity?: number | null;
   handledQuantity?: number | null;
