@@ -18,6 +18,7 @@ import {
   TOP_OPTIONS,
   buildSkuComparisons,
   buildWarehouseChartData,
+  buildWarehouseHealth,
   keepSelectable,
   nextSort,
   rangeError,
@@ -28,6 +29,7 @@ import {
   type MetricGroup,
   type MetricSort,
   type SkuComparisonRow,
+  type WarehouseHealthStatus,
   type WarehouseOption,
   type WarehouseReport,
   type WarehouseReportFilters,
@@ -38,6 +40,13 @@ import './warehouseReport.css';
 
 const loadReport = (f: WarehouseReportFilters) => get<WarehouseReport>('/reports/warehouse-logistics', toReportParams(f));
 const DEFAULT_PICKED_WAREHOUSES = 8;
+
+const HEALTH_BADGE: Record<WarehouseHealthStatus, { label: string; tone: 'danger' | 'warn' | 'success' | 'neutral' }> = {
+  shortage: { label: 'Thiếu hàng · Bán chạy', tone: 'danger' },
+  overstock: { label: 'Dư hàng · Bán chậm', tone: 'warn' },
+  balanced: { label: 'Cân đối', tone: 'success' },
+  idle: { label: 'Chưa phát sinh', tone: 'neutral' },
+};
 
 function Qty({ value, tone }: { value: number; tone: string }) {
   return <span className={`wr-qty wr-${tone}${value ? '' : ' wr-zero'}`}>{formatNumber(value)}</span>;
@@ -57,7 +66,7 @@ export function WarehouseReportPage() {
   const [initializedPick, setInitializedPick] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
-  const [activeTab, setActiveTab] = useState<'compare' | 'detail'>('compare');
+  const [activeTab, setActiveTab] = useState<'overview' | 'compare' | 'detail'>('overview');
   const [detailWarehouseId, setDetailWarehouseId] = useState('');
   const [sort, setSort] = useState<MetricSort>(null);
   const [selectedSkuRow, setSelectedSkuRow] = useState<SkuComparisonRow | null>(null);
@@ -224,6 +233,7 @@ export function WarehouseReportPage() {
           {(data) => {
             const comparisons = buildSkuComparisons(data);
             const filteredComparisons = selectedProductId ? comparisons.filter((c) => c.productId === selectedProductId) : comparisons;
+            const warehouseHealth = buildWarehouseHealth(data, selectedProductId || undefined);
             const warehouseChartData = buildWarehouseChartData(data, selectedProductId || undefined);
             const skuChartData = comparisons.slice(0, 10).map((c) => ({
               sku: c.sku,
@@ -236,6 +246,8 @@ export function WarehouseReportPage() {
             const totalNear = filteredComparisons.reduce((s, c) => s + c.totalNearExpiry, 0);
             const totalSales = filteredComparisons.reduce((s, c) => s + c.totalSales, 0);
             const transferOpportunities = filteredComparisons.filter((c) => c.transferSuggestion !== null).length;
+            const shortageCount = warehouseHealth.filter((w) => w.status === 'shortage').length;
+            const overstockCount = warehouseHealth.filter((w) => w.status === 'overstock').length;
 
             const detailRows = data.warehouses
               .filter((w) => !detailWarehouseId || w.id === detailWarehouseId)
@@ -249,10 +261,10 @@ export function WarehouseReportPage() {
             return (
               <>
                 <div className="wr-summary">
-                  <Stat label="Tổng tồn còn hạn" value={formatNumber(totalValid)} />
+                  <Stat label="Tổng tồn khả dụng (Còn hạn)" value={formatNumber(totalValid)} note={totalNear > 0 ? `Cận hạn cần đẩy: ${formatNumber(totalNear)}` : undefined} />
                   <Stat label="Tổng xuất bán trong kỳ" value={formatNumber(totalSales)} />
-                  <Stat label="Tồn cận hạn cần đẩy" value={formatNumber(totalNear)} />
-                  <Stat label="Gợi ý điều chuyển" value={formatNumber(transferOpportunities)} />
+                  <Stat label="Kho thiếu hàng / Bán chạy" value={formatNumber(shortageCount)} color={shortageCount > 0 ? 'var(--c-danger, #b42318)' : undefined} note="Ngày tồn ước tính ≤ 7 ngày" />
+                  <Stat label="Kho dư hàng / Gợi ý điều chuyển" value={`${formatNumber(overstockCount)} kho · ${formatNumber(transferOpportunities)} SKU`} color={overstockCount > 0 ? 'var(--c-warn, #8a3b09)' : undefined} />
                 </div>
 
                 <div className="wr-charts">
@@ -305,11 +317,20 @@ export function WarehouseReportPage() {
                   <button
                     type="button"
                     role="tab"
+                    aria-selected={activeTab === 'overview'}
+                    className={`wr-tab${activeTab === 'overview' ? ' active' : ''}`}
+                    onClick={() => setActiveTab('overview')}
+                  >
+                    Xếp hạng Kho: Dư / Thiếu · Bán chạy / Bán ế ({formatNumber(warehouseHealth.length)})
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
                     aria-selected={activeTab === 'compare'}
                     className={`wr-tab${activeTab === 'compare' ? ' active' : ''}`}
                     onClick={() => setActiveTab('compare')}
                   >
-                    So sánh SKU &amp; Gợi ý điều chuyển ({formatNumber(filteredComparisons.length)})
+                    So sánh SKU × Kho &amp; Điều chuyển ({formatNumber(filteredComparisons.length)})
                   </button>
                   <button
                     type="button"
@@ -318,11 +339,119 @@ export function WarehouseReportPage() {
                     className={`wr-tab${activeTab === 'detail' ? ' active' : ''}`}
                     onClick={() => setActiveTab('detail')}
                   >
-                    Bảng chi tiết theo Kho × SKU ({formatNumber(detailRows.length)})
+                    Bảng chi tiết Kho × SKU ({formatNumber(detailRows.length)})
                   </button>
                 </div>
 
-                {activeTab === 'compare' ? (
+                {activeTab === 'overview' ? (
+                  <Card
+                    flush
+                    title={<h2 className="sec">Phân tích hiệu suất kho (Dư / Thiếu · Bán chạy / Bán ế)</h2>}
+                    actions={
+                      selectedProductId && (
+                        <Button size="sm" onClick={() => setSelectedProductId('')}>Xem tất cả SKU</Button>
+                      )
+                    }
+                  >
+                    {warehouseHealth.length === 0 ? (
+                      <EmptyState title="Chưa có dữ liệu kho trong kỳ đã chọn." />
+                    ) : (
+                      <div tabIndex={0} role="region" aria-labelledby="wr-health-caption" className="wr-table-wrap">
+                        <table className="tbl compact wr-grid">
+                          <caption id="wr-health-caption" className="wr-sr-only">
+                            Bảng xếp hạng tình trạng tồn kho và sức bán theo từng kho
+                          </caption>
+                          <thead>
+                            <tr>
+                              <th scope="col">Kho</th>
+                              <th scope="col">Tình trạng</th>
+                              <th scope="col" className="wr-right">Tồn khả dụng</th>
+                              <th scope="col" className="wr-right">Xuất bán</th>
+                              <th scope="col" className="wr-right">Tiêu thụ</th>
+                              <th scope="col" className="wr-right">Ngày tồn</th>
+                              <th scope="col">SKU bán chạy nhất</th>
+                              <th scope="col">SKU bán ế / tồn nhiều nhất</th>
+                              <th scope="col">Thao tác</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {warehouseHealth.map((row) => {
+                              const badge = HEALTH_BADGE[row.status];
+                              return (
+                                <tr key={row.warehouse.id}>
+                                  <th scope="row">
+                                    <span className="bold">{row.warehouse.code}</span>
+                                    <div className="muted small">{row.warehouse.name}</div>
+                                  </th>
+                                  <td><Chip tone={badge.tone}>{badge.label}</Chip></td>
+                                  <td className="wr-right">
+                                    <div className="wr-chips" style={{ justifyContent: 'flex-end' }}>
+                                      <Qty value={row.valid} tone="valid" />
+                                      {row.nearExpiry > 0 && <Qty value={row.nearExpiry} tone="near" />}
+                                    </div>
+                                  </td>
+                                  <td className="wr-right"><Qty value={row.salesIssue} tone="out-sales" /></td>
+                                  <td className="wr-right">
+                                    <div className="wr-velocity-bar">
+                                      <div className="wr-velocity-track" aria-hidden>
+                                        <div className="wr-velocity-fill" style={{ width: `${row.sellThroughRate}%` }} />
+                                      </div>
+                                      <span className="small bold">{row.sellThroughRate}%</span>
+                                    </div>
+                                  </td>
+                                  <td className="wr-right">
+                                    {row.daysOfSupply !== null ? (
+                                      <span className={row.daysOfSupply <= 7 ? 'bold' : undefined}>
+                                        {formatNumber(row.daysOfSupply)} ngày
+                                      </span>
+                                    ) : row.available > 0 ? (
+                                      <span className="muted small">Tồn đọng</span>
+                                    ) : (
+                                      <span className="muted">—</span>
+                                    )}
+                                  </td>
+                                  <td>
+                                    {row.topSellingSku ? (
+                                      <div className="wr-cell-stack">
+                                        <span className="bold">{row.topSellingSku.sku}</span>
+                                        <span className="muted small">{row.topSellingSku.name} · bán {formatNumber(row.topSellingSku.salesIssue)}</span>
+                                      </div>
+                                    ) : (
+                                      <span className="muted small">Chưa có bán</span>
+                                    )}
+                                  </td>
+                                  <td>
+                                    {row.slowestSku ? (
+                                      <div className="wr-cell-stack">
+                                        <span className="bold">{row.slowestSku.sku}</span>
+                                        <span className="muted small">
+                                          tồn {formatNumber(row.slowestSku.valid + row.slowestSku.nearExpiry)} · {row.slowestSku.salesIssue === 0 ? 'chưa bán' : `bán ${formatNumber(row.slowestSku.salesIssue)}`}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <span className="muted small">Không có tồn đọng</span>
+                                    )}
+                                  </td>
+                                  <td>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => {
+                                        setDetailWarehouseId(row.warehouse.id);
+                                        setActiveTab('detail');
+                                      }}
+                                    >
+                                      Xem SKU
+                                    </Button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </Card>
+                ) : activeTab === 'compare' ? (
                   <Card
                     flush
                     title={<h2 className="sec">So sánh tồn kho &amp; sức bán theo SKU để điều chuyển</h2>}
@@ -335,26 +464,30 @@ export function WarehouseReportPage() {
                     {filteredComparisons.length === 0 ? (
                       <EmptyState title="Chưa có dữ liệu SKU trong kỳ đã chọn." />
                     ) : (
-                      <div style={{ overflowX: 'auto' }}>
-                        <table className="tbl compact">
+                      <div tabIndex={0} role="region" aria-labelledby="wr-compare-caption" className="wr-table-wrap">
+                        <table className="tbl compact wr-grid">
+                          <caption id="wr-compare-caption" className="wr-sr-only">
+                            So sánh tồn kho và sức bán theo từng SKU giữa các kho
+                          </caption>
                           <thead>
                             <tr>
-                              <th className="wr-center">#</th>
-                              <th>SKU · Sản phẩm</th>
-                              <th>Kho tồn nhiều nhất</th>
-                              <th>Kho bán chạy nhất</th>
-                              <th>Gợi ý điều chuyển</th>
-                              <th>Thao tác</th>
+                              <th scope="col" className="wr-center">#</th>
+                              <th scope="col">SKU · Sản phẩm</th>
+                              <th scope="col">Kho dư / tồn nhiều nhất</th>
+                              <th scope="col">Kho bán ế nhất</th>
+                              <th scope="col">Kho bán chạy nhất</th>
+                              <th scope="col">Gợi ý điều chuyển</th>
+                              <th scope="col">Thao tác</th>
                             </tr>
                           </thead>
                           <tbody>
                             {filteredComparisons.map((row) => (
                               <tr key={row.productId}>
                                 <td className="wr-center">{row.rank}</td>
-                                <td className="wr-product" title={`${row.sku} · ${row.name}`}>
+                                <th scope="row" className="wr-product" title={`${row.sku} · ${row.name}`}>
                                   <span className="bold">{row.sku}</span>
                                   <span className="muted small">{row.name}</span>
-                                </td>
+                                </th>
                                 <td>
                                   {row.highestStock ? (
                                     <div className="wr-cell-stack">
@@ -366,6 +499,18 @@ export function WarehouseReportPage() {
                                     </div>
                                   ) : (
                                     <span className="muted">Không có tồn</span>
+                                  )}
+                                </td>
+                                <td>
+                                  {row.slowestStock ? (
+                                    <div className="wr-cell-stack">
+                                      <span className="bold">{row.slowestStock.code} · {row.slowestStock.name}</span>
+                                      <span className="muted small">
+                                        tồn {formatNumber(row.slowestStock.valid + row.slowestStock.nearExpiry)} · {row.slowestStock.salesIssue === 0 ? 'chưa bán' : `bán ${formatNumber(row.slowestStock.salesIssue)}`}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span className="muted">—</span>
                                   )}
                                 </td>
                                 <td>
@@ -412,30 +557,35 @@ export function WarehouseReportPage() {
                     flush
                     title={<h2 className="sec">Chi tiết tồn kho &amp; xuất nhập theo Kho</h2>}
                     actions={
-                      <select
-                        className="inp"
-                        style={{ minWidth: 210 }}
-                        value={detailWarehouseId}
-                        onChange={(e) => setDetailWarehouseId(e.target.value)}
-                      >
-                        <option value="">Tất cả kho đã chọn ({data.warehouses.length})</option>
-                        {data.warehouses.map((w) => (
-                          <option key={w.id} value={w.id}>{w.code} · {w.name}</option>
-                        ))}
-                      </select>
+                      <div className="wr-card-actions">
+                        <select
+                          aria-label="Lọc theo kho"
+                          className="inp wr-header-select"
+                          value={detailWarehouseId}
+                          onChange={(e) => setDetailWarehouseId(e.target.value)}
+                        >
+                          <option value="">Tất cả kho đã chọn ({data.warehouses.length})</option>
+                          {data.warehouses.map((w) => (
+                            <option key={w.id} value={w.id}>{w.code} · {w.name}</option>
+                          ))}
+                        </select>
+                      </div>
                     }
                   >
                     {detailRows.length === 0 ? (
                       <EmptyState title="Chưa có dữ liệu tồn kho hoặc xuất nhập." />
                     ) : (
-                      <div style={{ overflowX: 'auto' }}>
+                      <div tabIndex={0} role="region" aria-labelledby="wr-detail-caption" className="wr-table-wrap">
                         <table className="tbl compact wr-grid">
+                          <caption id="wr-detail-caption" className="wr-sr-only">
+                            Chi tiết tồn kho và xuất nhập theo từng kho và SKU
+                          </caption>
                           <thead>
                             <tr>
-                              <th rowSpan={2}>Kho</th>
-                              <th rowSpan={2}>SKU · Sản phẩm</th>
+                              <th scope="col" rowSpan={2}>Kho</th>
+                              <th scope="col" rowSpan={2}>SKU · Sản phẩm</th>
                               {(Object.keys(GROUP_LABELS) as MetricGroup[]).map((group) => (
-                                <th key={group} colSpan={METRICS.filter((m) => m.group === group).length} className={`wr-center wr-group wr-group-${group}`}>
+                                <th key={group} scope="colgroup" colSpan={METRICS.filter((m) => m.group === group).length} className={`wr-center wr-group wr-group-${group}`}>
                                   {GROUP_LABELS[group]}
                                 </th>
                               ))}
@@ -444,7 +594,12 @@ export function WarehouseReportPage() {
                               {METRICS.map((m) => {
                                 const active = sort?.key === m.key ? sort.dir : null;
                                 return (
-                                  <th key={m.key} className="wr-right" aria-sort={active === 'desc' ? 'descending' : active === 'asc' ? 'ascending' : 'none'}>
+                                  <th
+                                    key={m.key}
+                                    scope="col"
+                                    className="wr-right"
+                                    aria-sort={active === 'desc' ? 'descending' : active === 'asc' ? 'ascending' : undefined}
+                                  >
                                     <button
                                       type="button"
                                       className={`wr-sort${active ? ' active' : ''}`}
@@ -452,7 +607,7 @@ export function WarehouseReportPage() {
                                       onClick={() => setSort((s) => nextSort(s, m.key))}
                                     >
                                       {m.short}
-                                      <span className="wr-sort-icon" aria-hidden>{active === 'desc' ? '▼' : active === 'asc' ? '▲' : '↕'}</span>
+                                      <span className="wr-sort-icon" aria-hidden="true">{active === 'desc' ? '▼' : active === 'asc' ? '▲' : '↕'}</span>
                                     </button>
                                   </th>
                                 );
@@ -462,10 +617,10 @@ export function WarehouseReportPage() {
                           <tbody>
                             {detailRows.map(({ warehouse, product }) => (
                               <tr key={`${warehouse.id}-${product.productId}`} className="clickable" onClick={() => setSelectedCell({ warehouse, product })}>
-                                <td>
+                                <th scope="row">
                                   <span className="bold">{warehouse.code}</span>
                                   <div className="muted small">{warehouse.name}</div>
-                                </td>
+                                </th>
                                 <td className="wr-product" title={`${product.sku} · ${product.name}`}>
                                   <span className="bold">{product.sku}</span>
                                   <span className="muted small">{product.name}</span>
