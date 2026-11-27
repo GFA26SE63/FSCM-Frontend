@@ -69,7 +69,8 @@ test('transport dispatch nests delivery and transfer request/history tabs', () =
   assert.ok(page.includes("label: 'Điều phối luân chuyển'"));
   assert.ok(page.includes('Yêu cầu Điều phối ${operation}'));
   assert.ok(page.includes('Lịch sử Điều phối ${operation}'));
-  assert.ok(page.includes('warehouseTransfers(first: 500'));
+  assert.ok(page.includes('warehouseTransfers(first: 100, after: $after'));
+  assert.ok(page.includes('pageInfo { hasNextPage endCursor }'));
 });
 
 test('transfer dispatch assignment sends driver, vehicle and optimistic version', () => {

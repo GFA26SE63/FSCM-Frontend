@@ -42,6 +42,7 @@ export interface OrderShipmentReadiness {
 
 /** Lightweight metadata for ordering the export list by actual order creation time. */
 export interface ExportOrder {
+  assignmentTimes?: Record<string, string | null>;
   id: string;
   orderCode: string;
   createdAt: string;

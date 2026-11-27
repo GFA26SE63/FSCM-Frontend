@@ -10,7 +10,7 @@ import { useEnumParam } from '@/shared/router/listState';
 import { useRegions, useWarehouses } from '@/features/warehouses/hooks';
 import { shipmentsApi } from '../api';
 import { useOrdersReadiness } from '../hooks';
-import { ExportOrderDetailModal, PART_STATUS } from '../components/ExportOrderCard';
+import { ExportOrderDetailModal } from '../components/ExportOrderCard';
 import { exportStatus, isDispatchInTab, sortExportOrders, type ExportOrderSort } from '../exportList';
 import { type ExportOrder } from '../types';
 import { useAuth } from '@/shared/auth/AuthContext';
@@ -160,10 +160,6 @@ function ExportOrders({ orders, pickingCount, tab }: { orders: ExportOrder[]; pi
         const parts = partsOf(order);
         return <div className="delivery-table-stack">{parts.length ? parts.map(part => <span className="delivery-warehouse-code" key={part.warehouseId}>{part.warehouseCode}</span>) : <span className="muted">—</span>}</div>;
       } },
-      { header: 'Trạng thái tại kho', width: '200px', cell: order => {
-        const parts = partsOf(order);
-        return <div className="delivery-table-stack delivery-warehouse-status">{parts.length ? parts.map(part => <Chip key={part.warehouseId} tone={PART_STATUS[part.status]?.tone ?? 'neutral'}>{PART_STATUS[part.status]?.label ?? part.status}</Chip>) : <span className="muted">Đang tải</span>}</div>;
-      } },
       { header: 'Phiếu giao hàng', width: '180px', cell: order => {
         const parts = partsOf(order);
         return <div className="delivery-table-stack">{parts.length ? parts.map(part => <span className="delivery-shipment-code" key={part.warehouseId}>{part.shipmentCode ?? <span className="muted">Chưa có phiếu</span>}</span>) : <span className="muted">—</span>}</div>;
@@ -172,6 +168,10 @@ function ExportOrders({ orders, pickingCount, tab }: { orders: ExportOrder[]; pi
         const current = byId.get(order.id);
         const status = current ? exportStatus(current) : { tone: readiness.failedIds.includes(order.id) ? 'danger' as const : 'info' as const, label: readiness.failedIds.includes(order.id) ? 'Chưa tải được trạng thái' : 'Đang kiểm tra' };
         return <Chip tone={status.tone}>{status.label}</Chip>;
+      } },
+      { header: 'Thời gian điều phối', width: '190px', cell: order => {
+        const parts = partsOf(order);
+        return <div className="delivery-table-stack">{parts.length ? parts.map(part => <span key={part.warehouseId}>{order.assignmentTimes?.[part.shipmentId ?? ''] ? formatInstantDateTime(order.assignmentTimes[part.shipmentId!]) : <span className="muted">Chưa điều phối</span>}</span>) : <span className="muted">—</span>}</div>;
       } },
     ]} />
     {selectedOrder && <ExportOrderDetailModal order={selectedOrder} readiness={byId.get(selectedOrder.id)}
@@ -211,21 +211,32 @@ interface TransferDispatchRow {
 }
 
 async function loadTransferDispatches(): Promise<TransferDispatchRow[]> {
-  const data = await graphql<{ entities: { warehouseTransfers: { nodes: TransferDispatchRow[] | null } } }>(`
-    query TransportDispatchTransfers {
-      entities {
-        warehouseTransfers(first: 500, order: [{ requestedAt: DESC }, { id: DESC }]) {
-          nodes {
-            id transferCode sourceWarehouseId destinationWarehouseId status version requestedAt
-            assignedAt dispatchedAt receivedAt driverNameSnapshot plateNumberSnapshot
+  const rows: TransferDispatchRow[] = [];
+  let after: string | null = null;
+  const cursors = new Set<string>();
+  for (;;) {
+    const data: { entities: { warehouseTransfers: { nodes: TransferDispatchRow[] | null; pageInfo: { hasNextPage: boolean; endCursor: string | null } } } } = await graphql(`
+      query TransportDispatchTransfers($after: String) {
+        entities {
+          warehouseTransfers(first: 100, after: $after, order: [{ requestedAt: DESC }, { id: DESC }]) {
+            nodes {
+              id transferCode sourceWarehouseId destinationWarehouseId status version requestedAt
+              assignedAt dispatchedAt receivedAt driverNameSnapshot plateNumberSnapshot
+            }
+            pageInfo { hasNextPage endCursor }
           }
         }
       }
-    }
-  `);
-  const rows = data.entities?.warehouseTransfers?.nodes;
-  if (!Array.isArray(rows)) throw new Error('Không tải được yêu cầu điều phối luân chuyển.');
-  return rows;
+    `, { after });
+    const page = data.entities?.warehouseTransfers;
+    if (!Array.isArray(page?.nodes) || !page.pageInfo) throw new Error('Không tải được yêu cầu điều phối luân chuyển.');
+    rows.push(...page.nodes);
+    if (!page.pageInfo.hasNextPage) return rows;
+    const next = page.pageInfo.endCursor;
+    if (!next || cursors.has(next)) throw new Error('Phân trang điều phối luân chuyển không hợp lệ.');
+    cursors.add(next);
+    after = next;
+  }
 }
 
 function transferStatusLabel(status: string) {
@@ -254,6 +265,15 @@ function TransferDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
     const warehouseName = (id: string) => warehouses.find(warehouse => warehouse.id === id)?.name ?? 'Chưa rõ kho';
     const close = () => { if (!assign.isPending) setSelectedId(null); };
     return <>
+      <div className="stats-grid delivery-summary-grid" style={{ marginBottom: 16 }}>
+        <Stat label="Tổng lệnh điều phối" value={String(rows.length)} />
+        <Stat label="Chờ duyệt" value={String(rows.filter(row => row.status === 'Requested').length)} />
+        <Stat label="Chờ điều phối" value={String(rows.filter(row => row.status === 'Approved' && !row.assignedAt).length)} />
+        <Stat label="Đã phân công" value={String(rows.filter(row => row.status === 'Approved' && !!row.assignedAt).length)} />
+        <Stat label="Đang luân chuyển" value={String(rows.filter(row => row.status === 'InTransit').length)} />
+        <Stat label="Đã nhận" value={String(rows.filter(row => row.status === 'Received').length)} />
+        <Stat label="Từ chối" value={String(rows.filter(row => row.status === 'Rejected').length)} />
+      </div>
       <DataTable title={tab === 'history' ? 'Lịch sử điều phối luân chuyển' : 'Yêu cầu điều phối luân chuyển'}
         rows={visible} rowKey={row => row.id} stateKey={`transfer-dispatch-${tab}`}
         searchPlaceholder="Tìm mã điều phối, kho hoặc tài xế"

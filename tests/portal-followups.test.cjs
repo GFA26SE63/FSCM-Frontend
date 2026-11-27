@@ -100,11 +100,14 @@ test('export metadata requests lightweight scoped entities and refuses missing d
   let response = { entities: { salesOrders: { nodes: [{ id: 'a', orderCode: 'DH-1', createdAt: '2026-11-12T00:00:00Z' }] } } };
   const { shipmentsApi } = source('features/shipments/api.ts', {
     '@/shared/api/http': {},
-    '@/shared/api/graphql': { graphql: async (query, variables) => { calls.push({ query, variables }); return response; } },
+    '@/shared/api/graphql': { graphql: async (query, variables) => { calls.push({ query, variables }); return query.includes('ExportAssignmentTimes') ? { entities: { shipments: { nodes: [{ id: 'ship-1', salesOrderId: 'a', assignedAt: '2026-11-12T03:00:00Z' }], pageInfo: { hasNextPage: false, endCursor: null } } } } : response; } },
     '@/shared/api/errors': { ApiError: class extends Error {} },
     './shipmentsGraphql': { fetchShipmentsForOrder: async () => [] },
   });
-  assert.equal((await shipmentsApi.exportOrders(['a', 'a'])).length, 1);
+  const orders = await shipmentsApi.exportOrders(['a', 'a']);
+  assert.equal(orders.length, 1);
+  assert.equal(orders[0].assignmentTimes['ship-1'], '2026-11-12T03:00:00Z');
+  assert.match(calls[1].query, /id salesOrderId assignedAt/);
   assert.deepEqual(calls[0].variables.ids, ['a']);
   assert.match(calls[0].query, /entities\s*{\s*salesOrders/);
   assert.match(calls[0].query, /id orderCode createdAt/);

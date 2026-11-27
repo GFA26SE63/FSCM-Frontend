@@ -24,7 +24,29 @@ async function exportOrders(orderIds: string[]): Promise<ExportOrder[]> {
         nodes.some(row => !row.id || !row.orderCode || !Number.isFinite(Date.parse(row.createdAt)))) {
       throw new ApiError(502, 'Chưa tải đầy đủ thông tin đơn hàng để sắp xếp.');
     }
-    rows.push(...nodes);
+    const assignmentTimes: Record<string, Record<string, string | null>> = {};
+    let after: string | null = null;
+    const cursors = new Set<string>();
+    for (;;) {
+      const result: { entities: { shipments: { nodes: { id: string; salesOrderId: string; assignedAt: string | null }[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } } } } = await graphql(`
+        query ExportAssignmentTimes($ids: [UUID!]!, $after: String) {
+          entities { shipments(first: 100, after: $after, where: { salesOrderId: { in: $ids } }, order: [{ id: ASC }]) {
+            nodes { id salesOrderId assignedAt } pageInfo { hasNextPage endCursor }
+          } }
+        }
+      `, { ids: batch, after });
+      const page = result.entities?.shipments;
+      if (!Array.isArray(page?.nodes) || !page.pageInfo) throw new ApiError(502, 'Không tải được thời gian điều phối.');
+      for (const shipment of page.nodes) {
+        (assignmentTimes[shipment.salesOrderId] ??= {})[shipment.id] = shipment.assignedAt;
+      }
+      if (!page.pageInfo.hasNextPage) break;
+      const next = page.pageInfo.endCursor;
+      if (!next || cursors.has(next)) throw new ApiError(502, 'Phân trang thời gian điều phối không hợp lệ.');
+      cursors.add(next);
+      after = next;
+    }
+    rows.push(...nodes.map(order => ({ ...order, assignmentTimes: assignmentTimes[order.id] ?? {} })));
   }
   return rows;
 }

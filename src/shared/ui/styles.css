@@ -294,11 +294,11 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-lay
 .delivery-warehouse-code { font-weight: 700; color: var(--c-text); letter-spacing: .01em; }
 .delivery-shipment-code { font-weight: 600; color: var(--c-text); }
 .delivery-warehouse-status .chip { justify-self: start; width: max-content; min-height: 26px; height: 26px; padding: 0 10px; border-radius: 6px; white-space: nowrap; }
-.delivery-summary-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.delivery-summary-grid { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(150px, 1fr); overflow-x: auto; }
 .delivery-filter-card .filter-grid { grid-template-columns: minmax(250px, 2fr) repeat(4, minmax(170px, 1fr)) auto; }
 .delivery-filter-action { display: flex; align-items: flex-end; }
-@media (max-width: 1200px) { .delivery-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .delivery-filter-card .filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 800px) { .delivery-summary-grid { grid-template-columns: 1fr; } .delivery-filter-card .filter-grid { grid-template-columns: 1fr; } .delivery-filter-action .btn { width: 100%; } }
+@media (max-width: 1200px) { .delivery-filter-card .filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 800px) { .delivery-filter-card .filter-grid { grid-template-columns: 1fr; } .delivery-filter-action .btn { width: 100%; } }
 /* dd/mm/yyyy date field with a calendar button (DateInput). */
 .date-input { position: relative; display: flex; align-items: center; width: 100%; }
 .date-input > .inp { padding-right: 36px; }
