@@ -84,3 +84,19 @@ test('an issued assigned shipment can start delivery even after the order left t
     assert.doesNotMatch(html, /Bắt đầu giao|Xác nhận xuất kho|Gán xe/);
   }
 });
+
+test('keeper can start an assigned trip without assignment or exception-management controls', () => {
+  const props = {
+    shipment: { ...shipment, status: 'Issued', driverId: 'driver', vehicleId: 'vehicle' },
+    drivers: [], vehicles: [], mayDispatch: false, mayStartDelivery: true,
+  };
+  const html = renderToStaticMarkup(React.createElement(mod.exports.ShipmentActionRow, props));
+  assert.match(html, /Bắt đầu giao/);
+  assert.doesNotMatch(html, /Gán xe|Cập nhật xe|Hoàn tất xử lý ngoại lệ/);
+  const foreign = renderToStaticMarkup(React.createElement(mod.exports.ShipmentActionRow, { ...props, mayStartDelivery: false }));
+  assert.doesNotMatch(foreign, /Bắt đầu giao/);
+  const unassigned = renderToStaticMarkup(React.createElement(mod.exports.ShipmentActionRow, {
+    ...props, shipment: { ...props.shipment, driverId: null },
+  }));
+  assert.doesNotMatch(unassigned, /Bắt đầu giao/);
+});

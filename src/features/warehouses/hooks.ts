@@ -3,10 +3,11 @@ import { useApiMutation } from '@/shared/hooks';
 import { warehouseApi } from './api';
 import type { CreateRegionInput, UpdateRegionInput, WarehouseInput } from './types';
 
-export const useRegions = (includeInactive = true) =>
+export const useRegions = (includeInactive = true, enabled = true) =>
   useQuery({
     queryKey: ['warehouses', 'regions', includeInactive],
     queryFn: () => warehouseApi.listRegions(includeInactive),
+    enabled,
   });
 
 export const useRegion = (id: string) =>

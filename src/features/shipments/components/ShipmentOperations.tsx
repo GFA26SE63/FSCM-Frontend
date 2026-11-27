@@ -52,6 +52,7 @@ export function ShipmentOperations({ orderId, sort }: { orderId: string; sort: S
           key={shipment.id}
           shipment={shipment}
           mayDispatch={mayDispatch}
+          mayStartDelivery={mayDispatch || (user?.role === 'WarehouseKeeper' && !!user.scope?.warehouseIds.includes(shipment.warehouseId))}
           drivers={drivers.data ?? []}
           vehicles={vehicles.data ?? []}
           busyDriverIds={busyAssignments.data?.busyDriverIds ?? new Set<string>()}
@@ -69,6 +70,7 @@ export function ShipmentOperations({ orderId, sort }: { orderId: string; sort: S
 export function ShipmentActionRow({
   shipment,
   mayDispatch,
+  mayStartDelivery = mayDispatch,
   drivers,
   vehicles,
   assignmentLoaded = true,
@@ -77,6 +79,7 @@ export function ShipmentActionRow({
 }: {
   shipment: Shipment;
   mayDispatch: boolean;
+  mayStartDelivery?: boolean;
   drivers: DeliveryDriver[];
   vehicles: DeliveryVehicle[];
   assignmentLoaded?: boolean;
@@ -160,7 +163,7 @@ export function ShipmentActionRow({
         </div>
       )}
 
-      {shipment.status === 'Issued' && mayDispatch && shipment.driverId && shipment.vehicleId && (
+      {shipment.status === 'Issued' && mayStartDelivery && shipment.driverId && shipment.vehicleId && (
         <Button
           size="sm"
           variant="primary"

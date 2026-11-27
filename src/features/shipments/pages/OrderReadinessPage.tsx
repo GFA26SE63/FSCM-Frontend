@@ -6,35 +6,46 @@ import { graphql } from '@/shared/api/graphql';
 import { errorMessage } from '@/shared/api/errors';
 import { formatInstantDateTime } from '@/shared/lib/dates';
 import { useEnumParam } from '@/shared/router/listState';
-import { usePickingLists } from '@/features/runpicking/hooks';
 import { useRegions, useWarehouses } from '@/features/warehouses/hooks';
 import { shipmentsApi } from '../api';
 import { useOrdersReadiness } from '../hooks';
 import { ExportOrderDetailModal, PART_STATUS } from '../components/ExportOrderCard';
 import { exportStatus, isDispatchInTab, sortExportOrders, type ExportOrderSort } from '../exportList';
 import { type ExportOrder } from '../types';
+import { useAuth } from '@/shared/auth/AuthContext';
 
 export function OrderReadinessPage() {
+  const { user } = useAuth();
+  const keeper = user?.role === 'WarehouseKeeper';
   const [transport, setTransport] = useEnumParam('transport', ['delivery', 'transfer'] as const, 'delivery', { resets: ['transportTab'] });
   const [tab, setTab] = useEnumParam('transportTab', ['requests', 'history'] as const, 'requests');
-  const operation = transport === 'delivery' ? 'giao hàng' : 'luân chuyển';
+  const operation = keeper || transport === 'delivery' ? 'giao hàng' : 'luân chuyển';
   return <>
     <PageHeader title="Điều phối vận tải"
-      subtitle="Điều phối xe và tài xế cho đơn giao hàng và các lệnh luân chuyển giữa kho." />
+      subtitle={keeper ? 'Bắt đầu giao các chuyến đã được gán xe và tài xế tại kho được phân công.' : 'Điều phối xe và tài xế cho đơn giao hàng và các lệnh luân chuyển giữa kho.'} />
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 16 }}>
-      <Tabs items={[{ key: 'delivery', label: 'Điều phối giao hàng' }, { key: 'transfer', label: 'Điều phối luân chuyển' }]}
+      {!keeper && <Tabs items={[{ key: 'delivery', label: 'Điều phối giao hàng' }, { key: 'transfer', label: 'Điều phối luân chuyển' }]}
         value={transport} onChange={setTransport} />
+      }
       <Tabs variant="pills" items={[
         { key: 'requests', label: `Yêu cầu Điều phối ${operation}` },
         { key: 'history', label: `Lịch sử Điều phối ${operation}` },
       ]} value={tab} onChange={setTab} />
     </div>
-    {transport === 'delivery' ? <DeliveryDispatchPanel tab={tab} /> : <TransferDispatchPanel tab={tab} />}
+    {keeper || transport === 'delivery' ? <DeliveryDispatchPanel tab={tab} /> : <TransferDispatchPanel tab={tab} />}
   </>;
 }
 
 function DeliveryDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
-  const lists = usePickingLists();
+  const lists = useQuery({
+    queryKey: ['shipments', 'delivery-picking-orders'],
+    queryFn: async () => {
+      const data = await graphql<{ entities: { deliveryPickingReads: { id: string; orderId: string }[] } }>(`
+        query DeliveryPickingOrders { entities { deliveryPickingReads { id orderId } } }
+      `);
+      return data.entities.deliveryPickingReads;
+    },
+  });
   const orderIds = useMemo(() => [...new Set((lists.data ?? []).map(list => list.orderId))].sort(), [lists.data]);
   const orders = useQuery({
     queryKey: ['shipments', 'export-orders', orderIds],
@@ -50,13 +61,14 @@ function DeliveryDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
 }
 
 function ExportOrders({ orders, pickingCount, tab }: { orders: ExportOrder[]; pickingCount: number; tab: 'requests' | 'history' }) {
+  const { user } = useAuth();
   const [sort, setSort] = useState<ExportOrderSort>('newest');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'held' | 'ready' | 'left'>('all');
   const [warehouseFilter, setWarehouseFilter] = useState('');
   const [regionFilter, setRegionFilter] = useState('');
   const { data: warehouseList = [] } = useWarehouses();
-  const { data: regionList = [] } = useRegions();
+  const { data: regionList = [] } = useRegions(true, user?.role !== 'WarehouseKeeper');
   // Region names come from the Regions API; the ID is only the filter value.
   const regionNameById = new Map(regionList.map(r => [r.id, r.name]));
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);

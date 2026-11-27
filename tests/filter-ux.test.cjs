@@ -28,7 +28,7 @@ test('dispatch page: two order-sort options, no shipment sort, region names from
   assert.ok(!/shipmentSort|Sắp xếp phiếu giao/.test(s));
   assert.match(s, /label: 'Mới nhất'[\s\S]*label: 'Cũ nhất'/);
   assert.ok(!/codeAsc|codeDesc/.test(s));
-  assert.match(s, /useRegions\(\)/);
+  assert.match(s, /useRegions\(true, user\?\.role !== 'WarehouseKeeper'\)/);
   assert.match(s, /regionNameById\.get\(r\.id\)/);
   assert.match(s, /setWarehouseFilter\(''\)/); // region change resets warehouse
   assert.match(s, /regionOfCode\.get\(part\.warehouseCode\)\?\.id === regionFilter/); // filter by ID
