@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Callout, Chip, Input, Select, type Tone } from '@/shared/ui';
+import { Button, Callout, Chip, Select, type Tone } from '@/shared/ui';
 import { formatNumber } from '@/shared/lib';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { hasOperation } from '@/shared/auth/permissions';
@@ -24,7 +24,6 @@ export function ShipmentOperations({ orderId, sort, warehouseId }: { orderId: st
   const mayDispatch = hasOperation(user, 'api:Shipments.Assign');
   const mayStart = hasOperation(user, 'api:Shipments.Dispatch');
   const mayIssue = hasOperation(user, 'api:Shipments.ConfirmIssue');
-  const mayResolve = hasOperation(user, 'api:Shipments.ResolveException');
   const shipments = useQuery({
     queryKey: ['shipments', orderId],
     queryFn: () => shipmentsApi.list(orderId),
@@ -58,7 +57,6 @@ export function ShipmentOperations({ orderId, sort, warehouseId }: { orderId: st
           shipment={shipment}
           mayDispatch={mayDispatch}
           mayStartDelivery={mayStart}
-          mayResolve={mayResolve}
           mayIssue={mayIssue}
           drivers={drivers.data ?? []}
           vehicles={vehicles.data ?? []}
@@ -78,7 +76,6 @@ export function ShipmentActionRow({
   shipment,
   mayDispatch,
   mayStartDelivery = mayDispatch,
-  mayResolve = mayDispatch,
   mayIssue = false,
   drivers,
   vehicles,
@@ -89,7 +86,6 @@ export function ShipmentActionRow({
   shipment: Shipment;
   mayDispatch: boolean;
   mayStartDelivery?: boolean;
-  mayResolve?: boolean;
   mayIssue?: boolean;
   drivers: DeliveryDriver[];
   vehicles: DeliveryVehicle[];
@@ -101,8 +97,6 @@ export function ShipmentActionRow({
   const warehouseVehicles = vehicles.filter((item) => item.isActive && item.warehouseId === shipment.warehouseId && item.capacity >= shipment.totalQuantity && !busyVehicleIds.has(item.id));
   const [driverId, setDriverId] = useState<string | null>(null);
   const [vehicleId, setVehicleId] = useState<string | null>(null);
-  const [resolutionReason, setResolutionReason] = useState('');
-  const resolve = useApiMutation(shipmentsApi.resolveException, { success: 'Đã xử lý ngoại lệ và cập nhật trạng thái đơn.', onSuccess: () => setResolutionReason('') });
   const selectedDriver = driverId === null
     ? warehouseDrivers.find(item => item.id === shipment.driverId) ?? warehouseDrivers[0]
     : warehouseDrivers.find(item => item.id === driverId);
@@ -138,12 +132,6 @@ export function ShipmentActionRow({
         </Button>
       )}
 
-      {shipment.status === 'Exception' && mayResolve && <div className="stack" style={{ marginTop: 8 }}>
-        {shipment.exceptionReason && <Callout tone="danger">{shipment.exceptionReason}</Callout>}
-        <Input aria-label="Kết quả xử lý ngoại lệ" placeholder="Nhập lý do / kết quả xử lý" value={resolutionReason} onChange={e => setResolutionReason(e.target.value)} />
-        <Button size="sm" loading={resolve.isPending} disabled={!resolutionReason.trim() || resolutionReason.trim().length > 1000}
-          onClick={() => resolve.mutate({ shipment, reason: resolutionReason })}>Hoàn tất xử lý ngoại lệ</Button>
-      </div>}
 
       {shipment.status === 'Issued' && mayDispatch && (
         <div className="row-wrap" style={{ gap: 8, marginTop: 8 }}>

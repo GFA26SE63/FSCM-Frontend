@@ -55,6 +55,8 @@ test('issued, delivering and partially received dispatches remain actionable unt
   }
   assert.equal(isDispatchInTab({ dispatchStatus: 'Delivered', isHistory: true }, 'history'), true);
   assert.equal(isDispatchInTab({ dispatchStatus: 'Delivered', isHistory: true }, 'requests'), false);
+  assert.equal(isDispatchInTab({ dispatchStatus: 'Exception', isHistory: true }, 'history'), true);
+  assert.equal(isDispatchInTab({ dispatchStatus: 'Exception', isHistory: true }, 'requests'), false);
   assert.equal(isDispatchInTab(undefined, 'history'), false);
 });
 
@@ -103,8 +105,7 @@ test('export row opens a popup retaining warehouse, pending picking, payment and
   assert.match(html, /Hàng A/);
   assert.match(html, /12/);
   assert.match(html, /chưa có — kho chưa đóng phiếu soạn/);
-  assert.match(html, /Warehouse B still picking/);
-  assert.match(html, /chưa thanh toán đủ/);
+  assert.doesNotMatch(html, /Warehouse B still picking|chưa thanh toán đủ/);
   assert.match(html, /shipment operations/);
   assert.match(html, /không còn hủy được/);
   assert.match(html, /<details class="expandable-record"><summary/);

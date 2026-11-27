@@ -63,12 +63,11 @@ test('a driver from another warehouse cannot enable assignment', () => {
   assert.doesNotMatch(html, /Correct driver/);
 });
 
-test('only operators see an exception resolution action and it needs a result', () => {
+test('exception shipments are read-only in dispatch for both operators and readers', () => {
   const props = { shipment: { ...shipment, status: 'Exception', exceptionReason: 'Missing carton' }, drivers: [], vehicles: [] };
   const operator = renderToStaticMarkup(React.createElement(mod.exports.ShipmentActionRow, { ...props, mayDispatch: true }));
-  assert.match(operator, /Hoàn tất xử lý ngoại lệ/);
-  assert.match(operator, /Missing carton/);
-  assert.match(operator, /<button disabled/);
+  assert.match(operator, /Ngoại lệ/);
+  assert.doesNotMatch(operator, /Hoàn tất xử lý ngoại lệ|Kết quả xử lý|Missing carton|<input|<button/);
   const reader = renderToStaticMarkup(React.createElement(mod.exports.ShipmentActionRow, { ...props, mayDispatch: false }));
   assert.doesNotMatch(reader, /Hoàn tất xử lý ngoại lệ/);
 });

@@ -87,12 +87,6 @@ export function ExportOrderDetailModal({ order, pickingReads = [], readiness, lo
       {failed && <Callout tone="danger">Không tải được trạng thái đơn. <button type="button" onClick={retry}>Thử lại</button></Callout>}
       {loading && <p className="muted">Đang kiểm tra điều kiện xuất kho…</p>}
       {readiness && <>
-        {readiness.blockingReasons.length > 0 && <Callout tone={readiness.hasException ? 'danger' : 'warn'}>
-          <ul>{readiness.blockingReasons.map(reason => <li key={reason}>{reason}</li>)}</ul>
-        </Callout>}
-        {!readiness.paymentSettled && <Callout tone="warn">
-          Đơn trả trước chưa thanh toán đủ. Đơn công nợ hợp lệ không bị chặn ở cửa kho.
-        </Callout>}
         <div className="dispatch-warehouse-list">
           {parts.length === 0 && <p className="muted">Đơn này chưa có phần hàng theo kho nào.</p>}
           {parts.map(part => <section className="dispatch-warehouse-card" key={part.warehouseId}>
