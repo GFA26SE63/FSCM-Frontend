@@ -1,7 +1,7 @@
 import { hasOperation } from '@/shared/auth/permissions';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Callout, Chip, DataTable, Input, Modal, PageHeader, QueryState, Select, SimpleTable, Stat, Tabs } from '@/shared/ui';
+import { Button, Callout, Card, Chip, DataTable, Input, Modal, PageHeader, QueryState, Select, SimpleTable, Stat, Tabs } from '@/shared/ui';
 import { Pagination } from '@/shared/pagination';
 import { graphql } from '@/shared/api/graphql';
 import { errorMessage } from '@/shared/api/errors';
@@ -159,7 +159,7 @@ function ExportOrders({ orders, pickingCount, pickingReads, tab }: { orders: Exp
       </div>
     </section>
     {readiness.error && <Callout tone="danger">Có đơn chưa tải được trạng thái. Chưa thể kết luận điều kiện xuất kho cho các đơn đó.</Callout>}
-    <div className="delivery-dispatch-table"><SimpleTable paginate={false} rows={visible} onRowClick={order => setSelectedOrderId(order.id)} empty={tab === 'history' ? 'Chưa có điều phối giao hàng trong lịch sử.' : 'Không có yêu cầu điều phối giao hàng phù hợp với bộ lọc.'} columns={[
+    <Card><SimpleTable paginate={false} rows={visible} onRowClick={order => setSelectedOrderId(order.id)} empty={tab === 'history' ? 'Chưa có điều phối giao hàng trong lịch sử.' : 'Không có yêu cầu điều phối giao hàng phù hợp với bộ lọc.'} columns={[
       { header: 'Mã đơn', width: '150px', cell: order => <b>{order.orderCode}</b> },
       { header: 'Kho xuất', width: '170px', cell: order => {
         const parts = partsOf(order);
@@ -178,7 +178,7 @@ function ExportOrders({ orders, pickingCount, pickingReads, tab }: { orders: Exp
         return <div className="delivery-table-stack">{parts.length ? parts.map(part => <span key={part.warehouseId}>{order.assignmentTimes?.[part.shipmentId ?? ''] ? formatInstantDateTime(order.assignmentTimes[part.shipmentId!]) : <span className="muted">Chưa điều phối</span>}</span>) : <span className="muted">—</span>}</div>;
       } },
     ]} />
-    </div>
+    </Card>
     {selectedOrder && <ExportOrderDetailModal order={selectedOrder} pickingReads={pickingReads.filter(read => read.orderId === selectedOrder.id)} readiness={byId.get(selectedOrder.id)}
       loading={readiness.loading && !byId.has(selectedOrder.id)} failed={readiness.failedIds.includes(selectedOrder.id)}
       sort="asc" retry={() => { void readiness.refetch(); }} open onClose={() => setSelectedOrderId(null)} />}
