@@ -10,7 +10,7 @@ import { useEnumParam } from '@/shared/router/listState';
 import { useRegions, useWarehouses } from '@/features/warehouses/hooks';
 import { shipmentsApi } from '../api';
 import { useOrdersReadiness } from '../hooks';
-import { ExportOrderDetailModal } from '../components/ExportOrderCard';
+import { ExportOrderDetailModal, PART_STATUS } from '../components/ExportOrderCard';
 import { exportStatus, isDispatchInTab, sortExportOrders, type ExportOrderSort } from '../exportList';
 import { type ExportOrder } from '../types';
 import { useAuth } from '@/shared/auth/AuthContext';
@@ -154,7 +154,7 @@ function ExportOrders({ orders, pickingCount, tab }: { orders: ExportOrder[]; pi
       </div>
     </section>
     {readiness.error && <Callout tone="danger">Có đơn chưa tải được trạng thái. Chưa thể kết luận điều kiện xuất kho cho các đơn đó.</Callout>}
-    <SimpleTable paginate={false} rows={visible} onRowClick={order => setSelectedOrderId(order.id)} empty={tab === 'history' ? 'Chưa có điều phối giao hàng trong lịch sử.' : 'Không có yêu cầu điều phối giao hàng phù hợp với bộ lọc.'} columns={[
+    <div className="delivery-dispatch-table"><SimpleTable paginate={false} rows={visible} onRowClick={order => setSelectedOrderId(order.id)} empty={tab === 'history' ? 'Chưa có điều phối giao hàng trong lịch sử.' : 'Không có yêu cầu điều phối giao hàng phù hợp với bộ lọc.'} columns={[
       { header: 'Mã đơn', width: '150px', cell: order => <b>{order.orderCode}</b> },
       { header: 'Kho xuất', width: '170px', cell: order => {
         const parts = partsOf(order);
@@ -165,15 +165,15 @@ function ExportOrders({ orders, pickingCount, tab }: { orders: ExportOrder[]; pi
         return <div className="delivery-table-stack">{parts.length ? parts.map(part => <span className="delivery-shipment-code" key={part.warehouseId}>{part.shipmentCode ?? <span className="muted">Chưa có phiếu</span>}</span>) : <span className="muted">—</span>}</div>;
       } },
       { header: 'Trạng thái điều phối', width: '170px', cell: order => {
-        const current = byId.get(order.id);
-        const status = current ? exportStatus(current) : { tone: readiness.failedIds.includes(order.id) ? 'danger' as const : 'info' as const, label: readiness.failedIds.includes(order.id) ? 'Chưa tải được trạng thái' : 'Đang kiểm tra' };
-        return <Chip tone={status.tone}>{status.label}</Chip>;
+        const parts = partsOf(order);
+        return <div className="delivery-table-stack">{parts.length ? parts.map(part => <Chip key={part.warehouseId} tone={PART_STATUS[part.status]?.tone ?? 'neutral'}>{PART_STATUS[part.status]?.label ?? part.status}</Chip>) : <span className="muted">{readiness.failedIds.includes(order.id) ? 'Chưa tải được trạng thái' : 'Đang kiểm tra'}</span>}</div>;
       } },
       { header: 'Thời gian điều phối', width: '190px', cell: order => {
         const parts = partsOf(order);
         return <div className="delivery-table-stack">{parts.length ? parts.map(part => <span key={part.warehouseId}>{order.assignmentTimes?.[part.shipmentId ?? ''] ? formatInstantDateTime(order.assignmentTimes[part.shipmentId!]) : <span className="muted">Chưa điều phối</span>}</span>) : <span className="muted">—</span>}</div>;
       } },
     ]} />
+    </div>
     {selectedOrder && <ExportOrderDetailModal order={selectedOrder} readiness={byId.get(selectedOrder.id)}
       loading={readiness.loading && !byId.has(selectedOrder.id)} failed={readiness.failedIds.includes(selectedOrder.id)}
       sort="asc" retry={() => { void readiness.refetch(); }} open onClose={() => setSelectedOrderId(null)} />}
