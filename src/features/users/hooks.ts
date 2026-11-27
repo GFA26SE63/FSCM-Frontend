@@ -25,7 +25,7 @@ export const useUserAudit = (id: string, after: string | null, enabled: boolean,
 
 export const useSetUserStatus = () =>
   useApiMutation(userApi.setStatus, {
-    permission: 'users.manage',
+    permission: 'users.status',
     success: (_, input) =>
       input.isActive
         ? 'Đã bật tài khoản.'

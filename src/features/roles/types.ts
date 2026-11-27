@@ -1,6 +1,7 @@
 export interface RoleItem {
   id: string;
   code: string;
+  baseRole?: string;
   name: string;
   description: string | null;
   isSystem: boolean;
@@ -14,13 +15,14 @@ export interface CreateRoleInput {
   code: string;
   name: string;
   description?: string;
-  permissions: string[];
+  selectedScreenCodes: string[];
+  baseRole?: string;
 }
 
 export interface UpdateRoleInput {
   name: string;
   description?: string;
-  permissions: string[];
+  selectedScreenCodes: string[];
 }
 
 export interface ScreenFeature {
@@ -80,7 +82,7 @@ export const WEB_SCREEN_GROUPS: ScreenGroup[] = [
       { key: 'warehouse-transfers', name: 'Luân chuyển kho', description: 'Quản lý phiếu chuyển kho nội bộ giữa các chi nhánh' },
       { key: 'batches', name: 'Quản lý lô hàng', description: 'Theo dõi thông tin chi tiết lô, HSD và in mã QR thùng hàng' },
       { key: 'warehouse-trace', name: 'Tra cứu kiện / thùng', description: 'Quét mã QR tra cứu lịch sử luân chuyển kiện thùng hàng' },
-      { key: 'readiness', name: 'Điều phối giao hàng', description: 'Chuẩn bị kiện hàng, phân bổ phương tiện và tài xế' },
+      { key: 'readiness', name: 'Điều phối vận tải', description: 'Điều phối giao hàng và luân chuyển, phân bổ phương tiện và tài xế' },
       { key: 'batchpromo', name: 'Giảm giá theo HSD', description: 'Thiết lập chính sách giảm giá cho các lô hàng cận date' },
       { key: 'disposal', name: 'Hủy hàng hết hạn', description: 'Biên bản tiêu hủy và xử lý hàng hóa quá hạn sử dụng' },
       { key: 'fleet', name: 'Xe & Tài xế', description: 'Quản lý danh mục phương tiện vận tải và tài xế giao hàng' },
@@ -178,6 +180,15 @@ export const SCREEN_GROUPS: ScreenGroup[] = WEB_SCREEN_GROUPS;
 export const ALL_WEB_SCREEN_KEYS = WEB_SCREEN_GROUPS.flatMap((g) => g.screens.map((s) => s.key));
 export const ALL_MOBILE_SCREEN_KEYS = MOBILE_SCREEN_GROUPS.flatMap((g) => g.screens.map((s) => s.key));
 export const ALL_SCREEN_KEYS = [...ALL_WEB_SCREEN_KEYS, ...ALL_MOBILE_SCREEN_KEYS];
+
+/** Count known screen grants once; API grants are a separate permission level. */
+export function roleScreenGrants(permissions: readonly string[]) {
+  const selected = new Set(permissions);
+  return {
+    web: ALL_WEB_SCREEN_KEYS.filter(key => selected.has(key)),
+    mobile: ALL_MOBILE_SCREEN_KEYS.filter(key => selected.has(key)),
+  };
+}
 
 export const ALL_MOBILE_SALES_KEYS = MOBILE_SCREEN_GROUPS.find((g) => g.key === 'mobile-sales')?.screens.map((s) => s.key) ?? [];
 export const ALL_MOBILE_RT_KEYS = MOBILE_SCREEN_GROUPS.find((g) => g.key === 'mobile-retailer')?.screens.map((s) => s.key) ?? [];

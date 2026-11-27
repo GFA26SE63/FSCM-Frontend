@@ -1,5 +1,5 @@
 import { useState, useMemo, type ReactNode } from 'react';
-import { Button, FormField, Input, Modal, Tabs, type TabItem } from '@/shared/ui';
+import { Button, FormField, Input, Select, Modal, Tabs, type TabItem } from '@/shared/ui';
 import { Check, Shield, Layers, AlertCircle, ChevronDown, ChevronRight, Search, Smartphone, Monitor } from 'lucide-react';
 import {
   ALL_SCREEN_KEYS,
@@ -7,7 +7,6 @@ import {
   ALL_MOBILE_SCREEN_KEYS,
   WEB_SCREEN_GROUPS,
   MOBILE_SCREEN_GROUPS,
-  DEFAULT_ROLE_PERMISSIONS,
   type CreateRoleInput,
   type RoleItem,
   type ScreenGroup,
@@ -33,17 +32,11 @@ export function RoleDialog({ role, onClose, onSuccess }: Props) {
   const [code, setCode] = useState(role?.code ?? '');
   const [name, setName] = useState(role?.name ?? '');
   const [description, setDescription] = useState(role?.description ?? '');
-
-  // Initialize selected permissions:
-  // If editing an existing role that has permissions, use them.
-  // If role has 0 permissions but has defaults (e.g. Sales, Retailer), pre-fill with defaults.
+  const [baseRole, setBaseRole] = useState(role?.baseRole ?? 'Operator');
+  // An empty server grant set is an intentional revocation.
   const [selectedPermissions, setSelectedPermissions] = useState<Set<string>>(() => {
     if (isAdminRole) return new Set(ALL_SCREEN_KEYS);
-    if (role?.permissions && role.permissions.length > 0) return new Set(role.permissions);
-    if (role?.code && DEFAULT_ROLE_PERMISSIONS[role.code]) {
-      return new Set(DEFAULT_ROLE_PERMISSIONS[role.code]);
-    }
-    return new Set();
+    return new Set(role?.permissions ?? []);
   });
 
   // Accordion state
@@ -178,7 +171,7 @@ export function RoleDialog({ role, onClose, onSuccess }: Props) {
         const payload: UpdateRoleInput = {
           name: name.trim(),
           description: description.trim() || undefined,
-          permissions: Array.from(selectedPermissions),
+          selectedScreenCodes: ALL_SCREEN_KEYS.filter(key => selectedPermissions.has(key)),
         };
         const updated = await roleApi.update(role.id, payload);
         onSuccess(updated);
@@ -187,7 +180,8 @@ export function RoleDialog({ role, onClose, onSuccess }: Props) {
           code: code.trim(),
           name: name.trim(),
           description: description.trim() || undefined,
-          permissions: Array.from(selectedPermissions),
+          selectedScreenCodes: ALL_SCREEN_KEYS.filter(key => selectedPermissions.has(key)),
+          baseRole,
         };
         const created = await roleApi.create(payload);
         onSuccess(created);
@@ -594,10 +588,19 @@ export function RoleDialog({ role, onClose, onSuccess }: Props) {
         )}
 
         <Tabs items={tabs} value={activeTab} onChange={(tab) => setActiveTab(tab)} />
+        <p className="muted">Quyền API được tự động đồng bộ theo các màn hình đã chọn khi lưu.</p>
 
         {/* TAB 1: THÔNG TIN CHUNG */}
         {activeTab === 'general' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 8 }}>
+            <FormField label="Phạm vi nghiệp vụ" hint="Quy định phạm vi dữ liệu của tài khoản. Quyền màn hình và thao tác được cấu hình ở các tab riêng.">
+              <Select value={baseRole} disabled={isEdit || busy} onChange={e => setBaseRole(e.target.value)} options={[
+                { value: 'Operator', label: 'Vận hành' }, { value: 'WarehouseKeeper', label: 'Kho được phân công' },
+                { value: 'SalesManager', label: 'Khu vực quản lý' }, { value: 'Sales', label: 'Nhóm bán hàng' },
+                { value: 'Retailer', label: 'Nhà bán lẻ của tài khoản' },
+                ...(isAdminRole ? [{ value: 'Admin', label: 'Quản trị viên' }] : []),
+              ]} />
+            </FormField>
             <FormField label="Tên vai trò" required error={errors.name}>
               <Input
                 placeholder="Ví dụ: Nhân viên kiểm kê, Kế toán công nợ, Nhân viên thị trường..."

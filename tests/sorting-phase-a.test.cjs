@@ -87,6 +87,14 @@ describe('Orders sort', () => {
     assert.ok(q.includes('order: [{ createdAt: ASC }, { id: DESC }]'), `Got: ${q}`);
   });
 
+  test('date range uses Vietnam start and inclusive end of day', () => {
+    const built = orders.buildOrdersPageQuery({ size: 20, from: '2026-11-01', to: '2026-11-30' });
+    assert.ok(built.query.includes('createdAt: { gte: $from }'), `Missing from condition: ${built.query}`);
+    assert.ok(built.query.includes('createdAt: { lte: $to }'), `Missing to condition: ${built.query}`);
+    assert.equal(built.variables.from, '2026-11-01T00:00:00+07:00');
+    assert.equal(built.variables.to, '2026-11-30T23:59:59.999+07:00');
+  });
+
   test('unknown field falls back to default sort', () => {
     // TypeScript prevents this at compile time; test the runtime guard too.
     const q = orderOf({ size: 20, sort: { field: 'INJECTED; DROP TABLE', direction: 'asc' } });

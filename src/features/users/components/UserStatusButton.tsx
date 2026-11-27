@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button, Callout, Modal } from '@/shared/ui';
 import { errorMessage } from '@/shared/api/errors';
 import { useAuth } from '@/shared/auth/AuthContext';
+import { can } from '@/shared/auth/permissions';
 import { useSetUserStatus } from '../hooks';
 import type { User } from '../types';
 
@@ -16,7 +17,7 @@ export function UserStatusButton({
   const [error, setError] = useState('');
 
   if (
-    auth.user?.role !== 'Admin' ||
+    !can(auth.user, 'users.status') ||
     user.role === 'Admin'
   ) {
     return null;

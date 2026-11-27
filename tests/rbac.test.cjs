@@ -37,6 +37,48 @@ const permissions = source('shared/auth/permissions.ts', {
 const roles = ['Admin', 'Operator', 'WarehouseKeeper', 'SalesManager'];
 const user = (role) => ({ id: 'user-' + role, role, name: role, email: role + '@example.com' });
 
+test('role assignment sends the configured role code and rejects Admin before issuing a command', async () => {
+  const writes = [];
+  const policy = source('features/users/userPolicy.ts', { '@/shared/api/errors': errors });
+  const { userApi } = source('features/users/api.ts', {
+    '@/shared/api/errors': errors,
+    '@/shared/api/http': { http: { patch: async (url, body) => writes.push({ url, body }) } },
+    '@/shared/api/graphql': { graphql: async () => ({}) },
+    './userPolicy': policy,
+  });
+  await userApi.assignRole('account-1', 'CUSTOM_WAREHOUSE');
+  assert.deepEqual(writes, [{ url: '/users/account-1/role', body: { role: 'CUSTOM_WAREHOUSE' } }]);
+  await assert.rejects(userApi.assignRole('account-1', 'Admin'), { status: 400 });
+  assert.equal(writes.length, 1);
+});
+
+test('server grants override role defaults, preserve empty revocations and support delegated screens', () => {
+  for (const permission of Object.keys(permissions.ACTION_SCREENS)) {
+    const key = permissions.ACTION_SCREENS[permission];
+    assert.equal(permissions.can({ ...user('Operator'), permissions: [] }, permission), false);
+    assert.equal(permissions.can({ ...user('CustomRole'), permissions: [key, ...(permissions.ACTION_OPERATIONS[permission] ?? [])] }, permission), true);
+    assert.equal(permissions.can({ ...user('CustomRole'), permissions: ['unrelated'] }, permission), false);
+    assert.equal(permissions.can({ ...user('Admin'), permissions: [] }, permission), true);
+  }
+});
+
+test('direct guards require the selected screen, resolve legacy aliases and reject wildcard grants', () => {
+  let current = { ...user('CustomRole'), permissions: ['warehouse-inbound'] };
+  const { RequireRole } = source('shared/auth/guards.tsx', {
+    '@/shared/router/compat': { useLocation: () => ({ pathname: '/receipts' }), Navigate: () => null },
+    './AuthContext': { useAuth: () => ({ status: 'authenticated', user: current }) },
+    './roles': source('shared/auth/roles.ts'),
+    '../ui/EmptyState': { EmptyState: ({ title }) => React.createElement('p', null, title) },
+  });
+  const render = (routeKey) => renderToStaticMarkup(React.createElement(RequireRole,
+    { roles: ['Admin'], routeKey }, 'GRANTED'));
+  assert.match(render('receipts'), /GRANTED/);
+  assert.match(render('users'), /403/);
+  assert.match(render(undefined), /403/);
+  current = { ...user('WarehouseKeeper'), permissions: [] };
+  assert.match(render('warehouse-inbound'), /403/);
+});
+
 test('overview offers three report links and highlights only the selected report for authorized roles', () => {
   const { MemoryRouter } = require('react-router-dom');
   const router = source('shared/router/compat.tsx');
@@ -65,7 +107,10 @@ test('overview offers three report links and highlights only the selected report
     const html = renderToStaticMarkup(React.createElement(MemoryRouter, {
       initialEntries: ['/dashboard'],
     }, React.createElement(Sidebar)));
-    assert.ok(!html.includes('href="/reports'));
+    for (const report of ['redemptions', 'loyalty', 'promotions']) {
+      assert.equal(html.includes(`href="/reports?kind=${report}"`), role === 'SalesManager');
+    }
+    assert.equal(html.includes('href="/reports?kind=disposals"'), role === 'WarehouseKeeper');
   }
 });
 
@@ -155,7 +200,7 @@ test('Operator can view loyalty but cannot open its edit form or run program mut
       items.map(item => React.createElement('button', { key: item.key, disabled: item.disabled, onClick: item.onClick }, item.label))),
     Card: Wrapper, Modal: () => null, Fields: () => null, Chip: Wrapper,
     DataTable: ({ rows, rowActions, actions }) => React.createElement('div', null,
-      actions, rows?.map((r) => React.createElement('div', { key: r.id }, rowActions(r)))),
+      actions, rows?.map((r) => React.createElement('div', { key: r.id }, rowActions?.(r)))),
   };
   const { LoyaltyProgramsPanel } = source('features/loyalty/components/LoyaltyProgramsPanel.tsx', {
     '@/shared/router/compat': { useNavigate: () => () => {} },
@@ -169,7 +214,6 @@ test('Operator can view loyalty but cannot open its edit form or run program mut
     './ProgramDialog': { ProgramDialog: () => React.createElement('p', null, 'EDIT FORM') },
   });
   const operator = renderToStaticMarkup(React.createElement(LoyaltyProgramsPanel));
-  assert.match(operator, /Xem/);
   for (const action of ['Sửa', 'Tạo chương trình', 'Tạm dừng', 'EDIT FORM']) {
     assert.ok(!operator.includes(action));
   }

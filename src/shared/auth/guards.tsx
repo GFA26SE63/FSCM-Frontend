@@ -57,12 +57,16 @@ export function RequireRole({
     );
   }
 
+  const screenKey = ({ inventory: 'batches', 'factory-traceability': 'warehouse-trace',
+    'warehouse-receipts': 'warehouse-inbound', 'warehouse-issues': 'warehouse-outbound',
+    'warehouse-work': 'warehouse-inbound', receipts: 'warehouse-inbound',
+    runpicking: 'warehouse-outbound', shipments: 'readiness', whtransfer: 'warehouse-transfers',
+  } as Record<string, string>)[routeKey ?? ''] ?? routeKey;
   const isAllowed = user && (
     user.role === 'Admin' ||
     (allowAllPortalRoles && isPortalRole(user.role)) ||
-    (routeKey && user.permissions?.includes(routeKey)) ||
-    (!routeKey && user.permissions && user.permissions.length > 0) ||
-    roles.includes(user.role)
+    (screenKey && user.permissions?.includes(screenKey)) ||
+    (user.permissions === undefined && roles.includes(user.role))
   );
 
   if (!user || !isAllowed) {

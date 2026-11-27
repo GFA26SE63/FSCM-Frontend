@@ -12,7 +12,7 @@ const initials = (name: string) => name.split(' ').slice(-2).map((s) => s[0]).jo
 const MENU_GROUPS: { key: string; label: string; keys: string[] }[] = [
   { key: 'overview', label: 'Tổng quan', keys: ['dashboard', 'reports', 'warehouse-report', 'kpi'] },
   { key: 'sales', label: 'Bán hàng & Tài chính', keys: ['orders', 'allocation', 'debts', 'refunds', 'complaints'] },
-  { key: 'warehouse', label: 'Kho vận', keys: ['warehouse-factory-requests', 'warehouse-inbound', 'warehouse-outbound', 'warehouse-transfers', 'batches', 'warehouse-trace', 'readiness', 'batchpromo', 'disposal', 'fleet'] },
+  { key: 'warehouse', label: 'Kho vận', keys: ['warehouse-factory-requests', 'warehouse-inbound', 'warehouse-outbound', 'warehouse-transfers', 'readiness', 'fleet', 'batches', 'warehouse-trace', 'batchpromo', 'disposal'] },
   { key: 'customer', label: 'Khách hàng & Khuyến mãi', keys: ['retailers', 'promos', 'loyalty', 'redeem', 'gifts'] },
   { key: 'catalog', label: 'Danh mục', keys: ['regions', 'cats', 'catmlor', 'skus', 'whs'] },
   { key: 'system', label: 'Hệ thống', keys: ['notifications', 'users', 'roles', 'config'] },
@@ -40,10 +40,9 @@ export function Sidebar() {
         if (r.hidden) return false;
         if (r.availableToAllPortalUsers) return isPortalRole(user.role);
         if (user.role === 'Admin') return true;
-        if (user.permissions && user.permissions.length > 0) {
-          return user.permissions.includes(r.key);
-        }
-        return r.roles.includes(user.role);
+        return user.permissions === undefined
+          ? r.roles.includes(user.role)
+          : user.permissions.includes(r.key);
       })
     : [];
   const groups = buildGroups(items);
@@ -112,7 +111,7 @@ export function Sidebar() {
         <div className="avatar">{initials(user.name)}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="bold" style={{ fontSize: 13 }}>{user.name}</div>
-          <div style={{ fontSize: 11.5, color: 'var(--c-sidebar-sub)' }}>{roleLabel[user.role]}</div>
+          <div style={{ fontSize: 11.5, color: 'var(--c-sidebar-sub)' }}>{user.roleName ?? roleLabel[user.role]}</div>
         </div>
         <button className="btn btn-sm btn-sidebar" onClick={logout}>Thoát</button>
       </div>

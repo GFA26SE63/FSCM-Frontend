@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { IScannerControls } from '@zxing/browser';
 
-export function PalletCamera({ disabled, onScan }: { disabled: boolean; onScan: (code: string) => Promise<void> }) {
+export function PalletCamera({ disabled, onScan, target = 'pallet' }: { disabled: boolean; onScan: (code: string) => Promise<void>; target?: 'pallet' | 'thùng' }) {
   const video = useRef<HTMLVideoElement>(null);
   const controls = useRef<IScannerControls | null>(null);
   const generation = useRef(0);
@@ -34,10 +34,10 @@ export function PalletCamera({ disabled, onScan }: { disabled: boolean; onScan: 
     }
   }
   return <div className="pallet-camera">
-    <p>Đưa QR trên pallet thực tế vào camera. Quét chỉ đối chiếu và ghi nhận lần quét; chưa cộng tồn.</p>
-    <video ref={video} muted playsInline hidden={!active} aria-label="Camera quét QR pallet" style={{ width: '100%', maxWidth: 480, borderRadius: 8 }} />
+    <p>Đưa QR trên {target} thực tế vào camera. Quét chỉ đối chiếu và ghi nhận lần quét; chưa cộng tồn.</p>
+    <video ref={video} muted playsInline hidden={!active} aria-label={`Camera quét QR ${target}`} style={{ width: '100%', maxWidth: 480, borderRadius: 8 }} />
     {error && <p role="alert">{error}</p>}
     {active ? <button className="btn" onClick={stop}>Dừng camera</button>
-      : <button className="btn btn-primary" disabled={disabled} onClick={() => void start()}>Quét QR pallet bằng camera</button>}
+      : <button className="btn btn-primary" disabled={disabled} onClick={() => void start()}>Quét QR {target} bằng camera</button>}
   </div>;
 }
