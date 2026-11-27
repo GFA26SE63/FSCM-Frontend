@@ -11,6 +11,7 @@ import { useRegions, useWarehouses } from '@/features/warehouses/hooks';
 import { shipmentsApi } from '../api';
 import { useOrdersReadiness } from '../hooks';
 import { ExportOrderDetailModal, PART_STATUS } from '../components/ExportOrderCard';
+import { TransferDispatchGoods } from '../components/TransferDispatchGoods';
 import { exportStatus, isDispatchInTab, sortExportOrders, type ExportOrderSort } from '../exportList';
 import { type ExportOrder } from '../types';
 import { useAuth } from '@/shared/auth/AuthContext';
@@ -202,6 +203,7 @@ function ExportOrders({ orders, pickingCount, pickingReads, tab }: { orders: Exp
 
 interface TransferDispatchRow {
   id: string;
+  sourceIssueDocumentId: string | null;
   transferCode: string;
   sourceWarehouseId: string;
   destinationWarehouseId: string;
@@ -225,7 +227,7 @@ async function loadTransferDispatches(): Promise<TransferDispatchRow[]> {
         entities {
           warehouseTransfers(first: 100, after: $after, order: [{ requestedAt: DESC }, { id: DESC }]) {
             nodes {
-              id transferCode sourceWarehouseId destinationWarehouseId status version requestedAt
+              id sourceIssueDocumentId transferCode sourceWarehouseId destinationWarehouseId status version requestedAt
               assignedAt dispatchedAt receivedAt driverNameSnapshot plateNumberSnapshot
             }
             pageInfo { hasNextPage endCursor }
@@ -297,7 +299,7 @@ function TransferDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
           { key: 'status', header: 'Trạng thái điều phối', text: row => transferStatusLabel(row.status), render: row => <Chip tone={row.status === 'Rejected' ? 'danger' : row.status === 'Received' ? 'success' : row.status === 'InTransit' ? 'info' : 'warn'}>{transferStatusLabel(row.status)}</Chip> },
           { key: 'time', header: tab === 'history' ? 'Hoàn tất lúc' : 'Điều phối lúc', text: row => formatInstantDateTime(tab === 'history' ? row.receivedAt : row.assignedAt) },
         ]} />
-      {selected && <Modal open title="Chi tiết điều phối luân chuyển" subtitle={selected.transferCode} onClose={close}
+      {selected && <Modal open width={1100} title="Chi tiết điều phối luân chuyển" subtitle={selected.transferCode} onClose={close}
         footer={<><Button onClick={close} disabled={assign.isPending}>Đóng</Button>{selected.status === 'Approved' && mayAssign && <Button variant="primary" loading={assign.isPending} disabled={!driverId || !vehicleId || drivers.isLoading || vehicles.isLoading || drivers.isError || vehicles.isError} onClick={() => setPendingAssignment({
           input: { transferId: selected.id, expectedVersion: selected.version, driverId, vehicleId },
           transferCode: selected.transferCode,
@@ -308,6 +310,7 @@ function TransferDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
           <p><b>Tuyến:</b> {warehouseName(selected.sourceWarehouseId)} → {warehouseName(selected.destinationWarehouseId)}</p>
           <p><b>Trạng thái:</b> {transferStatusLabel(selected.status)}</p>
           <p><b>Thời điểm yêu cầu:</b> {formatInstantDateTime(selected.requestedAt)}</p>
+          <TransferDispatchGoods key={selected.id} issueDocumentId={selected.sourceIssueDocumentId} />
           {selected.status === 'Approved' && mayAssign ? <>
             {(drivers.isError || vehicles.isError) && <Callout tone="danger">Không tải được danh sách xe hoặc tài xế. Vui lòng thử lại.</Callout>}
             {assign.isError && <Callout tone="danger">{errorMessage(assign.error)}</Callout>}

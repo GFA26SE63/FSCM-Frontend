@@ -13,8 +13,8 @@ export function useOrderCartons(orderId: string, enabled = true) {
   });
 }
 
-export function OrderCartonTable({ cartons, productContext = false }: { cartons: OrderCarton[]; productContext?: boolean }) {
-  return <div className="order-carton-table"><SimpleTable rows={cartons} empty="Chưa có thùng trên phiếu xuất kho cho đơn hàng này." columns={[
+export function OrderCartonTable({ cartons, productContext = false, emptyText = 'Chưa có thùng trên phiếu xuất kho cho đơn hàng này.' }: { cartons: OrderCarton[]; productContext?: boolean; emptyText?: string }) {
+  return <div className="order-carton-table"><SimpleTable rows={cartons} empty={emptyText} columns={[
     { header: 'Mã thùng / QR', cell: carton => carton.cartonId },
     ...(!productContext ? [
       { header: 'SKU', cell: (carton: OrderCarton) => carton.sku },
