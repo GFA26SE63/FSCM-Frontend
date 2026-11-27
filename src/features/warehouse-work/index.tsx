@@ -1,3 +1,4 @@
+import { hasOperation, hasScreen } from '@/shared/auth/permissions';
 import { PalletReceiving } from "./PalletReceiving";
 import { PalletCamera } from './PalletCamera';
 import { FactoryPending, type FactoryInboundDispatch } from './FactoryPending';
@@ -194,7 +195,7 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
   const location = useLocation();
   const screen = factoryRequests ? warehouseScreens.factoryRequests : warehouseScreens[workflow];
   const { user } = useAuth();
-  const admin = user?.role === 'Admin';
+  const admin = !hasOperation(user, 'api:WarehouseDocuments.Post');
   const client = useQueryClient();
   const { documentId: selected = '' } = useParams<{ documentId?: string }>();
   const creating = location.pathname.endsWith('/new');
@@ -269,7 +270,7 @@ export function WarehouseOperationsPage({ workflow, factoryRequests = false }: {
   };
   const warehouses = useQuery({ queryKey: ['warehouse-work', 'warehouses'], queryFn: receiptApi.warehouses });
   const requiredPerm = workflow === 'transfer' ? 'warehouse-transfers' : 'warehouse-outbound';
-  const hasWorkflowPerm = admin || (user?.permissions && user.permissions.length > 0 ? user.permissions.includes(requiredPerm) : user?.role === 'WarehouseKeeper');
+  const hasWorkflowPerm = hasScreen(user, requiredPerm);
   const canCreate = hasWorkflowPerm && (workflow === 'outbound' && operationReason === 'Order' || workflow === 'transfer');
   const pickings = useQuery({ queryKey: ['warehouse-work', 'picking', wh], queryFn: () => pickingApi.lists(wh), enabled: canCreate && workflow === 'outbound' && creating && !!wh });
   const batches = useQuery({ queryKey: ['warehouse-work', 'batches', wh], queryFn: () => get<BatchInventoryItem[]>('/inventory', { warehouseId: wh }), enabled: canCreate && creating && !!wh && reason === 'Transfer' });

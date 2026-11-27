@@ -6,7 +6,7 @@ import { AppLayout } from './layout/AppLayout';
 import { LoginPage } from './pages/LoginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { PayOsCallbackPage } from './pages/PayOsCallbackPage';
-import { APP_ROUTES, HOME_BY_ROLE } from './routes';
+import { APP_ROUTES } from './routes';
 
 const Loading = () => (
   <div className="loading">
@@ -18,8 +18,7 @@ function Home() {
   const { user } = useAuth();
   const first = user && APP_ROUTES.find(r => !r.hidden && !r.availableToAllPortalUsers &&
     (user.role === 'Admin' || user.permissions?.includes(r.key)));
-  return <Navigate to={!user ? '/login' : user.permissions === undefined
-    ? (HOME_BY_ROLE[user.role] || '/dashboard') : first ? `/${first.key}` : '/notifications'} replace />;
+  return <Navigate to={!user ? '/login' : first ? `/${first.key}` : '/notifications'} replace />;
 }
 
 /** Route table: /login + the authenticated shell; every screen is wrapped in a role guard (SPEC §10). */

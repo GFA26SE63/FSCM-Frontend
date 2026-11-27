@@ -7,6 +7,7 @@ const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
 
 const mocks = {
+  '@/shared/auth/permissions': { hasOperation: (user, key) => user?.permissions?.includes(key) === true },
   '@/shared/ui': {
     Button: ({ disabled, children }) => React.createElement('button', { disabled }, children),
     Select: ({ options, value, onChange }) => React.createElement('select', { value, onChange }, options.map(item => React.createElement('option', { key: item.value, value: item.value }, item.label))),

@@ -1,3 +1,4 @@
+import { can } from '@/shared/auth/permissions';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { get } from '@/shared/api/http';
@@ -35,7 +36,7 @@ function effectiveOf(cat: Category, byId: Map<string, Category>, systemRatio: nu
  */
 export function CategoryMlorPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'Admin';
+  const isAdmin = can(user, 'mlor.manage');
   const query = useCategories(true);
   const system = useQuery({
     queryKey: ['configurations', 'mlor.default_ratio'],

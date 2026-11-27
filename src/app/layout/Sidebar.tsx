@@ -40,9 +40,7 @@ export function Sidebar() {
         if (r.hidden) return false;
         if (r.availableToAllPortalUsers) return isPortalRole(user.role);
         if (user.role === 'Admin') return true;
-        return user.permissions === undefined
-          ? r.roles.includes(user.role)
-          : user.permissions.includes(r.key);
+        return user.permissions?.includes(r.key) === true;
       })
     : [];
   const groups = buildGroups(items);
@@ -90,7 +88,6 @@ export function Sidebar() {
               {isOpen && (
                 <div className="menu-group-items">
                   {g.items.flatMap((r) => (r.menuLinks ?? [{ key: r.key, label: r.label, to: `/${r.key}`, roles: undefined }])
-                    .filter((link) => !link.roles || user.role === 'Admin' || link.roles.includes(user.role))
                     .map(link => (
                     <NavLink key={link.key} to={link.to}
                       isActive={(match, location) => !!match && (!r.menuLinks ||

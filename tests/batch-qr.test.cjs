@@ -36,7 +36,7 @@ const permissions = source('shared/auth/permissions.ts', {
   '../lib/env': { env: { useMock: false } },
 });
 
-const user = (role) => ({ id: 'user-' + role, role, name: role, email: role + '@example.com' });
+const user = (role) => ({ permissions: require('./authorization-fixtures.cjs').grantsFor(role, permissions), id: 'user-' + role, role, name: role, email: role + '@example.com' });
 
 function statusPanel({ labels, status = 'all', role = 'WarehouseKeeper', query: overrides = {} }) {
   const state = { status, rows: [], tabs: null, requests: [] };

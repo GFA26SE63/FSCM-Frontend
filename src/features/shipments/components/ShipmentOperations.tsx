@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button, Callout, Chip, Input, Select, type Tone } from '@/shared/ui';
 import { formatNumber } from '@/shared/lib';
 import { useAuth } from '@/shared/auth/AuthContext';
+import { hasOperation } from '@/shared/auth/permissions';
 import { useApiMutation } from '@/shared/hooks/useApiMutation';
 import { errorMessage } from '@/shared/api/errors';
 import { shipmentsApi } from '../api';
@@ -20,7 +21,10 @@ const PART_STATUS: Record<ShipmentPartStatus, { tone: Tone; label: string }> = {
 
 export function ShipmentOperations({ orderId, sort }: { orderId: string; sort: ShipmentSort }) {
   const { user } = useAuth();
-  const mayDispatch = user?.role === 'Admin' || user?.role === 'Operator';
+  const mayDispatch = hasOperation(user, 'api:Shipments.Assign');
+  const mayStart = hasOperation(user, 'api:Shipments.Dispatch');
+  const mayIssue = hasOperation(user, 'api:Shipments.ConfirmIssue');
+  const mayResolve = hasOperation(user, 'api:Shipments.ResolveException');
   const shipments = useQuery({
     queryKey: ['shipments', orderId],
     queryFn: () => shipmentsApi.list(orderId),
@@ -52,7 +56,9 @@ export function ShipmentOperations({ orderId, sort }: { orderId: string; sort: S
           key={shipment.id}
           shipment={shipment}
           mayDispatch={mayDispatch}
-          mayStartDelivery={mayDispatch || (user?.role === 'WarehouseKeeper' && !!user.scope?.warehouseIds.includes(shipment.warehouseId))}
+          mayStartDelivery={mayStart}
+          mayResolve={mayResolve}
+          mayIssue={mayIssue}
           drivers={drivers.data ?? []}
           vehicles={vehicles.data ?? []}
           busyDriverIds={busyAssignments.data?.busyDriverIds ?? new Set<string>()}
@@ -71,6 +77,8 @@ export function ShipmentActionRow({
   shipment,
   mayDispatch,
   mayStartDelivery = mayDispatch,
+  mayResolve = mayDispatch,
+  mayIssue = false,
   drivers,
   vehicles,
   assignmentLoaded = true,
@@ -80,6 +88,8 @@ export function ShipmentActionRow({
   shipment: Shipment;
   mayDispatch: boolean;
   mayStartDelivery?: boolean;
+  mayResolve?: boolean;
+  mayIssue?: boolean;
   drivers: DeliveryDriver[];
   vehicles: DeliveryVehicle[];
   assignmentLoaded?: boolean;
@@ -112,7 +122,7 @@ export function ShipmentActionRow({
         {shipment.driverName && <span>{shipment.driverName} · {shipment.plateNumber}</span>}
       </div>
 
-      {shipment.status === 'Ready' && (
+      {mayIssue && shipment.status === 'Ready' && (
         <Button
           size="sm"
           variant="primary"
@@ -124,7 +134,7 @@ export function ShipmentActionRow({
         </Button>
       )}
 
-      {shipment.status === 'Exception' && mayDispatch && <div className="stack" style={{ marginTop: 8 }}>
+      {shipment.status === 'Exception' && mayResolve && <div className="stack" style={{ marginTop: 8 }}>
         {shipment.exceptionReason && <Callout tone="danger">{shipment.exceptionReason}</Callout>}
         <Input aria-label="Kết quả xử lý ngoại lệ" placeholder="Nhập lý do / kết quả xử lý" value={resolutionReason} onChange={e => setResolutionReason(e.target.value)} />
         <Button size="sm" loading={resolve.isPending} disabled={!resolutionReason.trim() || resolutionReason.trim().length > 1000}

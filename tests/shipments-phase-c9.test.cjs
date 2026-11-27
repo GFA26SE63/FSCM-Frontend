@@ -21,8 +21,8 @@ test('warehouse code and order code are one batched request, no per-row calls', 
   assert.ok(gql.includes('warehouses(first: 100, where: { id: { in: $warehouseIds } })'));
   assert.ok(gql.includes('salesOrders(first: 1, where: { id: { eq: $orderId } })'));
 });
-test('list is GraphQL; all shipment writes and driver/vehicle lookups stay REST', () => {
+test('shipment and transport reads use GraphQL while commands stay REST', () => {
   assert.ok(api.includes('list: (orderId: string) => fetchShipmentsForOrder(orderId)'));
   for (const w of ['/issue`', '/assignment`', '/dispatch`', '/exception/resolve`']) assert.ok(api.includes(w), w);
-  assert.ok(api.includes("'/deliveries/drivers'") && api.includes("'/deliveries/vehicles'"));
+  assert.ok(api.includes("transportLookup<DeliveryDriver>('drivers'") && api.includes("transportLookup<DeliveryVehicle>('vehicles'"));
 });

@@ -1,3 +1,4 @@
+import { hasOperation } from '@/shared/auth/permissions';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useHistory } from 'react-router-dom';
@@ -55,7 +56,7 @@ function Qty({ value, tone }: { value: number; tone: string }) {
 export function WarehouseReportPage() {
   const { user } = useAuth();
   const history = useHistory();
-  const canCreateTransfer = user?.role === 'Admin' || user?.role === 'WarehouseKeeper';
+  const canCreateTransfer = hasOperation(user, 'api:WarehouseDocuments.CreateRequest');
 
   const [filters, setFilters] = useState<WarehouseReportFilters>(() => ({
     ...defaultDashboardDates(),

@@ -1,3 +1,4 @@
+import { can } from '@/shared/auth/permissions';
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from '@/shared/router/compat';
 import { useStringParam } from '@/shared/router/listState';
@@ -24,9 +25,8 @@ export function CategoriesPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'Admin';
-  const isOperator = user?.role === 'Operator';
-  const canManage = isAdmin || isOperator;
+  const isAdmin = can(user, 'categories.manage');
+  const canManage = isAdmin;
 
   const query = useCategories(true);
   const updateStatusMutation = useUpdateCategoryStatus();

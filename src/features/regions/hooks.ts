@@ -1,3 +1,4 @@
+import { hasScreen } from '@/shared/auth/permissions';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApiMutation } from '@/shared/hooks';
 import { useAuth } from '@/shared/auth/AuthContext';
@@ -16,11 +17,10 @@ function useTerritoryReader<T>(
   const client = useQueryClient();
   return useQuery({
     queryKey: ['regions', ...key, user?.id, user?.role, user?.scope],
-    enabled: enabled && (user?.role === 'Admin' || user?.role === 'SalesManager'),
+    enabled: enabled && hasScreen(user, 'regions'),
     queryFn: async () => {
       if (!user) throw new ApiError(401, 'Bạn cần đăng nhập.');
-      if (user.role === 'Admin') return adminRead();
-      if (user.role !== 'SalesManager') throw new ApiError(403, 'Không có quyền xem địa bàn.');
+      if (user.role === 'Admin' || user.role === 'Operator') return adminRead();
       const territory = await client.fetchQuery({
         queryKey: ['regions', 'manager-territory', user.id, user.scope],
         queryFn: () => loadManagerTerritory(user),
@@ -49,7 +49,7 @@ export function useManagers(enabled = true) {
   return useQuery({
     queryKey: ['regions', 'managers', user?.id],
     queryFn: regionApi.managers,
-    enabled: enabled && user?.role === 'Admin',
+    enabled: enabled && hasScreen(user, 'users'),
   });
 }
 

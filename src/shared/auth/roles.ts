@@ -14,4 +14,4 @@ export const roleLabel: Record<string, string> = {
 };
 
 export const isPortalRole = (r: string): r is PortalRole =>
-  Boolean(r) && r !== 'Retailer' && r !== 'Sales';
+  Boolean(r);

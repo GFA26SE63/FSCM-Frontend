@@ -1,3 +1,4 @@
+import { hasOperation } from '@/shared/auth/permissions';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Callout, Chip, DataTable, Input, Modal, PageHeader, QueryState, Select, SimpleTable, Stat, Tabs } from '@/shared/ui';
@@ -16,7 +17,7 @@ import { useAuth } from '@/shared/auth/AuthContext';
 
 export function OrderReadinessPage() {
   const { user } = useAuth();
-  const keeper = user?.role === 'WarehouseKeeper';
+  const keeper = !hasOperation(user, 'api:InternalTransfers.List');
   const [transport, setTransport] = useEnumParam('transport', ['delivery', 'transfer'] as const, 'delivery', { resets: ['transportTab'] });
   const [tab, setTab] = useEnumParam('transportTab', ['requests', 'history'] as const, 'requests');
   const operation = keeper || transport === 'delivery' ? 'giao hàng' : 'luân chuyển';
@@ -68,7 +69,7 @@ function ExportOrders({ orders, pickingCount, tab }: { orders: ExportOrder[]; pi
   const [warehouseFilter, setWarehouseFilter] = useState('');
   const [regionFilter, setRegionFilter] = useState('');
   const { data: warehouseList = [] } = useWarehouses();
-  const { data: regionList = [] } = useRegions(true, user?.role !== 'WarehouseKeeper');
+  const { data: regionList = [] } = useRegions(true, hasOperation(user, 'api:Regions.List'));
   // Region names come from the Regions API; the ID is only the filter value.
   const regionNameById = new Map(regionList.map(r => [r.id, r.name]));
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -232,10 +233,12 @@ function transferStatusLabel(status: string) {
 }
 
 function TransferDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
+  const { user } = useAuth();
+  const mayAssign = hasOperation(user, 'api:TransportDispatches.AssignTransfer');
   const client = useQueryClient();
   const transfers = useQuery({ queryKey: ['transport-dispatch', 'transfers'], queryFn: loadTransferDispatches });
-  const drivers = useQuery({ queryKey: ['transport-dispatch', 'drivers'], queryFn: shipmentsApi.drivers });
-  const vehicles = useQuery({ queryKey: ['transport-dispatch', 'vehicles'], queryFn: shipmentsApi.vehicles });
+  const drivers = useQuery({ queryKey: ['transport-dispatch', 'drivers'], queryFn: shipmentsApi.drivers, enabled: mayAssign });
+  const vehicles = useQuery({ queryKey: ['transport-dispatch', 'vehicles'], queryFn: shipmentsApi.vehicles, enabled: mayAssign });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [driverId, setDriverId] = useState('');
   const [vehicleId, setVehicleId] = useState('');
@@ -265,12 +268,12 @@ function TransferDispatchPanel({ tab }: { tab: 'requests' | 'history' }) {
           { key: 'time', header: tab === 'history' ? 'Hoàn tất lúc' : 'Điều phối lúc', text: row => formatInstantDateTime(tab === 'history' ? row.receivedAt : row.assignedAt) },
         ]} />
       {selected && <Modal open title="Chi tiết điều phối luân chuyển" subtitle={selected.transferCode} onClose={close}
-        footer={<><Button onClick={close} disabled={assign.isPending}>Đóng</Button>{selected.status === 'Approved' && <Button variant="primary" loading={assign.isPending} disabled={!driverId || !vehicleId || drivers.isLoading || vehicles.isLoading || drivers.isError || vehicles.isError} onClick={() => assign.mutate({ transferId: selected.id, expectedVersion: selected.version, driverId, vehicleId })}>Gán xe và tài xế</Button>}</>}>
+        footer={<><Button onClick={close} disabled={assign.isPending}>Đóng</Button>{selected.status === 'Approved' && mayAssign && <Button variant="primary" loading={assign.isPending} disabled={!driverId || !vehicleId || drivers.isLoading || vehicles.isLoading || drivers.isError || vehicles.isError} onClick={() => assign.mutate({ transferId: selected.id, expectedVersion: selected.version, driverId, vehicleId })}>Gán xe và tài xế</Button>}</>}>
         <div className="stack">
           <p><b>Tuyến:</b> {warehouseName(selected.sourceWarehouseId)} → {warehouseName(selected.destinationWarehouseId)}</p>
           <p><b>Trạng thái:</b> {transferStatusLabel(selected.status)}</p>
           <p><b>Thời điểm yêu cầu:</b> {formatInstantDateTime(selected.requestedAt)}</p>
-          {selected.status === 'Approved' ? <>
+          {selected.status === 'Approved' && mayAssign ? <>
             {(drivers.isError || vehicles.isError) && <Callout tone="danger">Không tải được danh sách xe hoặc tài xế. Vui lòng thử lại.</Callout>}
             {assign.isError && <Callout tone="danger">{errorMessage(assign.error)}</Callout>}
             <label className="lbl">Tài xế<Select value={driverId} onChange={event => setDriverId(event.target.value)} options={[{ value: '', label: drivers.isLoading ? 'Đang tải tài xế...' : 'Chọn tài xế' }, ...(drivers.data ?? []).filter(item => item.warehouseId === selected.sourceWarehouseId).map(item => ({ value: item.id, label: `${item.code} · ${item.fullName}` }))]} /></label>

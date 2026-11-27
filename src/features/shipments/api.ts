@@ -1,4 +1,4 @@
-import { getAll, patch, post } from '@/shared/api/http';
+import { patch, post } from '@/shared/api/http';
 import { graphql } from '@/shared/api/graphql';
 import { ApiError } from '@/shared/api/errors';
 import { fetchShipmentsForOrder } from './shipmentsGraphql';
@@ -29,6 +29,29 @@ async function exportOrders(orderIds: string[]): Promise<ExportOrder[]> {
   return rows;
 }
 
+/** Scoped transport lookups use the same exact GraphQL capability as the dispatch screen. */
+async function transportLookup<T>(field: 'drivers' | 'vehicles', selection: string): Promise<T[]> {
+  const rows: T[] = [];
+  let after: string | null = null;
+  const seen = new Set<string>();
+  for (;;) {
+    const data: { entities: Record<string, { nodes: T[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } }> } =
+      await graphql(`query TransportLookup($after: String) {
+        entities { ${field}(first: 100, after: $after, where: { isActive: { eq: true } }, order: [{ id: ASC }]) {
+          nodes { ${selection} } pageInfo { hasNextPage endCursor }
+        } }
+      }`, { after });
+    const page = data.entities?.[field];
+    if (!Array.isArray(page?.nodes) || !page.pageInfo) throw new ApiError(502, 'Không tải đầy đủ dữ liệu xe và tài xế.');
+    rows.push(...page.nodes);
+    if (!page.pageInfo.hasNextPage) return rows;
+    const next = page.pageInfo.endCursor;
+    if (!next || seen.has(next)) throw new ApiError(502, 'Phân trang xe và tài xế không hợp lệ.');
+    seen.add(next);
+    after = next;
+  }
+}
+
 export const shipmentsApi = {
   exportOrders,
   /**
@@ -50,8 +73,8 @@ export const shipmentsApi = {
   },
   /** Order-scoped read via GraphQL (see shipmentsGraphql.ts); writes below stay REST. */
   list: (orderId: string) => fetchShipmentsForOrder(orderId),
-  drivers: () => getAll<DeliveryDriver>('/deliveries/drivers', { includeInactive: false }),
-  vehicles: () => getAll<DeliveryVehicle>('/deliveries/vehicles', { includeInactive: false }),
+  drivers: () => transportLookup<DeliveryDriver>('drivers', 'id warehouseId code fullName isActive'),
+  vehicles: () => transportLookup<DeliveryVehicle>('vehicles', 'id warehouseId plateNumber vehicleType capacity isActive'),
   assignTransfer: (input: { transferId: string; driverId: string; vehicleId: string; expectedVersion: number }) =>
     post<void>(`/transport-dispatches/transfers/${input.transferId}/assignment`, {
       driverId: input.driverId, vehicleId: input.vehicleId, expectedVersion: input.expectedVersion,

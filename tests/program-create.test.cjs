@@ -76,6 +76,7 @@ test('create route precedes retailer-code detail and refuses Operator access', (
   assert.equal(routes[0].path, 'new'); assert.equal(routes[1].path, ':code');
   let role = 'Operator';
   const { ProgramCreatePage } = load('features/loyalty/pages/ProgramCreatePage.tsx', {
+    '@/shared/auth/permissions': { hasOperation: (user, key) => user?.role === 'Admin' || user?.permissions?.includes(key) === true, hasScreen: (user, key) => user?.role === 'Admin' || user?.permissions?.includes(key) === true },
     '@/shared/auth/AuthContext': { useAuth: () => ({ user: { role } }) },
     '@/shared/auth/permissions': { can: user => user.role === 'Admin' },
     '@/shared/router/compat': { useNavigate: () => () => {} }, '@/shared/ui': ui,
@@ -90,6 +91,7 @@ test('inline retailer selection persists across pages/search and can filter and 
   let queryOptions; let value = []; let fetching = false; let error; let disabled = false;
   const { ProgramRetailerTable } = load('features/loyalty/components/ProgramRetailerTable.tsx', {
     react, '@/shared/ui': ui,
+    '@/shared/auth/permissions': { hasOperation: (user, key) => user?.role === 'Admin' || user?.permissions?.includes(key) === true, hasScreen: (user, key) => user?.role === 'Admin' || user?.permissions?.includes(key) === true },
     '@/shared/auth/AuthContext': { useAuth: () => ({ user: { id: 'admin', role: 'Admin' } }) },
     '@/shared/lib/status': { statusLabel: (_, value) => value }, '../api': { loyaltyApi: {} },
     '@tanstack/react-query': { useQuery: options => { queryOptions = options; return { data: { items: [], totalCount: 21 }, isFetching: fetching, error }; } },
@@ -136,6 +138,7 @@ test('create page validates audience and dates, preserves payload and stays open
   const id = '11111111-1111-4111-8111-111111111111';
   const { ProgramCreateForm } = load('features/loyalty/components/ProgramCreateForm.tsx', {
     react, '@/shared/ui': ui, '@/shared/api/errors': errors,
+    '@/shared/auth/permissions': { hasOperation: (user, key) => user?.role === 'Admin' || user?.permissions?.includes(key) === true, hasScreen: (user, key) => user?.role === 'Admin' || user?.permissions?.includes(key) === true },
     '@/shared/auth/AuthContext': { useAuth: () => ({ user: { role: 'Admin' } }) },
     '@/shared/auth/permissions': { assertPermission() {} }, '../programForm': form,
     './ProgramRetailerTable': { ProgramRetailerTable: 'Retailers' },

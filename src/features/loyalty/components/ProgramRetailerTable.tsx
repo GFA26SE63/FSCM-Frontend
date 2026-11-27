@@ -1,3 +1,4 @@
+import { hasOperation } from '@/shared/auth/permissions';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/shared/auth/AuthContext';
@@ -25,7 +26,7 @@ export function ProgramRetailerTable({ value, onChange, error, disabled }: {
   const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState('');
   const query = useQuery({ queryKey: ['loyalty', 'program-retailer-page', user?.id, 'Active', page, search, pageSize],
-    queryFn: () => loyaltyApi.programRetailersPage(page, search, pageSize), enabled: user?.role === 'Admin' && !selectedOnly });
+    queryFn: () => loyaltyApi.programRetailersPage(page, search, pageSize), enabled: hasOperation(user, 'api:Loyalty.List') && !selectedOnly });
   const selectionColumns: Column<ProgramRetailerOption>[] = [{
     key: 'select', header: 'Chọn', width: '65px', render: row => <input type="checkbox"
       aria-label={`Chọn ${row.code} · ${row.name}`} checked={value.some(item => item.id === row.id)}
