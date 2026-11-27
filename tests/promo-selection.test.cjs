@@ -63,6 +63,29 @@ test('Apply is unavailable while loading, after a lookup error, or without loade
   }
 });
 
+test('bulk retailer selection includes every page, remains staged, and can be cleared', () => {
+  const react = hooks(); let applied; let cancelled = 0;
+  const { PromoSelectionModal } = load('features/promos/components/PromoSelectionModal.tsx', { react, '@/shared/ui': ui });
+  const props = { title: 'Customers', bulkSelection: true,
+    rows: Array.from({ length: 12 }, (_, i) => ({ id: `r${i}` })), columns: [], selectedIds: ['r0'],
+    rowLabel: r => r.id, onApply: ids => { applied = ids; }, onCancel: () => { cancelled++; } };
+  const render = () => { react.reset(); return PromoSelectionModal(props); };
+  let tree = render();
+  const button = label => nodes(tree, n => n.type === 'Button' && n.props.children === label)[0];
+  button('Chọn tất cả').props.onClick(); tree = render();
+  assert.equal(button('Chọn tất cả').props.disabled, true);
+  assert.equal(applied, undefined);
+  tree.props.onClose();
+  assert.equal(cancelled, 1);
+  assert.deepEqual(props.selectedIds, ['r0']);
+  button('Áp dụng').props.onClick();
+  assert.deepEqual(applied, props.rows.map(r => r.id));
+  button('Bỏ chọn tất cả').props.onClick(); tree = render();
+  button('Áp dụng').props.onClick();
+  assert.deepEqual(applied, []);
+  assert.equal(button('Bỏ chọn tất cả').props.disabled, true);
+});
+
 test('promotion form has two selected tables, preserves SKU rules when adding, and submits applied customers', async () => {
   const react = hooks(); const writes = [];
   const products = ['a', 'b'].map(id => ({ id, sku: 'SKU-' + id, name: 'Sản phẩm ' + id, status: 'Published' }));
