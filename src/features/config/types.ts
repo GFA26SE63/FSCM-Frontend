@@ -5,6 +5,8 @@ export interface SystemSettings {
   orderStepCartons: number;
   defaultMlorRatio: number;
   orderCompletionGraceDays: number;
+  /** Minutes a PayOS payment link stays open; 0 = no deadline. */
+  payOsLinkLifetimeMinutes: number;
   /** Shows the demo "Quét nhanh" button on the mobile receiving screens. */
   demoFastScanEnabled: boolean;
 }
