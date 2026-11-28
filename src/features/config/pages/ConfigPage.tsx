@@ -39,7 +39,7 @@ export function SettingsForm({ settings }: { settings: SystemSettings }) {
         <input type="checkbox" checked={demoFastScan} onChange={e => setDemoFastScan(e.target.checked)} />
         Hiện nút "Quét nhanh" (demo) trên ứng dụng di động
       </label>
-      {demoFastScan && <Callout tone="danger">Khi bật, ứng dụng nhận sẵn danh sách mã thùng của phiếu nhập kho và lô hàng đang giao, nên việc quét không còn chứng minh hàng thực tế. Chỉ bật khi demo và tắt ngay sau đó.</Callout>}
+      {demoFastScan && <Callout tone="danger">Khi bật, ứng dụng nhận sẵn danh sách mã thùng của phiếu nhập, phiếu xuất kho và lô hàng đang giao, nên việc quét không còn chứng minh hàng thực tế. Chỉ bật khi demo và tắt ngay sau đó.</Callout>}
       {!valid && <Callout tone="danger">Trọng số phải không âm và có tổng bằng 1; bán kính và bước thùng phải dương; yêu cầu HSD tối thiểu phải nằm giữa 0 và 100%; số ngày chờ hoàn tất từ 0 đến 365.</Callout>}
       <Button variant="primary" style={{ marginTop: 16 }} disabled={!valid} loading={save.isPending} onClick={() => { if (!valid || save.isPending) return; save.mutate({ settings: {
         allocation: { wE: Number(weights.wE), wD: Number(weights.wD), wQ: Number(weights.wQ) },
