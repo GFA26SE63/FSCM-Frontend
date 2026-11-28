@@ -92,12 +92,12 @@ test('overview offers three report links and highlights only the selected report
     '../routes': routes,
   });
   for (role of ['Admin', 'Operator']) {
-    for (const kind of ['redemptions', 'loyalty', 'promotions']) {
+    for (const kind of ['financial', 'receivables', 'promotions', 'loyalty', 'claims', 'fulfillment', 'inventory-risk']) {
       const html = renderToStaticMarkup(React.createElement(MemoryRouter, {
         initialEntries: [`/reports?kind=${kind}`],
       }, React.createElement(Sidebar)));
       assert.match(html, /Tổng quan<\/span>/);
-      for (const report of ['redemptions', 'loyalty', 'promotions'])
+      for (const report of ['financial', 'receivables', 'promotions', 'loyalty', 'claims', 'fulfillment', 'inventory-risk'])
         assert.ok(html.includes(`href="/reports?kind=${report}"`));
       assert.equal((html.match(/class="menu menu-sub active(?: active)?"/g) ?? []).length, 1);
       assert.match(html, new RegExp(`class="menu menu-sub active(?: active)?"[^>]*href="/reports\\?kind=${kind}"`));
@@ -108,10 +108,11 @@ test('overview offers three report links and highlights only the selected report
     const html = renderToStaticMarkup(React.createElement(MemoryRouter, {
       initialEntries: ['/reports'],
     }, React.createElement(Sidebar)));
-    for (const report of ['redemptions', 'loyalty', 'promotions']) {
-      assert.equal(html.includes(`href="/reports?kind=${report}"`), true);
+    for (const report of ['financial', 'receivables', 'promotions', 'loyalty', 'claims']) {
+      assert.equal(html.includes(`href="/reports?kind=${report}"`), role === 'SalesManager');
     }
-    assert.equal(html.includes('href="/reports?kind=disposals"'), true);
+    assert.equal(html.includes('href="/reports?kind=fulfillment"'), true);
+    assert.equal(html.includes('href="/reports?kind=inventory-risk"'), role === 'WarehouseKeeper');
   }
 });
 

@@ -23,10 +23,27 @@ export function ProductRankingTable({
     { key: 'sku', header: 'SKU', width: '120px' },
     { key: 'productName', header: 'Sản phẩm' },
     {
+      key: 'categoryName',
+      header: 'Ngành hàng',
+      text: (row) => row.categoryName || '—',
+    },
+    {
+      key: 'orderCount',
+      header: 'Số đơn',
+      align: 'right',
+      text: (row) => (row.orderCount != null && row.orderCount > 0 ? formatNumber(row.orderCount) : '—'),
+    },
+    {
       key: 'normalizedSoldQuantity',
       header: `Số lượng (${quantityUnitText(quantityUnit)})`,
       align: 'right',
       text: (row) => formatNumber(row.normalizedSoldQuantity, 3),
+    },
+    {
+      key: 'grossRevenue',
+      header: 'Trước giảm',
+      align: 'right',
+      text: (row) => (row.grossRevenue != null && row.grossRevenue > 0 ? formatMoney(row.grossRevenue) : '—'),
     },
     {
       key: 'adjustedNetRevenue',

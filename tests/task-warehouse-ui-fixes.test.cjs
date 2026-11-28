@@ -86,11 +86,10 @@ test('transfer dispatch assignment sends driver, vehicle and optimistic version'
   assert.ok(page.includes('Gán xe và tài xế'));
 });
 
-test('loyalty report has a totals row for "Biến động điểm" (received / used over the whole filter)', () => {
-  const page = read('features/reports/OperationsReportsPage.tsx');
-  assert.ok(page.includes("footer={kind === 'loyalty' && data.pointsTotal ? loyaltyFooter(tableCols, data.pointsTotal) : undefined}"));
-  assert.ok(page.includes("'Tổng (toàn bộ bộ lọc)'"));
-  assert.ok(page.includes('Nhận +{formatNumber(total.received)} · Dùng −{formatNumber(total.used)}'));
+test('loyalty report displays period net point flow (received / used) and card points balance', () => {
+  const page = read('features/reports/LoyaltyReportView.tsx');
+  assert.ok(page.includes('Biến động điểm trong kỳ'));
+  assert.ok(page.includes('Tăng +${formatNumber(s.periodEarnedPoints)} · Giảm −${formatNumber(s.periodUsedPoints)}'));
   const table = read('shared/ui/SimpleTable.tsx');
   assert.ok(table.includes('<tr className="tbl-total">'));
 });

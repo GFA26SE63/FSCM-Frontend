@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { useNavigate } from '@/shared/router/compat';
+import { downloadExcel } from '@/shared/lib/excel';
 import {
   Button,
   Callout,
@@ -67,12 +68,86 @@ function RankingPageContent() {
   const activeQuery = tab === 'kpi' ? kpi : tab === 'sales' ? sales : products;
   const canConfig = canManageKpi(user);
 
+  async function handleExportExcel() {
+    if (tab === 'kpi' && kpi.data) {
+      await downloadExcel(`bao-cao-kpi-${filters.fromDate}-${filters.toDate}.xlsx`, [{
+        name: 'KPI Bán hàng',
+        title: 'Báo cáo chỉ tiêu KPI bán hàng',
+        info: [`Kỳ: ${filters.fromDate} – ${filters.toDate}`, `Phạm vi: ${kpi.data.scope}`],
+        blocks: [{
+          columns: [
+            { header: 'Nhân viên', width: 24 },
+            { header: 'Mã nhóm', width: 14 },
+            { header: 'Nhóm bán hàng', width: 24 },
+            { header: 'Số đơn', numeric: true },
+            { header: 'Doanh thu ghi nhận (đ)', numeric: true, width: 20 },
+            { header: 'Hoàn thành KPI (%)', numeric: true, width: 16 },
+          ],
+          rows: kpi.data.entries.map((e) => [
+            e.salesUserName,
+            e.salesGroupCode,
+            e.salesGroupName,
+            e.orders?.length ?? 0,
+            e.recognizedRevenue,
+            Math.round(e.overallCompletionRate * 10000) / 100,
+          ]),
+        }],
+      }]);
+    } else if (tab === 'sales' && sales.data) {
+      await downloadExcel(`xep-hang-sales-${filters.fromDate}-${filters.toDate}.xlsx`, [{
+        name: 'Xếp hạng Sales',
+        title: 'Xếp hạng nhân viên bán hàng',
+        info: [`Kỳ: ${filters.fromDate} – ${filters.toDate}`, `Phạm vi: ${sales.data.scope}`],
+        blocks: [{
+          columns: [
+            { header: 'Hạng', numeric: true, width: 8 },
+            { header: 'Nhân viên', width: 24 },
+            { header: 'Nhóm', width: 24 },
+            { header: 'Số đơn', numeric: true },
+            { header: 'Doanh thu ghi nhận (đ)', numeric: true, width: 20 },
+          ],
+          rows: sales.data.entries.map((e) => [
+            e.rank, e.salesUserName, `${e.salesGroupCode} · ${e.salesGroupName}`, e.orderCount, e.recognizedRevenue,
+          ]),
+        }],
+      }]);
+    } else if (tab === 'products' && products.data) {
+      await downloadExcel(`san-pham-ban-chay-${filters.fromDate}-${filters.toDate}.xlsx`, [{
+        name: 'Sản phẩm bán chạy',
+        title: 'Xếp hạng sản phẩm bán chạy',
+        info: [`Kỳ: ${filters.fromDate} – ${filters.toDate}`, `Tiêu chí: ${products.data.criterion}`],
+        blocks: [{
+          columns: [
+            { header: 'Hạng', numeric: true, width: 8 },
+            { header: 'SKU', width: 16 },
+            { header: 'Sản phẩm', width: 32 },
+            { header: 'Ngành hàng', width: 20 },
+            { header: 'Số đơn', numeric: true },
+            { header: 'Số lượng (thùng)', numeric: true },
+            { header: 'Trước giảm (đ)', numeric: true, width: 18 },
+            { header: 'Doanh thu thuần (đ)', numeric: true, width: 20 },
+          ],
+          rows: products.data.entries.map((e) => [
+            e.rank, e.sku, e.productName, e.categoryName ?? '', e.orderCount ?? 0,
+            e.normalizedSoldQuantity, e.grossRevenue ?? 0, e.adjustedNetRevenue,
+          ]),
+        }],
+      }]);
+    }
+  }
+
   return (
     <>
       <PageHeader
         title="Quản lý KPI & Xếp hạng kinh doanh"
         actions={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Button
+              disabled={Boolean(validationError) || !activeQuery.data || activeQuery.isFetching}
+              onClick={() => void handleExportExcel()}
+            >
+              Xuất Excel
+            </Button>
             {canConfig && (
               <Button
                 onClick={() => setConfigOpen(true)}
