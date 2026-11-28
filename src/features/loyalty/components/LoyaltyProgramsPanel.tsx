@@ -5,7 +5,7 @@ import { useNavigate } from '@/shared/router/compat';
 import { can } from '@/shared/auth/permissions';
 import { errorMessage } from '@/shared/api/errors';
 import { ActionDropdown, Button, Card, Chip, DataTable, Fields, Modal, type Column } from '@/shared/ui';
-import { formatInstantDateTime, formatMoney, formatNumber } from '@/shared/lib';
+import { formatInstantDateTime, formatMoney } from '@/shared/lib';
 import { usePrograms, useProgramRetailers, useSetProgramActive } from '../hooks';
 import { programStatus } from '../programForm';
 import type { LoyaltyProgram } from '../types';
@@ -60,7 +60,6 @@ export function LoyaltyProgramsPanel() {
       <Card><Fields cols={2} items={[
         { label: 'Trạng thái', value: programStatus(detail, now) },
         { label: 'Quy đổi', value: `${formatMoney(detail.spendAmountPerPoint)} = 1 điểm` },
-        { label: 'Điểm tối thiểu đổi quà', value: formatNumber(detail.minimumRedeemPoints) },
         { label: 'Hiệu lực từ (VN)', value: formatInstantDateTime(detail.startAt) },
         { label: 'Hiệu lực đến (VN)', value: formatInstantDateTime(detail.endAt) },
         { label: 'Hạn điểm', value: 'Không hết hạn' },
