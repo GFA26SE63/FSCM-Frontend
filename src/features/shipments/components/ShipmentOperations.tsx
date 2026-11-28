@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Callout, Chip, Input, Select, type Tone } from '@/shared/ui';
+import { Button, Callout, Chip, ConfirmDialog, Select, type Tone } from '@/shared/ui';
 import { formatNumber } from '@/shared/lib';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { hasOperation } from '@/shared/auth/permissions';
@@ -24,7 +24,6 @@ export function ShipmentOperations({ orderId, sort, warehouseId }: { orderId: st
   const mayDispatch = hasOperation(user, 'api:Shipments.Assign');
   const mayStart = hasOperation(user, 'api:Shipments.Dispatch');
   const mayIssue = hasOperation(user, 'api:Shipments.ConfirmIssue');
-  const mayResolve = hasOperation(user, 'api:Shipments.ResolveException');
   const shipments = useQuery({
     queryKey: ['shipments', orderId],
     queryFn: () => shipmentsApi.list(orderId),
@@ -58,7 +57,6 @@ export function ShipmentOperations({ orderId, sort, warehouseId }: { orderId: st
           shipment={shipment}
           mayDispatch={mayDispatch}
           mayStartDelivery={mayStart}
-          mayResolve={mayResolve}
           mayIssue={mayIssue}
           drivers={drivers.data ?? []}
           vehicles={vehicles.data ?? []}
@@ -78,7 +76,6 @@ export function ShipmentActionRow({
   shipment,
   mayDispatch,
   mayStartDelivery = mayDispatch,
-  mayResolve = mayDispatch,
   mayIssue = false,
   drivers,
   vehicles,
@@ -89,7 +86,6 @@ export function ShipmentActionRow({
   shipment: Shipment;
   mayDispatch: boolean;
   mayStartDelivery?: boolean;
-  mayResolve?: boolean;
   mayIssue?: boolean;
   drivers: DeliveryDriver[];
   vehicles: DeliveryVehicle[];
@@ -101,8 +97,9 @@ export function ShipmentActionRow({
   const warehouseVehicles = vehicles.filter((item) => item.isActive && item.warehouseId === shipment.warehouseId && item.capacity >= shipment.totalQuantity && !busyVehicleIds.has(item.id));
   const [driverId, setDriverId] = useState<string | null>(null);
   const [vehicleId, setVehicleId] = useState<string | null>(null);
-  const [resolutionReason, setResolutionReason] = useState('');
-  const resolve = useApiMutation(shipmentsApi.resolveException, { success: 'Đã xử lý ngoại lệ và cập nhật trạng thái đơn.', onSuccess: () => setResolutionReason('') });
+  const [pendingAssignment, setPendingAssignment] = useState<{
+    shipment: Shipment; driver: DeliveryDriver; vehicle: DeliveryVehicle;
+  } | null>(null);
   const selectedDriver = driverId === null
     ? warehouseDrivers.find(item => item.id === shipment.driverId) ?? warehouseDrivers[0]
     : warehouseDrivers.find(item => item.id === driverId);
@@ -138,12 +135,6 @@ export function ShipmentActionRow({
         </Button>
       )}
 
-      {shipment.status === 'Exception' && mayResolve && <div className="stack" style={{ marginTop: 8 }}>
-        {shipment.exceptionReason && <Callout tone="danger">{shipment.exceptionReason}</Callout>}
-        <Input aria-label="Kết quả xử lý ngoại lệ" placeholder="Nhập lý do / kết quả xử lý" value={resolutionReason} onChange={e => setResolutionReason(e.target.value)} />
-        <Button size="sm" loading={resolve.isPending} disabled={!resolutionReason.trim() || resolutionReason.trim().length > 1000}
-          onClick={() => resolve.mutate({ shipment, reason: resolutionReason })}>Hoàn tất xử lý ngoại lệ</Button>
-      </div>}
 
       {shipment.status === 'Issued' && mayDispatch && (
         <div className="row-wrap" style={{ gap: 8, marginTop: 8 }}>
@@ -168,7 +159,7 @@ export function ShipmentActionRow({
             loading={assign.isPending}
             disabled={!assignmentLoaded || !selectedDriver || !selectedVehicle || dispatch.isPending}
             onClick={() => {
-              if (selectedDriver && selectedVehicle) assign.mutate({ shipment, driverId: selectedDriver.id, vehicleId: selectedVehicle.id });
+              if (selectedDriver && selectedVehicle) setPendingAssignment({ shipment, driver: selectedDriver, vehicle: selectedVehicle });
             }}
           >
             {shipment.driverId && shipment.vehicleId ? 'Cập nhật xe & tài xế' : 'Gán xe & tài xế'}
@@ -176,6 +167,30 @@ export function ShipmentActionRow({
           {assignmentLoaded && warehouseVehicles.length === 0 && <span className="muted small">Kho chưa có xe đang hoạt động đủ tải cho {formatNumber(shipment.totalQuantity)} thùng.</span>}
         </div>
       )}
+
+      {pendingAssignment && <ConfirmDialog
+        open
+        title="Xác nhận gán xe và tài xế"
+        confirmLabel="Xác nhận gán"
+        onClose={() => setPendingAssignment(null)}
+        onConfirm={async () => {
+          try {
+            await assign.mutateAsync({ shipment: pendingAssignment.shipment, driverId: pendingAssignment.driver.id, vehicleId: pendingAssignment.vehicle.id });
+            setPendingAssignment(null);
+          } catch { /* The mutation displays the server error; keep the selection for review. */ }
+        }}
+        message={<div className="stack">
+          <p>Vui lòng kiểm tra thông tin điều phối trước khi xác nhận.</p>
+          <dl className="table-detail-fields">
+            <div><dt>Phiếu giao hàng</dt><dd>{pendingAssignment.shipment.shipmentCode}</dd></div>
+            <div><dt>Kho xuất</dt><dd>{pendingAssignment.shipment.warehouseCode}</dd></div>
+            <div><dt>Tài xế</dt><dd>{pendingAssignment.driver.code} · {pendingAssignment.driver.fullName}</dd></div>
+            <div><dt>Xe</dt><dd>{pendingAssignment.vehicle.plateNumber} · {formatNumber(pendingAssignment.vehicle.capacity)} thùng</dd></div>
+            <div><dt>Số lượng giao</dt><dd>{formatNumber(pendingAssignment.shipment.totalQuantity)} thùng</dd></div>
+          </dl>
+          {mayStartDelivery && <p className="muted small">Sau khi gán thành công, phiếu giao hàng sẽ bắt đầu giao.</p>}
+        </div>}
+      />}
 
       {shipment.status === 'Issued' && mayStartDelivery && shipment.driverId && shipment.vehicleId && (
         <Button

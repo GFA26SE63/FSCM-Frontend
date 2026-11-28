@@ -1,4 +1,3 @@
-/* Filters and the refresh button share one row; the button sits on the inputs' baseline. */
 .report-filters {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
@@ -9,7 +8,6 @@
 .report-filters > .btn {
   justify-self: start;
 }
-/* Summary tiles stretch across the full width (columns set inline), all the same height. */
 .report-summary {
   display: grid;
   grid-auto-rows: 1fr;
@@ -25,7 +23,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
-/* List cells stay on one line; long names are cut with an ellipsis (full text in the detail popup). */
 .report-table td, .report-table th {
   white-space: nowrap;
 }
@@ -41,4 +38,41 @@
 .report-table td:last-child {
   max-width: none;
   overflow: visible;
+}
+.report-tabs-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.report-bucket-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.report-bucket-card {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--c-border, #e2e8f0);
+  background: var(--c-surface, #fff);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+}
+.report-bucket-card.active {
+  border-color: var(--c-primary, #14655b);
+  box-shadow: 0 0 0 2px rgba(20, 101, 91, .14);
+}
+.report-notes {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--bg-subtle, #f8fafc);
+  color: var(--c-muted, #475569);
+  font-size: 12.5px;
+}
+.report-notes ul {
+  margin: 4px 0 0 18px;
+  padding: 0;
 }

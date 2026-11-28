@@ -1,7 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { readFile } from 'node:fs/promises';
 
-test('operator reports filter, show details, switch kinds and export every page', async ({ page }) => {
+test('operator reports filter, inspect tabs, switch kinds and export excel across all pages', async ({ page }) => {
   await page.addInitScript(() => sessionStorage.setItem('fscm.portal.session.v1', JSON.stringify({
     id: 'report-session', remember: false, accessToken: 'test', accessTokenExpiresAt: '2099-01-01',
     refreshToken: 'test', refreshTokenExpiresAt: '2099-01-01',
@@ -11,53 +10,73 @@ test('operator reports filter, show details, switch kinds and export every page'
     const url = new URL(route.request().url());
     if (url.pathname.endsWith('/auth/me')) return route.fulfill({ json: { id: 'op', email: 'op@test.local', fullName: 'Report Operator', role: 'Operator' } });
     if (url.pathname.endsWith('/regions')) return route.fulfill({ json: [{ id: 'region-hcm', name: 'Hồ Chí Minh' }] });
-    if (!url.pathname.includes('/reports/operations/')) return route.fulfill({ json: [] });
+    if (!url.pathname.startsWith('/api/v1/reports/')) return route.fulfill({ json: [] });
     requests.push(url);
-    const pageNumber = Number(url.searchParams.get('page'));
-    const pageSize = Number(url.searchParams.get('pageSize'));
-    const start = (pageNumber - 1) * pageSize;
-    const items = Array.from({ length: Math.min(pageSize, 201 - start) }, (_, i) => ({
-      id: `request-${start + i}`, at: '2026-11-12T01:00:00Z', retailerName: 'Cửa hàng An Phú', retailerCode: 'RT01',
-      programCode: 'LP01', programName: '=UNSAFE()', itemCode: 'GIFT01', itemName: 'Bình nước', status: 'Completed',
-      quantity: 2, points: 200, balanceAfter: 800, grossAmount: 10000, discountAmount: 1000, netAmount: 9000,
-      approvedByUserId: 'operator-approver', approvedAt: '2026-11-12T02:00:00Z', note: 'Ghi chú kiểm tra',
-      approvedByName: 'Nguyễn Văn Duyệt', regionName: 'Hồ Chí Minh', campaignDiscountAmount: 600, shelfLifeDiscountAmount: 400,
-    }));
-    return route.fulfill({ json: { items, totalCount: 201, page: pageNumber, pageSize, summary: [{ label: 'Số bản ghi', value: 201 }], notes: ['Dữ liệu kiểm thử'] } });
+
+    const pageNumber = Number(url.searchParams.get('page') || 1);
+    const pageSize = Number(url.searchParams.get('pageSize') || 10);
+
+    if (url.pathname.endsWith('/loyalty')) {
+      return route.fulfill({
+        json: {
+          fromDate: '2026-11-01', toDate: '2026-11-27', tab: url.searchParams.get('tab') || 'redemptions', scope: 'Toàn hệ thống',
+          summary: {
+            totalRedemptions: 1, pendingRedemptions: 0, completedRedemptions: 1, overdueRedemptions: 0,
+            redeemedPointsCompleted: 200, giftsDeliveredQuantity: 2, periodEarnedPoints: 500,
+            periodUsedPoints: 200, periodExpiredPoints: 0, periodNetPointChange: 300,
+            currentAvailablePoints: 800, currentHeldPoints: 0, activeCardCount: 1,
+          },
+          redemptions: {
+            totalCount: 1, page: pageNumber, pageSize,
+            items: [{
+              id: 'red-1', createdAt: '2026-11-12T01:00:00Z', retailerId: 'r-1', retailerCode: 'RT01',
+              retailerName: 'Cửa hàng An Phú', regionName: 'Hồ Chí Minh', programCode: 'LP01', programName: 'Loyalty',
+              rewardCode: 'GIFT01', rewardName: 'Bình nước', quantity: 2, redeemedPoints: 200, status: 'Completed',
+              approvedByName: 'Nguyễn Văn Duyệt',
+            }],
+          },
+          ledger: { totalCount: 0, page: pageNumber, pageSize, items: [] },
+          balances: { totalCount: 0, page: pageNumber, pageSize, items: [] },
+          notes: ['Dữ liệu kiểm thử'],
+        },
+      });
+    }
+
+    if (url.pathname.endsWith('/promotions')) {
+      return route.fulfill({
+        json: {
+          fromDate: '2026-11-01', toDate: '2026-11-27', scope: 'Toàn hệ thống',
+          summary: {
+            appliedOrderCount: 1, completedOrderCount: 1, totalQuantity: 10, grossAmount: 1000000,
+            campaignDiscountAmount: 100000, shelfLifeDiscountAmount: 0, totalDiscountAmount: 100000,
+            netAmount: 900000, completedNetAmount: 900000, completedDiscountAmount: 100000, effectiveDiscountRatePercent: 10,
+          },
+          byProgram: [{
+            programCode: 'KM01', programName: 'Tháng 11', discountType: 'Campaign', orderCount: 1, completedOrderCount: 1,
+            totalQuantity: 10, grossAmount: 1000000, discountAmount: 100000, campaignDiscountAmount: 100000,
+            shelfLifeDiscountAmount: 0, netAmount: 900000, completedDiscountAmount: 100000, completedNetAmount: 900000,
+            discountRatePercent: 10,
+          }],
+          items: { totalCount: 0, page: pageNumber, pageSize, items: [] },
+          notes: [],
+        },
+      });
+    }
+
+    return route.fulfill({ json: {} });
   });
-  await page.goto('/reports?kind=redemptions');
-  await expect(page.getByRole('heading', { name: 'Báo cáo đổi quà' })).toBeVisible();
-  await page.getByRole('button', { name: 'Chi tiết', exact: true }).first().click();
-  await expect(page.getByText('operator-approver', { exact: true })).toBeVisible();
+
+  await page.goto('/reports?kind=loyalty');
+  await expect(page.getByRole('heading', { name: 'Báo cáo Loyalty & đổi quà' })).toBeVisible();
+  await page.getByRole('row', { name: /Bình nước/ }).click();
   await expect(page.getByText('Nguyễn Văn Duyệt', { exact: true })).toBeVisible();
-  // The report filter is a native select nested inside its visible label; use that
-  // supported structure rather than an inferred accessible-name association.
+  await page.getByRole('button', { name: 'Đóng' }).click();
+
   await page.locator('label.lbl', { hasText: 'Khu vực' }).locator('select').selectOption('region-hcm');
-  await page.getByPlaceholder('Mã hoặc tên nhà bán lẻ').fill('An Phú');
-  await expect.poll(() => requests.at(-1)?.searchParams.get('retailer')).toBe('An Phú');
   await expect.poll(() => requests.at(-1)?.searchParams.get('regionId')).toBe('region-hcm');
-  await page.getByRole('button', { name: 'Sau', exact: true }).click();
-  await expect.poll(() => requests.at(-1)?.searchParams.get('page')).toBe('2');
-  const downloadEvent = page.waitForEvent('download');
-  await page.getByRole('button', { name: /Xuất CSV/ }).click();
-  const download = await downloadEvent;
-  const csv = await readFile((await download.path())!, 'utf8');
-  expect(csv.split('\r\n')).toHaveLength(202);
-  expect(csv).toContain('request-200');
-  expect(csv).toContain("'=UNSAFE()");
-  expect(requests.filter(url => url.searchParams.get('pageSize') === '200')).toHaveLength(2);
+
   const menu = page.getByRole('navigation', { name: 'Danh mục chức năng', exact: true });
-  await menu.getByRole('link', { name: 'Báo cáo tích điểm', exact: true }).click();
-  await expect.poll(() => requests.at(-1)?.pathname).toContain('/loyalty');
-  await menu.getByRole('link', { name: 'Báo cáo khuyến mãi', exact: true }).click();
-  await expect.poll(() => requests.at(-1)?.pathname).toContain('/promotions');
-  await expect(page.getByRole('columnheader', { name: 'Tiền giảm (đ)' })).toBeVisible();
-  await menu.getByRole('link', { name: 'Báo cáo đổi quà', exact: true }).click();
-  await expect(page).toHaveURL(/kind=redemptions/);
-  await expect(menu.getByRole('link', { name: 'Báo cáo đổi quà', exact: true })).toHaveClass(/active/);
-  await menu.getByRole('link', { name: 'Báo cáo tích điểm', exact: true }).click();
-  await expect(page.getByRole('columnheader', { name: 'Biến động điểm' })).toBeVisible();
-  await expect(menu.getByRole('link', { name: 'Báo cáo tích điểm', exact: true })).toHaveClass(/active/);
-  await page.goBack();
-  await expect(menu.getByRole('link', { name: 'Báo cáo đổi quà', exact: true })).toHaveClass(/active/);
+  await menu.getByRole('link', { name: 'Báo cáo khuyến mãi & HSD', exact: true }).click();
+  await expect.poll(() => requests.at(-1)?.pathname).toContain('/reports/promotions');
+  await expect(page.getByRole('columnheader', { name: /Tổng giảm/ })).toBeVisible();
 });

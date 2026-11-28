@@ -77,15 +77,17 @@ export const APP_ROUTES: AppRoute[] = [
   { key: 'warehouse-work', label: 'Chứng từ kho', roles: [A, WK], hidden: true, list: page(() => import('@/features/warehouse-work'), 'WarehouseWorkPage') },
   { key: 'dashboard', label: 'Tổng quan & báo cáo', roles: [A, OP, WK, SM], list: page(dashboard, 'DashboardPage') },
   { key: 'notifications', label: 'Thông báo', roles: [A, OP, WK, SM], availableToAllPortalUsers: true, list: page(notifications, 'NotificationsPage') },
-  { key: 'reports', label: 'Báo cáo nghiệp vụ', roles: [A, OP, SM, WK], list: page(reports, 'OperationsReportsPage'), menuLinks: [
-    { key: 'report-redemptions', label: 'Báo cáo đổi quà', to: '/reports?kind=redemptions', roles: [A, OP, SM] },
-    { key: 'report-loyalty', label: 'Báo cáo tích điểm', to: '/reports?kind=loyalty', roles: [A, OP, SM] },
-    { key: 'report-promotions', label: 'Báo cáo khuyến mãi', to: '/reports?kind=promotions', roles: [A, OP, SM] },
-    { key: 'report-claims', label: 'Báo cáo khiếu nại & hoàn tiền', to: '/reports?kind=claims', roles: [A, OP, SM] },
-    { key: 'report-receivables', label: 'Báo cáo công nợ & tuổi nợ', to: '/reports?kind=receivables', roles: [A, OP, SM] },
-    { key: 'report-disposals', label: 'Báo cáo hủy hàng & tổn thất', to: '/reports?kind=disposals', roles: [A, OP, WK] },
-    { key: 'report-financial', label: 'Báo cáo tài chính', to: '/reports?kind=financial' },
-  ] },
+  {
+    key: 'reports', label: 'Báo cáo nghiệp vụ & tài chính', roles: [A, OP, SM, WK], list: page(reports, 'OperationsReportsPage'), menuLinks: [
+      { key: 'report-financial', label: 'Báo cáo tài chính & dòng tiền', to: '/reports?kind=financial', roles: [A, OP, SM] },
+      { key: 'report-receivables', label: 'Báo cáo công nợ & tuổi nợ', to: '/reports?kind=receivables', roles: [A, OP, SM] },
+      { key: 'report-promotions', label: 'Báo cáo khuyến mãi & HSD', to: '/reports?kind=promotions', roles: [A, OP, SM] },
+      { key: 'report-loyalty', label: 'Báo cáo Loyalty & đổi quà', to: '/reports?kind=loyalty', roles: [A, OP, SM] },
+      { key: 'report-claims', label: 'Báo cáo khiếu nại & hoàn tiền', to: '/reports?kind=claims', roles: [A, OP, SM] },
+      { key: 'report-fulfillment', label: 'Báo cáo giao nhận & SLA', to: '/reports?kind=fulfillment', roles: [A, OP, WK, SM] },
+      { key: 'report-inventory-risk', label: 'Báo cáo rủi ro tồn kho & hủy hàng', to: '/reports?kind=inventory-risk', roles: [A, OP, WK] },
+    ]
+  },
   { key: 'warehouse-report', label: 'Báo cáo kho vận', roles: [A, OP, WK], list: page(warehouseReport, 'WarehouseReportPage') },
   { key: 'orders', label: 'Đơn hàng', roles: [A, OP], badge: 'orders', list: page(orders, 'OrdersPage'), sub: [{ path: ':orderId', element: page(orders, 'OrderDetailPage') }] },
   { key: 'allocation', label: 'Phân bổ theo thời gian thực', roles: [A, OP], list: page(allocation, 'AllocationRunPage') },

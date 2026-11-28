@@ -11,7 +11,8 @@ export const configApi = {
       dmaxRetailerKm: Number(values.get('allocation.service_radius_meters')) / 1000,
       orderStepCartons: Number(values.get('order.order_step_cartons') ?? 1),
       defaultMlorRatio: Number(values.get('mlor.default_ratio') ?? 0.25),
-      orderCompletionGraceDays: Number(values.get('order.completion_grace_days') ?? 0) };
+      orderCompletionGraceDays: Number(values.get('order.completion_grace_days') ?? 0),
+      demoFastScanEnabled: values.get('demo.fast_scan_enabled') === true };
   },
   saveSettings: async (s: SystemSettings) => {
     const entries = [
@@ -19,6 +20,7 @@ export const configApi = {
       ['allocation.service_radius_meters', Math.round(s.dmaxRetailerKm * 1000)],
       ['order.order_step_cartons', s.orderStepCartons], ['mlor.default_ratio', s.defaultMlorRatio],
       ['order.completion_grace_days', s.orderCompletionGraceDays],
+      ['demo.fast_scan_enabled', s.demoFastScanEnabled],
     ] as const;
     await put('/configurations/batch', { entries: entries.map(([key, value]) => ({ key, value })) });
     return s;

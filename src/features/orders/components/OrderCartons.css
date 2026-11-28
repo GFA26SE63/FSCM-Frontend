@@ -1,0 +1,9 @@
+.order-carton-table { min-width: 0; }
+.order-carton-groups { border: 1px solid var(--c-border, #dce5df); border-radius: 8px; overflow: hidden; }
+.order-carton-table .tbl-wrap { overflow-x: auto; border: 1px solid var(--c-border, #dce5df); border-radius: 8px; background: #fff; }
+.order-carton-table .tbl { table-layout: auto; min-width: 660px; width: 100%; }
+.order-carton-table .tbl th, .order-carton-table .tbl td { word-break: normal; overflow-wrap: normal; padding: 12px 16px; text-align: left; }
+.order-carton-table .tbl th { background: #f1f5f3; font-size: 12px; white-space: nowrap; }
+.order-carton-table .tbl td { font-size: 13px; line-height: 1.5; vertical-align: middle; }
+.order-carton-table .tbl td:first-child { min-width: 260px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; white-space: nowrap; }
+.order-carton-table .tbl td:last-child { white-space: nowrap; }
