@@ -347,3 +347,14 @@ table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; table-lay
 .dispatch-warehouse-transport h4 { margin: 0; color: #52685e; font-size: 13px; }
 .dispatch-warehouse-transport .card { border: 0; padding: 0 !important; background: transparent; box-shadow: none; }
 .dispatch-warehouse-transport .card > .row-wrap:first-child > strong, .dispatch-warehouse-transport .card > .row-wrap:first-child > .chip { display: none; }
+
+/* Accessible on/off control, shared by settings and other boolean forms. */
+.toggle-switch { display: flex; align-items: center; gap: 10px; min-height: 36px; flex-wrap: wrap; }
+.toggle-switch-control { width: 44px; height: 26px; border: 1px solid var(--c-muted); border-radius: 999px; background: var(--c-muted); padding: 3px; flex: 0 0 auto; cursor: pointer; transition: background .15s; }
+.toggle-switch-control[aria-checked="true"] { background: var(--c-primary); border-color: var(--c-primary); }
+.toggle-switch-thumb { display: block; width: 18px; height: 18px; background: white; border-radius: 50%; transform: translateX(0); transition: transform .15s; }
+.toggle-switch-control[aria-checked="true"] .toggle-switch-thumb { transform: translateX(18px); }
+.toggle-switch-control:focus-visible { outline: 3px solid var(--c-primary); outline-offset: 3px; }
+.toggle-switch-control:disabled { opacity: .5; cursor: not-allowed; }
+.toggle-switch-label { color: var(--c-text); }
+.toggle-switch-state { color: var(--c-muted); font-size: 12px; font-weight: 600; }
