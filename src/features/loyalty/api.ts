@@ -25,7 +25,7 @@ const toRetailerLoyalty = (card: LoyaltyCardApi): RetailerLoyalty => ({
   retailerCode: card.retailerCode, retailerName: card.retailerName, balance: card.availablePoints,
   held: card.heldPoints, available: card.availablePoints, pendingOrders: card.pendingPoints,
   lastEarned: card.ledger.find((x) => x.transactionType === 'Earned') ? { date: card.ledger.find((x) => x.transactionType === 'Earned')!.createdAt, points: card.ledger.find((x) => x.transactionType === 'Earned')!.points } : null,
-  programCode: card.programCode ?? '—', programName: card.programName ?? '—', pointsExpireOn: card.pointsExpireAt ?? '',
+  programCode: card.programCode ?? '—', programName: card.programName ?? '—', pointsExpireOn: card.pointsExpireAt ?? '', programs: card.eligiblePrograms,
   ledger: card.ledger.map((x) => ({ date: x.createdAt, description: x.note ?? x.transactionType, kind: x.transactionType, points: x.points,
     balanceAfter: x.balanceAfter, salesOrderId: x.salesOrderId, orderCode: x.orderCode,
     redemptionId: x.redemptionId, redemptionStatus: x.redemptionStatus })),

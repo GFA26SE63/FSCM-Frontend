@@ -112,7 +112,13 @@ test('an already-paged list renders exactly one pager with the full total and 10
 test('server/cursor/parent-paged feature tables opt out of a second local pager', () => {
   const cases = [
     ['shipments/pages/OrderReadinessPage.tsx', 'visible'],
-    ['reports/OperationsReportsPage.tsx', 'data.items'],
+    ['reports/FinancialReportView.tsx', 'data.orders.items'],
+    ['reports/ReceivablesReportView.tsx', 'data.invoices.items'],
+    ['reports/PromotionsReportView.tsx', 'data.items.items'],
+    ['reports/LoyaltyReportView.tsx', 'data.redemptions.items'],
+    ['reports/ClaimsReportView.tsx', 'data.items.items'],
+    ['reports/FulfillmentReportView.tsx', 'data.shipments.items'],
+    ['reports/InventoryRiskReportView.tsx', 'data.expiry.items'],
     ['users/components/UserAuditPanel.tsx', 'page.nodes'],
     ['inventory/index.tsx', 'data.items'],
     ['warehouse-work/index.tsx', 'data.items'],
