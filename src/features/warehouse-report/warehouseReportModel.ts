@@ -20,6 +20,7 @@ export interface WarehouseReportProductStock {
   expired: number;
   locked: number;
   disposed: number;
+  disposedInPeriod?: number;
   factoryReceipt: number;
   transferReceipt: number;
   salesIssue: number;
@@ -83,7 +84,7 @@ export const TOP_OPTIONS = [5, 10, 20, 30, 50] as const;
 /** Same limit as the backend: at most 367 calendar days, both ends included. */
 export const MAX_RANGE_DAYS = 366;
 
-export type MetricKey = Exclude<keyof WarehouseReportProductStock, 'productId' | 'sku' | 'name' | 'rank' | 'onHand'>;
+export type MetricKey = Exclude<keyof WarehouseReportProductStock, 'productId' | 'sku' | 'name' | 'rank' | 'onHand' | 'disposedInPeriod'>;
 export type MetricGroup = 'stock' | 'inbound' | 'outbound';
 
 /**
