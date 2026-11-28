@@ -140,6 +140,12 @@ export function WarehouseReportPage() {
         title="Báo cáo kho vận"
         actions={
           <div className="wr-chips">
+            <Button onClick={() => history.push('/reports?kind=inventory-risk')}>
+              Rủi ro &amp; Cận hạn
+            </Button>
+            <Button onClick={() => history.push('/reports?kind=fulfillment')}>
+              SLA Giao nhận
+            </Button>
             {canCreateTransfer && (
               <Button variant="primary" onClick={() => history.push('/warehouse-transfers/new')}>
                 Tạo phiếu điều chuyển
@@ -744,6 +750,7 @@ export function WarehouseReportPage() {
               items={[
                 { label: 'Hạng bán chạy', value: `#${selectedCell.product.rank}` },
                 { label: 'Tồn vật lý hiện tại', value: formatNumber(selectedCell.product.onHand) },
+                { label: 'Tiêu hủy trong kỳ', value: formatNumber(selectedCell.product.disposedInPeriod ?? 0) },
                 { label: 'Khu vực', value: selectedCell.warehouse.regionName || '—' },
               ]}
             />

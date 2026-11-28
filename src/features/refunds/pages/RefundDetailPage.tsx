@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useAuth } from '@/shared/auth/AuthContext';
 import { can } from '@/shared/auth/permissions';
 import { useNavigate, useParams } from '@/shared/router/compat';
@@ -11,6 +11,7 @@ import { RefundStatusChip } from './RefundsPage';
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const THUMB_STYLE = { width: 120, height: 90, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--c-border, #ddd)', display: 'block' } as const;
 
 export function RefundDetailPage() {
   const { id = '' } = useParams();
@@ -204,9 +205,9 @@ function EvidencePreview({ reference }: { reference: string | null }) {
   return (
     <div style={{ marginTop: 10 }}>
       <a href={url.data} target="_blank" rel="noreferrer">
-        <img src={url.data} alt="Bằng chứng chuyển tiền" style={{ maxWidth: 360, maxHeight: 360, borderRadius: 8, border: '1px solid var(--c-border, #ddd)' }} />
+        <img src={url.data} alt="Bằng chứng chuyển tiền" style={THUMB_STYLE} />
       </a>
-      <p className="muted small" style={{ margin: '4px 0 0' }}>Liên kết ảnh có hạn ngắn, tải lại trang để lấy liên kết mới.</p>
+      <p className="muted small" style={{ margin: '4px 0 0' }}>Bấm ảnh để xem cỡ đầy đủ. Liên kết ảnh có hạn ngắn, tải lại trang để lấy liên kết mới.</p>
     </div>
   );
 }
@@ -218,6 +219,14 @@ function EvidenceModal({ refund, open, onClose }: { refund: Refund; open: boolea
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const inputId = useId();
+  const [preview, setPreview] = useState<string | null>(null);
+  useEffect(() => {
+    if (!file) { setPreview(null); return; }
+    const objectUrl = URL.createObjectURL(file);
+    setPreview(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
 
   const pick = (selected: File | null) => {
     setError(null);
@@ -286,11 +295,25 @@ function EvidenceModal({ refund, open, onClose }: { refund: Refund; open: boolea
           <span className="fl">Mã giao dịch *</span>
           <input className="inp" value={reference} maxLength={100} onChange={(event) => setReference(event.target.value)} />
         </label>
-        <label className="fld">
+        <div className="fld">
           <span className="fl">Ảnh bằng chứng (JPG, PNG, WebP, tối đa 10 MB) *</span>
-          <input className="inp" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => pick(event.target.files?.[0] ?? null)} />
-        </label>
-        {file && <p className="muted small" style={{ margin: 0 }}>Đã chọn: {file.name} ({Math.round(file.size / 1024)} KB)</p>}
+          <div className="row-wrap" style={{ gap: 12, alignItems: 'center' }}>
+            {preview && file && (
+              <a href={preview} target="_blank" rel="noreferrer" title="Xem ảnh cỡ đầy đủ">
+                <img src={preview} alt="Ảnh bằng chứng xem trước" style={THUMB_STYLE} />
+              </a>
+            )}
+            <div style={{ display: 'grid', gap: 6 }}>
+              <div className="row-wrap" style={{ gap: 8 }}>
+                <label className="btn btn-sm" htmlFor={inputId}>{file ? 'Chọn ảnh khác' : 'Chọn ảnh từ máy'}</label>
+                {file && <button className="btn btn-sm" type="button" disabled={busy} onClick={() => pick(null)}>Bỏ ảnh</button>}
+              </div>
+              {file && <span className="muted small">{file.name} ({Math.round(file.size / 1024)} KB)</span>}
+            </div>
+          </div>
+          <input id={inputId} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} disabled={busy}
+            onChange={(event) => { const selected = event.target.files?.[0]; if (selected) pick(selected); event.target.value = ''; }} />
+        </div>
         {error && <Callout tone="danger">{error}</Callout>}
       </div>
     </Modal>

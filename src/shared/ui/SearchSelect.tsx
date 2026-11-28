@@ -4,17 +4,19 @@ import type { SelectOption } from './FormField';
 const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').toLocaleLowerCase();
 
 /** Search labels while keeping only a known option's identifier in form state. */
-export function SearchSelect({ value, options, onChange, placeholder = 'Tìm mã hoặc tên sản phẩm…', disabled, invalid, onQueryChange, ariaLabel }: {
+export function SearchSelect({ value, options, onChange, placeholder = 'Tìm mã hoặc tên sản phẩm…', disabled, invalid, onQueryChange, ariaLabel, singlePick }: {
   value: string; options: (SelectOption | string)[]; onChange: (value: string) => void;
   placeholder?: string; disabled?: boolean; invalid?: boolean;
   /** When set, the caller searches server-side, so options are shown as given. */
   onQueryChange?: (query: string) => void; ariaLabel?: string;
+  /** Server search that closes after one choice and shows the chosen label (a filter, not a multi-add picker). */
+  singlePick?: boolean;
 }) {
   const id = useId();
   const [query, setQueryState] = useState('');
   const setQuery = (q: string) => { setQueryState(q); onQueryChange?.(q); };
   // Server-side search keeps its text so the caller's results and paging stay in sync.
-  const keep = !!onQueryChange;
+  const keep = !!onQueryChange && !singlePick;
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const opts = options.map((o) => typeof o === 'string' ? { value: o, label: o } : o);

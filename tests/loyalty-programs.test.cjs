@@ -173,10 +173,12 @@ test('program dialog uses real retailer selection and keeps backend errors witho
     program, onClose: () => { closed += 1; },
   }));
   assert.equal(props.fields.find((f) => f.key === 'retailerIds').type, 'custom');
+  assert.equal(props.fields.some((f) => f.key === 'minimumRedeemPoints'), false);
   assert.equal(props.fields.find((f) => f.key === 'startAt').type, 'custom');
   assert.equal(props.fields.find((f) => f.key === 'startAt').validate('', { ...props.initial, startAt: '' }), 'Nhập ngày và giờ hợp lệ.');
   await props.onSubmit(props.initial);
   assert.equal(request.id, program.id);
+  assert.equal(request.minimumRedeemPoints, program.minimumRedeemPoints);
   assert.deepEqual(request.retailerIds, [retailerId]);
   assert.equal(closed, 1);
   fail = true;

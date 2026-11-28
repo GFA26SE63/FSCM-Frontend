@@ -14,7 +14,8 @@ export function LoyaltyDetailPage() {
     <QueryState query={query}>
       {(l) => (
         <>
-          <PageHeader back="/loyalty" title={`${l.retailerCode} · ${l.retailerName}`} subtitle={`${l.programCode} · ${l.programName}`} />
+          <PageHeader back="/loyalty" title={`${l.retailerCode} · ${l.retailerName}`}
+            subtitle={l.programs ? l.programs.map(p => `${p.code} · ${p.name}`).join('; ') || 'Chưa có chương trình còn hiệu lực áp dụng.' : `${l.programCode} · ${l.programName}`} />
           <Callout tone={l.available < 0 ? 'warn' : 'info'}>
             {l.available < 0 ? 'Số dư điểm đang âm sau điều chỉnh; nhà bán lẻ chưa thể gửi yêu cầu đổi quà mới. ' : ''}
             Điểm mua hàng được xét khi đơn hàng hoàn tất. Điểm chờ cộng và điểm đang giữ đổi quà chưa thể dùng để đổi thêm quà.
@@ -25,7 +26,7 @@ export function LoyaltyDetailPage() {
               { label: 'Đang giữ (chờ hoàn tất đổi quà)', value: formatNumber(l.held) },
               { label: 'Khả dụng', value: formatNumber(l.available) },
               { label: 'Điểm chờ cộng', value: formatNumber(l.pendingOrders) },
-              { label: 'Ngày hết hạn điểm', value: formatInstantDate(l.pointsExpireOn) },
+              { label: 'Hạn điểm', value: l.pointsExpireOn ? formatInstantDate(l.pointsExpireOn) : 'Không hết hạn' },
             ]} />
           </Card>
           <Card title="Sổ điểm" flush>

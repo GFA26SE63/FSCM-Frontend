@@ -61,6 +61,8 @@ interface DataTableProps<T> {
   error?: unknown;
   /** Toolbar buttons on the right of the title. */
   actions?: ReactNode;
+  /** Feature controls between the list heading and table, below the filters. */
+  beforeTable?: ReactNode;
   rowActions?: (row: T) => ReactNode;
   rowActionHeader?: string;
   rowActionsWidth?: string;
@@ -237,6 +239,7 @@ export function DataTable<T>({
   loading = false,
   error,
   actions,
+  beforeTable,
   rowActions,
   rowActionHeader = 'Thao tác',
   rowActionsWidth = '220px',
@@ -421,6 +424,7 @@ export function DataTable<T>({
             { value: `${c.key}:asc`, label: `${c.header} · tăng dần` }, { value: `${c.key}:desc`, label: `${c.header} · giảm dần` },
           ])]} />
       </label>}
+      {beforeTable}
       <section className={`card tbl-wrap table-fit${nowrap ? ' table-fit-requested-nowrap' : ''}`} style={{ minHeight: 120 }}>
         <table className="tbl">
           <colgroup>

@@ -28,8 +28,9 @@ test('configuration reads versioned keys and saves supported values in backend u
   assert.deepEqual(settings.allocation, { wE: .7, wD: .2, wQ: .1 });
   await configApi.saveSettings(settings);
   assert.deepEqual(calls.map(c => c.url), ['/configurations/batch']);
-  assert.deepEqual(calls[0].body.entries.map(e => e.key), ['allocation.weights', 'allocation.service_radius_meters', 'order.order_step_cartons', 'mlor.default_ratio', 'order.completion_grace_days', 'demo.fast_scan_enabled']);
-  assert.equal(calls[0].body.entries[5].value, false);
+  assert.deepEqual(calls[0].body.entries.map(e => e.key), ['allocation.weights', 'allocation.service_radius_meters', 'order.order_step_cartons', 'mlor.default_ratio', 'order.completion_grace_days', 'payment.payos_link_lifetime_minutes', 'demo.fast_scan_enabled']);
+  assert.equal(calls[0].body.entries[5].value, 0, 'unset PayOS link lifetime saves as 0 = no deadline');
+  assert.equal(calls[0].body.entries[6].value, false);
   assert.equal(calls[0].body.entries[1].value, 35000);
   assert.equal(calls[0].body.entries[3].value, .4);
 });

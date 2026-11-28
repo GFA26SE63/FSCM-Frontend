@@ -60,26 +60,48 @@ export const promoApi = {
   appliedRetailers: (ids: string[]) => ids.length
     ? selectedRecords<RetailerOption>('/retailers', ids)
     : allPages<RetailerOption>('/retailers', { status: 'Active' }),
-  usage: (programCode: string) => get<{
-    items: {
-      id: string;
-      at: string;
-      retailerCode: string;
-      retailerName: string;
-      orderId: string | null;
-      orderCode: string | null;
-      itemCode: string;
-      itemName: string;
-      quantity: number | null;
-      discountAmount: number;
-      status: string;
-    }[];
-    totalCount: number;
-  }>('/reports/operations/promotions', {
-    fromDate: '2020-01-01',
-    toDate: '2030-12-31',
-    program: programCode,
-    page: 1,
-    pageSize: 50,
-  }),
+  usage: async (programCode: string) => {
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
+    const from = new Date(Date.parse(`${today}T00:00:00Z`) - 365 * 86_400_000).toISOString().slice(0, 10);
+    const res = await get<{
+      items: {
+        items: {
+          id: string;
+          acceptedAt: string;
+          retailerCode: string;
+          retailerName: string;
+          orderId: string;
+          orderCode: string;
+          sku: string;
+          productName: string;
+          quantity: number;
+          totalDiscountAmount: number;
+          orderStatus: string;
+        }[];
+        totalCount: number;
+      };
+    }>('/reports/promotions', {
+      fromDate: from,
+      toDate: today,
+      exactProgramCode: programCode,
+      page: 1,
+      pageSize: 50,
+    });
+    return {
+      totalCount: res.items.totalCount,
+      items: res.items.items.map(i => ({
+        id: i.id,
+        at: i.acceptedAt,
+        retailerCode: i.retailerCode,
+        retailerName: i.retailerName,
+        orderId: i.orderId,
+        orderCode: i.orderCode,
+        itemCode: i.sku,
+        itemName: i.productName,
+        quantity: i.quantity,
+        discountAmount: i.totalDiscountAmount,
+        status: i.orderStatus,
+      })),
+    };
+  },
 };

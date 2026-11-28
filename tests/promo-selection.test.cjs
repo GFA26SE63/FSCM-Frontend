@@ -24,7 +24,7 @@ function hooks() {
 }
 function nodes(node, predicate) {
   if (!node || typeof node !== 'object') return [];
-  return [...(predicate(node) ? [node] : []), ...[node.props?.children, node.props?.actions, node.props?.footer].flat(Infinity).flatMap(child => nodes(child, predicate))];
+  return [...(predicate(node) ? [node] : []), ...[node.props?.children, node.props?.actions, node.props?.footer, node.props?.beforeTable].flat(Infinity).flatMap(child => nodes(child, predicate))];
 }
 const ui = Object.fromEntries(['Button', 'Callout', 'Card', 'DataTable', 'FormField', 'Input', 'Modal', 'PageHeader', 'Select'].map(key => [key, key]));
 

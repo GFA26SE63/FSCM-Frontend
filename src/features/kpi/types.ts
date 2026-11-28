@@ -106,6 +106,10 @@ export interface ProductRankingEntry {
   normalizedSoldQuantity: number;
   quantityUnit: string;
   adjustedNetRevenue: number;
+  categoryName?: string;
+  orderCount?: number;
+  grossRevenue?: number;
+  discountAmount?: number;
 }
 
 export interface ProductRankingResponse {

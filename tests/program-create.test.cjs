@@ -27,7 +27,7 @@ function hooks() {
 }
 function nodes(node, predicate) {
   if (!node || typeof node !== 'object') return [];
-  return [...(predicate(node) ? [node] : []), ...[node.props?.children, node.props?.actions, node.props?.footer].flat(Infinity).flatMap(child => nodes(child, predicate))];
+  return [...(predicate(node) ? [node] : []), ...[node.props?.children, node.props?.actions, node.props?.footer, node.props?.beforeTable].flat(Infinity).flatMap(child => nodes(child, predicate))];
 }
 const ui = Object.fromEntries(['Button', 'Callout', 'Card', 'Checkbox', 'DataTable', 'DateTimeInput', 'FormField', 'Input', 'TextArea', 'Modal', 'PageHeader'].map(key => [key, key]));
 const errors = load('shared/api/errors.ts');
@@ -152,7 +152,8 @@ test('create page validates audience and dates, preserves payload and stays open
   const save = () => nodes(tree, n => n.type === 'Button' && n.props.children === 'Tạo chương trình')[0];
   await save().props.onClick(); tree = render(); assert.equal(sent, undefined);
   const fields = nodes(tree, n => n.type === 'FormField');
-  for (const [label, value] of [['Tên chương trình', 'Program demo'], ['Số tiền quy đổi 1 điểm (VND)', '10000'], ['Điểm tối thiểu đổi quà', '0']]) {
+  assert.equal(fields.some(n => n.props.label === 'Điểm tối thiểu đổi quà'), false);
+  for (const [label, value] of [['Tên chương trình', 'Program demo'], ['Số tiền quy đổi 1 điểm (VND)', '10000']]) {
     fields.find(n => n.props.label === label).props.children.props.onChange({ target: { value } });
   }
   const dates = nodes(tree, n => n.type === 'DateTimeInput');
@@ -164,6 +165,7 @@ test('create page validates audience and dates, preserves payload and stays open
   nodes(tree, n => n.type === 'Retailers')[0].props.onBusyChange(false);
   tree = render(); await save().props.onClick(); tree = render();
   assert.equal(closed, 0); assert.deepEqual(sent.retailerIds, [id]);
+  assert.equal(sent.minimumRedeemPoints, 0);
   assert.equal(sent.startAt, '2026-12-01T01:30:00.000Z');
   assert.equal(sent.endAt, '2026-12-31T13:00:00.000Z'); assert.equal(sent.pointsExpireAt, null);
   assert.ok(nodes(tree, n => n.type === 'Callout' && n.props.tone === 'danger').length);

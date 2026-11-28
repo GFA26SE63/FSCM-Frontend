@@ -1,8 +1,14 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from '@/shared/router/compat';
 import { useAuth } from '@/shared/auth/AuthContext';
-import { isPortalRole, roleLabel } from '@/shared/auth/roles';
+import { isPortalRole, roleLabel, type PortalRole } from '@/shared/auth/roles';
 import { APP_ROUTES, type AppRoute } from '../routes';
+
+function resolveMenuReportKind(requested: string | null, role: PortalRole) {
+  if (requested === 'redemptions') return 'loyalty';
+  if (requested === 'disposals') return 'inventory-risk';
+  return requested ?? (role === 'WarehouseKeeper' ? 'inventory-risk' : 'financial');
+}
 
 const FSCM_LOGO_URL = '/src/assets/branding/fscm-logo.png';
 
@@ -88,10 +94,11 @@ export function Sidebar() {
               {isOpen && (
                 <div className="menu-group-items">
                   {g.items.flatMap((r) => (r.menuLinks ?? [{ key: r.key, label: r.label, to: `/${r.key}`, roles: undefined }])
+                    .filter((link) => !link.roles || link.roles.includes(user.role))
                     .map(link => (
                     <NavLink key={link.key} to={link.to}
                       isActive={(match, location) => !!match && (!r.menuLinks ||
-                        (new URLSearchParams(location.search).get('kind') ?? (user.role === 'WarehouseKeeper' ? 'disposals' : 'redemptions')) === new URLSearchParams(link.to.split('?')[1]).get('kind'))}
+                        resolveMenuReportKind(new URLSearchParams(location.search).get('kind'), user.role) === new URLSearchParams(link.to.split('?')[1]).get('kind'))}
                       className={({ isActive }) => `menu menu-sub${isActive ? ' active' : ''}`}>
                       <span className="menu-dot" />
                       <span style={{ flex: 1 }}>{link.label}</span>

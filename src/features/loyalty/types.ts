@@ -14,11 +14,12 @@ export interface LedgerEntry {
   redemptionId?: string | null; redemptionStatus?: string | null;
 }
 export interface RedemptionRow { code: string; giftCode: string; giftName: string; points: number; requestedAt: string; status: 'Requested' | 'Approved' | 'Delivered' | 'Done' | 'Rejected' }
-export interface RetailerLoyalty extends BalanceRow { programCode: string; programName: string; pointsExpireOn: string; ledger: LedgerEntry[]; redemptions: RedemptionRow[] }
+export type CardProgram = Pick<LoyaltyProgram, 'id' | 'code' | 'name' | 'spendAmountPerPoint' | 'isActive' | 'startAt' | 'endAt' | 'pointsExpireAt'>;
+export interface RetailerLoyalty extends BalanceRow { programCode: string; programName: string; pointsExpireOn: string; programs?: CardProgram[]; ledger: LedgerEntry[]; redemptions: RedemptionRow[] }
 export interface LoyaltyCardApi {
   retailerId: string; retailerCode: string; retailerName: string; programId?: string; programCode?: string;
   programName?: string; availablePoints: number; heldPoints: number; pendingPoints: number;
-  expiredPoints: number; pointsExpireAt?: string | null;
+  expiredPoints: number; pointsExpireAt?: string | null; eligiblePrograms?: CardProgram[];
   ledger: { transactionId: string; transactionType: string; points: number; balanceAfter: number; note?: string | null; createdAt: string; salesOrderId?: string | null; orderCode?: string | null; redemptionId?: string | null; redemptionStatus?: string | null }[];
 }
 export interface ProgramInput {
