@@ -21,3 +21,7 @@ export const useBackgroundJobs = () => useQuery({ queryKey: ['config', 'backgrou
 export const useSaveBackgroundJobs = () => useApiMutation(backgroundJobsApi.save, {
   success: 'Đã lưu cấu hình tác vụ nền. Backend nhận thay đổi trong vòng 15 giây.',
 });
+
+export const useSaveConfigurationEntries = () => useApiMutation(configApi.saveEntries, {
+  success: 'Đã lưu toàn bộ cấu hình của nhóm.',
+});

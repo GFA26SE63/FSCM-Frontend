@@ -1,0 +1,34 @@
+.config-page { min-width: 0; container-type: inline-size; }
+.config-page > .tabs { margin-bottom: 0; }
+.config-page .config-panel { padding: 24px 0 8px; }
+.config-page .config-sections { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.config-page .config-sections > .card { margin: 0; }
+.config-page .config-sections .card-bd { padding: 12px 20px 20px; }
+.config-page .config-sections .card-hd { padding: 16px 20px 0; }
+.config-page .config-fields { display: grid; gap: 16px; align-items: start; min-width: 0; }
+.config-page .config-fields > * { min-width: 0; }
+.config-page .config-fields .lbl > span:first-child { min-height: 36px; display: flex; align-items: flex-end; }
+.config-page .config-fields .inp { width: 100%; min-width: 0; }
+.config-page .config-fields--four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.config-page .config-fields--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.config-page .config-fields--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.config-page .config-section-body { display: flex; flex-direction: column; gap: 16px; }
+.config-page .config-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 16px 0 8px; border-top: 1px solid var(--c-border-soft); }
+.config-page .config-subtabs { padding: 16px; background: var(--c-surface); border: 1px solid var(--c-border-soft); border-radius: var(--radius); }
+.config-page .config-subtabs .pills { gap: 10px; flex-wrap: wrap; }
+.config-page .tabs { flex-wrap: wrap; }
+@container (max-width: 900px) {
+  .config-page .config-fields--four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container (max-width: 650px) {
+  .config-page .config-fields--three, .config-page .config-fields--two { grid-template-columns: 1fr; }
+  .config-page .config-panel { padding-top: 16px; }
+  .config-page .config-fields .lbl > span:first-child { min-height: 0; }
+  .config-page .config-sections { gap: 18px; }
+}
+@container (max-width: 480px) {
+  .config-page .config-fields--four { grid-template-columns: 1fr; }
+  .config-page .config-sections .card-bd, .config-page .config-sections .card-hd { padding: 16px; }
+}
+
+.config-page .config-subpanel { padding-top: 24px; }

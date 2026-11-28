@@ -3,6 +3,7 @@ import { post, put } from '@/shared/api/http';
 import type { BackgroundJobs, ConfigDraft, PublishTransitTablePayload, RunSchedule, RunSchedulePayload, SystemSettings, TransitTable } from './types';
 
 export const configApi = {
+  saveEntries: (entries: { key: string; value: unknown }[]) => put('/configurations/batch', { entries }),
   settings: async (): Promise<SystemSettings> => {
     const { businessConfigurations: rows } = await graphql<{ businessConfigurations: { key: string; value: unknown }[] }>('query { businessConfigurations { key value } }');
     const values = new Map(rows.map((r) => [r.key, r.value]));

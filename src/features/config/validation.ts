@@ -18,3 +18,12 @@ export const validKilometers = (value: number): boolean =>
 
 export const validMoney = (value: number): boolean =>
   Number.isFinite(value) && value >= 0 && value < 1e16 && Number(value.toFixed(2)) === value;
+
+export const dispatchSlots = (value: string): string[] => value.split(',').map(slot => slot.trim()).filter(Boolean);
+export const validDispatchSlots = (value: string): boolean => {
+  const slots = dispatchSlots(value);
+  return slots.length > 0 && slots.every(slot => /^([01]\d|2[0-3]):[0-5]\d$/.test(slot))
+    && new Set(slots).size === slots.length;
+};
+export const integerInRange = (value: string, min: number, max: number): boolean =>
+  value.trim() !== '' && Number.isInteger(Number(value)) && Number(value) >= min && Number(value) <= max;
