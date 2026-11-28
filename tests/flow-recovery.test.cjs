@@ -16,13 +16,16 @@ function load(file, mocks) {
 
 test('configuration reads versioned keys and saves supported values in backend units', async () => {
   const calls = [];
-  const { configApi } = load('features/config/api.ts', { '@/shared/api/http': {
-    get: async url => { assert.equal(url, '/configurations'); return [
+  const { configApi } = load('features/config/api.ts', {
+    '@/shared/api/http': { put: async (url, body) => calls.push({ url, body }) },
+    '@/shared/api/graphql': { graphql: async query => {
+      assert.match(query, /businessConfigurations/);
+      return { businessConfigurations: [
       { key: 'allocation.weights', value: { expiry: .7, distance: .2, coverage: .1 } },
       { key: 'allocation.service_radius_meters', value: 35000 },
       { key: 'order.order_step_cartons', value: 2 }, { key: 'mlor.default_ratio', value: .4 },
-    ]; }, put: async (url, body) => calls.push({ url, body }),
-  } });
+    ] }; } },
+  });
   const settings = await configApi.settings();
   assert.equal(settings.dmaxRetailerKm, 35);
   assert.deepEqual(settings.allocation, { wE: .7, wD: .2, wQ: .1 });
