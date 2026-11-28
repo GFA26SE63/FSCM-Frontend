@@ -76,11 +76,13 @@ export function TransitTableSection({ current }: { current: TransitTable }) {
   const [servingKm, setServingKm] = useState(String(current.maxServingDistanceMeters / 1000));
   const [effectiveFrom, setEffectiveFrom] = useState('');
   const [note, setNote] = useState('');
+  const [publishOpen, setPublishOpen] = useState(false);
   const [addDraft, setAddDraft] = useState<BandDraft | null>(null);
   const publish = usePublishTransitTable();
   const history = useTransitHistory();
 
   const errors = validateTransitTable(draft, servingKm, effectiveFrom, current.effectiveFrom);
+  const draftErrors = validateTransitTable(draft, servingKm, minimumVersionDate(current.effectiveFrom), current.effectiveFrom);
   if (note.trim().length > 500) errors.push('Ghi chú tối đa 500 ký tự.');
 
   const set = (i: number, patch: Partial<BandDraft>) =>
@@ -107,21 +109,21 @@ export function TransitTableSection({ current }: { current: TransitTable }) {
           estimatedCostAmount: num(b.cost),
         })),
     });
+    setPublishOpen(false);
     setEffectiveFrom('');
     setNote('');
   };
 
   return (
     <div className="config-sections">
-      <div className="row gap-sm items-center">
+      <div className="transit-table-heading">
+        <h2 className="sec">Bảng vận chuyển dùng chung</h2>
         <Chip tone="ok">Phiên bản {current.version} · {new Date(current.effectiveFrom).getTime() > now ? 'Chờ hiệu lực' : 'Đang áp dụng'}</Chip>
         <span className="muted small">Hiệu lực từ {formatInstantDate(current.effectiveFrom)}</span>
+        <Button size="sm" variant="primary" onClick={openAddBand}>Thêm khoảng</Button>
       </div>
 
       <div className="transit-editor">
-        <div className="transit-table-toolbar">
-          <Button size="sm" variant="primary" onClick={openAddBand}>Thêm khoảng</Button>
-        </div>
       <SimpleTable
         rows={draft}
         columns={[
@@ -156,38 +158,24 @@ export function TransitTableSection({ current }: { current: TransitTable }) {
 
       </div>
 
-      <div className="config-fields config-fields--three">
-        <label className="stack-xs small">
-          Bán kính phục vụ (km)
-          <Input className="inp-sm" inputMode="decimal" value={servingKm} onChange={(e) => setServingKm(e.target.value)} />
-        </label>
-        <label className="stack-xs small">
-          Ngày hiệu lực
-          <Input className="inp-sm" type="date" min={minimumVersionDate(current.effectiveFrom)} value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
-        </label>
-        <label className="stack-xs small" style={{ flex: 1 }}>
-          Ghi chú
-          <Input className="inp-sm" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
-        </label>
-      </div>
-
-      {errors.length > 0 && (
-        <Callout tone="warn">
-          <ul className="stack-xs">{errors.map((e) => <li key={e}>{e}</li>)}</ul>
-        </Callout>
-      )}
-
+      {draftErrors.length > 0 && <Callout tone="warn">
+        <ul>{draftErrors.map(error => <li key={error}>{error}</li>)}</ul>
+      </Callout>}
       <div className="config-actions">
-        <Button variant="primary" disabled={errors.length > 0 || publish.isPending} onClick={onPublish}>
+        <Button variant="primary" disabled={draft.length === 0 || publish.isPending} onClick={() => setPublishOpen(true)}>
           Phát hành phiên bản mới
         </Button>
       </div>
 
       <section className="transit-history" aria-label="Lịch sử bảng vận chuyển">
         <h3 className="sec">Lịch sử</h3>
-        <QueryState query={history}>{tables => tables.length === 0
-          ? <p>Chưa có lịch sử bảng vận chuyển.</p>
-          : [...tables].sort((a, b) => b.version - a.version).map(table =>
+        <QueryState query={history}>{tables => {
+          // Effective dates identify the live version even when a newer publication is scheduled.
+          const archived = tables.filter(table => new Date(table.effectiveFrom).getTime() > now ||
+            (table.effectiveTo !== null && new Date(table.effectiveTo).getTime() <= now));
+          return archived.length === 0
+          ? <p>Chưa có phiên bản lịch sử.</p>
+          : [...archived].sort((a, b) => b.version - a.version).map(table =>
             <ExpandableRecord key={table.id} title={`Phiên bản ${table.version}`}
               subtitle={`Hiệu lực từ ${formatInstantDate(table.effectiveFrom)}${table.effectiveTo ? ` đến ${formatInstantDate(table.effectiveTo)}` : ''}`}
               meta={`${table.bands.length} khoảng`} actionLabel="Chi tiết">
@@ -207,9 +195,29 @@ export function TransitTableSection({ current }: { current: TransitTable }) {
                   { header: 'Chi phí ước tính (VND)', cell: b => formatMoney(b.estimatedCostAmount) },
                 ]} />
               </div>
-            </ExpandableRecord>)
-        }</QueryState>
+            </ExpandableRecord>);
+        }}</QueryState>
       </section>
+      <Modal open={publishOpen} title="Phát hành bảng vận chuyển" onClose={() => { if (!publish.isPending) setPublishOpen(false); }} width={640}
+        footer={<>
+          <Button disabled={publish.isPending} onClick={() => setPublishOpen(false)}>Hủy</Button>
+          <Button variant="primary" loading={publish.isPending} disabled={errors.length > 0} onClick={onPublish}>Phát hành</Button>
+        </>}>
+        <div className="config-section-body">
+          <div className="form-grid cols-2">
+            <FormField label="Bán kính phục vụ (km)">
+              <Input inputMode="decimal" value={servingKm} onChange={e => setServingKm(e.target.value)} />
+            </FormField>
+            <FormField label="Ngày hiệu lực">
+              <Input type="date" min={minimumVersionDate(current.effectiveFrom)} value={effectiveFrom} onChange={e => setEffectiveFrom(e.target.value)} />
+            </FormField>
+            <FormField label="Ghi chú" span={2}>
+              <Input maxLength={500} value={note} onChange={e => setNote(e.target.value)} />
+            </FormField>
+          </div>
+          {errors.length > 0 && <Callout tone="warn"><ul>{errors.map(error => <li key={error}>{error}</li>)}</ul></Callout>}
+        </div>
+      </Modal>
       {addDraft && <AddBandDialog initial={addDraft} existing={draft} onClose={() => setAddDraft(null)}
         onAdd={band => { setDraft([...draft, band]); setAddDraft(null); }} />}
     </div>

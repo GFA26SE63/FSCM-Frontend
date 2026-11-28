@@ -69,7 +69,7 @@ export function ConfigPage() {
         }</QueryState>}</QueryState>
       </div>
       <div role="tabpanel" aria-label="Bảng vận chuyển" hidden={deliveryTab !== 'transit'} className="config-subpanel">
-        <Card title="Bảng vận chuyển dùng chung">
+        <Card>
           <QueryState query={transit}>{t => <TransitTableSection current={t} />}</QueryState>
         </Card>
       </div>

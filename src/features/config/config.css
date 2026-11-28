@@ -34,7 +34,8 @@
 .config-page .config-subpanel { padding-top: 24px; }
 
 .config-page .transit-editor { min-width: 0; border: 1px solid var(--c-border-soft); border-radius: var(--radius-sm); overflow: hidden; }
-.config-page .transit-table-toolbar { display: flex; justify-content: flex-start; padding: 14px; background: var(--c-surface-2); border-bottom: 1px solid var(--c-border-soft); }
 .config-page .transit-editor > .pager { padding: 12px 14px; }
 .config-page .transit-history { display: flex; flex-direction: column; gap: 12px; padding-top: 24px; border-top: 1px solid var(--c-border); }
 .config-page .transit-history .expandable-record { border: 1px solid var(--c-border-soft); border-radius: var(--radius-sm); overflow: hidden; }
+.config-page .transit-table-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.config-page .transit-table-heading > button { margin-left: auto; }
