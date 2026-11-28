@@ -1,9 +1,10 @@
+import { BackgroundJobsSection } from '../components/BackgroundJobsSection';
 import { useState } from 'react';
-import { Button, Callout, Card, FormField, Input, PageHeader, QueryState } from '@/shared/ui';
+import { Button, Callout, Card, FormField, Input, PageHeader, QueryState, Tabs } from '@/shared/ui';
 import { WeightsEditor } from '../components/WeightsEditor';
 import { TransitTableSection } from '../components/TransitTableSection';
 import { RunScheduleSection } from '../components/RunScheduleSection';
-import { useRunSchedule, useSaveConfig, useSettings, useTransitTable } from '../hooks';
+import { useBackgroundJobs, useRunSchedule, useSaveConfig, useSettings, useTransitTable } from '../hooks';
 import type { SystemSettings } from '../types';
 import { validAllocationWeights, validKilometers } from '../validation';
 
@@ -61,15 +62,31 @@ export function SettingsForm({ settings }: { settings: SystemSettings }) {
 }
 
 export function ConfigPage() {
-  const settings = useSettings(), transit = useTransitTable(), schedule = useRunSchedule();
+  const settings = useSettings(), transit = useTransitTable(), schedule = useRunSchedule(), jobs = useBackgroundJobs();
+  const [tab, setTab] = useState<'business' | 'transit' | 'schedule' | 'jobs'>('business');
   return <>
-    <PageHeader title="Cấu hình hệ thống" subtitle="Điều kiện phân bổ theo thời gian thực, bảng vận chuyển và lịch xuất kho." />
-    <Card title="Bảng vận chuyển dùng chung">
-      <QueryState query={transit}>{t => <TransitTableSection current={t} />}</QueryState>
-    </Card>
-    <Card title="Cấu hình thời gian nhận dự kiến sau phân bổ theo thời gian thực">
-      <QueryState query={schedule}>{s => <RunScheduleSection current={s} />}</QueryState>
-    </Card>
-    <QueryState query={settings}>{s => <SettingsForm key={JSON.stringify(s)} settings={s} />}</QueryState>
+    <PageHeader title="Cấu hình hệ thống" subtitle="Quản lý cấu hình theo từng nhóm chức năng." />
+    <Tabs items={[
+      { key: 'business', label: 'Nghiệp vụ' },
+      { key: 'transit', label: 'Vận chuyển' },
+      { key: 'schedule', label: 'Lịch giao hàng' },
+      { key: 'jobs', label: 'Tác vụ nền' },
+    ]} value={tab} onChange={setTab} />
+    <div role="tabpanel" aria-label="Tác vụ nền" hidden={tab !== 'jobs'}>
+      <QueryState query={jobs}>{s => <BackgroundJobsSection key={JSON.stringify(s)} current={s} />}</QueryState>
+    </div>
+    <div role="tabpanel" aria-label="Nghiệp vụ" hidden={tab !== 'business'}>
+      <QueryState query={settings}>{s => <SettingsForm key={JSON.stringify(s)} settings={s} />}</QueryState>
+    </div>
+    <div role="tabpanel" aria-label="Vận chuyển" hidden={tab !== 'transit'}>
+      <Card title="Bảng vận chuyển dùng chung">
+        <QueryState query={transit}>{t => <TransitTableSection current={t} />}</QueryState>
+      </Card>
+    </div>
+    <div role="tabpanel" aria-label="Lịch giao hàng" hidden={tab !== 'schedule'}>
+      <Card title="Thời gian nhận dự kiến sau phân bổ">
+        <QueryState query={schedule}>{s => <RunScheduleSection current={s} />}</QueryState>
+      </Card>
+    </div>
   </>;
 }

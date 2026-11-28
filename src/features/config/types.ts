@@ -77,3 +77,10 @@ export interface RunSchedulePayload {
   bufferMinutes: number;
   dispatchSlotsLocalTime: string[];
 }
+
+export interface BackgroundJobs {
+  dateTracker: { enabled: boolean; timeZone: string; runAtLocalTime: string };
+  inventoryOutbox: { enabled: boolean; pollIntervalSeconds: number; batchSize: number };
+  orderDeadline: { enabled: boolean; pollIntervalMinutes: number; prepaidPaymentWindowDays: number };
+  allocationRecovery: { enabled: boolean };
+}
