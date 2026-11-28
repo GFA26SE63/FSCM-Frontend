@@ -47,7 +47,7 @@ export interface PublishTransitTablePayload {
   bands: TransitBand[];
 }
 
-export interface ConfigDraft { settings: SystemSettings }
+export interface ConfigDraft { settings: SystemSettings; keys?: readonly string[] }
 
 /** One point in the run day, already resolved to an instant for a business date by the server. */
 export interface ScheduleMilestone {

@@ -16,7 +16,7 @@ export const configApi = {
       payOsLinkLifetimeMinutes: Number(values.get('payment.payos_link_lifetime_minutes') ?? 0),
       demoFastScanEnabled: values.get('demo.fast_scan_enabled') === true };
   },
-  saveSettings: async (s: SystemSettings) => {
+  saveSettings: async (s: SystemSettings, keys?: readonly string[]) => {
     const entries = [
       ['allocation.weights', { expiry: s.allocation.wE, distance: s.allocation.wD, coverage: s.allocation.wQ }],
       ['allocation.service_radius_meters', Math.round(s.dmaxRetailerKm * 1000)],
@@ -25,10 +25,10 @@ export const configApi = {
       ['payment.payos_link_lifetime_minutes', s.payOsLinkLifetimeMinutes],
       ['demo.fast_scan_enabled', s.demoFastScanEnabled],
     ] as const;
-    await put('/configurations/batch', { entries: entries.map(([key, value]) => ({ key, value })) });
+    await put('/configurations/batch', { entries: entries.filter(([key]) => !keys || keys.includes(key)).map(([key, value]) => ({ key, value })) });
     return s;
   },
-  save: async (d: ConfigDraft) => { await configApi.saveSettings(d.settings); },
+  save: async (d: ConfigDraft) => { await configApi.saveSettings(d.settings, d.keys); },
 };
 
 const transitFields = `id version maxServingDistanceMeters effectiveFrom effectiveTo isActive note createdByUserId createdAt updatedAt
@@ -71,10 +71,10 @@ export const backgroundJobsApi = {
       allocationRecovery: read<BackgroundJobs['allocationRecovery']>('jobs.allocation_recovery'),
     };
   },
-  save: (settings: BackgroundJobs) => put('/configurations/batch', { entries: [
+  save: (settings: Partial<BackgroundJobs>) => put('/configurations/batch', { entries: [
     { key: 'jobs.date_tracker', value: settings.dateTracker },
     { key: 'jobs.inventory_outbox', value: settings.inventoryOutbox },
     { key: 'jobs.order_deadline', value: settings.orderDeadline },
     { key: 'jobs.allocation_recovery', value: settings.allocationRecovery },
-  ] }),
+  ].filter(entry => entry.value !== undefined) }),
 };
