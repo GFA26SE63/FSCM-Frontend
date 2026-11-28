@@ -23,3 +23,5 @@ export { SearchSelect } from './SearchSelect';
 export { AdvancedFilterCard } from './AdvancedFilterCard';
 export { AddressLocationPicker, type AddressLocationPickerProps } from './AddressLocationPicker';
 export * from '../pagination';
+
+export { ToggleSwitch } from './ToggleSwitch';

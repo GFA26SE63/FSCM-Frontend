@@ -47,7 +47,7 @@ export interface PublishTransitTablePayload {
   bands: TransitBand[];
 }
 
-export interface ConfigDraft { settings: SystemSettings }
+export interface ConfigDraft { settings: SystemSettings; keys?: readonly string[] }
 
 /** One point in the run day, already resolved to an instant for a business date by the server. */
 export interface ScheduleMilestone {
@@ -76,4 +76,11 @@ export interface RunSchedulePayload {
   preparationMinutes: number;
   bufferMinutes: number;
   dispatchSlotsLocalTime: string[];
+}
+
+export interface BackgroundJobs {
+  dateTracker: { enabled: boolean; timeZone: string; runAtLocalTime: string };
+  inventoryOutbox: { enabled: boolean; pollIntervalSeconds: number; batchSize: number };
+  orderDeadline: { enabled: boolean; pollIntervalMinutes: number; prepaidPaymentWindowDays: number };
+  allocationRecovery: { enabled: boolean };
 }

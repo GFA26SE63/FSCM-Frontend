@@ -37,6 +37,7 @@ test('minutes reject blank, fractional, negative and overflowing input', () => {
 
 test('transit editor rejects today and fractional minutes before submitting to API', () => {
   const { validateTransitTable } = load('features/config/components/TransitTableSection.tsx', {
+    '@/shared/ui/ExpandableRecord': {},
     '@/shared/hooks': { useCurrentTime: () => Date.now() }, '@/shared/ui': {}, '@/shared/lib': dates, '../validation': validation, '../hooks': {},
   });
   const row = { minKm: '0', maxKm: '20', handlingMinutes: '60', transitMinutes: '120', cost: '0' };

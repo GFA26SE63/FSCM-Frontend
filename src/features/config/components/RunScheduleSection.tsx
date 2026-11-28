@@ -57,29 +57,9 @@ export function RunScheduleSection({ current }: { current: RunSchedule }) {
         vận chuyển và thời gian đệm.
       </Callout>
 
-      <div className="form-grid cols-2">
-        <FormField label="Thời gian soạn hàng (phút)" hint="Tính từ lúc phân bổ theo thời gian thực hoàn tất.">
-          <Input
-            type="number"
-            min={0}
-            step={1}
-            value={preparationMinutes}
-            onChange={(event) => setPreparationMinutes(event.target.value)}
-          />
-        </FormField>
-        <FormField label="Thời gian đệm khi giao hàng (phút)" hint="Biên an toàn cộng sau thời gian vận chuyển.">
-          <Input
-            type="number"
-            min={0}
-            step={1}
-            value={bufferMinutes}
-            onChange={(event) => setBufferMinutes(event.target.value)}
-          />
-        </FormField>
-        <FormField label="Các giờ xuất kho" hint="Ví dụ: 06:00, 14:00. Hệ thống chọn chuyến gần nhất sau khi soạn xong.">
-          <Input value={dispatchSlots} onChange={(event) => setDispatchSlots(event.target.value)} />
-        </FormField>
-      </div>
+      <ScheduleFields value={{ preparationMinutes, bufferMinutes, dispatchSlots }} onChange={value => {
+        setPreparationMinutes(value.preparationMinutes); setBufferMinutes(value.bufferMinutes); setDispatchSlots(value.dispatchSlots);
+      }} />
 
       {errors.length > 0 && (
         <Callout tone="danger">
@@ -91,10 +71,37 @@ export function RunScheduleSection({ current }: { current: RunSchedule }) {
         <Button variant="primary" disabled={errors.length > 0} loading={publish.isPending} onClick={submit}>
           Lưu cấu hình thời gian nhận dự kiến
         </Button>
-        <span style={{ fontSize: 12.5, opacity: 0.75 }}>
-          Bản {current.scheduleVersion} · múi giờ {current.timeZone}
-        </span>
       </div>
     </div>
+  );
+}
+
+
+export interface ScheduleDraft { preparationMinutes: string; bufferMinutes: string; dispatchSlots: string }
+export function ScheduleFields({ value, onChange }: { value: ScheduleDraft; onChange: (value: ScheduleDraft) => void }) {
+  return (
+      <div className="config-fields config-fields--three">
+        <FormField label="Thời gian soạn hàng (phút)" hint="Tính từ lúc phân bổ theo thời gian thực hoàn tất.">
+          <Input
+            type="number"
+            min={0}
+            step={1}
+            value={value.preparationMinutes}
+            onChange={(event) => onChange({ ...value, preparationMinutes: event.target.value })}
+          />
+        </FormField>
+        <FormField label="Thời gian đệm khi giao hàng (phút)" hint="Biên an toàn cộng sau thời gian vận chuyển.">
+          <Input
+            type="number"
+            min={0}
+            step={1}
+            value={value.bufferMinutes}
+            onChange={(event) => onChange({ ...value, bufferMinutes: event.target.value })}
+          />
+        </FormField>
+        <FormField label="Các giờ xuất kho" hint="Ví dụ: 06:00, 14:00. Hệ thống chọn chuyến gần nhất sau khi soạn xong.">
+          <Input value={value.dispatchSlots} onChange={(event) => onChange({ ...value, dispatchSlots: event.target.value })} />
+        </FormField>
+      </div>
   );
 }
