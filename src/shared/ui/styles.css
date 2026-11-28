@@ -124,6 +124,9 @@ textarea.inp { height: auto; min-height: 88px; padding: 10px; resize: vertical; 
 .field-hint { color: var(--c-muted); font-size: 12px; font-weight: 400; line-height: 1.4; }
 .form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 18px; align-items: start; }
 .form-grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.loyalty-program-datetime > .row-wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 150px); }
+.loyalty-program-datetime .date-input { min-width: 0; }
+.loyalty-program-datetime input[type="time"] { max-width: 100%; min-width: 0; }
 .span-2 { grid-column: span 2; }
 .span-3 { grid-column: span 3; }
 .check { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; cursor: pointer; font-weight: 500; color: var(--c-text); }

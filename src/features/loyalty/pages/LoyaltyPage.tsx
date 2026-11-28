@@ -5,7 +5,7 @@ export function LoyaltyPage() {
   return (
     <>
       <PageHeader title="Khách hàng thân thiết"
-        subtitle="Quản lý chương trình khách hàng thân thiết. Điểm được cộng khi đơn hàng hoàn tất và đáp ứng điều kiện chương trình." />
+        subtitle="Quyền tích điểm được ghi nhận khi hệ thống nhận đơn. Khi đơn hoàn tất, chọn mức điểm cao nhất trong các chương trình đã ghi nhận; bằng điểm ưu tiên mã tăng dần. Chương trình hết hạn sau lúc nhận đơn không làm mất quyền lợi. Điểm dùng chung và không hết hạn." />
       <LoyaltyProgramsPanel />
     </>
   );

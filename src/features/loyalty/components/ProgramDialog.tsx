@@ -22,17 +22,19 @@ export function ProgramDialog({ program, onClose }: Props) {
     { key: 'name', label: 'Tên chương trình', required: true, span: 2, validate: validate('name') },
     { key: 'description', label: 'Mô tả', type: 'textarea', span: 2 },
     { key: 'spendAmountPerPoint', label: 'Số tiền quy đổi 1 điểm (VND)', type: 'number',
-      required: true, validate: validate('spendAmountPerPoint') },
-    { key: 'minimumRedeemPoints', label: 'Điểm tối thiểu đổi quà', type: 'number',
-      required: true, validate: validate('minimumRedeemPoints') },
+      required: true, span: 2, validate: validate('spendAmountPerPoint') },
     ...(['startAt', 'endAt'] as const).map(key => {
       const label = key === 'startAt' ? 'Hiệu lực từ (giờ Việt Nam)' : 'Hiệu lực đến (giờ Việt Nam)';
       return { key, label, type: 'custom' as const, validate: validate(key),
         render: (values: Record<string, string>, set: (key: string, value: unknown) => void, error?: string) =>
           <FormField label={label} required error={error}>
-            <DateTimeInput value={values[key] ?? ''} onChange={value => set(key, value)} invalid={!!error} aria-label={label} />
+            <div className="loyalty-program-datetime">
+              <DateTimeInput value={values[key] ?? ''} onChange={value => set(key, value)} invalid={!!error} aria-label={label} />
+            </div>
           </FormField> };
     }),
+    { key: 'validityHint', label: '', type: 'custom', span: 2,
+      render: () => <p className="note">Ngày theo dd/mm/yyyy, giờ Việt Nam (UTC+7).</p> },
     { key: 'retailerIds', label: 'Nhà bán lẻ áp dụng', type: 'custom', span: 2,
       validate: validate('retailerIds'),
       render: (values, set, error) => <ProgramRetailerPicker value={values.retailerIds}
@@ -42,7 +44,6 @@ export function ProgramDialog({ program, onClose }: Props) {
   ];
 
   return <FormDialog open width={780} title={program ? `Sửa chương trình ${program.code}` : 'Tạo chương trình tích điểm'}
-    subtitle="Ngày giờ nhập theo Việt Nam (UTC+7)."
     submitLabel={program ? 'Lưu thay đổi' : 'Tạo chương trình'}
     initial={programInitial(program)} fields={fields}
     note="Chương trình mới chưa được kích hoạt. Quy đổi điểm làm tròn xuống theo máy chủ."
