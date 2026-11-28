@@ -63,7 +63,7 @@ export function LoyaltyProgramsPanel() {
         { label: 'Điểm tối thiểu đổi quà', value: formatNumber(detail.minimumRedeemPoints) },
         { label: 'Hiệu lực từ (VN)', value: formatInstantDateTime(detail.startAt) },
         { label: 'Hiệu lực đến (VN)', value: formatInstantDateTime(detail.endAt) },
-        { label: 'Điểm hết hạn (VN)', value: detail.pointsExpireAt ? formatInstantDateTime(detail.pointsExpireAt) : 'Không đặt hạn' },
+        { label: 'Hạn điểm', value: 'Không hết hạn' },
         { label: 'Nhà bán lẻ áp dụng', value: `${detail.retailerIds.length} nhà bán lẻ` },
         { label: 'Mô tả', value: detail.description || '—' },
       ]} /></Card>
