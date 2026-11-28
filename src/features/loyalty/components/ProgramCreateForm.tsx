@@ -51,22 +51,20 @@ export function ProgramCreateForm({ onClose }: { onClose: () => void }) {
         </FormField>
         <FormField label="Mô tả" span={2} error={errors.description}><TextArea value={values.description} disabled={create.isPending}
           onChange={e => set('description', e.target.value)} /></FormField>
-        <FormField label="Số tiền quy đổi 1 điểm (VND)" required error={errors.spendAmountPerPoint}>
+        <FormField label="Số tiền quy đổi 1 điểm (VND)" required span={2} error={errors.spendAmountPerPoint}>
           <Input inputMode="decimal" value={values.spendAmountPerPoint} disabled={create.isPending}
             onChange={e => set('spendAmountPerPoint', e.target.value)} />
         </FormField>
-        <FormField label="Điểm tối thiểu đổi quà" required error={errors.minimumRedeemPoints}>
-          <Input inputMode="numeric" value={values.minimumRedeemPoints} disabled={create.isPending}
-            onChange={e => set('minimumRedeemPoints', e.target.value)} />
-        </FormField>
         {(['startAt', 'endAt'] as const).map(key => {
           const label = key === 'startAt' ? 'Hiệu lực từ (giờ Việt Nam)' : 'Hiệu lực đến (giờ Việt Nam)';
-          return <FormField key={key} label={label} required error={errors[key]}
-            hint="Ngày theo dd/mm/yyyy, giờ Việt Nam (UTC+7).">
-            <DateTimeInput value={values[key]} onChange={value => set(key, value)} invalid={!!errors[key]}
-              disabled={create.isPending} aria-label={label} />
+          return <FormField key={key} label={label} required error={errors[key]}>
+            <div className="loyalty-program-datetime">
+              <DateTimeInput value={values[key]} onChange={value => set(key, value)} invalid={!!errors[key]}
+                disabled={create.isPending} aria-label={label} />
+            </div>
           </FormField>;
         })}
+        <p className="note span-2">Ngày theo dd/mm/yyyy, giờ Việt Nam (UTC+7).</p>
       </div>
     </Card>
     <ProgramRetailerTable value={retailers} onChange={rows => { setRetailers(rows); set('retailerIds', rows.map(r => r.id)); }}

@@ -58,8 +58,7 @@ export function ProgramRetailerTable({ value, onChange, error, disabled, onBusyC
           : value.filter(item => item.id !== row.id));
       }} />,
   }, ...columns];
-  return <Card title="Nhà bán lẻ áp dụng">
-    <p>Chọn ít nhất một nhà bán lẻ. Lựa chọn được lưu cùng chương trình khi nhấn Tạo chương trình.</p>
+  const selectionControls = <>
     <div className="row-wrap" style={{ gap: 16, marginBottom: 12 }}>
       <strong>Đã chọn {value.length} nhà bán lẻ</strong>
       <Button size="sm" loading={selecting} disabled={disabled || selecting} onClick={() => void selectAll()}>Chọn tất cả</Button>
@@ -70,10 +69,15 @@ export function ProgramRetailerTable({ value, onChange, error, disabled, onBusyC
     <p className="muted small">Chọn tất cả nhà bán lẻ đang hoạt động, gồm mọi trang và ngoài kết quả tìm kiếm.</p>
     {selectionError && <p className="field-err" role="alert">{selectionError}</p>}
     {error && <p className="field-err" role="alert">{error}</p>}
+  </>;
+  return <Card title="Nhà bán lẻ áp dụng">
+    <p>Chọn ít nhất một nhà bán lẻ. Lựa chọn được lưu cùng chương trình khi nhấn Tạo chương trình.</p>
     {selectedOnly ? <DataTable key="selected" urlState={false} title="Nhà bán lẻ đã chọn" rows={value}
+      beforeTable={selectionControls}
       columns={selectionColumns} rowKey={r => r.id} pageSize={10} searchPlaceholder="Tìm trong danh sách đã chọn…"
       emptyText="Chưa chọn nhà bán lẻ áp dụng." />
       : <DataTable key="all" urlState={false} title="Danh sách nhà bán lẻ" rows={query.data?.items} loading={query.isFetching}
+        beforeTable={selectionControls}
         error={query.error} rowKey={r => r.id} searchPlaceholder="Tìm mã, tên hoặc địa chỉ cửa hàng…"
         actions={<Button size="sm" loading={query.isFetching} onClick={() => void query.refetch()}>Tải lại</Button>}
         server={{ page, size: pageSize, total: query.data?.totalCount ?? 0, onPageChange: setPage,

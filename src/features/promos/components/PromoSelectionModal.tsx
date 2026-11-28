@@ -24,13 +24,13 @@ export function PromoSelectionModal<T extends { id: string }>({
     subtitle={`Đã chọn ${draft.length}. Chỉ cập nhật danh sách sau khi nhấn Áp dụng.`}
     footer={<><Button onClick={onCancel}>Hủy</Button>
       <Button variant="primary" disabled={loading || !!error || rows === undefined} onClick={() => onApply(draft)}>Áp dụng</Button></>}>
-    {bulkSelection && <div className="row-wrap">
+    <DataTable urlState={false} title="Tìm kiếm và chọn" rows={rows} loading={loading} error={error}
+      beforeTable={bulkSelection && <div className="row-wrap" style={{ marginBottom: 12 }}>
       <Button disabled={loading || !!error || !rows?.length || rows.every(row => draft.includes(row.id))}
         onClick={() => setDraft(ids => [...new Set([...ids, ...(rows ?? []).map(row => row.id)])])}>Chọn tất cả</Button>
       <Button disabled={draft.length === 0} onClick={() => setDraft([])}>Bỏ chọn tất cả</Button>
       <span className="muted small">Chọn tất cả nhà bán lẻ trong danh sách, gồm các trang khác và ngoài kết quả tìm kiếm.</span>
-    </div>}
-    <DataTable urlState={false} title="Tìm kiếm và chọn" rows={rows} loading={loading} error={error}
+      </div>}
       rowKey={row => row.id} pageSize={5} searchPlaceholder={searchPlaceholder}
       emptyText="Không tìm thấy mục phù hợp."
       columns={[{ key: 'select', header: 'Chọn', width: '80px',
