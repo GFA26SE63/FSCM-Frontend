@@ -58,7 +58,6 @@ export function DeliverySettingsForm({ settings, schedule }: { settings: SystemS
     </Card>
     <div className="config-actions">
       <Button variant="primary" disabled={!valid} loading={save.isPending} onClick={submit}>Lưu điều kiện và thời gian giao hàng</Button>
-      <span className="muted small">Lưu chung cả hai phần · múi giờ {schedule.timeZone}</span>
     </div>
   </div>;
 }

@@ -1,6 +1,7 @@
+import { ExpandableRecord } from '@/shared/ui/ExpandableRecord';
 import { useCurrentTime } from '@/shared/hooks';
 import { useState } from 'react';
-import { Button, Callout, Chip, Input, SimpleTable } from '@/shared/ui';
+import { Button, Callout, Chip, FormField, Input, Modal, QueryState, SimpleTable } from '@/shared/ui';
 import { formatInstantDate, formatMoney, minimumVersionDate } from '@/shared/lib';
 import { validMinutes, validKilometers, validMoney } from '../validation';
 import { usePublishTransitTable, useTransitHistory } from '../hooks';
@@ -75,7 +76,7 @@ export function TransitTableSection({ current }: { current: TransitTable }) {
   const [servingKm, setServingKm] = useState(String(current.maxServingDistanceMeters / 1000));
   const [effectiveFrom, setEffectiveFrom] = useState('');
   const [note, setNote] = useState('');
-  const [showHistory, setShowHistory] = useState(false);
+  const [addDraft, setAddDraft] = useState<BandDraft | null>(null);
   const publish = usePublishTransitTable();
   const history = useTransitHistory();
 
@@ -85,9 +86,9 @@ export function TransitTableSection({ current }: { current: TransitTable }) {
   const set = (i: number, patch: Partial<BandDraft>) =>
     setDraft(draft.map((d, j) => (j === i ? { ...d, ...patch } : d)));
 
-  const addBand = () => {
-    const lastMax = draft.length > 0 ? draft[draft.length - 1].maxKm : '0';
-    setDraft([...draft, { minKm: lastMax, maxKm: '', handlingMinutes: '60', transitMinutes: '1440', cost: '0' }]);
+  const openAddBand = () => {
+    const lastMax = Math.max(0, ...draft.map(band => num(band.maxKm)).filter(Number.isFinite));
+    setAddDraft({ minKm: String(lastMax), maxKm: '', handlingMinutes: '60', transitMinutes: '1440', cost: '0' });
   };
 
   const onPublish = async () => {
@@ -111,50 +112,38 @@ export function TransitTableSection({ current }: { current: TransitTable }) {
   };
 
   return (
-    <div className="stack-sm">
+    <div className="config-sections">
       <div className="row gap-sm items-center">
         <Chip tone="ok">Phiên bản {current.version} · {new Date(current.effectiveFrom).getTime() > now ? 'Chờ hiệu lực' : 'Đang áp dụng'}</Chip>
         <span className="muted small">Hiệu lực từ {formatInstantDate(current.effectiveFrom)}</span>
-        <Button size="sm" variant="ghost" onClick={() => setShowHistory(!showHistory)}>
-          {showHistory ? 'Ẩn lịch sử' : 'Xem lịch sử'}
-        </Button>
       </div>
 
-      {showHistory && (
-        <SimpleTable
-          rows={history.data ?? []}
-          columns={[
-            { header: 'Phiên bản', cell: (t) => `v${t.version}` },
-            { header: 'Hiệu lực từ', cell: (t) => formatInstantDate(t.effectiveFrom) },
-            { header: 'Đến', cell: (t) => (t.effectiveTo ? formatInstantDate(t.effectiveTo) : new Date(t.effectiveFrom).getTime() > now ? 'Chờ hiệu lực' : 'Đang áp dụng') },
-            { header: 'Số khoảng', cell: (t) => t.bands.length },
-            { header: 'Ghi chú', cell: (t) => t.note ?? '—' },
-          ]}
-        />
-      )}
-
+      <div className="transit-editor">
+        <div className="transit-table-toolbar">
+          <Button size="sm" variant="primary" onClick={openAddBand}>Thêm khoảng</Button>
+        </div>
       <SimpleTable
         rows={draft}
         columns={[
           {
             header: 'Từ (km)', width: '110px',
-            cell: (_, i) => <Input className="inp-sm" inputMode="decimal" value={draft[i].minKm} onChange={(e) => set(i, { minKm: e.target.value })} />,
+            cell: (_, i) => <Input className="inp-sm" inputMode="decimal" aria-label={`Từ km dòng ${i + 1}`} value={draft[i].minKm} onChange={(e) => set(i, { minKm: e.target.value })} />,
           },
           {
             header: 'Đến (km)', width: '110px',
-            cell: (_, i) => <Input className="inp-sm" inputMode="decimal" value={draft[i].maxKm} onChange={(e) => set(i, { maxKm: e.target.value })} />,
+            cell: (_, i) => <Input className="inp-sm" inputMode="decimal" aria-label={`Đến km dòng ${i + 1}`} value={draft[i].maxKm} onChange={(e) => set(i, { maxKm: e.target.value })} />,
           },
           {
             header: 'Soạn (phút)', width: '120px',
-            cell: (_, i) => <Input className="inp-sm" inputMode="numeric" value={draft[i].handlingMinutes} onChange={(e) => set(i, { handlingMinutes: e.target.value })} />,
+            cell: (_, i) => <Input className="inp-sm" inputMode="numeric" aria-label={`Thời gian soạn dòng ${i + 1}`} value={draft[i].handlingMinutes} onChange={(e) => set(i, { handlingMinutes: e.target.value })} />,
           },
           {
             header: 'Vận chuyển (phút)', width: '150px',
-            cell: (_, i) => <Input className="inp-sm" inputMode="numeric" value={draft[i].transitMinutes} onChange={(e) => set(i, { transitMinutes: e.target.value })} />,
+            cell: (_, i) => <Input className="inp-sm" inputMode="numeric" aria-label={`Thời gian vận chuyển dòng ${i + 1}`} value={draft[i].transitMinutes} onChange={(e) => set(i, { transitMinutes: e.target.value })} />,
           },
           {
             header: 'Chi phí ước tính (VND)', width: '180px',
-            cell: (_, i) => <Input className="inp-sm" inputMode="numeric" value={draft[i].cost} onChange={(e) => set(i, { cost: e.target.value })} />,
+            cell: (_, i) => <Input className="inp-sm" inputMode="numeric" aria-label={`Chi phí ước tính dòng ${i + 1}`} value={draft[i].cost} onChange={(e) => set(i, { cost: e.target.value })} />,
           },
           {
             header: '', width: '60px',
@@ -165,8 +154,9 @@ export function TransitTableSection({ current }: { current: TransitTable }) {
         ]}
       />
 
-      <div className="row gap-sm items-end">
-        <Button size="sm" variant="ghost" onClick={addBand}>+ Thêm khoảng</Button>
+      </div>
+
+      <div className="config-fields config-fields--three">
         <label className="stack-xs small">
           Bán kính phục vụ (km)
           <Input className="inp-sm" inputMode="decimal" value={servingKm} onChange={(e) => setServingKm(e.target.value)} />
@@ -187,21 +177,76 @@ export function TransitTableSection({ current }: { current: TransitTable }) {
         </Callout>
       )}
 
-      <div className="row gap-sm items-center">
+      <div className="config-actions">
         <Button variant="primary" disabled={errors.length > 0 || publish.isPending} onClick={onPublish}>
           Phát hành phiên bản mới
         </Button>
-        <span className="muted small">
-          Phát hành không ghi đè: phiên bản {current.version} Được đóng lại và giữ nguyên để giải thích các đợt đã chạy.
-          Chi phí chỉ để tham khảo, không tham gia chấm điểm chọn lô hàng.
-        </span>
       </div>
 
-      {current.bands.length > 0 && (
-        <span className="muted small">
-          Nội dung phiên bản mới nhất: {current.bands.map((b) => `${b.minDistanceMeters / 1000}–${b.maxDistanceMeters / 1000} km · ${b.transitMinutes} phút · ${formatMoney(b.estimatedCostAmount)}`).join('  |  ')}
-        </span>
-      )}
+      <section className="transit-history" aria-label="Lịch sử bảng vận chuyển">
+        <h3 className="sec">Lịch sử</h3>
+        <QueryState query={history}>{tables => tables.length === 0
+          ? <p>Chưa có lịch sử bảng vận chuyển.</p>
+          : [...tables].sort((a, b) => b.version - a.version).map(table =>
+            <ExpandableRecord key={table.id} title={`Phiên bản ${table.version}`}
+              subtitle={`Hiệu lực từ ${formatInstantDate(table.effectiveFrom)}${table.effectiveTo ? ` đến ${formatInstantDate(table.effectiveTo)}` : ''}`}
+              meta={`${table.bands.length} khoảng`} actionLabel="Chi tiết">
+              <div className="config-section-body">
+                <div className="row gap-sm items-center">
+                  <Chip tone={table.effectiveTo && new Date(table.effectiveTo).getTime() <= now ? 'neutral' : new Date(table.effectiveFrom).getTime() > now ? 'warn' : 'ok'}>
+                    {table.effectiveTo && new Date(table.effectiveTo).getTime() <= now ? 'Đã kết thúc' : new Date(table.effectiveFrom).getTime() > now ? 'Chờ hiệu lực' : 'Đang áp dụng'}
+                  </Chip>
+                  <span>Bán kính phục vụ: {table.maxServingDistanceMeters / 1000} km</span>
+                </div>
+                {table.note && <p>Ghi chú: {table.note}</p>}
+                <SimpleTable rows={table.bands} paginate={false} columns={[
+                  { header: 'Từ (km)', cell: b => b.minDistanceMeters / 1000 },
+                  { header: 'Đến (km)', cell: b => b.maxDistanceMeters / 1000 },
+                  { header: 'Soạn (phút)', cell: b => b.handlingMinutes },
+                  { header: 'Vận chuyển (phút)', cell: b => b.transitMinutes },
+                  { header: 'Chi phí ước tính (VND)', cell: b => formatMoney(b.estimatedCostAmount) },
+                ]} />
+              </div>
+            </ExpandableRecord>)
+        }</QueryState>
+      </section>
+      {addDraft && <AddBandDialog initial={addDraft} existing={draft} onClose={() => setAddDraft(null)}
+        onAdd={band => { setDraft([...draft, band]); setAddDraft(null); }} />}
     </div>
   );
+}
+
+
+function AddBandDialog({ initial, existing, onAdd, onClose }: {
+  initial: BandDraft; existing: BandDraft[]; onAdd: (band: BandDraft) => void; onClose: () => void;
+}) {
+  const [band, setBand] = useState(initial);
+  const min = num(band.minKm), max = num(band.maxKm);
+  const errors: string[] = [];
+  if (!validKilometers(min) || !validKilometers(max) || max <= min)
+    errors.push('Nhập khoảng cách hợp lệ; km kết thúc phải lớn hơn km bắt đầu.');
+  if (!validMinutes(band.handlingMinutes) || !validMinutes(band.transitMinutes) ||
+      num(band.handlingMinutes) + num(band.transitMinutes) > 2147483647)
+    errors.push('Thời gian phải là số phút nguyên không âm, tổng không vượt 2147483647.');
+  if (!validMoney(num(band.cost))) errors.push('Chi phí phải là số không âm, tối đa 2 chữ số thập phân.');
+  if (existing.some(row => min < num(row.maxKm) && max > num(row.minKm)))
+    errors.push('Khoảng cách này chồng lên một khoảng đã có.');
+  const update = (field: keyof BandDraft, value: string) => setBand({ ...band, [field]: value });
+  const submit = () => { if (errors.length) return; onAdd(band); };
+  return <Modal open title="Thêm khoảng cách vận chuyển" onClose={onClose} width={640}
+    footer={<>
+      <Button onClick={onClose}>Hủy</Button>
+      <Button variant="primary" disabled={errors.length > 0} onClick={submit}>Thêm khoảng</Button>
+    </>}>
+    <div className="config-section-body">
+      <div className="form-grid cols-2">
+        <FormField label="Từ (km)"><Input autoFocus inputMode="decimal" value={band.minKm} onChange={e => update('minKm', e.target.value)} /></FormField>
+        <FormField label="Đến (km)"><Input inputMode="decimal" value={band.maxKm} onChange={e => update('maxKm', e.target.value)} /></FormField>
+        <FormField label="Soạn (phút)"><Input inputMode="numeric" value={band.handlingMinutes} onChange={e => update('handlingMinutes', e.target.value)} /></FormField>
+        <FormField label="Vận chuyển (phút)"><Input inputMode="numeric" value={band.transitMinutes} onChange={e => update('transitMinutes', e.target.value)} /></FormField>
+        <FormField label="Chi phí ước tính (VND)"><Input inputMode="decimal" value={band.cost} onChange={e => update('cost', e.target.value)} /></FormField>
+      </div>
+      {errors.length > 0 && <Callout tone="warn"><ul>{errors.map(error => <li key={error}>{error}</li>)}</ul></Callout>}
+    </div>
+  </Modal>;
 }

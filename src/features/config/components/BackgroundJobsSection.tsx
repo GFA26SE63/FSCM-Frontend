@@ -35,7 +35,6 @@ export function BackgroundJobsSection({ current }: { current: BackgroundJobs }) 
     && /^([01]\d|2[0-3]):[0-5]\d$/.test(draft.dateTracker.runAtLocalTime)
     && integerInRange(pollSeconds, 1, 300) && integerInRange(batchSize, 1, 500);
   return <div className="config-sections">
-    <Callout tone="info">Tác vụ nhận cấu hình ở lượt kiểm tra tiếp theo, thường trong 15 giây. Tắt tác vụ không hủy lượt đang chạy.</Callout>
     <Card title="Kiểm tra hạn sử dụng lô hàng">
       <div className="config-section-body">
         <ToggleSwitch label="Bật kiểm tra hạn sử dụng lô hàng" checked={draft.dateTracker.enabled} onChange={enabled => setDraft({ ...draft, dateTracker: { ...draft.dateTracker, enabled } })} />

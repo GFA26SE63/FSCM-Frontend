@@ -36,7 +36,6 @@ export function PaymentSettingsForm({ deadline, linkLifetime }: {
     </Card>
     <div className="config-actions">
       <Button variant="primary" disabled={!valid} loading={save.isPending} onClick={submit}>Lưu cấu hình báo giá và thanh toán</Button>
-      <span className="muted small">Lưu chung hạn thanh toán và thời hạn link PayOS.</span>
     </div>
   </div>;
 }

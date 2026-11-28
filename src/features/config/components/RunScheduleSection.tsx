@@ -71,9 +71,6 @@ export function RunScheduleSection({ current }: { current: RunSchedule }) {
         <Button variant="primary" disabled={errors.length > 0} loading={publish.isPending} onClick={submit}>
           Lưu cấu hình thời gian nhận dự kiến
         </Button>
-        <span style={{ fontSize: 12.5, opacity: 0.75 }}>
-          Bản {current.scheduleVersion} · múi giờ {current.timeZone}
-        </span>
       </div>
     </div>
   );
